@@ -85,7 +85,8 @@ void Render() {
     g_pImmediateContext->ClearRenderTargetView(g_pRenderTargetView.Get(), clearColor);
 
     // ----- BẮT ĐẦU DÙNG DIRECTXTK VẼ 2D -----
-    g_SpriteBatch->Begin();
+    // g_SpriteBatch->Begin();
+    g_SpriteBatch->Begin(SpriteSortMode_Deferred, nullptr, nullptr, nullptr, nullptr, nullptr, DirectX::XMMatrixIdentity());
 
     // Xác định khung chữ nhật cần vẽ (x, y, chiều rộng, chiều cao)
     RECT destRect = { 300, 200, 500, 400 }; 

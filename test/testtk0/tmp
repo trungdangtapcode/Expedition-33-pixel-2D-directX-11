@@ -2,3 +2,4 @@ cl.exe /EHsc /MD test.cpp /I "D:\lab\vscworkplace\directX\vcpkg\installed\x64-wi
 
 cl.exe /EHsc /MD /std:c++17 /D UNICODE /D _UNICODE test.cpp /I "D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\include\directxtk" /link /LIBPATH:"D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\lib" DirectXTK.lib d3d11.lib user32.lib
 
+cl.exe /EHsc /MD /std:c++17 /D UNICODE /D _UNICODE test.cpp /I "D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\include" /I "D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\include\directxtk" /link /LIBPATH:"D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\lib" DirectXTK.lib d3d11.lib user32.lib

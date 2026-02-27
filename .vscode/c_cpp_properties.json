@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "Windows",
+            "includePath": [
+                "${workspaceFolder}/**",
+                "C:/Program Files (x86)/Windows Kits/10/Include/**",
+                "C:/Program Files (x86)/Windows Kits/10/Include/*/um",
+                "C:/Program Files (x86)/Windows Kits/10/Include/*/shared",
+                "C:/Program Files (x86)/Windows Kits/10/Include/*/ucrt",
+                "C:/Program Files (x86)/Microsoft DirectX SDK (June 2010)/Include",
+                "D:/lab/vscworkplace/directX/vcpkg/installed/x64-windows/include"
+            ],
+            "defines": [
+                "WIN32",
+                "_WINDOWS",
+                "UNICODE", // idk it's important 
+                "_UNICODE" 
+            ],  
+            "compilerPath": "D:/VisualStudio/2022/BuildTools/VC/Tools/MSVC/14.40.33807/bin/Hostx64/x64/cl.exe",
+            "cStandard": "c11",
+            "cppStandard": "c++17",
+            "intelliSenseMode": "msvc-x64"
+        }
+    ],
+    "version": 4
+}

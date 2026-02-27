@@ -1,0 +1,9 @@
+assets/
+vcpkg/
+vc140.pdb
+
+*.dll
+*.exe
+*.pdb
+*.obj
+*.ilk

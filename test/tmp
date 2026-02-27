@@ -1,0 +1,1 @@
+cl test.cpp user32.lib dxgi.lib d3d11.lib

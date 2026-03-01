@@ -2,55 +2,55 @@
 #include <cassert>
 
 StateManager& StateManager::Get() {
-    // Meyers' Singleton: thread-safe kể từ C++11
+    // Meyers' Singleton: thread-safe from C++11
     static StateManager instance;
     return instance;
 }
 
 void StateManager::PushState(std::unique_ptr<IGameState> state) {
-    assert(state != nullptr && "StateManager::PushState - state không được là nullptr");
+    assert(state != nullptr && "StateManager::PushState - state must not be nullptr");
 
-    // Nếu đang có state, tạm "pause" nó (không gọi gì thêm ở đây -
-    // state dưới sẽ không bị Update/Render nữa vì Update/Render
-    // chỉ gọi top của stack)
+    // If there is a current state, temporarily "pause" it (no additional calls here -
+    // the state below will not be Update/Render anymore because Update/Render
+    // only calls the top of the stack)
     state->OnEnter();
     mStates.push(std::move(state));
 }
 
 void StateManager::PopState() {
     if (!mStates.empty()) {
-        mStates.top()->OnExit();   // Dọn dẹp trước khi xóa
-        mStates.pop();             // Giải phóng unique_ptr → bộ nhớ tự động free
+        mStates.top()->OnExit();   // Call to clean up before deleting
+        mStates.pop();             // Release unique_ptr → memory automatically freed
 
-        // Nếu còn state phía dưới, không cần gọi OnEnter lại -
-        // state đó đã được init từ trước, chỉ cần tiếp tục Update/Render
+        // If there is a state below, no need to call OnEnter again -
+        // that state was already initialized before, just continue Update/Render
     }
 }
 
 void StateManager::ChangeState(std::unique_ptr<IGameState> state) {
-    assert(state != nullptr && "StateManager::ChangeState - state không được là nullptr");
+    assert(state != nullptr && "StateManager::ChangeState - state must not be nullptr");
 
-    // Pop state hiện tại (nếu có)
+    // Pop current state (if any)
     if (!mStates.empty()) {
         mStates.top()->OnExit();
         mStates.pop();
     }
-    // Push state mới
+    // Push new state
     state->OnEnter();
     mStates.push(std::move(state));
 }
 
 void StateManager::Update(float dt) {
     if (!mStates.empty()) {
-        // Chỉ Update state đang ở đỉnh stack
+        // Only update the state at the top of the stack
         mStates.top()->Update(dt);
     }
 }
 
 void StateManager::Render() {
     if (!mStates.empty()) {
-        // Chỉ Render state đang ở đỉnh stack
-        // (Mở rộng sau: có thể render nhiều state nếu state dưới là "transparent")
+        // Only render the state at the top of the stack
+        // (Future extension: can render multiple states if the state below is "transparent")
         mStates.top()->Render();
     }
 }

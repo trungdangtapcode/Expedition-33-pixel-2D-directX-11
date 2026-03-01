@@ -1,13 +1,28 @@
+// ============================================================
+// File: GameApp.cpp
+// Responsibility: Win32 window creation, main game loop, and coordinator.
+//
+// Owns: HWND, GameTimer, and the top-level Update/Render calls.
+//       Does NOT own game logic — that belongs to States and Systems.
+//
+// Lifetime: Created in main.cpp (WinMain), lives until the process exits.
+//
+// Important:
+//   - AllocConsole() is called in Initialize (DEBUG builds only) to attach
+//     a console window so LOG() output is visible without external tools.
+//   - UNICODE is defined via /DUNICODE in build_src.bat; never #define it here.
+// ============================================================
 #include "GameApp.h"
 #include "../Renderer/D3DContext.h"
 #include "../States/StateManager.h"
 #include "../States/MenuState.h"
+#include "../Utils/Log.h"
 #include <sstream>
 
-// Static instance pointer - dùng trong WindowProc
+// Static instance pointer - used in WindowProc
 GameApp* GameApp::sInstance = nullptr;
 
-// Win32 Window Procedure (global function, forward vào GameApp)
+// Win32 Window Procedure (global function, forward to GameApp)
 static LRESULT CALLBACK WindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     if (GameApp::GetInstance())
         return GameApp::GetInstance()->HandleMessage(hWnd, msg, wParam, lParam);
@@ -27,6 +42,22 @@ GameApp::~GameApp() {
 bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
                          int width, int height)
 {
+#ifdef _DEBUG
+    // ------------------------------------------------------------
+    // Attach a console window to this process (DEBUG builds only).
+    // Why: WinMain apps have no console by default (/SUBSYSTEM:WINDOWS).
+    //      AllocConsole() creates one so that LOG() output via printf()
+    //      is visible immediately without needing an external tool.
+    // Caveat: freopen_s must redirect stdout/stderr AFTER AllocConsole(),
+    //         otherwise printf goes nowhere.
+    // ------------------------------------------------------------
+    AllocConsole();
+    FILE* dummy;
+    freopen_s(&dummy, "CONOUT$", "w", stdout);  // Route printf to console
+    freopen_s(&dummy, "CONOUT$", "w", stderr);  // Route error output to console
+    LOG("[GameApp] Debug console attached.");
+#endif
+
     mHInstance = hInstance;
     mTitle     = title;
     mWidth     = width;
@@ -36,8 +67,9 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
 
     if (!D3DContext::Get().Initialize(mHwnd, mWidth, mHeight)) return false;
 
-    // Đẩy State ban đầu vào stack (MenuState)
+    // Push initial state onto the stack — MenuState is the entry point of the game.
     StateManager::Get().PushState(std::make_unique<MenuState>());
+    LOG("[GameApp] Initialized. First state: MenuState.");
 
     return true;
 }
@@ -53,7 +85,8 @@ bool GameApp::InitWindow(HINSTANCE hInstance) {
     wc.lpszClassName = L"GameAppWindowClass";
     RegisterClassEx(&wc);
 
-    // Tính kích thước cửa sổ sao cho vùng CLIENT đúng mWidth x mHeight
+    // Calculate window size so that the CLIENT area is exactly mWidth x mHeight.
+    // AdjustWindowRect expands the rect to account for title bar and borders.
     RECT wr = { 0, 0, mWidth, mHeight };
     AdjustWindowRect(&wr, WS_OVERLAPPEDWINDOW, FALSE);
 
@@ -69,25 +102,29 @@ bool GameApp::InitWindow(HINSTANCE hInstance) {
     );
 
     if (!mHwnd) return false;
+
+    // Show the window before D3D init to avoid a black flash on startup.
     ShowWindow(mHwnd, SW_SHOW);
     UpdateWindow(mHwnd);
     return true;
 }
 
 // ============================================================
-// GAME LOOP CHÍNH - Theo đúng chuẩn trong gameloop.md
+// MAIN GAME LOOP — follows the canonical structure in docs/gameloop.md
 // ============================================================
 int GameApp::Run() {
     MSG msg = {};
     mTimer.Reset();
 
     while (msg.message != WM_QUIT) {
-        // 1. Ưu tiên xử lý sự kiện Windows
+        // 1. Drain the Win32 message queue first.
+        //    PeekMessage returns immediately (non-blocking) so the game
+        //    loop never stalls waiting for input events.
         if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        // 2. Không có sự kiện → chạy game
+        // 2. No pending messages — run one game frame.
         else {
             mTimer.Tick();
 
@@ -96,8 +133,8 @@ int GameApp::Run() {
                 Update(mTimer.DeltaTime());
                 Render();
             } else {
-                // Tránh ăn CPU 100% khi minimize hoặc mất focus
-                Sleep(16); // ~60fps sleep
+                // Sleep to avoid burning 100% CPU when minimized or focus lost.
+                Sleep(16); // ~60 Hz idle pace
             }
         }
     }
@@ -105,24 +142,26 @@ int GameApp::Run() {
 }
 
 void GameApp::Update(float dt) {
-    // Game Loop chỉ cần 1 dòng - không biết gì về logic cụ thể
+    // The game loop knows nothing about which state is active.
+    // Responsibility is fully delegated to StateManager.
     StateManager::Get().Update(dt);
 }
 
 void GameApp::Render() {
-    // Xóa màn hình trước khi State vẽ lên
+    // Clear the back buffer before any state draws into it.
     D3DContext::Get().BeginFrame(0.05f, 0.05f, 0.1f);
 
-    // State hiện tại tự vẽ
+    // The active state issues all draw calls.
     StateManager::Get().Render();
 
-    // Hiện kết quả lên màn hình
+    // Flip the back buffer to the screen.
     D3DContext::Get().EndFrame();
 }
 
 void GameApp::CalculateFrameStats() {
-    // Tính FPS và hiện lên thanh tiêu đề mỗi giây
-    static int   frameCnt  = 0;
+    // Accumulate frames over 1-second windows and display FPS in the title bar.
+    // Displaying every frame would cause the title bar to flicker.
+    static int   frameCnt    = 0;
     static float timeElapsed = 0.0f;
 
     frameCnt++;
@@ -148,25 +187,26 @@ void GameApp::OnResize(int newWidth, int newHeight) {
     mHeight = newHeight;
     D3DContext::Get().OnResize(newWidth, newHeight);
 
-    // Thông báo cho State biết màn hình đã thay đổi kích thước
-    // (mở rộng sau: Broadcast event "window_resize")
+    // Future: Broadcast a "window_resized" event so States can
+    // recompute camera projections and UI layout.
 }
 
 void GameApp::OnActivate(bool active) {
     mPaused = !active;
     if (active)
-        mTimer.Start(); // Tiếp tục đếm thời gian
+        mTimer.Start(); // Resume the high-res timer when the window regains focus.
     else
-        mTimer.Stop();  // Dừng đếm khi mất focus
+        mTimer.Stop();  // Freeze delta time while the window is inactive.
 }
 
 // ============================================================
-// XỬ LÝ SỰ KIỆN CỬA SỔ
+// WIN32 MESSAGE HANDLER
 // ============================================================
 LRESULT GameApp::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam) {
     switch (msg) {
     case WM_ACTIVATE:
-        // WA_INACTIVE = 0: cửa sổ mất focus (minimize, alt-tab)
+        // WA_INACTIVE (0): window lost focus (minimized or alt-tabbed).
+        // Pause the timer so deltaTime does not accumulate during inactivity.
         OnActivate(LOWORD(wParam) != WA_INACTIVE);
         return 0;
 

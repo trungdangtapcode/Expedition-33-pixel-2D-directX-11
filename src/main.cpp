@@ -1,10 +1,10 @@
-// main.cpp - Entry point của ứng dụng
+// main.cpp - Entry point of this game
 //
-// Đây là file DUY NHẤT chứa WinMain.
-// Toàn bộ logic được ủy quyền cho GameApp.
+// This is the ONLY file containing WinMain.
+// All logic is delegated to GameApp.
 // ============================================================
-// UNICODE được define qua /DUNICODE trong build script,
-// không cần define lại ở đây để tránh warning C4005
+// UNICODE defined via /DUNICODE in build script,
+// No need to redefine it here to avoid warning C4005
 #include <windows.h>
 #include "Core/GameApp.h"
 
@@ -12,7 +12,8 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     GameApp app;
 
     if (!app.Initialize(hInstance, L"My Game - DirectX 11", 1280, 720)) {
-        MessageBoxW(nullptr, L"Khởi tạo thất bại!", L"Lỗi", MB_OK | MB_ICONERROR);
+        MessageBoxW(nullptr, L"Initialization failed. See previous error dialog for details.",
+                    L"Fatal Error", MB_OK | MB_ICONERROR);
         return -1;
     }
 

@@ -4,61 +4,61 @@
 #include "IGameState.h"
 
 // ============================================================
-// StateManager - Quản lý stack các trạng thái game
+// StateManager - Stack-based manager for game states (Menu, Play, Pause, Cutscene...)
 //
 // PATTERN: Singleton + Stack-based State Machine
 //
-// Dùng STACK (không phải đơn giản là 1 con trỏ) vì:
-//   - Khi BattleState cần hiện PauseMenu, push PauseMenu lên stack.
-//     BattleState vẫn còn đó, chờ ở dưới.
-//   - Khi đóng PauseMenu, pop nó ra. BattleState tiếp tục.
-//   - Khi Boss 50% HP kích hoạt Cutscene:
-//     push CutsceneState → chạy → pop → BattleState tiếp tục.
+// Using a STACK (not just a simple pointer) because:
+//   - When BattleState need to show PauseMenu, push PauseMenu onto stack.
+//     BattleState remain underneath, waiting.
+//   - When closing PauseMenu, pop it off. BattleState resumes.
+//   - When Boss 50% HP triggers Cutscene:
+//     push CutsceneState → run → pop → BattleState resumes.
 //
-// CÁCH DÙNG:
+// USAGE:
 //   StateManager::Get().PushState(std::make_unique<MenuState>());
-//   StateManager::Get().Update(dt);   // gọi trong GameApp
-//   StateManager::Get().Render();     // gọi trong GameApp
+//   StateManager::Get().Update(dt);   // called in GameApp
+//   StateManager::Get().Render();     // called in GameApp
 // ============================================================
 class StateManager {
 public:
     // Singleton accessor
     static StateManager& Get();
 
-    // Không cho phép copy hoặc move Singleton
+    // Not allowing copy or move of Singleton
     StateManager(const StateManager&) = delete;
     StateManager& operator=(const StateManager&) = delete;
 
-    // --- Quản lý State Stack ---
+    // --- State Stack Management ---
 
-    // Đẩy state mới lên đỉnh stack và gọi OnEnter()
+    // Push new state onto the stack and call OnEnter()
     void PushState(std::unique_ptr<IGameState> state);
 
-    // Pop state hiện tại, gọi OnExit(), quay lại state phía dưới
+    // Pop the current state, call OnExit(), and return to the state below
     void PopState();
 
-    // Thay thế state hiện tại bằng state mới (Pop + Push cùng lúc)
-    // Dùng khi chuyển cảnh không cần quay lại (vd: MainMenu → InGame)
+    // Replace the current state with a new state (Pop + Push at the same time)
+    // Used when transitioning scenes without needing to return (e.g., MainMenu → InGame)
     void ChangeState(std::unique_ptr<IGameState> state);
 
-    // --- Vòng lặp chính - được GameApp gọi mỗi frame ---
+    // --- Main Loop - called by GameApp each frame ---
     void Update(float dt);
     void Render();
 
-    // Kiểm tra stack có rỗng không (nếu rỗng, game nên thoát)
+    // Check if the stack is empty (if empty, the game should exit)
     bool IsEmpty() const;
 
-    // Lấy state đang active (đỉnh stack) để debug
+    // Get the currently active state (top of the stack) for debugging
     IGameState* GetCurrentState() const;
 
 private:
     StateManager() = default;
 
-    // Stack các state - đỉnh stack là state đang active
-    // unique_ptr đảm bảo tự động giải phóng bộ nhớ
+    // Stack the state - top of the stack is the currently active state
+    // unique_ptr ensures automatic memory management
     std::stack<std::unique_ptr<IGameState>> mStates;
 
-    // Cờ cho biết cần xử lý thay đổi state ở đầu frame tiếp theo
-    // (tránh thay đổi stack TRONG khi đang Update - gây undefined behavior)
+    // Flag indicating whether a state change needs to be processed at the beginning of the next frame
+    // (avoids modifying the stack DURING Update - which would cause undefined behavior). NOTE: This flag is checked in the Update() method.
     bool mPendingPop = false;
 };

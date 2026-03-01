@@ -4,18 +4,18 @@
 #include "GameTimer.h"
 
 // ============================================================
-// GameApp - Lớp ứng dụng chính (Application Layer)
+// GameApp - Main layer of the application (Application Layer)
 //
-// Trách nhiệm:
-//   1. Tạo và quản lý cửa sổ Win32
-//   2. Chứa Game Loop chính (theo chuẩn trong gameloop.md)
-//   3. Kết nối D3DContext, StateManager, GameTimer với nhau
+// Responsibilities:
+//   1. Create and manage the Win32 window
+//   2. Contain the main Game Loop (according to the standard in gameloop.md)
+//   3. Connect D3DContext, StateManager, and GameTimer together
 //
-// GameApp KHÔNG làm:
-//   - Logic game (nhân vật, va chạm, AI...)
-//   - Vẽ đồ họa cụ thể (đó là việc của từng State)
+// GameApp DOES NOT:
+//   - Handle game logic (characters, collisions, AI...)
+//   - Render specific graphics (that is the responsibility of each State)
 //
-// CÁCH DÙNG trong main.cpp:
+// USAGE in main.cpp:
 //   GameApp app;
 //   if (!app.Initialize(hInstance, L"My Game", 1280, 720))
 //       return -1;
@@ -26,41 +26,43 @@ public:
     GameApp();
     ~GameApp();
 
-    // Khởi tạo cửa sổ Win32 + DirectX + StateManager
+    // Initialize Win32 window + DirectX + StateManager
     bool Initialize(HINSTANCE hInstance, const std::wstring& title,
                     int width = 1280, int height = 720);
 
-    // Vòng lặp chính - trả về exit code khi kết thúc
+    // Main loop - returns exit code when finished
     int Run();
 
-    // Win32 callback - phải public để WindowProc có thể gọi
+    // Win32 callback - must be public for WindowProc to call
     LRESULT HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-    // Lấy instance hiện tại (để WindowProc forward message vào)
+    // Get the current instance (for WindowProc to forward messages into)
     static GameApp* GetInstance() { return sInstance; }
 
 private:
-    // --- Khởi tạo nội bộ ---
+    // --- Internal initialization ---
     bool InitWindow(HINSTANCE hInstance);
-    void CalculateFrameStats(); // Hiện FPS lên thanh tiêu đề
+    void CalculateFrameStats(); // Display FPS in the window title
 
-    // --- Mỗi frame ---
+    // --- Per-frame ---
     void Update(float dt);
     void Render();
 
-    // --- Xử lý thay đổi cửa sổ ---
+    // --- Handle window resize ---
     void OnResize(int newWidth, int newHeight);
     void OnActivate(bool active);
 
-    // --- Dữ liệu ---
+    // --- Data ---
     HWND         mHwnd      = nullptr;
     HINSTANCE    mHInstance = nullptr;
     std::wstring mTitle;
     int          mWidth     = 1280;
     int          mHeight    = 720;
-    bool         mPaused    = false; // Khi minimize hoặc mất focus
+    bool         mPaused    = false; // When minimized or lost focus
 
     GameTimer    mTimer;
 
-    static GameApp* sInstance; // Con trỏ static để WindowProc forward message
+    // Static instance pointer - used for WindowProc to forward messages
+    // Because WindowProc is a global function, it cannot be a member of GameApp. To allow it to forward messages to the correct GameApp instance, we use a static pointer that is set when the GameApp is created. This way, WindowProc can call GameApp::GetInstance() to get the current instance and call its HandleMessage method.
+    static GameApp* sInstance; // Static pointer for WindowProc to forward messages
 };

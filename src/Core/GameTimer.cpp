@@ -5,26 +5,26 @@ GameTimer::GameTimer()
       mBaseTime(0), mPausedTime(0), mStopTime(0),
       mPrevTime(0), mCurrTime(0), mStopped(false)
 {
-    // Lấy tần số của bộ đếm hiệu năng cao của CPU
-    // Tần số này cố định trong suốt vòng đời của process
+    // Get the frequency of the high-resolution performance counter of the CPU
+    // This frequency is fixed throughout the lifetime of the process
     __int64 countsPerSec = 0;
     QueryPerformanceFrequency((LARGE_INTEGER*)&countsPerSec);
     mSecondsPerCount = 1.0 / (double)countsPerSec;
 }
 
-// TotalTime: thời gian game đã chạy, KHÔNG tính thời gian pause
+// TotalTime: time the game has been running, NOT including paused time
 //
-// Timeline minh họa:
+// Timeline illustration:
 //   |--pausedTime--|
 //   start  stop  start   stop  start
 //   |       |     |        |     |----> t
-// Các đoạn paused được trừ đi khỏi TotalTime
+// Paused segments are subtracted from TotalTime
 float GameTimer::TotalTime() const {
     if (mStopped) {
-        // Đang pause: không tính thời gian từ lúc stop đến hiện tại
+        // Paused: do not count time from stop to now
         return (float)(((mStopTime - mPausedTime) - mBaseTime) * mSecondsPerCount);
     } else {
-        // Đang chạy: trừ toàn bộ thời gian đã pause ra khỏi tổng
+        // Running: subtract all paused time from total
         return (float)(((mCurrTime - mPausedTime) - mBaseTime) * mSecondsPerCount);
     }
 }

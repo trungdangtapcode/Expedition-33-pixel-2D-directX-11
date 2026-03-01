@@ -10,7 +10,8 @@
 // ============================================================
 class MenuState : public IGameState {
 public:
-    void OnEnter() override;
+    void OnEnter() override; 
+    // override in C++ meanings this function is meant to override a virtual function in the base class (IGameState).
     void OnExit()  override;
     void Update(float dt) override;
     void Render()  override;

@@ -203,6 +203,10 @@ void D3DContext::OnResize(int newWidth, int newHeight) {
 }
 
 void D3DContext::BeginFrame(float r, float g, float b) {
+    // Re-bind RTV+DSV mỗi frame — đảm bảo pipeline luôn đúng target
+    ID3D11RenderTargetView* rtv = mRenderTarget.Get();
+    mContext->OMSetRenderTargets(1, &rtv, mDepthStencilView.Get());
+
     float clearColor[4] = { r, g, b, 1.0f };
     mContext->ClearRenderTargetView(mRenderTarget.Get(), clearColor);
     mContext->ClearDepthStencilView(mDepthStencilView.Get(),

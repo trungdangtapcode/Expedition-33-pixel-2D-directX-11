@@ -1,4 +1,5 @@
 @echo off
+setlocal enabledelayedexpansion
 REM ============================================================
 REM build_src.bat — Compile the full src/ project.
 REM Run from workspace root: D:\lab\vscworkplace\directX\
@@ -28,12 +29,18 @@ REM Mixing /MD with /D_DEBUG is the root cause of LNK2019 on _CrtDbgReport.
 if /I "%BUILD_TYPE%"=="Release" (
     set CRT_FLAG=/MD
     set OPT_FLAG=/O2 /DNDEBUG
+    REM Release: link against the Release DirectXTK lib
+    set DXTK_LIB_DIR=%VCPKG_DIR%\lib
 ) else (
     set CRT_FLAG=/MDd
     set OPT_FLAG=/Zi /D_DEBUG
+    REM Debug: link against the Debug DirectXTK lib (built with /MDd).
+    REM Using the Release lib with /MDd causes LNK2001 on static members
+    REM that reference debug-CRT internals (e.g. SpriteBatch::MatrixIdentity).
+    set DXTK_LIB_DIR=%VCPKG_DIR%\debug\lib
 )
 
-REM Tìm phiên bản Windows SDK
+REM Find the Windows SDK version
 for /f "delims=" %%i in ('dir /b /ad "%WINSDK_DIR%\Include" 2^>nul') do set WINSDK_VER=%%i
 
 set PATH=%MSVC_DIR%\bin\Hostx64\x64;%PATH%
@@ -62,33 +69,42 @@ cl.exe ^
     src\States\StateManager.cpp ^
     src\States\MenuState.cpp ^
     src\States\PlayState.cpp ^
+    src\Renderer\CircleRenderer.cpp ^
+    src\Renderer\SpriteRenderer.cpp ^
+    src\Renderer\UIRenderer.cpp ^
+    src\Renderer\WorldRenderer.cpp ^
     src\Events\EventManager.cpp ^
+    src\Debug\DebugTextureViewer.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\shared" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\ucrt" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\winrt" ^
     /I "%VCPKG_DIR%\include" ^
+    /I "%VCPKG_DIR%\include\directxtk" ^
     /I "src" ^
     /link ^
     /LIBPATH:"%MSVC_DIR%\lib\x64" ^
     /LIBPATH:"%WINSDK_DIR%\Lib\%WINSDK_VER%\um\x64" ^
     /LIBPATH:"%WINSDK_DIR%\Lib\%WINSDK_VER%\ucrt\x64" ^
-    /LIBPATH:"%VCPKG_DIR%\lib" ^
+    /LIBPATH:"%DXTK_LIB_DIR%" ^
     user32.lib ^
     gdi32.lib ^
     d3d11.lib ^
     dxgi.lib ^
+    d3dcompiler.lib ^
     DirectXTK.lib ^
     /SUBSYSTEM:WINDOWS
 
 if %ERRORLEVEL% == 0 (
     echo.
     echo [OK] Build succeeded ^> %OUT_DIR%\game.exe  [%BUILD_TYPE%]
-    REM Copy the DirectXTK DLL next to the executable if not already present.
-    if not exist %OUT_DIR%\DirectXTK.dll (
-        copy "%VCPKG_DIR%\bin\DirectXTK.dll" %OUT_DIR%\ >nul
-    )
+    REM Copy the correct DirectXTK DLL (debug or release) next to the executable.
+    REM Debug build links against the debug DLL; using the release DLL with /MDd
+    REM will crash at startup with a CRT mismatch assertion.
+    set DXTK_DLL_DIR=%VCPKG_DIR%\bin
+    if /I "%BUILD_TYPE%"=="Debug" set DXTK_DLL_DIR=%VCPKG_DIR%\debug\bin
+    copy "!DXTK_DLL_DIR!\DirectXTK.dll" %OUT_DIR%\ >nul
 ) else (
     echo.
     echo [ERROR] Build failed. See errors above.

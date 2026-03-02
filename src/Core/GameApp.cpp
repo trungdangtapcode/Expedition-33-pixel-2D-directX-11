@@ -16,6 +16,7 @@
 #include "../Renderer/D3DContext.h"
 #include "../States/StateManager.h"
 #include "../States/MenuState.h"
+#include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include <sstream>
 
@@ -58,6 +59,46 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
     LOG("[GameApp] Debug console attached.");
 #endif
 
+    // ------------------------------------------------------------
+    // Set the working directory to the folder that contains game.exe.
+    // Why: the exe lives in bin\, but all asset paths are written relative
+    //      to the workspace root (e.g. "assets/animations/verso.json").
+    //      GetModuleFileNameW gives the full exe path; we strip the filename
+    //      to get the parent folder (bin\), then go one level up (..\).
+    //      This keeps every asset path in data files consistent regardless
+    //      of how the exe is launched (VS debugger, Explorer, terminal).
+    // ------------------------------------------------------------
+#ifdef _DEBUG
+// ------------------------------------------------------------
+// In Debug builds only:
+// Set working directory to workspace root so that asset paths
+// like "assets/animations/verso.json" work correctly when
+// running from Visual Studio.
+// ------------------------------------------------------------
+{
+    wchar_t exePath[MAX_PATH] = {};
+    if (GetModuleFileNameW(nullptr, exePath, MAX_PATH))
+    {
+        // Remove the executable name (game.exe)
+        if (wchar_t* lastSlash = wcsrchr(exePath, L'\\'))
+        {
+            *lastSlash = L'\0';  // Now exePath = ...\bin
+
+            // Go one level up -> workspace root
+            wchar_t rootPath[MAX_PATH] = {};
+            _snwprintf_s(rootPath, MAX_PATH, _TRUNCATE, L"%s\\..", exePath);
+
+            if (SetCurrentDirectoryW(rootPath))
+            {
+                wchar_t cwd[MAX_PATH] = {};
+                GetCurrentDirectoryW(MAX_PATH, cwd);
+                LOG("[GameApp] Debug working directory: %ls", cwd);
+            }
+        }
+    }
+}
+#endif
+
     mHInstance = hInstance;
     mTitle     = title;
     mWidth     = width;
@@ -69,6 +110,8 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
 
     // Push initial state onto the stack — MenuState is the entry point of the game.
     StateManager::Get().PushState(std::make_unique<MenuState>());
+    // Push game states here if you want to skip the menu and jump straight into gameplay for testing.
+    // StateManager::Get().PushState(std::make_unique<PlayState>());
     LOG("[GameApp] Initialized. First state: MenuState.");
 
     return true;
@@ -187,8 +230,11 @@ void GameApp::OnResize(int newWidth, int newHeight) {
     mHeight = newHeight;
     D3DContext::Get().OnResize(newWidth, newHeight);
 
-    // Future: Broadcast a "window_resized" event so States can
-    // recompute camera projections and UI layout.
+    // Notify all active states so they can rebuild camera projections and
+    // UI layout.  States subscribe to "window_resized" in OnEnter() and
+    // unsubscribe in OnExit() to avoid dangling captures.
+    EventManager::Get().Broadcast("window_resized");
+    LOG("[GameApp] Window resized to %dx%d.", newWidth, newHeight);
 }
 
 void GameApp::OnActivate(bool active) {
@@ -220,7 +266,17 @@ LRESULT GameApp::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
             } else if (wParam == SIZE_RESTORED || wParam == SIZE_MAXIMIZED) {
                 mPaused = false;
                 mTimer.Start();
-                if (newW > 0 && newH > 0) OnResize(newW, newH);
+                // Guard: only resize when the client area actually changed.
+                // WM_SIZE fires during ShowWindow() with whatever the OS chose
+                // as the initial window size — which may not match mWidth/mHeight
+                // set in Initialize().  Skipping equal sizes avoids clobbering
+                // the correct 1280x720 swap chain with the OS-measured size.
+                if (newW > 0 && newH > 0 &&
+                    (newW != D3DContext::Get().GetWidth() ||
+                     newH != D3DContext::Get().GetHeight()))
+                {
+                    OnResize(newW, newH);
+                }
             }
         }
         return 0;

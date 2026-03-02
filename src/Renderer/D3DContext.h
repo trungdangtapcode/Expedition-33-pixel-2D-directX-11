@@ -44,9 +44,11 @@ public:
     void EndFrame();   // Present swap chain
 
     // --- Getters (return raw pointer to pass into DirectX API) ---
-    ID3D11Device*        GetDevice()  const { return mDevice.Get(); }
-    ID3D11DeviceContext* GetContext() const { return mContext.Get(); }
-    IDXGISwapChain*      GetSwapChain() const { return mSwapChain.Get(); }
+    ID3D11Device*             GetDevice()    const { return mDevice.Get(); }
+    ID3D11DeviceContext*      GetContext()   const { return mContext.Get(); }
+    IDXGISwapChain*           GetSwapChain() const { return mSwapChain.Get(); }
+    ID3D11RenderTargetView*   GetRTV()       const { return mRenderTarget.Get(); }
+    ID3D11DepthStencilView*   GetDSV()       const { return mDepthStencilView.Get(); }
 
     int GetWidth()  const { return mWidth; }
     int GetHeight() const { return mHeight; }

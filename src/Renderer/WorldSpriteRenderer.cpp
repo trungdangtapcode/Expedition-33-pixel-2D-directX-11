@@ -259,7 +259,8 @@ void WorldSpriteRenderer::Draw(ID3D11DeviceContext* context,
                                 const Camera2D&     camera,
                                 float               worldX,
                                 float               worldY,
-                                float               scale)
+                                float               scale,
+                                bool                flipX)
 {
     if (!mActiveClip || !mTextureSRV || !mSpriteBatch) return;
 
@@ -293,20 +294,34 @@ void WorldSpriteRenderer::Draw(ID3D11DeviceContext* context,
     // ----------------------------------------------------------------
     // Step 3 — Build the source RECT for the current animation frame.
     //
-    // The sprite sheet is a grid of frames.  framesPerRow() = sheetWidth / frameWidth.
-    // For a single-row sheet (e.g. verso.png 1792×128, 14 frames of 128×128):
-    //   framesPerRow = 14, row = 0, col = mFrameIndex.
-    // For multi-row sheets the formula generalises correctly.
+    // Atlas layout convention (one clip per row):
+    //   animations[0] → row 0  (e.g. "idle"  — frames at y=0..127)
+    //   animations[1] → row 1  (e.g. "walk"  — frames at y=128..255)
+    //   ...
+    //
+    // mFrameIndex is the clip-local index [0, numFrames).
+    // fpr = framesPerRow = sheetWidth / frameWidth.
+    //
+    // For a clip that fits within one row (the common case):
+    //   col     = mFrameIndex % fpr    ← which column in that row
+    //   atlasRow = clip.startRow        ← the clip's dedicated row (from JSON order)
+    //
+    // For a very wide clip that spans multiple rows (unusual but supported):
+    //   atlasRow = clip.startRow + (mFrameIndex / fpr)
+    //   col      = mFrameIndex % fpr
+    //
+    // clip.startRow is set by JsonLoader from the clip's index in the
+    // animations array — no hardcoded pixel offsets anywhere.
     // ----------------------------------------------------------------
-    const int fpr = mSheet.framesPerRow();   // frames per row in the atlas
-    const int col = mFrameIndex % fpr;
-    const int row = mFrameIndex / fpr;
+    const int fpr      = mSheet.framesPerRow();
+    const int col      = mFrameIndex % fpr;
+    const int atlasRow = mActiveClip->startRow + (mFrameIndex / fpr);
 
     RECT srcRect = {
-        static_cast<LONG>(col * mSheet.frameWidth),
-        static_cast<LONG>(row * mSheet.frameHeight),
-        static_cast<LONG>(col * mSheet.frameWidth  + mSheet.frameWidth),
-        static_cast<LONG>(row * mSheet.frameHeight + mSheet.frameHeight)
+        static_cast<LONG>(col      * mSheet.frameWidth),
+        static_cast<LONG>(atlasRow * mSheet.frameHeight),
+        static_cast<LONG>(col      * mSheet.frameWidth  + mSheet.frameWidth),
+        static_cast<LONG>(atlasRow * mSheet.frameHeight + mSheet.frameHeight)
     };
 
     // ----------------------------------------------------------------
@@ -357,7 +372,14 @@ void WorldSpriteRenderer::Draw(ID3D11DeviceContext* context,
         Colors::White,  // tint: white = no tint, draw as-is
         0.0f,           // rotation in radians: 0 = upright
         origin,         // pivot from JSON — encodes all alignment information
-        scale           // uniform scale (1.0 = native pixel size)
+        scale,          // uniform scale (1.0 = native pixel size)
+        // Horizontal flip for left-facing movement.
+        // The default sprite faces RIGHT (positive X direction).
+        // SpriteEffects_FlipHorizontally mirrors the source rect in U-space:
+        //   U' = 1 - U   (GPU handles this; zero CPU cost)
+        // SpriteEffects_None is the zero-value so there is no branch cost
+        // when flipX is false.
+        flipX ? SpriteEffects_FlipHorizontally : SpriteEffects_None
     );
 
     mSpriteBatch->End();

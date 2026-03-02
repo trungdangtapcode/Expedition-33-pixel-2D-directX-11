@@ -101,15 +101,17 @@ public:
     //   Issue one SpriteBatch draw call placing the active frame so that
     //   the JSON pivot lands exactly at (worldX, worldY) in world space.
     //
-    //   SpriteBatch::Begin() receives camera.GetViewProjectionMatrix() —
+    //   SpriteBatch::Begin() receives camera.GetViewMatrix() —
     //   the GPU then transforms each sprite vertex from world → screen.
     //   The caller never converts coordinates manually.
     //
     // Parameters:
     //   context         — D3D11 device context for this frame
-    //   camera          — Camera2D whose ViewProj matrix transforms the sprite
+    //   camera          — Camera2D whose view matrix transforms the sprite
     //   worldX, worldY  — world-space position where the pivot lands
     //   scale           — uniform scale applied on top of the sprite size
+    //   flipX           — when true, mirrors the sprite horizontally
+    //                     (use for left-facing movement on a right-facing sprite)
     //
     // Preconditions:
     //   Initialize() must have returned true.
@@ -120,7 +122,8 @@ public:
               const Camera2D&     camera,
               float               worldX,
               float               worldY,
-              float               scale = 1.0f);
+              float               scale = 1.0f,
+              bool                flipX = false);
 
     // ------------------------------------------------------------
     // Function: Shutdown

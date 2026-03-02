@@ -130,6 +130,11 @@ private:
     float mVelX = 0.0f;
     float mVelY = 0.0f;
 
+    // Whether the character is currently facing left.
+    // Drives the horizontal flip passed to WorldSpriteRenderer::Draw().
+    // Default false = facing right (matches the default sprite orientation).
+    bool mFacingLeft = false;
+
     // Whether this entity is still alive in the scene.
     bool mAlive = true;
 
@@ -143,12 +148,23 @@ private:
     // ------------------------------------------------------------
 
     // Top speed the player can reach by holding a key.
-    static constexpr float kMaxSpeed = 400.0f;
+    static constexpr float kMaxSpeed = 3*400.0f;
 
     // How quickly the player accelerates from rest to full speed.
-    static constexpr float kAccel = 600.0f;
+    static constexpr float kAccel = 2*600.0f;
 
     // Friction coefficient: velocity *= (1 - kFriction * dt) each frame.
     // At 60 fps (dt≈0.016): decay factor ≈ 0.87 — snappy slide-to-stop.
     static constexpr float kFriction = 8.0f;
+
+    // Minimum horizontal speed (world units/s) required to update facing direction.
+    // Prevents the sprite from flickering between left/right when coasting
+    // to a stop after a diagonal movement.
+    static constexpr float kFacingThreshold = 10.0f;
+
+    // Minimum total speed (world units/s) required to play the walk animation.
+    // Below this threshold the character is considered stationary and plays idle.
+    // Set well below kMaxSpeed so the transition feels responsive,
+    // but above zero so friction coast-down doesn't keep walk playing.
+    static constexpr float kMoveThreshold = 20.0f;
 };

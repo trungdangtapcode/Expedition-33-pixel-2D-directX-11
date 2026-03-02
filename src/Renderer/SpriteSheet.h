@@ -59,10 +59,26 @@ enum class SpriteAlign {
 
 // ------------------------------------------------------------
 // AnimationClip — one named animation within the sprite sheet.
-// Frame indices are computed as:
-//   col = frameIndex % framesPerRow
-//   row = frameIndex / framesPerRow      (for multi-row sheets)
-// For single-row sheets (height == frame_height), row is always 0.
+//
+// UV slicing for multi-row atlases:
+//   Each clip occupies exactly one ROW of the atlas.
+//   'startRow' is which row (0-based) this clip's frames begin on.
+//   Within that row, frames are indexed left-to-right: col = mFrameIndex % framesPerRow.
+//
+//   WorldSpriteRenderer::Draw() computes:
+//     col     = mFrameIndex % framesPerRow
+//     atlasRow = clip.startRow            ← always the clip's own row
+//     srcRect.left  = col       * frameWidth
+//     srcRect.top   = atlasRow  * frameHeight
+//
+//   This design supports:
+//     - Single-row atlases (startRow=0 for every clip)
+//     - Multi-row atlases  (idle=row0, walk=row1, attack=row2, ...)
+//     - Clips with different frame counts per row (a row can hold
+//       fewer frames than framesPerRow; unused cells are ignored)
+//
+//   startRow is populated automatically by JsonLoader from the clip's
+//   position in the "animations" array (index 0 → startRow=0, etc.).
 // ------------------------------------------------------------
 struct AnimationClip {
     std::string name;       // "idle", "walk", "attack", etc.
@@ -72,6 +88,11 @@ struct AnimationClip {
 
     int         pivotX;     // pivot x within one frame in pixels (local space)
     int         pivotY;     // pivot y within one frame in pixels (local space)
+
+    // Which row of the atlas this clip's frames live on (0-based).
+    // Populated by JsonLoader from the clip's position in the animations array.
+    // Keeps WorldSpriteRenderer::Draw() free of any clip-ordering assumptions.
+    int         startRow = 0;
 
     // Screen-anchor for this clip.
     // SpriteRenderer::Draw() maps this to a pixel position on the screen.

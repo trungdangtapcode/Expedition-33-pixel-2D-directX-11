@@ -274,7 +274,9 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
     sheet.animations.clear();
     sheet.animations.reserve(objects.size());
 
-    for (const auto& obj : objects) {
+    for (int clipIndex = 0; clipIndex < static_cast<int>(objects.size()); ++clipIndex)
+    {
+        const auto& obj = objects[clipIndex];
         AnimationClip clip;
 
         // Strip quotes from string values.
@@ -298,6 +300,14 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
         // Parse "align": "bottom-center" etc.
         // Unknown values default to BottomCenter in the renderer.
         clip.align = detail::ParseAlign(detail::ValueOf(obj, "align"));
+
+        // Each clip occupies its own row in the atlas.
+        // The i-th clip in the animations array lives on row i (0-based).
+        // This convention means the atlas layout must match the JSON order:
+        //   animations[0] → row 0 (top row)
+        //   animations[1] → row 1
+        //   ...
+        clip.startRow = clipIndex;
 
         if (clip.name.empty() || clip.numFrames <= 0) {
             LOG("[JsonLoader] Skipping malformed clip in '%s'.", path.c_str());

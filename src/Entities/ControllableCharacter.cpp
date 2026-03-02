@@ -74,7 +74,10 @@ ControllableCharacter::~ControllableCharacter()
 //   2. Apply friction — exponential velocity decay toward zero.
 //   3. Clamp speed to kMaxSpeed.
 //   4. Integrate position.
-//   5. Advance animation frame timer.
+//   5. Update facing direction from horizontal velocity.
+//   6. Switch between "idle" and "walk" clips based on whether the
+//      character is moving.
+//   7. Advance animation frame timer.
 //
 // All values are scaled by dt — fully frame-rate independent.
 // ------------------------------------------------------------
@@ -109,6 +112,22 @@ void ControllableCharacter::Update(float dt)
     mPosX += mVelX * dt;
     mPosY += mVelY * dt;
 
+    // --- Update facing direction from horizontal velocity ---
+    // Only update facing when there is meaningful horizontal movement to avoid
+    // flickering when the character coasts to a stop on a diagonal.
+    // kFacingThreshold is well below kMaxSpeed so the flip happens the moment
+    // a key is pressed, not after physics builds up speed.
+    if (mVelX < -kFacingThreshold)      mFacingLeft = true;
+    else if (mVelX > kFacingThreshold)  mFacingLeft = false;
+    // No else: facing holds its last value when moving purely vertically.
+
+    // --- Switch animation clip based on movement ---
+    // The character is "moving" if its speed exceeds a small threshold.
+    // This prevents the walk animation from playing at near-zero drift
+    // after releasing a key while friction coasts the character to rest.
+    const bool moving = (speed > kMoveThreshold);
+    mRenderer.PlayClip(moving ? "walk" : "idle");
+
     // --- Advance animation ---
     // WorldSpriteRenderer::Update() advances the frame timer by dt seconds.
     // The renderer handles frame wrap-around and loop/non-loop logic internally.
@@ -136,5 +155,7 @@ void ControllableCharacter::Render(ID3D11DeviceContext* ctx)
 
     // Delegate completely — this class has no knowledge of UV slicing,
     // pivot math, SpriteBatch modes, or D3D state objects.
-    mRenderer.Draw(ctx, *mCamera, mPosX, mPosY);
+    // mFacingLeft drives the horizontal flip: the sprite sheet faces right
+    // by default; flipping mirrors it for left-facing movement.
+    mRenderer.Draw(ctx, *mCamera, mPosX, mPosY, 1.0f, mFacingLeft);
 }

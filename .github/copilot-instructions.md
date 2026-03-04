@@ -23,6 +23,7 @@ All architectural decisions must prioritize **scalability**, **maintainability**
 - ALL responses and explanations MUST be in **English only**.
 - If the user writes in Vietnamese or any other language, the response MUST still be entirely in English.
 - **No exceptions.** Not even `MessageBoxW` strings, `OutputDebugStringA` text, or `assert` messages may contain non-English text.
+- Compile code with PS command: `.\build_src_static.bat 2>&1`
 
 **Violation examples to actively correct:**
 ```cpp

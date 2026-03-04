@@ -61,9 +61,19 @@ bool WorldRenderer::Initialize(ID3D11Device*        device,
     mSheet = sheet;
 
     // --- Load GPU texture ---
-    HRESULT hr = DirectX::CreateWICTextureFromFile(
+    // WIC_LOADER_IGNORE_SRGB: bypass automatic sRGB gamma conversion.
+    // Without this flag, colors in pixel-art sprites appear darker on screen
+    // because WIC promotes the format to UNORM_SRGB and the GPU linearises
+    // values before writing to the UNORM backbuffer.
+    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
         device,
+        context,
         texturePath.c_str(),
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,
+        DirectX::WIC_LOADER_IGNORE_SRGB,  // load raw pixel values, no gamma conversion
         nullptr,
         mTextureSRV.GetAddressOf()
     );

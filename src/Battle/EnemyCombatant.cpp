@@ -1,0 +1,34 @@
+// ============================================================
+// File: EnemyCombatant.cpp
+// ============================================================
+#include "EnemyCombatant.h"
+#include "IBattler.h"
+
+static constexpr int kEnemyMaxHp  = 50;
+static constexpr int kEnemyMaxMp  = 0;
+static constexpr int kEnemyAtk    = 15;
+static constexpr int kEnemyDef    = 5;
+static constexpr int kEnemySpd    = 8;
+
+EnemyCombatant::EnemyCombatant(std::string name)
+    : Combatant(std::move(name), BattlerStats{
+        kEnemyMaxHp, kEnemyMaxHp,
+        kEnemyMaxMp, kEnemyMaxMp,
+        kEnemyAtk, kEnemyDef, kEnemySpd,
+        0, 0    // rage=0, maxRage=0 — enemies do not use rage
+    })
+    , mAttack(std::make_unique<AttackSkill>())
+{}
+
+// ------------------------------------------------------------
+// ChooseTarget: Simple AI — first alive player.
+// Extend with targeting priority (lowest HP, highest threat) as needed.
+// ------------------------------------------------------------
+IBattler* EnemyCombatant::ChooseTarget(const std::vector<IBattler*>& players) const
+{
+    for (IBattler* p : players)
+    {
+        if (p && p->IsAlive()) return p;
+    }
+    return nullptr;
+}

@@ -78,6 +78,27 @@ cl.exe ^
     src\Entities\ControllableCharacter.cpp ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
+    src\Battle\WeakenEffect.cpp ^
+    src\Battle\Combatant.cpp ^
+    src\Battle\PlayerCombatant.cpp ^
+    src\Battle\EnemyCombatant.cpp ^
+    src\Battle\AttackSkill.cpp ^
+    src\Battle\RageSkill.cpp ^
+    src\Battle\WeakenSkill.cpp ^
+    src\Battle\DamageAction.cpp ^
+    src\Battle\StatusEffectAction.cpp ^
+    src\Battle\LogAction.cpp ^
+    src\Battle\WaitAction.cpp ^
+    src\Battle\IActionDecorator.cpp ^
+    src\Battle\DelayedAction.cpp ^
+    src\Battle\FightCommand.cpp ^
+    src\Battle\FleeCommand.cpp ^
+    src\Battle\ActionQueue.cpp ^
+    src\Battle\BattleManager.cpp ^
+    src\Battle\BattleRenderer.cpp ^
+    src\States\BattleState.cpp ^
+    src\UI\HealthBarRenderer.cpp ^
+    src\UI\BattleDebugHUD.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\shared" ^

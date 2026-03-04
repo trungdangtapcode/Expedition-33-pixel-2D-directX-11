@@ -12,6 +12,7 @@
 #include "MenuState.h"
 #include "StateManager.h"
 #include "PlayState.h"
+// #include "BattleState.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include <windows.h>  // GetAsyncKeyState
@@ -31,6 +32,7 @@ void MenuState::Update(float dt) {
     // TODO: Replace GetAsyncKeyState with a proper InputManager later.
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
         StateManager::Get().ChangeState(std::make_unique<PlayState>());
+        // StateManager::Get().ChangeState(std::make_unique<BattleState>(D3DContext::Get()));
     }
 }
 

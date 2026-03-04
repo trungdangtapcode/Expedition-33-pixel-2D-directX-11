@@ -16,9 +16,17 @@ bool DebugTextureViewer::Load(ID3D11Device* device,
                                const wchar_t* path)
 {
     // --- Load texture, also retrieve raw resource to query dimensions ---
+    // WIC_LOADER_IGNORE_SRGB: prevent WIC from gamma-linearising colors.
+    // Without this flag the sRGB ICC profile in PNGs causes colors to be
+    // darkened when rendered to the UNORM backbuffer.
     Microsoft::WRL::ComPtr<ID3D11Resource> res;
-    HRESULT hr = DirectX::CreateWICTextureFromFile(
-        device, path,
+    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
+        device, context, path,
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,
+        DirectX::WIC_LOADER_IGNORE_SRGB,  // load raw pixel values, no gamma conversion
         res.GetAddressOf(),
         mSRV.GetAddressOf()
     );

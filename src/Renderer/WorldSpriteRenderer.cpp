@@ -63,15 +63,22 @@ bool WorldSpriteRenderer::Initialize(ID3D11Device*        device,
 
     // ----------------------------------------------------------------
     // Step 1 — Upload PNG to GPU.
-    // CreateWICTextureFromFile decodes the PNG via WIC and uploads it
-    // to a D3D11_USAGE_DEFAULT texture in VRAM.  We only keep the SRV;
-    // the underlying ID3D11Resource is released automatically via the
-    // second parameter (nullptr = don't keep a reference to the resource).
+    // WIC_LOADER_IGNORE_SRGB: bypass the automatic sRGB gamma conversion.
+    // Without this flag, WIC detects the embedded sRGB ICC profile in the PNG,
+    // promotes the format to R8G8B8A8_UNORM_SRGB, and the GPU linearises the
+    // pixel values before they reach the UNORM backbuffer — all colors appear
+    // darker than their source values (e.g. #B5E61D becomes #76CA03 on screen).
+    // IGNORE_SRGB loads raw 8-bit values as-is, matching the artist's intent.
     // ----------------------------------------------------------------
-    HRESULT hr = CreateWICTextureFromFile(
+    HRESULT hr = CreateWICTextureFromFileEx(
         device,
         context,
         texturePath.c_str(),
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,
+        WIC_LOADER_IGNORE_SRGB,
         nullptr,            // don't need the raw ID3D11Resource handle
         mTextureSRV.GetAddressOf()
     );

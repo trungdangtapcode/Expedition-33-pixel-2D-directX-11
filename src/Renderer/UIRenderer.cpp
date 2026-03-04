@@ -56,13 +56,21 @@ bool UIRenderer::Initialize(ID3D11Device*        device,
     mSheet = sheet;
 
     // --- Load GPU texture via WICTextureLoader ---
-    // CreateWICTextureFromFile decodes the file through Windows Imaging Component,
-    // uploads mip level 0 to a USAGE_DEFAULT D3D11 resource, and returns an SRV.
-    // We pass nullptr for the raw ID3D11Resource because we only need the SRV.
-    HRESULT hr = DirectX::CreateWICTextureFromFile(
+    // WIC_LOADER_IGNORE_SRGB: bypass the automatic sRGB gamma conversion.
+    // Without this flag WIC detects the embedded sRGB profile in the PNG,
+    // loads it as R8G8B8A8_UNORM_SRGB, and the GPU linearises pixel values
+    // before they reach the UNORM backbuffer — all colors appear darker than
+    // intended (e.g. pixel-art green #B5E61D becomes #76CA03 on screen).
+    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
         device,
+        context,
         texturePath.c_str(),
-        nullptr,
+        0,                              // maxsize — 0 = auto
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,                           // no CPU access, no misc flags
+        DirectX::WIC_LOADER_IGNORE_SRGB,  // load raw pixel values, no gamma conversion
+        nullptr,                           // we only need the SRV
         mTextureSRV.GetAddressOf()
     );
     if (FAILED(hr)) {

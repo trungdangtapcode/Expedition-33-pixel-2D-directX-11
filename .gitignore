@@ -1,4 +1,5 @@
-assets/
+assets/*
+!assets/animations/
 vcpkg/
 vc140.pdb
 
@@ -7,4 +8,4 @@ vc140.pdb
 *.pdb
 *.obj
 *.ilk
-
+*.png

@@ -22,6 +22,7 @@
 #include "PlayState.h"
 #include "StateManager.h"
 #include "MenuState.h"
+#include "BattleState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
@@ -129,6 +130,18 @@ void PlayState::Update(float dt)
         StateManager::Get().ChangeState(std::make_unique<MenuState>());
         return;
     }
+
+    // B key — push BattleState onto the stack.
+    // PlayState stays paused underneath; it resumes when the battle ends.
+    // The static flag prevents repeated triggers while the key is held down.
+    static bool sBWasDown = false;
+    const bool bDown = (GetAsyncKeyState('B') & 0x8000) != 0;
+    if (bDown && !sBWasDown)
+    {
+        LOG("%s", "[PlayState] B pressed — entering BattleState");
+        StateManager::Get().PushState(std::make_unique<BattleState>(D3DContext::Get()));
+    }
+    sBWasDown = bDown;
 
     // All entity logic (WASD, physics, animation) runs inside each object.
     mScene.Update(dt);

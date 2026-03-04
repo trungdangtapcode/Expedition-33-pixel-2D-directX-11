@@ -52,14 +52,22 @@ bool SpriteRenderer::Initialize(ID3D11Device*        device,
     mSheet = sheet;
 
     // --- Load texture ---
-    // CreateWICTextureFromFile loads the file, decodes it through WIC
-    // (Windows Imaging Component), and creates a committed GPU texture + SRV.
-    // We only need the SRV; the underlying ID3D11Texture2D is released
-    // by passing nullptr for the texture param.
-    HRESULT hr = DirectX::CreateWICTextureFromFile(
+    // CreateWICTextureFromFileEx with WIC_LOADER_IGNORE_SRGB loads raw 8-bit
+    // pixel values without gamma conversion.  Without this flag, WIC detects
+    // the sRGB ICC profile embedded in most PNGs, promotes the format to
+    // R8G8B8A8_UNORM_SRGB, and the GPU linearises colors before they reach
+    // the UNORM backbuffer — making all pixel-art sprites appear darker than
+    // their source colors (e.g. #B5E61D → #76CA03).
+    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
         device,
+        context,
         texturePath.c_str(),
-        nullptr,                       // we do not need the raw ID3D11Resource
+        0,                              // maxsize — 0 = auto
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,                           // no CPU access, no misc flags
+        DirectX::WIC_LOADER_IGNORE_SRGB,  // load raw pixel values, no gamma conversion
+        nullptr,                           // we do not need the raw ID3D11Resource
         mTextureSRV.GetAddressOf()
     );
     if (FAILED(hr)) {

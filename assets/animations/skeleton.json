@@ -1,0 +1,42 @@
+{
+	"sprite_name": "skeleton",
+	"character": "skeleton",
+	"width": 1536,
+	"height": 512,
+	"frame_width": 128,
+	"frame_height": 128,
+	"animations":[
+		{
+			"name": "idle",
+			"num_frames": 12,
+			"frame_rate": 8,
+			"loop": true,
+			"pivot": [65, 122],
+			"align": "bottom-center"
+		},
+		{
+			"name": "attack-1",
+			"num_frames": 8,
+			"frame_rate": 6,
+			"loop": false,
+			"pivot": [65, 122],
+			"align": "bottom-center"
+		},
+		{
+			"name": "walk",
+			"num_frames": 9,
+			"frame_rate": 8,
+			"loop": true,
+			"pivot": [65, 122],
+			"align": "bottom-center"
+		},
+		{
+			"name": "attack-2",
+			"num_frames": 6,
+			"frame_rate": 6,
+			"loop": false,
+			"pivot": [65, 122],
+			"align": "bottom-center"
+		}
+	]
+}

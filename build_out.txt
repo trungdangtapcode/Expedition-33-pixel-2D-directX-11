@@ -1,0 +1,86 @@
+============================================================
+ Building: My Game - DirectX 11
+============================================================
+
+Microsoft (R) C/C++ Optimizing Compiler Version 19.40.33811 for x64
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+main.cpp
+GameApp.cpp
+GameTimer.cpp
+D3DContext.cpp
+StateManager.cpp
+MenuState.cpp
+PlayState.cpp
+CircleRenderer.cpp
+SpriteRenderer.cpp
+UIRenderer.cpp
+WorldRenderer.cpp
+WorldSpriteRenderer.cpp
+SceneGraph.cpp
+ControllableCharacter.cpp
+EventManager.cpp
+DebugTextureViewer.cpp
+WeakenEffect.cpp
+Combatant.cpp
+PlayerCombatant.cpp
+EnemyCombatant.cpp
+Generating Code...
+Compiling...
+AttackSkill.cpp
+RageSkill.cpp
+WeakenSkill.cpp
+DamageAction.cpp
+StatusEffectAction.cpp
+LogAction.cpp
+ActionQueue.cpp
+BattleManager.cpp
+BattleState.cpp
+Generating Code...
+Microsoft (R) Incremental Linker Version 14.40.33811.0
+Copyright (C) Microsoft Corporation.  All rights reserved.
+
+/debug 
+/out:bin\game.exe 
+/LIBPATH:D:\VisualStudio\2022\BuildTools\VC\Tools\MSVC\14.40.33807\lib\x64 
+"/LIBPATH:C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\um\x64" 
+"/LIBPATH:C:\Program Files (x86)\Windows Kits\10\Lib\10.0.22621.0\ucrt\x64" 
+/LIBPATH:D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows-static\debug\lib 
+user32.lib 
+gdi32.lib 
+d3d11.lib 
+dxgi.lib 
+d3dcompiler.lib 
+DirectXTK.lib 
+/SUBSYSTEM:WINDOWS 
+bin\obj\main.obj 
+bin\obj\GameApp.obj 
+bin\obj\GameTimer.obj 
+bin\obj\D3DContext.obj 
+bin\obj\StateManager.obj 
+bin\obj\MenuState.obj 
+bin\obj\PlayState.obj 
+bin\obj\CircleRenderer.obj 
+bin\obj\SpriteRenderer.obj 
+bin\obj\UIRenderer.obj 
+bin\obj\WorldRenderer.obj 
+bin\obj\WorldSpriteRenderer.obj 
+bin\obj\SceneGraph.obj 
+bin\obj\ControllableCharacter.obj 
+bin\obj\EventManager.obj 
+bin\obj\DebugTextureViewer.obj 
+bin\obj\WeakenEffect.obj 
+bin\obj\Combatant.obj 
+bin\obj\PlayerCombatant.obj 
+bin\obj\EnemyCombatant.obj 
+bin\obj\AttackSkill.obj 
+bin\obj\RageSkill.obj 
+bin\obj\WeakenSkill.obj 
+bin\obj\DamageAction.obj 
+bin\obj\StatusEffectAction.obj 
+bin\obj\LogAction.obj 
+bin\obj\ActionQueue.obj 
+bin\obj\BattleManager.obj 
+bin\obj\BattleState.obj 
+
+[OK] Build succeeded > bin\game.exe  [Debug]

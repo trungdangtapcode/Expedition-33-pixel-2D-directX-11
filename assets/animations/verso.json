@@ -1,0 +1,26 @@
+{
+	"sprite_name": "verso",
+	"character": "verso",
+	"width": 1792,
+	"height": 256,
+	"frame_width": 128,
+	"frame_height": 128,
+	"animations":[
+		{
+			"name": "idle",
+			"num_frames": 14,
+			"frame_rate": 8,
+			"loop": true,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		},
+		{
+			"name": "walk",
+			"num_frames": 10,
+			"frame_rate": 12,
+			"loop": true,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		}
+	]
+}

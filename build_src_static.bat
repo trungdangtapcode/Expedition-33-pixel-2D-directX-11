@@ -99,7 +99,10 @@ cl.exe ^
     src\Battle\BattleRenderer.cpp ^
     src\States\BattleState.cpp ^
     src\UI\HealthBarRenderer.cpp ^
+    src\UI\BattleTextRenderer.cpp ^
+    src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
+    src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\shared" ^
@@ -119,6 +122,7 @@ cl.exe ^
     dxgi.lib ^
     d3dcompiler.lib ^
     DirectXTK.lib ^
+    ole32.lib ^
     /SUBSYSTEM:WINDOWS
 
 if %ERRORLEVEL% == 0 (

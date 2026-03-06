@@ -24,7 +24,8 @@
 // Rendering:
 //   - Screen cleared to navy-blue (signals active battle).
 //   - BattleRenderer draws player + enemy sprites at 3 slots each.
-//   - HealthBarRenderer draws the HP bar at top-left (3 sprite layers).
+//   - HealthBarRenderer  draws the player HP bar at bottom-right.
+//   - EnemyHpBarRenderer draws up to 3 enemy HP bars at top-center.
 //
 // Lifetime:
 //   Pushed onto StateManager by PlayState when B is pressed.
@@ -39,6 +40,8 @@
 #include "../Battle/IBattleCommand.h"
 #include "../Battle/BattleRenderer.h"
 #include "../UI/HealthBarRenderer.h"
+#include "../UI/EnemyHpBarRenderer.h"
+#include "../UI/BattleTextRenderer.h"
 #include <vector>
 #include <memory>
 
@@ -82,10 +85,12 @@ public:
     void RequestFlee() { mPendingFlee = true; }
 
 private:
-    D3DContext&       mD3D;
-    BattleManager     mBattle;
-    BattleRenderer    mBattleRenderer;
-    HealthBarRenderer mHealthBar;
+    D3DContext&        mD3D;
+    BattleManager      mBattle;
+    BattleRenderer     mBattleRenderer;
+    HealthBarRenderer   mHealthBar;       // player HP bar (bottom-right)
+    EnemyHpBarRenderer  mEnemyHpBar;     // enemy HP bars (top-center, up to 3)
+    BattleTextRenderer  mTextRenderer;   // shared font renderer for battle HUD text
 
     // ---- Player input FSM ----
     PlayerInputPhase  mInputPhase     = PlayerInputPhase::COMMAND_SELECT;

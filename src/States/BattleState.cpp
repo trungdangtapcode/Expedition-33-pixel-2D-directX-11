@@ -54,6 +54,11 @@ void BattleState::BuildCommandList()
 void BattleState::OnEnter()
 {
     LOG("%s", "[BattleState] OnEnter");
+
+    // Switch to battle BGM immediately — overworld music stops, battle music begins.
+    // AudioManager handles the transition; BattleState has no audio dependencies.
+    EventManager::Get().Broadcast("bgm_play_battle", {});
+
     mBattle.Initialize();
 
     // Reset input FSM to the top-level command menu.
@@ -159,6 +164,45 @@ void BattleState::OnEnter()
         mHealthBar.SetHP   (static_cast<float>(players[0]->GetStats().hp));
     }
 
+    // Initialize enemy HP bars (top-center, up to 3 bars stacked vertically).
+    // Width = 60% of screen; one bar per enemy slot, rendered top to bottom.
+    mEnemyHpBar.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/UI/enemy-hp-ui-background.png",
+        L"assets/UI/enemy-hp-ui.png",
+        "assets/UI/enemy-hp-ui.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight()
+    );
+
+    // Initialize the shared text renderer (Arial 16pt, used for enemy name labels).
+    mTextRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/fonts/arial_16.spritefont",
+        mD3D.GetWidth(),
+        mD3D.GetHeight()
+    );
+    mEnemyHpBar.SetTextRenderer(&mTextRenderer);
+
+    // Seed enemy bars immediately so they open at the correct fill level.
+    // Also store enemy names (names never change mid-battle).
+    {
+        const auto& enemies = mBattle.GetAllEnemies();
+        for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
+        {
+            const auto& stats = enemies[i]->GetStats();
+            mEnemyHpBar.SetEnemy(
+                i,
+                static_cast<float>(stats.hp),
+                static_cast<float>(stats.maxHp),
+                enemies[i]->IsAlive()
+            );
+            mEnemyHpBar.SetEnemyName(i, enemies[i]->GetName());
+        }
+    }
+
     DumpStateToDebugOutput();
 }
 
@@ -166,12 +210,24 @@ void BattleState::OnExit()
 {
     LOG("%s", "[BattleState] OnExit");
 
+    // Restore overworld BGM when returning to PlayState.
+    // PlayState::OnEnter() is NOT called again after a pop (the state was paused
+    // underneath the stack), so BattleState is responsible for restoring the music.
+    // AudioManager's idempotent PlayBGM() prevents a double-start if somehow
+    // overworld was already playing.
+    EventManager::Get().Broadcast("bgm_play_overworld", {});
+
     // Release combatant sprite GPU resources (textures, SpriteBatch, D3D states).
     mBattleRenderer.Shutdown();
 
-    // Release HP bar GPU resources and unsubscribe "verso_hp_changed" listener
-    // before the state is destroyed.  Must happen before D3DContext teardown.
+    // Release player HP bar GPU resources and unsubscribe the event listener.
     mHealthBar.Shutdown();
+
+    // Release enemy HP bar GPU resources (no event subscription to undo).
+    mEnemyHpBar.Shutdown();
+
+    // Release text renderer GPU resources (SpriteFont atlas, SpriteBatch).
+    mTextRenderer.Shutdown();
 }
 
 // ------------------------------------------------------------
@@ -208,8 +264,26 @@ void BattleState::Update(float dt)
         DumpStateToDebugOutput();
     }
 
-    // Advance HP bar lerp toward the target value set by the last event.
+    // Advance player HP bar lerp toward the target value set by the last event.
     mHealthBar.Update(dt);
+
+    // Synchronize enemy HP bars from BattleManager every frame.
+    // Polling is used instead of events because BattleState already owns
+    // BattleManager and can query it directly — no extra event plumbing needed.
+    {
+        const auto& enemies = mBattle.GetAllEnemies();
+        for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
+        {
+            const auto& stats = enemies[i]->GetStats();
+            mEnemyHpBar.SetEnemy(
+                i,
+                static_cast<float>(stats.hp),
+                static_cast<float>(stats.maxHp),
+                enemies[i]->IsAlive()
+            );
+        }
+        mEnemyHpBar.Update(dt);
+    }
 
     // Advance all combatant sprite animations.
     mBattleRenderer.Update(dt);
@@ -273,8 +347,11 @@ void BattleState::Render()
     // BattleRenderer uses its own flat Camera2D, so world coords = screen pixels.
     mBattleRenderer.Render(mD3D.GetContext());
 
-    // Draw the 3-layer HP bar: background → fill (clipped) → frame+portrait.
+    // Draw the player HP bar (top-left, 3 sprite layers).
     mHealthBar.Render(mD3D.GetContext());
+
+    // Draw enemy HP bars (top-center, 1–3 bars stacked vertically).
+    mEnemyHpBar.Render(mD3D.GetContext());
 }
 
 // ------------------------------------------------------------

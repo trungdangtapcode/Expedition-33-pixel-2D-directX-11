@@ -1,18 +1,24 @@
 ﻿# Character World-Space Positions in Turn-Based Battle
 
-This document explains **how combatant sprites are positioned on screen** 
-starting from the human-readable pixel layout, through the one-time coordinate
+This document explains **how combatant sprites are positioned on screen**
+starting from the data-driven formation layout, through the one-time coordinate
 conversion, all the way to the final GPU draw call.
+
+> **Refactor note:** Slot positions are no longer stored as `constexpr` arrays
+> inside `BattleRenderer.h`.  They live in `data/formations.json` and are loaded
+> by `BattleState::OnEnter()`, which resolves world coordinates **before** passing
+> them to `BattleRenderer::Initialize()` via `SlotInfo::worldX/Y`.
+> `BattleRenderer` never performs a pixel-to-world conversion.
 
 ---
 
 ## Table of Contents
 
 1. [The Two Coordinate Spaces](#1-the-two-coordinate-spaces)
-2. [Screen-Pixel Design Layout](#2-screen-pixel-design-layout)
-3. [The One-Time Conversion in Initialize()](#3-the-one-time-conversion-in-initialize)
+2. [Formation Layout — data/formations.json](#2-formation-layout--dataformationsjson)
+3. [Where the Conversion Happens — BattleState::OnEnter()](#3-where-the-conversion-happens--battlestateonenter)
 4. [World-Space Slot Table](#4-world-space-slot-table)
-5. [Why the Conversion Lives Only in Initialize()](#5-why-the-conversion-lives-only-in-initialize)
+5. [Why BattleRenderer Has No Conversion Math](#5-why-battlerenderer-has-no-conversion-math)
 6. [Render() Drawing at World Positions](#6-render-drawing-at-world-positions)
 7. [How Camera2D Maps World to Screen](#7-how-camera2d-maps-world-to-screen)
 8. [Full Data Flow Diagram](#8-full-data-flow-diagram)
@@ -28,7 +34,7 @@ The project uses exactly two coordinate spaces and they must never be confused:
 
 | Space | Origin | Who uses it |
 |---|---|---|
-| **Screen space** | Top-left corner (0, 0) | Human layout design, art tools |
+| **Screen space** | Top-left corner (0, 0) | Human layout design, art tools, formation JSON |
 | **World space** | Screen center (W/2, H/2) | Camera2D, WorldSpriteRenderer::Draw(), BattleCameraController |
 
 Camera2D at default position (0,0) zoom 1.0 places world origin at the screen
@@ -41,28 +47,39 @@ Screen space              World space  (W=1280, H=720)
 (1280, 720)  bot-right -> ( 640,  360)
 ```
 
-Conversion formula:
+Conversion formula (applied once in BattleState::OnEnter()):
 
 ```
-worldX = screenX - screenW / 2
-worldY = screenY - screenH / 2
+worldX = battleCenterX + offsetX          (battleCenter = 0,0 = screen center)
+worldY = battleCenterY + offsetY
 ```
+
+The JSON stores the offsets already in world-space units (screenX - W/2, screenY - H/2)
+relative to the battle center, so the "conversion" is simply addition.
 
 ---
 
-## 2. Screen-Pixel Design Layout
+## 2. Formation Layout — data/formations.json
 
-The battle formation is a staggered diagonal. The layout is stored as constexpr
-constants in BattleRenderer.h (used ONLY inside Initialize()):
+Slot positions are defined in `data/formations.json` as world-space offsets
+relative to the battle center:
 
-```cpp
-static constexpr float kPlayerScreenX[kMaxSlots] = { 320.0f,  200.0f,  200.0f };
-static constexpr float kPlayerScreenY[kMaxSlots] = { 400.0f,  280.0f,  520.0f };
-static constexpr float kEnemyScreenX [kMaxSlots] = { 960.0f, 1080.0f, 1080.0f };
-static constexpr float kEnemyScreenY [kMaxSlots] = { 400.0f,  280.0f,  520.0f };
+```json
+{
+  "player_offsets": [
+    { "slot": 0, "offset_x": -320, "offset_y":  40 },
+    { "slot": 1, "offset_x": -440, "offset_y": -80 },
+    { "slot": 2, "offset_x": -440, "offset_y": 160 }
+  ],
+  "enemy_offsets": [
+    { "slot": 0, "offset_x":  320, "offset_y":  40 },
+    { "slot": 1, "offset_x":  440, "offset_y": -80 },
+    { "slot": 2, "offset_x":  440, "offset_y": 160 }
+  ]
+}
 ```
 
-Visualised on a 1280x720 screen:
+These values correspond to the original screen-pixel design on a 1280×720 display:
 
 ```
  0                   640                  1280
@@ -79,52 +96,66 @@ Visualised on a 1280x720 screen:
         (face right)            (face left, flipX=true)
 ```
 
-Rule: to move a slot, edit the k*ScreenX/Y constants here only.
-Initialize() recomputes the world arrays automatically.
+Derivation: offset = screenXY − (W/2, H/2) = screenXY − (640, 360).
+Example: P0 screen(320, 400) → world offset (320−640, 400−360) = (−320, 40).
+
+Rule: **to move a slot, edit `data/formations.json` only.**
+No C++ recompile is required; the next run picks up the change.
 
 ---
 
-## 3. The One-Time Conversion in Initialize()
+## 3. Where the Conversion Happens — BattleState::OnEnter()
 
-BattleRenderer::Initialize() converts all slots to world space exactly once:
+`BattleState::OnEnter()` is the **single conversion site** — the only place
+in the codebase that reads formation offsets and resolves them to world positions:
 
 ```cpp
-const float halfW = static_cast<float>(screenW) * 0.5f;   // 640.0
-const float halfH = static_cast<float>(screenH) * 0.5f;   // 360.0
-
-for (int i = 0; i < kMaxSlots; ++i)
+// Load formation offsets from data/formations.json.
+// Non-fatal if missing — formation defaults to zero (all slots at battle center).
+JsonLoader::FormationData formation{};
+if (!JsonLoader::LoadFormations("data/formations.json", formation))
 {
-    mPlayerWorldX[i] = kPlayerScreenX[i] - halfW;
-    mPlayerWorldY[i] = kPlayerScreenY[i] - halfH;
-    mEnemyWorldX [i] = kEnemyScreenX [i] - halfW;
-    mEnemyWorldY [i] = kEnemyScreenY [i] - halfH;
+    LOG("[BattleState] WARNING: failed to load formations.json — slots at origin.");
 }
+
+const float battleCenterX = 0.0f;  // world origin = screen center
+const float battleCenterY = 0.0f;
+
+// Build SlotInfo: world position = battle center + JSON offset (ONE conversion).
+std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
+playerSlots[0].worldX = battleCenterX + formation.player[0].offsetX;  // 0 + (-320) = -320
+playerSlots[0].worldY = battleCenterY + formation.player[0].offsetY;  // 0 + 40     =  40
+// ... (same for all occupied slots)
+
+// BattleRenderer receives pre-computed world positions — no math inside.
+mBattleRenderer.Initialize(device, ctx, playerSlots, enemySlots, W, H);
 ```
 
-After this loop, the four instance arrays are the single authoritative
-source of world-space positions for the entire BattleRenderer lifetime.
+After `Initialize()`, `mPlayerWorldX/Y[]` and `mEnemyWorldX/Y[]` inside
+`BattleRenderer` are the single authoritative source of world positions for
+the rest of the battle session.
 
 ---
 
 ## 4. World-Space Slot Table
 
-W=1280, H=720 -> halfW=640, halfH=360
+Battle center = (0, 0).  These values come directly from `data/formations.json`.
 
 ### Player side (flipX=false)
 
-| Slot | Role       | Screen (px,py)  | World (wx,wy) |
-|------|------------|-----------------|----------------|
-|  0   | front      | (320, 400)      | (-320,  40)    |
-|  1   | back-top   | (200, 280)      | (-440, -80)    |
-|  2   | back-bot   | (200, 520)      | (-440, 160)    |
+| Slot | Role       | JSON offset (ox, oy) | World (wx, wy) |
+|------|------------|----------------------|----------------|
+|  0   | front      | (−320,  40)          | (−320,  40)    |
+|  1   | back-top   | (−440, −80)          | (−440, −80)    |
+|  2   | back-bot   | (−440, 160)          | (−440, 160)    |
 
 ### Enemy side (flipX=true)
 
-| Slot | Role       | Screen (px,py)  | World (wx,wy) |
-|------|------------|-----------------|----------------|
-|  0   | front      | ( 960, 400)     | ( 320,  40)    |
-|  1   | back-top   | (1080, 280)     | ( 440, -80)    |
-|  2   | back-bot   | (1080, 520)     | ( 440, 160)    |
+| Slot | Role       | JSON offset (ox, oy) | World (wx, wy) |
+|------|------------|----------------------|----------------|
+|  0   | front      | ( 320,  40)          | ( 320,  40)    |
+|  1   | back-top   | ( 440, −80)          | ( 440, −80)    |
+|  2   | back-bot   | ( 440, 160)          | ( 440, 160)    |
 
 World-space diagram (origin = screen center):
 
@@ -139,41 +170,44 @@ The formation is symmetric about the Y axis.
 
 ---
 
-## 5. Why the Conversion Lives Only in Initialize()
+## 5. Why BattleRenderer Has No Conversion Math
 
-Before the refactor, screenX - halfW appeared in BOTH Render() AND
-SetCameraPhase(). If the screen size changed or a slot moved, both sites had
-to be updated in sync  one missed edit meant the camera pointed at a
-different position than where the sprite was drawn.
+Before the refactor, `screenX − halfW` appeared in BOTH `BattleRenderer::Initialize()`
+AND `BattleRenderer::SetCameraPhase()`.  A slot move required two edits to stay
+in sync; one missed update caused the camera to focus on a point different from
+where the sprite was drawn.
 
-The fixed rule:
-
-  ONE conversion site, zero duplication.
-  Initialize() converts once -> stores world coords.
-  Every method after that reads the stored values directly.
+The new rule eliminates duplication entirely:
 
 ```
-  kPlayerScreenX/Y   kEnemyScreenX/Y
-  (constexpr in header -- edit here to move slots)
+data/formations.json
+  (edit offsets here to move slots — no recompile)
            |
-           |  Initialize()  <- ONLY conversion site
+           |  BattleState::OnEnter()  <- ONLY conversion site
+           |  worldX = battleCenterX + offsetX
            v
-  mPlayerWorldX/Y[]   mEnemyWorldX/Y[]
-  (instance arrays -- world space)
-       |                  |
-       v                  v
-   Render()         SetCameraPhase()
-   Draw() calls     SetActorPos()
-   (no math)        SetTargetPos()
-                    (no math)
+  SlotInfo[].worldX/Y
+  (already world-space; BattleRenderer stores them as-is)
+           |
+           v
+  BattleRenderer::mPlayerWorldX/Y[]   mEnemyWorldX/Y[]
+           |                                  |
+           v                                  v
+       Render()                      SetCameraPhase()
+       Draw() calls                  SetActorPos()
+       (no math)                     SetTargetPos()
+                                     (no math)
 ```
+
+`BattleRenderer` never calls `screenX − halfW`.  It receives world positions
+from the caller and uses them verbatim every frame.
 
 ---
 
 ## 6. Render() Drawing at World Positions
 
-Render() reads the precomputed arrays and passes values directly to Draw().
-No arithmetic at all:
+`Render()` reads the stored arrays and passes values directly to `Draw()`.
+No arithmetic:
 
 ```cpp
 Camera2D& cam = mCameraCtrl.GetCamera();
@@ -183,7 +217,7 @@ for (int i = 0; i < kMaxSlots; ++i)
 {
     if (!mPlayerActive[i]) continue;
     mPlayerRenderers[i].Draw(context, cam,
-        mPlayerWorldX[i],   // already world space
+        mPlayerWorldX[i],   // stored world-space value from SlotInfo
         mPlayerWorldY[i],
         2.0f, false);       // scale=2, flipX=false
 }
@@ -193,13 +227,13 @@ for (int i = 0; i < kMaxSlots; ++i)
 {
     if (!mEnemyActive[i]) continue;
     mEnemyRenderers[i].Draw(context, cam,
-        mEnemyWorldX[i],    // already world space
+        mEnemyWorldX[i],    // stored world-space value from SlotInfo
         mEnemyWorldY[i],
         2.0f, true);        // scale=2, flipX=true
 }
 ```
 
-flipX=true on enemy slots mirrors the sprite so every enemy faces the
+`flipX=true` on enemy slots mirrors the sprite so every enemy faces the
 player team regardless of how the source PNG was drawn.
 
 ---
@@ -212,15 +246,15 @@ For Camera2D at position (cx, cy), zoom z, screen (W, H):
 pixel = (world - cam) * zoom + (W/2, H/2)
 ```
 
-Example -- OVERVIEW (pos=0,0, zoom=1.0):
+Example — OVERVIEW (pos=0,0, zoom=1.0):
 
 ```
 Slot P0 world(-320, 40):
-  pixelX = (-320 - 0) * 1.0 + 640 = 320   matches design screen px
-  pixelY = (  40 - 0) * 1.0 + 360 = 400   matches design screen py
+  pixelX = (-320 - 0) * 1.0 + 640 = 320   matches original design screen px
+  pixelY = (  40 - 0) * 1.0 + 360 = 400   matches original design screen py
 ```
 
-Example -- ACTOR_FOCUS (pos=-320,40, zoom=1.6, camera on P0):
+Example — ACTOR_FOCUS (pos=-320,40, zoom=1.6, camera locked on P0):
 
 ```
 Slot P0 world(-320, 40):
@@ -228,25 +262,33 @@ Slot P0 world(-320, 40):
   pixelY = (  40 -    40 ) * 1.6 + 360 = 360   <- screen center
 ```
 
-The actor lands at screen center -- the zoom-in close-up effect.
+The actor lands at screen center — the zoom-in close-up effect.
 
 ---
 
 ## 8. Full Data Flow Diagram
 
 ```
+data/formations.json
+  (offset_x, offset_y per slot — world-space units relative to battle center)
+  |
+  | JsonLoader::LoadFormations()
+  v
 BattleState::OnEnter()
+  |
+  +-- Resolve world positions (ONE site):
+  |     SlotInfo[i].worldX = battleCenterX + formation.player[i].offsetX
+  |     SlotInfo[i].worldY = battleCenterY + formation.player[i].offsetY
   |
   +-> BattleRenderer::Initialize(device, ctx, playerSlots, enemySlots, W, H)
         |
-        +- 1. One-time world coord conversion
-        |      kPlayerScreenX/Y[i]  --(halfW/H)-->  mPlayerWorldX/Y[i]
-        |      kEnemyScreenX/Y [i]  --(halfW/H)-->  mEnemyWorldX/Y [i]
+        +- 1. Store SlotInfo[].worldX/Y into mPlayerWorldX/Y[], mEnemyWorldX/Y[]
+        |      (no conversion — values are already world space)
         |
         +- 2. BattleCameraController::Initialize(W, H)
         |      Camera2D built, phase=OVERVIEW, pos=(0,0), zoom=1.0
         |
-        +- 3. For each occupied slot
+        +- 3. For each occupied slot:
                JsonLoader::LoadSpriteSheet()  ->  SpriteSheet
                WorldSpriteRenderer::Initialize()  ->  GPU upload
                WorldSpriteRenderer::PlayClip("idle")
@@ -269,8 +311,8 @@ BattleState::Render()
 
 ## 9. The Camera Controller and Slot Positions
 
-BattleRenderer::SetCameraPhase() feeds slot world positions directly to
-BattleCameraController -- no conversion here either:
+`BattleRenderer::SetCameraPhase()` feeds slot world positions directly to
+`BattleCameraController` — no conversion here:
 
 ```cpp
 void BattleRenderer::SetCameraPhase(BattleCameraPhase phase,
@@ -309,24 +351,34 @@ mCurrentZoom += (desiredZoom - mCurrentZoom) * kSmoothSpeed * dt;
 
 ### Move an existing slot
 
-Edit only the constexpr constants in BattleRenderer.h:
+Edit `data/formations.json` — no C++ recompile required:
 
-```cpp
-// Move player slot 0 x from 320 to 400:
-static constexpr float kPlayerScreenX[kMaxSlots] = { 400.0f, 200.0f, 200.0f };
+```json
+// Move player slot 0 from x=-320 to x=-280:
+{ "slot": 0, "offset_x": -280, "offset_y": 40 }
 ```
 
-Initialize() recomputes mPlayerWorldX[] from the new value on next run.
-Render(), SetCameraPhase(), GetPlayerSlotPos() all pick up the change
-automatically -- they read mPlayerWorldX[], not the constants.
+`BattleState::OnEnter()` reloads the JSON every time the battle starts.
+`Render()`, `SetCameraPhase()`, and `GetPlayerSlotPos()` all pick up the change
+automatically — they only read `mPlayerWorldX[]`, never the JSON offsets.
+
+### Override the battle center (future: triggered battles at player position)
+
+```cpp
+const float battleCenterX = player->GetWorldX();  // overworld position
+const float battleCenterY = player->GetWorldY();
+// Formation offsets then place combatants relative to that point.
+```
+
+No change to `data/formations.json` or `BattleRenderer` is needed.
 
 ### Increase max slots beyond 3
 
-1. Change kMaxSlots to the new count in BattleRenderer.h
-2. Extend the four k*ScreenX/Y[] arrays with new pixel positions
-3. Fill the extra SlotInfo entries in BattleState::OnEnter()
+1. Change `kMaxSlots` in `BattleRenderer.h`.
+2. Add new offset objects in `data/formations.json` for the new slots.
+3. Fill the extra `SlotInfo` entries in `BattleState::OnEnter()`.
 
-All loops are for (int i = 0; i < kMaxSlots; ++i) -- no other changes needed.
+All loops are `for (int i = 0; i < kMaxSlots; ++i)` — no other code changes needed.
 
 ---
 
@@ -334,8 +386,9 @@ All loops are for (int i = 0; i < kMaxSlots; ++i) -- no other changes needed.
 
 | Mistake | Symptom | Fix |
 |---|---|---|
-| Pass raw screen pixel (960,400) to Draw() as world pos | Sprite appears at (1600,760) off-screen | Read mEnemyWorldX/Y[i] -- already world space |
-| Add a second screenX-halfW conversion in Render() | After slot move, sprite and camera point at different places | One conversion site only: Initialize(). Never add another. |
+| Pass raw screen pixel (960,400) to SlotInfo::worldX/Y | Sprite appears far off-screen (~1600,760) | Use JSON offset (+battleCenter) — result is already world space |
+| Add an extra screenX−halfW conversion inside BattleRenderer | After a slot move, sprite and camera disagree | Only BattleState::OnEnter() converts; BattleRenderer stores values verbatim |
+| Edit mPlayerWorldX[] directly in BattleRenderer | Position change lost on next battle | Edit data/formations.json; BattleState::OnEnter() rebuilds SlotInfo each time |
 | flipX=false for enemy slots | All enemies face the same direction as the player | Pass flipX=true for every enemy Draw() call |
-| Edit mPlayerWorldX[] directly instead of kPlayerScreenX[] | Position change lost on next Initialize() call | Edit constexpr constants; Initialize() rebuilds the arrays |
-| Pass screen pixels to SetActorPos()/SetTargetPos() | Camera zooms to wrong point | Pass mPlayerWorldX[slot] -- already correct |
+| Pass screen pixels to SetActorPos()/SetTargetPos() | Camera zooms to wrong point | Pass mPlayerWorldX[slot] — already world space |
+| Hardcode slot positions as C++ constexpr instead of JSON | Moving a slot requires a recompile | Keep all layout data in data/formations.json |

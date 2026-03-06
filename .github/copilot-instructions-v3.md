@@ -472,8 +472,6 @@ For every subsystem that touches DirectX (Device, SwapChain, SpriteBatch, AudioE
 //   3. Resizing swap chain without releasing RTV first → DXGI_ERROR_INVALID_CALL.
 ```
 
-UPDATING COMMENT RULE: If you change any logic, you MUST update the comments to reflect the new behavior. Never leave code uncommented or with outdated comments.
- 
 ## 2. File Header Format (mandatory on every file)
 
 ```cpp

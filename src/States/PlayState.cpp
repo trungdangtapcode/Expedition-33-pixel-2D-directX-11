@@ -42,6 +42,13 @@
 void PlayState::OnEnter()
 {
     LOG("[PlayState] OnEnter");
+
+    // Request overworld BGM via the event bus.
+    // AudioManager subscribes to this event and handles the actual playback;
+    // PlayState has no knowledge of XAudio2 or the audio subsystem.
+    // PlayBGM is idempotent — safe to broadcast even when re-entering after a
+    // ChangeState (not from a pop, since OnEnter is not called on resume).
+    EventManager::Get().Broadcast("bgm_play_overworld", {});
     ID3D11Device*        device  = D3DContext::Get().GetDevice();
     ID3D11DeviceContext* context = D3DContext::Get().GetContext();
 
@@ -101,6 +108,12 @@ void PlayState::OnEnter()
 void PlayState::OnExit()
 {
     LOG("[PlayState] OnExit");
+
+    // Stop BGM when PlayState is fully dismissed (e.g., transitioning to MenuState).
+    // Not broadcast when BattleState is pushed — that push triggers its own
+    // "bgm_play_battle" event, so the audio transitions cleanly without a gap.
+    EventManager::Get().Broadcast("bgm_stop", {});
+
     EventManager::Get().Unsubscribe("window_resized", mResizeListenerID);
     mCircleRenderer.Shutdown();
     mDebugView.Shutdown();

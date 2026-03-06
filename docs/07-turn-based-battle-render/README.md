@@ -1,14 +1,19 @@
 # Turn-Based Battle — Visual Rendering Layer
 
-This document covers the two rendering systems added on top of the existing
+This document covers the rendering systems added on top of the existing
 battle simulation (`docs/05-turn-based-battle-simple`):
 
 | System | File | What it does |
 |---|---|---|
 | `BattleRenderer` | `src/Battle/BattleRenderer.h/.cpp` | Draws animated combatant sprites at fixed screen positions |
-| `HealthBarRenderer` | `src/UI/HealthBarRenderer.h/.cpp` | Draws the 3-layer HP bar widget in the top-left corner |
+| `HealthBarRenderer` | `src/UI/HealthBarRenderer.h/.cpp` | Draws the 3-layer player HP bar widget (bottom-right) |
+| `EnemyHpBarRenderer` | `src/UI/EnemyHpBarRenderer.h/.cpp` | Draws up to 3 enemy HP bars (top-center), with name labels |
+| `BattleTextRenderer` | `src/UI/BattleTextRenderer.h/.cpp` | Shared `SpriteFont` wrapper for all HUD text in battle |
 
-Both systems are owned by `BattleState` and live only for the duration of one battle.
+See **[UI-render.md](UI-render.md)** for full documentation of the HP bar and
+text rendering systems.
+
+All systems are owned by `BattleState` and live only for the duration of one battle.
 
 ---
 
@@ -356,10 +361,16 @@ GameApp::Render()
   │           │     ├── [Player slots] WorldSpriteRenderer::Draw (flipX=false)
   │           │     └── [Enemy  slots] WorldSpriteRenderer::Draw (flipX=true)
   │           │
-  │           └── HealthBarRenderer::Render(ctx)
-  │                 ├── SpriteBatch Begin/Draw/End — background
-  │                 ├── SpriteBatch Begin/Draw/End — red fill quad
-  │                 └── SpriteBatch Begin/Draw/End — frame + portrait
+  │           ├── HealthBarRenderer::Render(ctx)          ← bottom-right
+  │           │     ├── SpriteBatch Begin/Draw/End — background layer
+  │           │     ├── SpriteBatch Begin/Draw/End — red fill quad
+  │           │     └── SpriteBatch Begin/Draw/End — frame + portrait
+  │           │
+  │           └── EnemyHpBarRenderer::Render(ctx)         ← top-center
+  │                 ├── SpriteBatch Begin/Draw/End — Pass 1: background
+  │                 ├── SpriteBatch Begin/Draw/End — Pass 2: red fill quads
+  │                 ├── SpriteBatch Begin/Draw/End — Pass 3: frame/chrome
+  │                 └── BattleTextRenderer batch   — Pass 4: enemy name labels
   │
   └── D3DContext::EndFrame()   ← Present() — exactly once per frame
 ```

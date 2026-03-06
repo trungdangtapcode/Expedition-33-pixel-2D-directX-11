@@ -72,6 +72,15 @@ public:
     // ------------------------------------------------------------
     void SetInputPhase(PlayerInputPhase phase);
 
+    // ------------------------------------------------------------
+    // RequestFlee: called by FleeCommand to signal that the player wants
+    //   to exit the battle.  Does NOT pop the state immediately —
+    //   popping from inside IBattleCommand::Execute() would destroy
+    //   BattleState while its own call stack is still live (use-after-free).
+    //   The flag is checked at the END of Update() after all handlers return.
+    // ------------------------------------------------------------
+    void RequestFlee() { mPendingFlee = true; }
+
 private:
     D3DContext&       mD3D;
     BattleManager     mBattle;
@@ -84,19 +93,21 @@ private:
     int               mSkillIndex     = 0;   // cursor in SKILL_SELECT
     int               mTargetIndex    = 0;   // cursor in TARGET_SELECT
 
+    // Set to true by RequestFlee(); acted on at the end of Update() so
+    // BattleState is never destroyed while its own call stack is still live.
+    bool              mPendingFlee    = false;
+
     // Data-driven command list — built once in BuildCommandList().
     // Order here is the order shown in the debug console menu.
     std::vector<std::unique_ptr<IBattleCommand>> mCommands;
 
     // One-press key tracking — avoids repeated firing while a key is held.
+    // All three input phases share the same Up/Down/Enter/Backspace keys;
+    // the active phase determines what the keys do (unified navigation).
     bool mKeyUpWasDown    = false;
     bool mKeyDownWasDown  = false;
-    bool mKey1WasDown     = false;
-    bool mKey2WasDown     = false;
-    bool mKey3WasDown     = false;
-    bool mTabWasDown      = false;
     bool mEnterWasDown    = false;
-    bool mEscWasDown      = false;
+    bool mBackWasDown     = false;  // Backspace — navigate back one input phase
 
     // Populate mCommands with all available top-level options.
     void BuildCommandList();

@@ -126,6 +126,22 @@ public:
               bool                flipX = false);
 
     // ------------------------------------------------------------
+    // Function: SetDrawOffset
+    // Purpose:  Apply a fixed world-space offset to every Draw() call.
+    //           The offset is added to the world position BEFORE the pivot
+    //           is applied, so it shifts the entire sprite — not just the anchor.
+    //
+    //   Typical use: correct bottom-center pivot alignment.
+    //   If slot positions represent the visual center of a character but the
+    //   pivot is at the sprite's feet (y = frameHeight), a negative drawOffsetY
+    //   shifts the sprite upward so the center lands at the slot position.
+    //
+    //   Values are stored in-object; set once after Initialize() via SlotInfo.
+    //   Zero by default — no visual change unless explicitly set.
+    // ------------------------------------------------------------
+    void SetDrawOffset(float dx, float dy) { mDrawOffsetX = dx; mDrawOffsetY = dy; }
+
+    // ------------------------------------------------------------
     // Function: Shutdown
     // Purpose:  Release all GPU resources deterministically.
     //           Called from PlayState::OnExit() before D3D device teardown.
@@ -177,4 +193,10 @@ private:
     // Animation playback state — driven by Update(dt).
     int   mFrameIndex = 0;   // index within the active clip [0, numFrames)
     float mFrameTimer = 0.0f; // accumulated time within the current frame (seconds)
+
+    // World-space draw offset — added to worldX/worldY in every Draw() call.
+    // Set via SetDrawOffset(); defaults to (0, 0) so behaviour is unchanged
+    // when no offset is configured.
+    float mDrawOffsetX = 0.0f;
+    float mDrawOffsetY = 0.0f;
 };

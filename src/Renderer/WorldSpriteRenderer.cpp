@@ -346,7 +346,9 @@ void WorldSpriteRenderer::Draw(ID3D11DeviceContext* context,
     );
 
     // World-space position where the pivot will land.
-    const XMFLOAT2 worldPos(worldX, worldY);
+    // mDrawOffsetX/Y shifts the whole sprite without touching pivot or scale.
+    // Offset is zero by default; set via SetDrawOffset() from BattleRenderer.
+    const XMFLOAT2 worldPos(worldX + mDrawOffsetX, worldY + mDrawOffsetY);
 
     // ----------------------------------------------------------------
     // Step 5 — SpriteBatch draw pass.

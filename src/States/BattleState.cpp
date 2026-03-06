@@ -75,6 +75,10 @@ void BattleState::OnEnter()
     playerSlots[0].texturePath = L"assets/animations/verso.png";
     playerSlots[0].jsonPath    = "assets/animations/verso.json";
     playerSlots[0].startClip   = "idle";
+    // Verso sprite has a bottom-center pivot (feet at worldY).
+    // Shift up by half the rendered height (128px frame * scale 2.0 / 2 = 128)
+    // so the visual center of the character aligns with the slot anchor.
+    playerSlots[0].drawOffsetY = 128.0f/2;
     // slots 1 and 2 remain occupied=false (empty party slots)
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
@@ -82,10 +86,12 @@ void BattleState::OnEnter()
     enemySlots[0].texturePath = L"assets/animations/skeleton.png";
     enemySlots[0].jsonPath    = "assets/animations/skeleton.json";
     enemySlots[0].startClip   = "idle";
+    enemySlots[0].drawOffsetY = 128.0f/2;  // same correction as player side
     enemySlots[1].occupied    = true;
     enemySlots[1].texturePath = L"assets/animations/skeleton.png";
     enemySlots[1].jsonPath    = "assets/animations/skeleton.json";
     enemySlots[1].startClip   = "idle";
+    enemySlots[1].drawOffsetY = 128.0f/2;
     // slot 2 remains occupied=false
 
     mBattleRenderer.Initialize(
@@ -159,10 +165,12 @@ void BattleState::Update(float dt)
     {
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
     }
-    // For every OTHER phase transition (RESOLVING, ENEMY_TURN, WIN, LOSE)
-    // also dump the HUD so the player sees what is happening.
+    // For every OTHER phase transition (RESOLVING, ENEMY_TURN, WIN, LOSE):
+    //   - Reset the camera to OVERVIEW — the action queue plays out in a wide shot.
+    //   - Dump the HUD so the player sees what is happening.
     else if (phaseBefore != phaseAfter)
     {
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
         DumpStateToDebugOutput();
     }
 
@@ -192,6 +200,24 @@ void BattleState::Update(float dt)
 
         EventManager::Get().Broadcast(eventName, {});
         StateManager::Get().PopState();
+        return;  // BattleState is now destroyed — do NOT touch any member below.
+    }
+
+    // ------------------------------------------------------------
+    // Deferred flee: FleeCommand called RequestFlee() during HandleInput().
+    // We cannot PopState() there because Execute() runs inside our own
+    // call stack — destroying BattleState mid-frame is a use-after-free.
+    // Checking here, after ALL handlers have returned, is safe.
+    // ------------------------------------------------------------
+    if (mPendingFlee)
+    {
+        mPendingFlee = false;   // clear before pop so OnExit sees clean state
+        LOG("%s", "[BattleState] Processing deferred flee — popping state.");
+        EventData data;
+        data.name = "battle_flee";
+        EventManager::Get().Broadcast("battle_flee", data);
+        StateManager::Get().PopState();
+        return;  // BattleState is now destroyed — do NOT touch any member below.
     }
 }
 
@@ -269,9 +295,10 @@ void BattleState::HandleCommandSelect()
 }
 
 // ------------------------------------------------------------
-// HandleSkillSelect: 1/2/3 select a skill.
-//   Pressing a skill key immediately advances to TARGET_SELECT.
-//   Esc cancels back to COMMAND_SELECT.
+// HandleSkillSelect: Up/Down moves the skill cursor, Enter confirms.
+//   Cursor wraps around the available skill count.
+//   Enter advances to TARGET_SELECT only if the highlighted skill is usable.
+//   Backspace cancels back to COMMAND_SELECT.
 // ------------------------------------------------------------
 void BattleState::HandleSkillSelect()
 {
@@ -285,25 +312,43 @@ void BattleState::HandleSkillSelect()
     auto* player = mBattle.GetActivePlayer();
     if (!player) return;
 
-    // Skill selection — pressing the key sets the index AND advances phase.
-    auto selectSkill = [&](int idx) {
-        ISkill* skill = player->GetSkill(idx);
+    // Count how many skills the active player actually has.
+    // GetSkill() returns nullptr for out-of-range indices — walk until null.
+    int skillCount = 0;
+    while (player->GetSkill(skillCount) != nullptr) ++skillCount;
+    if (skillCount == 0) return;
+
+    // Up/Down move the cursor, wrapping around the skill list.
+    if (pressed(VK_UP, mKeyUpWasDown))
+    {
+        mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
+        LOG("[BattleState] Skill cursor -> slot %d (%s)",
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
+        DumpStateToDebugOutput();
+    }
+    if (pressed(VK_DOWN, mKeyDownWasDown))
+    {
+        mSkillIndex = (mSkillIndex + 1) % skillCount;
+        LOG("[BattleState] Skill cursor -> slot %d (%s)",
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
+        DumpStateToDebugOutput();
+    }
+
+    // Enter confirms the highlighted skill and advances to target selection.
+    if (pressed(VK_RETURN, mEnterWasDown))
+    {
+        ISkill* skill = player->GetSkill(mSkillIndex);
         if (!skill || !skill->CanUse(*player))
         {
-            LOG("[BattleState] Skill %d unavailable.", idx + 1);
+            LOG("[BattleState] Skill %d unavailable.", mSkillIndex + 1);
             return;
         }
-        mSkillIndex = idx;
-        LOG("[BattleState] Skill selected: %s — now pick a target (Tab/Enter)", skill->GetName());
+        LOG("[BattleState] Skill confirmed: %s — now pick a target", skill->GetName());
         SetInputPhase(PlayerInputPhase::TARGET_SELECT);
-    };
+    }
 
-    if (pressed('1', mKey1WasDown)) selectSkill(0);
-    if (pressed('2', mKey2WasDown)) selectSkill(1);
-    if (pressed('3', mKey3WasDown)) selectSkill(2);
-
-    // Esc goes back to the top-level command menu.
-    if (pressed(VK_ESCAPE, mEscWasDown))
+    // Backspace goes back to the top-level command menu.
+    if (pressed(VK_BACK, mBackWasDown))
     {
         LOG("%s", "[BattleState] Cancelled skill select — back to command menu.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
@@ -311,8 +356,10 @@ void BattleState::HandleSkillSelect()
 }
 
 // ------------------------------------------------------------
-// HandleTargetSelect: Tab cycles enemies, Enter confirms.
-//   Esc cancels back to SKILL_SELECT.
+// HandleTargetSelect: Up/Down cycles the target cursor, Enter confirms.
+//   Down advances to the next alive enemy (same as the old Tab behaviour).
+//   Up retreats to the previous alive enemy.
+//   Backspace cancels back to SKILL_SELECT.
 // ------------------------------------------------------------
 void BattleState::HandleTargetSelect()
 {
@@ -323,10 +370,38 @@ void BattleState::HandleTargetSelect()
         return fresh;
     };
 
-    if (pressed(VK_TAB, mTabWasDown))       CycleTarget();
+    const auto enemies = mBattle.GetAliveEnemies();
+    if (enemies.empty()) return;
+    const int enemyCount = static_cast<int>(enemies.size());
+
+    // Down advances to the next target (wraps around).
+    if (pressed(VK_DOWN, mKeyDownWasDown))
+    {
+        mTargetIndex = (mTargetIndex + 1) % enemyCount;
+        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
+
+        constexpr int kActivePlayerSlot = 0;
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
+                                        kActivePlayerSlot, mTargetIndex);
+        DumpStateToDebugOutput();
+    }
+
+    // Up retreats to the previous target (wraps around).
+    if (pressed(VK_UP, mKeyUpWasDown))
+    {
+        mTargetIndex = (mTargetIndex - 1 + enemyCount) % enemyCount;
+        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
+
+        constexpr int kActivePlayerSlot = 0;
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
+                                        kActivePlayerSlot, mTargetIndex);
+        DumpStateToDebugOutput();
+    }
+
     if (pressed(VK_RETURN, mEnterWasDown))  ConfirmSkillAndTarget();
 
-    if (pressed(VK_ESCAPE, mEscWasDown))
+    // Backspace cancels target selection and returns to the skill menu.
+    if (pressed(VK_BACK, mBackWasDown))
     {
         LOG("%s", "[BattleState] Cancelled target select — back to skill menu.");
         SetInputPhase(PlayerInputPhase::SKILL_SELECT);
@@ -343,6 +418,13 @@ void BattleState::CycleTarget()
 
     mTargetIndex = (mTargetIndex + 1) % static_cast<int>(enemies.size());
     LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
+
+    // Update the camera target position to track the newly selected enemy.
+    // The actor slot stays 0; only the target slot changes.
+    constexpr int kActivePlayerSlot = 0;
+    mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
+                                    kActivePlayerSlot, mTargetIndex);
+
     DumpStateToDebugOutput();
 }
 
@@ -387,6 +469,8 @@ void BattleState::ConfirmSkillAndTarget()
 // SetInputPhase: public entry point for IBattleCommand implementations.
 //   Resets relevant cursors on transition so stale positions don't leak
 //   between phases.
+//   Also drives the BattleRenderer camera into the appropriate cinematic
+//   phase so the player gets a visual cue about what they are selecting.
 // ------------------------------------------------------------
 void BattleState::SetInputPhase(PlayerInputPhase phase)
 {
@@ -396,6 +480,36 @@ void BattleState::SetInputPhase(PlayerInputPhase phase)
     if (phase == PlayerInputPhase::COMMAND_SELECT) mCommandIndex = 0;
     if (phase == PlayerInputPhase::SKILL_SELECT)   mSkillIndex   = 0;
     if (phase == PlayerInputPhase::TARGET_SELECT)  mTargetIndex  = 0;
+
+    // ---- Drive the battle camera to match the new input phase ----
+    // Actor slot: the active player is always slot 0 (single-player party for now).
+    // When multi-character turns are added, replace 0 with the active slot index.
+    constexpr int kActivePlayerSlot = 0;
+
+    switch (phase)
+    {
+    case PlayerInputPhase::SKILL_SELECT:
+        // Player is choosing a skill — zoom in on the acting character so the
+        // player sees clearly who is about to attack.
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::ACTOR_FOCUS,
+                                        kActivePlayerSlot, -1);
+        break;
+
+    case PlayerInputPhase::TARGET_SELECT:
+        // Player is choosing a target — pan to 80% target / 20% actor blend
+        // so the target is clearly highlighted while the attacker stays in frame.
+        // mTargetIndex was just reset to 0 above, so the camera starts on the
+        // first alive enemy (slot 0).
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
+                                        kActivePlayerSlot, mTargetIndex);
+        break;
+
+    case PlayerInputPhase::COMMAND_SELECT:
+    default:
+        // Back to top-level menu — wide shot, full battlefield visible.
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
+        break;
+    }
 
     DumpStateToDebugOutput();
 }

@@ -2,26 +2,35 @@
 // File: BattleRenderer.cpp
 // Responsibility: Initialize, animate, and render all combatant sprites
 //   during a battle — 3 player slots (left side) and 3 enemy slots (right side).
+//   Drives the BattleCameraController for cinematic phase transitions.
 //
-// Screen layout (1280x720):
+// Coordinate system — ONE space used everywhere after Initialize(): WORLD SPACE.
+//   Camera2D at pos=(0,0) zoom=1 maps world origin (0,0) to the screen center.
+//   Conversion formula (applied ONCE in Initialize()):
+//     worldX = screenX - screenW/2
+//     worldY = screenY - screenH/2
+//   All methods after Initialize() use mPlayerWorldX/Y[] / mEnemyWorldX/Y[]
+//   directly — no inline conversion code anywhere else.
+//
+// World-space slot layout (1280x720, halfW=640, halfH=360):
 //
 //   PLAYER SIDE (left, face right)     ENEMY SIDE (right, face left)
-//   Slot 1  screen(200, 280)  back     Slot 1  screen(1080, 280)  back
-//   Slot 0  screen(320, 400)  front    Slot 0  screen( 960, 400)  front
-//   Slot 2  screen(200, 520)  back     Slot 2  screen(1080, 520)  back
+//   Slot 1  world(-440, -80)  back     Slot 1  world( 440, -80)  back
+//   Slot 0  world(-320,  40)  front    Slot 0  world( 320,  40)  front
+//   Slot 2  world(-440, 160)  back     Slot 2  world( 440, 160)  back
 //
-// Camera / coordinate conversion:
-//   Camera2D at pos=(0,0) zoom=1 maps world origin (0,0) to the SCREEN CENTER
-//   (W/2, H/2).  To draw a sprite at screen pixel (px, py), supply world:
-//     worldX = px - screenW/2
-//     worldY = py - screenH/2
-//   Render() performs this via ScreenToWorld() before each Draw() call.
+// Camera phase transitions (driven by BattleState):
+//   OVERVIEW      — default wide shot, pos=(0,0), zoom=1.0
+//   ACTOR_FOCUS   — zoom to acting player slot,   zoom=1.6
+//   TARGET_FOCUS  — pan to 80% target + 20% actor blend, zoom=1.0
 //
 // Common mistakes:
-//   1. Passing raw screen pixels to Draw() — sprite appears at wrong position.
-//      Always subtract (screenW/2, screenH/2) to convert to world space.
+//   1. Converting screen coords inside Render() or SetCameraPhase() — after
+//      the Initialize() refactor there is ONE conversion site; adding another
+//      creates the exact inconsistency that was fixed here.
 //   2. Forgetting flipX for enemy slots — skeletons face the wrong direction.
-//   3. Calling Update() before Initialize() — mActiveClip is nullptr → crash.
+//   3. Calling Update() before Initialize() — mActiveClip is nullptr -> crash.
+//   4. Not calling SetCameraPhase() on input phase change — camera stays stuck.
 // ============================================================
 #include "BattleRenderer.h"
 #include "../Utils/Log.h"
@@ -35,17 +44,17 @@
 //   Immediately play the start clip so the sprite has a valid frame on the
 //   first Render() call.
 //
+//   ALSO computes world-space slot positions from the screen-pixel design
+//   constants defined in BattleRenderer.h.  This conversion happens EXACTLY
+//   ONCE here — worldX = screenX - screenW/2.  All other methods in this
+//   file read mPlayerWorldX/Y[] and mEnemyWorldX/Y[] directly, with no
+//   further arithmetic needed.
+//
 // Parameters:
 //   device/context — D3D11 objects passed to each WorldSpriteRenderer
 //   playerSlots    — array of kMaxSlots slot descriptors for the player team
 //   enemySlots     — array of kMaxSlots slot descriptors for the enemy team
-//   screenW/H      — render-target size; used to build the flat Camera2D
-//
-// Why a flat Camera2D?
-//   WorldSpriteRenderer::Draw() multiplies sprite vertices by a view matrix.
-//   With Camera2D at pos=(0,0) and zoom=1 the view matrix is effectively
-//   an identity scale, so the world coordinates supplied to Draw() map
-//   directly to screen pixels — no manual conversion needed.
+//   screenW/H      — render-target size; used to seed world coords + camera
 // ------------------------------------------------------------
 bool BattleRenderer::Initialize(ID3D11Device*                          device,
                                  ID3D11DeviceContext*                   context,
@@ -57,16 +66,31 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
     mScreenH = screenH;
 
     // ----------------------------------------------------------------
-    // Build the flat battle camera.
-    // pos=(0,0), zoom=1 — world origin maps to screen CENTER (W/2, H/2).
-    // Sprites are drawn by converting screen pixels to world coords:
-    //   worldX = screenX - screenW/2,  worldY = screenY - screenH/2
-    // This keeps the Camera2D pipeline intact without a custom projection.
+    // Convert screen-pixel slot positions to world space ONCE.
+    //   worldX = screenX - screenW/2   (center of screen = world origin)
+    //   worldY = screenY - screenH/2
+    //
+    // Source constants (kPlayerScreenX/Y, kEnemyScreenX/Y) live in the
+    // header as the human-readable design layout.  After this block every
+    // method speaks only world space — no conversion is repeated elsewhere.
     // ----------------------------------------------------------------
-    mCamera = std::make_unique<Camera2D>(screenW, screenH);
-    mCamera->SetPosition(0.0f, 0.0f);
-    mCamera->SetZoom(1.0f);
-    mCamera->Update();
+    const float halfW = static_cast<float>(screenW) * 0.5f;
+    const float halfH = static_cast<float>(screenH) * 0.5f;
+
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        mPlayerWorldX[i] = kPlayerScreenX[i] - halfW;
+        mPlayerWorldY[i] = kPlayerScreenY[i] - halfH;
+        mEnemyWorldX [i] = kEnemyScreenX [i] - halfW;
+        mEnemyWorldY [i] = kEnemyScreenY [i] - halfH;
+    }
+
+    // ----------------------------------------------------------------
+    // Initialize the battle camera controller.
+    // It starts in OVERVIEW phase: pos=(0,0), zoom=1.0 — all combatants visible.
+    // BattleState will call SetCameraPhase() to drive transitions later.
+    // ----------------------------------------------------------------
+    mCameraCtrl.Initialize(screenW, screenH);
 
     // ----------------------------------------------------------------
     // Initialize player-side renderers.
@@ -94,6 +118,10 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
         // Start the idle (or configured start) clip immediately so the first
         // Render() call has a valid mActiveClip and does not assert.
         mPlayerRenderers[i].PlayClip(info.startClip);
+
+        // Apply the per-slot draw offset (e.g. to correct bottom-center pivot).
+        // Zero by default — set explicitly in SlotInfo when alignment needs tuning.
+        mPlayerRenderers[i].SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
         mPlayerActive[i] = true;
     }
 
@@ -120,6 +148,7 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
         }
 
         mEnemyRenderers[i].PlayClip(info.startClip);
+        mEnemyRenderers[i].SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
         mEnemyActive[i] = true;
     }
 
@@ -139,10 +168,9 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
 // ------------------------------------------------------------
 void BattleRenderer::Update(float dt)
 {
-    // Rebuild the camera matrix each frame.
-    // For the flat battle camera this is a no-op (pos/zoom never change),
-    // but calling it ensures correctness if the camera is ever moved later.
-    mCamera->Update();
+    // Advance the battle camera lerp toward the desired phase target.
+    // This also calls Camera2D::Update() internally to rebuild the matrix.
+    mCameraCtrl.Update(dt);
 
     for (int i = 0; i < kMaxSlots; ++i)
     {
@@ -154,21 +182,18 @@ void BattleRenderer::Update(float dt)
 // ------------------------------------------------------------
 // Function: Render
 // Purpose:
-//   Draw all active combatant sprites at their fixed screen positions.
+//   Draw all active combatant sprites at their slot positions.
 //   Player sprites face right (flipX=false); enemy sprites face left (flipX=true).
 //
-// Coordinate conversion:
-//   Camera2D at pos=(0,0) maps world (0,0) to screen CENTER (W/2, H/2).
-//   To place a sprite at screen pixel (px, py):
-//     worldX = px - mScreenW / 2
-//     worldY = py - mScreenH / 2
-//   The slot tables store screen-pixel positions; conversion happens here.
+//   Slot positions are read directly from mPlayerWorldX/Y[] and mEnemyWorldX/Y[]
+//   — both arrays are already in world space (computed once in Initialize()).
+//   No pixel-to-world conversion is needed here.
 // ------------------------------------------------------------
 void BattleRenderer::Render(ID3D11DeviceContext* context)
 {
-    // Half-screen offsets — used to convert pixel coords to world coords.
-    const float halfW = static_cast<float>(mScreenW) * 0.5f;
-    const float halfH = static_cast<float>(mScreenH) * 0.5f;
+    // Retrieve the interpolated camera from the controller.
+    // The matrix was already rebuilt in Update() — no redundant rebuild here.
+    Camera2D& cam = mCameraCtrl.GetCamera();
 
     // -- Player side ------------------------------------------------
     // Players face right (default sprite orientation) — flipX=false.
@@ -177,11 +202,11 @@ void BattleRenderer::Render(ID3D11DeviceContext* context)
         if (!mPlayerActive[i]) continue;
         mPlayerRenderers[i].Draw(
             context,
-            *mCamera,
-            kPlayerScreenX[i] - halfW,   // screen pixel -> world x
-            kPlayerScreenY[i] - halfH,   // screen pixel -> world y
-            2.0f,                         // scale up for visibility
-            false                         // face right
+            cam,
+            mPlayerWorldX[i],   // world x — no conversion needed
+            mPlayerWorldY[i],   // world y — no conversion needed
+            2.0f,               // scale up for visibility
+            false               // face right
         );
     }
 
@@ -192,11 +217,11 @@ void BattleRenderer::Render(ID3D11DeviceContext* context)
         if (!mEnemyActive[i]) continue;
         mEnemyRenderers[i].Draw(
             context,
-            *mCamera,
-            kEnemyScreenX[i] - halfW,    // screen pixel -> world x
-            kEnemyScreenY[i] - halfH,    // screen pixel -> world y
-            2.0f,                          // scale up for visibility
-            true                           // face left — mirror the sprite
+            cam,
+            mEnemyWorldX[i],    // world x — no conversion needed
+            mEnemyWorldY[i],    // world y — no conversion needed
+            2.0f,               // scale up for visibility
+            true                // face left — mirror the sprite
         );
     }
 }
@@ -216,8 +241,61 @@ void BattleRenderer::Shutdown()
         mEnemyRenderers[i].Shutdown();
     }
 
-    // Release the flat camera — all memory freed; GPU resources unaffected.
-    mCamera.reset();
+    // BattleCameraController owns its Camera2D via unique_ptr;
+    // it will be destroyed automatically when mCameraCtrl goes out of scope.
+    // No explicit reset needed here.
 
     LOG("[BattleRenderer] Shutdown complete.");
+}
+
+// ------------------------------------------------------------
+// Function: SetCameraPhase
+// Purpose:
+//   Drive the BattleCameraController to a new cinematic state.
+//   World-space slot positions are read directly from mPlayerWorldX/Y[] and
+//   mEnemyWorldX/Y[] — no conversion is performed here.
+//
+// Parameters:
+//   phase      — OVERVIEW / ACTOR_FOCUS / TARGET_FOCUS
+//   actorSlot  — player slot index for the acting combatant (-1 = unknown)
+//   targetSlot — enemy  slot index for the selected target  (-1 = unknown)
+// ------------------------------------------------------------
+void BattleRenderer::SetCameraPhase(BattleCameraPhase phase,
+                                     int actorSlot, int targetSlot)
+{
+    // Update actor world position if a valid player slot was provided.
+    if (actorSlot >= 0 && actorSlot < kMaxSlots && mPlayerActive[actorSlot])
+    {
+        mCameraCtrl.SetActorPos(mPlayerWorldX[actorSlot], mPlayerWorldY[actorSlot]);
+    }
+
+    // Update target world position if a valid enemy slot was provided.
+    if (targetSlot >= 0 && targetSlot < kMaxSlots && mEnemyActive[targetSlot])
+    {
+        mCameraCtrl.SetTargetPos(mEnemyWorldX[targetSlot], mEnemyWorldY[targetSlot]);
+    }
+
+    mCameraCtrl.SetPhase(phase);
+}
+
+// ------------------------------------------------------------
+// Function: GetPlayerSlotPos / GetEnemySlotPos
+// Purpose:
+//   Return the WORLD-SPACE center of a given slot so external callers
+//   (e.g., BattleState building debug overlay labels) never have to compute
+//   world coords themselves.
+//   Returns (0.0f, 0.0f) for invalid slot indices — safe default.
+// ------------------------------------------------------------
+void BattleRenderer::GetPlayerSlotPos(int slot, float& outWorldX, float& outWorldY) const
+{
+    if (slot < 0 || slot >= kMaxSlots) { outWorldX = 0.0f; outWorldY = 0.0f; return; }
+    outWorldX = mPlayerWorldX[slot];
+    outWorldY = mPlayerWorldY[slot];
+}
+
+void BattleRenderer::GetEnemySlotPos(int slot, float& outWorldX, float& outWorldY) const
+{
+    if (slot < 0 || slot >= kMaxSlots) { outWorldX = 0.0f; outWorldY = 0.0f; return; }
+    outWorldX = mEnemyWorldX[slot];
+    outWorldY = mEnemyWorldY[slot];
 }

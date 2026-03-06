@@ -6,24 +6,22 @@
 //   Camera2D at pos=(0,0) zoom=1 maps world origin (0,0) to the screen center.
 //   +X right, +Y down.  World unit = 1 pixel at zoom=1.
 //
-//   Slot positions are stored as world-space floats (computed once from the
-//   screen-pixel design values using the formula: worldX = px - W/2).
-//   All internal methods — Render(), SetCameraPhase(), GetSlotPos() — speak
-//   only world space.  No conversion code is duplicated anywhere.
+// Slot positions are supplied by the CALLER (BattleState) via SlotInfo::worldX/Y.
+//   BattleState loads data/formations.json and resolves:
+//     slotWorldX = battleCenterX + formationOffsetX
+//     slotWorldY = battleCenterY + formationOffsetY
+//   BattleRenderer stores these values and uses them every frame as-is.
+//   No pixel-to-world conversion happens inside this file.
 //
-// Screen-pixel design layout (1280x720) — staggered diagonal formation:
+// Slot layout (read from data/formations.json, default 1280x720 battle center=(0,0)):
 //
-//   PLAYER SIDE (left, facing right)    ENEMY SIDE (right, facing left)
-//   Slot 1  screen( 200, 280) — back    Slot 1  screen(1080, 280) — back
-//   Slot 0  screen( 320, 400) — front   Slot 0  screen( 960, 400) — front
-//   Slot 2  screen( 200, 520) — back    Slot 2  screen(1080, 520) — back
+//   PLAYER SIDE (left, facing right)     ENEMY SIDE (right, facing left)
+//   Slot 1  world(-440, -80) — back      Slot 1  world( 440, -80) — back
+//   Slot 0  world(-320,  40) — front     Slot 0  world( 320,  40) — front
+//   Slot 2  world(-440, 160) — back      Slot 2  world( 440, 160) — back
 //
-// World-space equivalents (W=1280, H=720 → halfW=640, halfH=360):
-//
-//   PLAYER SIDE                          ENEMY SIDE
-//   Slot 1  world(-440, -80)             Slot 1  world( 440, -80)
-//   Slot 0  world(-320,  40)             Slot 0  world( 320,  40)
-//   Slot 2  world(-440, 160)             Slot 2  world( 440, 160)
+//   Pivot is BOTTOM-CENTER: the slot Y is where the character's feet touch the
+//   ground.  No draw offset correction is needed for correctly authored sprites.
 //
 // Slot occupancy:
 //   Each slot holds one WorldSpriteRenderer (value member, always constructed).
@@ -37,10 +35,12 @@
 //   Shutdown()   called from BattleState::OnExit()
 //
 // Common mistakes:
-//   1. Adding a px-to-world conversion outside this file — there must be
-//      exactly ONE conversion site: Initialize(), which seeds mPlayerWorldPos[].
+//   1. Converting screen coords inside this file — world positions come in via
+//      SlotInfo::worldX/Y; any inline conversion here breaks the single-source rule.
 //   2. Forgetting flipX for enemy slots — skeletons face the wrong direction.
 //   3. Calling Update() before Initialize() — mActiveClip is nullptr → crash.
+//   4. Setting drawOffsetY to correct a bottom-center pivot — use the formation
+//      offsets instead; the pivot already lands feet at worldY correctly.
 // ============================================================
 #pragma once
 #include "../Renderer/WorldSpriteRenderer.h"
@@ -70,12 +70,38 @@ public:
         std::string  startClip;    // e.g. "idle"
         bool         occupied = false;
 
-        // World-space draw offset applied to every Draw() call for this slot.
-        // Positive Y is downward; negative Y shifts the sprite upward.
-        // Use to correct pivot-alignment mismatches without moving the slot
-        // anchor position or editing the sprite sheet JSON.
+        // World-space position of this slot's anchor (the character's feet).
+        // Set by the caller (BattleState) from the loaded FormationData:
+        //   worldX = battleCenterX + formation.offsetX
+        //   worldY = battleCenterY + formation.offsetY
+        // With a correct bottom-center pivot, the sprite's feet land exactly
+        // at (worldX, worldY) — no draw offset correction is required.
+        float worldX = 0.0f;
+        float worldY = 0.0f;
+
+        // Optional fine-tuning offset applied on top of worldX/worldY in Draw().
+        // Should be (0, 0) for any sprite whose JSON pivot is already at the feet.
+        // Non-zero only when a legacy sprite has its pivot at an incorrect location
+        // and re-authoring the JSON is not immediately practical.
         float drawOffsetX = 0.0f;
         float drawOffsetY = 0.0f;
+
+        // World-space offset added to worldX/worldY when this slot becomes the
+        // camera focus target (ACTOR_FOCUS or TARGET_FOCUS).
+        //
+        // Because the slot anchor is the CHARACTER'S FEET (bottom-center pivot),
+        // centering the camera on it places the feet at the screen center, which
+        // looks wrong — the character appears to be sinking below mid-screen.
+        //
+        // Set cameraFocusOffsetY to a NEGATIVE value to shift the focal point
+        // upward to the visual center of the sprite:
+        //   offset = -(frameHeight * renderScale) / 2
+        //   e.g. for a 128px frame at scale 2.0:  -(128 * 2) / 2 = -128
+        //
+        // cameraFocusOffsetX is available for sprites that are not horizontally
+        // centered (e.g., a character holding a weapon to one side).
+        float cameraFocusOffsetX = 0.0f;
+        float cameraFocusOffsetY = 0.0f;
     };
 
     BattleRenderer() = default;
@@ -133,28 +159,25 @@ public:
 
 private:
     // ----------------------------------------------------------------
-    // Screen-pixel design positions — the human-readable source of truth.
-    // These are the values from the layout diagram in the file header.
-    // They are used ONLY in Initialize() to seed mPlayerWorldPos[].
-    // No other method touches these constants.
-    //
-    // Rule: if you want to move a slot, change the value here; Initialize()
-    // will recompute mPlayerWorldPos[] automatically.
-    // ----------------------------------------------------------------
-    static constexpr float kPlayerScreenX[kMaxSlots] = { 320.0f,  200.0f,  200.0f };
-    static constexpr float kPlayerScreenY[kMaxSlots] = { 400.0f,  280.0f,  520.0f };
-    static constexpr float kEnemyScreenX [kMaxSlots] = { 960.0f, 1080.0f, 1080.0f };
-    static constexpr float kEnemyScreenY [kMaxSlots] = { 400.0f,  280.0f,  520.0f };
-
-    // ----------------------------------------------------------------
-    // World-space slot positions — computed once in Initialize() from the
-    // screen-pixel constants above:  worldX = screenX - screenW/2.
+    // World-space slot positions — copied directly from SlotInfo::worldX/Y
+    // in Initialize().  Set by the caller from formation offset data so
+    // that no pixel-to-world conversion exists inside this file.
     // Every method after Initialize() reads from here exclusively.
     // ----------------------------------------------------------------
     float mPlayerWorldX[kMaxSlots] = {};
     float mPlayerWorldY[kMaxSlots] = {};
     float mEnemyWorldX [kMaxSlots] = {};
     float mEnemyWorldY [kMaxSlots] = {};
+
+    // Per-slot camera focus offsets — added to the slot world position when
+    // the slot is passed to BattleCameraController::SetActorPos/SetTargetPos.
+    // Seeded from SlotInfo::cameraFocusOffsetX/Y in Initialize().
+    // Zero by default: no adjustment for slots whose anchor is already at the
+    // visual center.  Set to -(frameH * scale)/2 for bottom-center pivots.
+    float mPlayerCamOffX[kMaxSlots] = {};
+    float mPlayerCamOffY[kMaxSlots] = {};
+    float mEnemyCamOffX [kMaxSlots] = {};
+    float mEnemyCamOffY [kMaxSlots] = {};
 
     // One renderer per slot per team.
     WorldSpriteRenderer mPlayerRenderers[kMaxSlots];

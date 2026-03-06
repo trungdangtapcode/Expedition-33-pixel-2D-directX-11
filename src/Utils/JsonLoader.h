@@ -326,4 +326,102 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
     return true;
 }
 
+// ============================================================
+// Formation data structures
+// ============================================================
+
+// One slot entry inside a formation —
+//   offsetX/offsetY are world-space units relative to the battle center.
+//   Positive Y is downward (screen convention).  Represents the ground
+//   contact point (feet) of the character assigned to this slot.
+struct FormationSlot
+{
+    int   slot    = 0;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+};
+
+// All slots for both teams in one formation file.
+struct FormationData
+{
+    FormationSlot player[3];   // up to 3 player slots (indices 0-2)
+    FormationSlot enemy [3];   // up to 3 enemy  slots (indices 0-2)
+};
+
+// ------------------------------------------------------------
+// Function: LoadFormations
+// Purpose:
+//   Parse a formations.json file and fill a FormationData struct.
+//   Both "player_offsets" and "enemy_offsets" arrays are read;
+//   each element provides { slot, offset_x, offset_y }.
+//
+//   Offsets are world-space pixels relative to the battle center.
+//   The caller computes final world positions as:
+//     worldX = battleCenterX + slot.offsetX
+//     worldY = battleCenterY + slot.offsetY
+//
+// Parameters:
+//   path — path to the JSON file (e.g. "data/formations.json")
+//   out  — populated on success; left unchanged on failure
+// Returns:
+//   true on success, false if the file cannot be opened.
+// ------------------------------------------------------------
+inline bool LoadFormations(const std::string& path, FormationData& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open formations file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    // Helper: extract the text of a named top-level array "key": [ ... ]
+    auto extractArray = [&](const std::string& key) -> std::string
+    {
+        std::string searchKey = '"' + key + '"';
+        size_t kpos = src.find(searchKey);
+        if (kpos == std::string::npos) return {};
+        size_t bracket = src.find('[', kpos + searchKey.size());
+        if (bracket == std::string::npos) return {};
+        int depth = 1;
+        size_t i  = bracket + 1;
+        while (i < src.size() && depth > 0) {
+            if (src[i] == '[') ++depth;
+            if (src[i] == ']') --depth;
+            ++i;
+        }
+        return src.substr(bracket + 1, i - bracket - 2);
+    };
+
+    // Fill a FormationSlot[3] array from the raw array text.
+    auto parseSlots = [](const std::string& arrayText, FormationSlot (&slots)[3])
+    {
+        // Initialise all three with sequential defaults so missing entries
+        // still have sane slot indices.
+        for (int i = 0; i < 3; ++i) slots[i] = { i, 0.0f, 0.0f };
+
+        auto objects = detail::SplitObjects(arrayText);
+        for (const auto& obj : objects)
+        {
+            int   s  = detail::ParseInt  (detail::ValueOf(obj, "slot"));
+            float ox = static_cast<float>(detail::ParseInt(detail::ValueOf(obj, "offset_x")));
+            float oy = static_cast<float>(detail::ParseInt(detail::ValueOf(obj, "offset_y")));
+            if (s >= 0 && s < 3)
+            {
+                slots[s].slot    = s;
+                slots[s].offsetX = ox;
+                slots[s].offsetY = oy;
+            }
+        }
+    };
+
+    parseSlots(extractArray("player_offsets"), out.player);
+    parseSlots(extractArray("enemy_offsets"),  out.enemy);
+
+    LOG("[JsonLoader] Loaded formations from '%s'.", path.c_str());
+    return true;
+}
+
 } // namespace JsonLoader

@@ -4,15 +4,17 @@
 //   during a battle — 3 player slots (left side) and 3 enemy slots (right side).
 //   Drives the BattleCameraController for cinematic phase transitions.
 //
-// Coordinate system — ONE space used everywhere after Initialize(): WORLD SPACE.
+// Coordinate system — ONE space used everywhere: WORLD SPACE.
 //   Camera2D at pos=(0,0) zoom=1 maps world origin (0,0) to the screen center.
-//   Conversion formula (applied ONCE in Initialize()):
-//     worldX = screenX - screenW/2
-//     worldY = screenY - screenH/2
-//   All methods after Initialize() use mPlayerWorldX/Y[] / mEnemyWorldX/Y[]
-//   directly — no inline conversion code anywhere else.
+//   +X right, +Y down.  World unit = 1 pixel at zoom=1.
 //
-// World-space slot layout (1280x720, halfW=640, halfH=360):
+//   Slot positions arrive as-is from SlotInfo::worldX/Y, pre-computed by
+//   BattleState from data/formations.json:
+//     slotWorldX = battleCenterX + formationOffsetX
+//     slotWorldY = battleCenterY + formationOffsetY
+//   BattleRenderer stores them directly — no arithmetic is performed here.
+//
+// World-space slot layout (default: battle center=(0,0), 1280x720 screen):
 //
 //   PLAYER SIDE (left, face right)     ENEMY SIDE (right, face left)
 //   Slot 1  world(-440, -80)  back     Slot 1  world( 440, -80)  back
@@ -25,9 +27,8 @@
 //   TARGET_FOCUS  — pan to 80% target + 20% actor blend, zoom=1.0
 //
 // Common mistakes:
-//   1. Converting screen coords inside Render() or SetCameraPhase() — after
-//      the Initialize() refactor there is ONE conversion site; adding another
-//      creates the exact inconsistency that was fixed here.
+//   1. Computing screen-to-world inside this file — positions come in via
+//      SlotInfo::worldX/Y; no conversion belongs here.
 //   2. Forgetting flipX for enemy slots — skeletons face the wrong direction.
 //   3. Calling Update() before Initialize() — mActiveClip is nullptr -> crash.
 //   4. Not calling SetCameraPhase() on input phase change — camera stays stuck.
@@ -66,23 +67,27 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
     mScreenH = screenH;
 
     // ----------------------------------------------------------------
-    // Convert screen-pixel slot positions to world space ONCE.
-    //   worldX = screenX - screenW/2   (center of screen = world origin)
-    //   worldY = screenY - screenH/2
+    // Copy world-space slot positions and camera focus offsets from SlotInfo.
     //
-    // Source constants (kPlayerScreenX/Y, kEnemyScreenX/Y) live in the
-    // header as the human-readable design layout.  After this block every
-    // method speaks only world space — no conversion is repeated elsewhere.
+    // World positions are pre-computed by the caller (BattleState):
+    //   slotWorldX = battleCenterX + formationOffsetX   (from formations.json)
+    //   slotWorldY = battleCenterY + formationOffsetY
+    //
+    // Camera focus offsets shift the focal point from the ground anchor (feet)
+    // to the visual center of the sprite during ACTOR/TARGET_FOCUS phases.
+    // They are applied only in SetCameraPhase() — Draw() is unaffected.
     // ----------------------------------------------------------------
-    const float halfW = static_cast<float>(screenW) * 0.5f;
-    const float halfH = static_cast<float>(screenH) * 0.5f;
-
     for (int i = 0; i < kMaxSlots; ++i)
     {
-        mPlayerWorldX[i] = kPlayerScreenX[i] - halfW;
-        mPlayerWorldY[i] = kPlayerScreenY[i] - halfH;
-        mEnemyWorldX [i] = kEnemyScreenX [i] - halfW;
-        mEnemyWorldY [i] = kEnemyScreenY [i] - halfH;
+        mPlayerWorldX[i]  = playerSlots[i].worldX;
+        mPlayerWorldY[i]  = playerSlots[i].worldY;
+        mPlayerCamOffX[i] = playerSlots[i].cameraFocusOffsetX;
+        mPlayerCamOffY[i] = playerSlots[i].cameraFocusOffsetY;
+
+        mEnemyWorldX [i]  = enemySlots [i].worldX;
+        mEnemyWorldY [i]  = enemySlots [i].worldY;
+        mEnemyCamOffX[i]  = enemySlots [i].cameraFocusOffsetX;
+        mEnemyCamOffY[i]  = enemySlots [i].cameraFocusOffsetY;
     }
 
     // ----------------------------------------------------------------
@@ -264,15 +269,24 @@ void BattleRenderer::SetCameraPhase(BattleCameraPhase phase,
                                      int actorSlot, int targetSlot)
 {
     // Update actor world position if a valid player slot was provided.
+    // Apply cameraFocusOffsetX/Y so the camera centers on the sprite's visual
+    // midpoint rather than its feet (the raw slot anchor).
     if (actorSlot >= 0 && actorSlot < kMaxSlots && mPlayerActive[actorSlot])
     {
-        mCameraCtrl.SetActorPos(mPlayerWorldX[actorSlot], mPlayerWorldY[actorSlot]);
+        mCameraCtrl.SetActorPos(
+            mPlayerWorldX[actorSlot] + mPlayerCamOffX[actorSlot],
+            mPlayerWorldY[actorSlot] + mPlayerCamOffY[actorSlot]
+        );
     }
 
     // Update target world position if a valid enemy slot was provided.
+    // Same offset logic: enemies are also anchored at their feet.
     if (targetSlot >= 0 && targetSlot < kMaxSlots && mEnemyActive[targetSlot])
     {
-        mCameraCtrl.SetTargetPos(mEnemyWorldX[targetSlot], mEnemyWorldY[targetSlot]);
+        mCameraCtrl.SetTargetPos(
+            mEnemyWorldX[targetSlot] + mEnemyCamOffX[targetSlot],
+            mEnemyWorldY[targetSlot] + mEnemyCamOffY[targetSlot]
+        );
     }
 
     mCameraCtrl.SetPhase(phase);

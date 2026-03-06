@@ -1,0 +1,24 @@
+{
+  "comment": "Battle formation offsets — world-space units relative to the battle center.",
+  "comment2": "Battle center (0,0) = world origin = screen center at default camera.",
+  "comment3": "offset_x: positive = right;  offset_y: positive = down.",
+  "comment4": "Y values place the FEET of each character (bottom-center pivot on the ground).",
+  "comment5": "Staggered diagonal layout matches the original screen-pixel design:",
+  "comment6": "  Player Slot 0 front: screen(320, 400)  -> offset(-320,  40)",
+  "comment7": "  Player Slot 1 back:  screen(200, 280)  -> offset(-440, -80)",
+  "comment8": "  Player Slot 2 back:  screen(200, 520)  -> offset(-440, 160)",
+  "comment9": "  Enemy  Slot 0 front: screen(960, 400)  -> offset( 320,  40)",
+  "comment10": "  Enemy  Slot 1 back:  screen(1080, 280) -> offset( 440, -80)",
+  "comment11": "  Enemy  Slot 2 back:  screen(1080, 520) -> offset( 440, 160)",
+
+  "player_offsets": [
+    { "slot": 0, "offset_x": -320, "offset_y": 40  },
+    { "slot": 1, "offset_x": -440, "offset_y": -80 },
+    { "slot": 2, "offset_x": -440, "offset_y": 160 }
+  ],
+  "enemy_offsets": [
+    { "slot": 0, "offset_x": 320,  "offset_y": 40  },
+    { "slot": 1, "offset_x": 440,  "offset_y": -80 },
+    { "slot": 2, "offset_x": 440,  "offset_y": 160 }
+  ]
+}

@@ -21,6 +21,7 @@
 #include "../Battle/FleeCommand.h"
 #include "../UI/BattleDebugHUD.h"
 #include "../Utils/Log.h"
+#include "../Utils/JsonLoader.h"
 #define NOMINMAX
 #include <Windows.h>      // GetAsyncKeyState
 #include <string>
@@ -65,20 +66,49 @@ void BattleState::OnEnter()
     BuildCommandList();
 
     // ----------------------------------------------------------------
+    // Load formation offsets from data/formations.json.
+    //
+    // The formation file defines where each slot's feet-anchor sits in
+    // world space relative to the battle center:
+    //   slotWorldX = battleCenterX + formation.offsetX
+    //   slotWorldY = battleCenterY + formation.offsetY
+    //
+    // For MVP the battle center is the world origin (0, 0) — screen center —
+    // so the offsets ARE the final world positions.  When battles are triggered
+    // from the overworld, pass the player's world position here instead.
+    // ----------------------------------------------------------------
+    JsonLoader::FormationData formation{};
+    if (!JsonLoader::LoadFormations("data/formations.json", formation))
+    {
+        // Non-fatal: fall back to zeroed FormationData (all slots at origin).
+        LOG("%s", "[BattleState] WARNING: failed to load formations.json — slots will be at origin.");
+    }
+
+    const float battleCenterX = 0.0f;  // world origin = screen center
+    const float battleCenterY = 0.0f;
+
+    // ----------------------------------------------------------------
     // Build BattleRenderer slot descriptors.
     // Player slot 0 = Verso (always present).
     // Slots 1 and 2 = additional party members (empty for MVP).
     // Enemy slots 0 and 1 = Skeleton A/B; slot 2 empty.
+    //
+    // worldX/worldY = battle center + formation offset.
+    // drawOffset stays at (0, 0): bottom-center pivot means feet land
+    // exactly at worldY — no correction needed for correctly authored sprites.
     // ----------------------------------------------------------------
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
     playerSlots[0].occupied    = true;
     playerSlots[0].texturePath = L"assets/animations/verso.png";
     playerSlots[0].jsonPath    = "assets/animations/verso.json";
     playerSlots[0].startClip   = "idle";
-    // Verso sprite has a bottom-center pivot (feet at worldY).
-    // Shift up by half the rendered height (128px frame * scale 2.0 / 2 = 128)
-    // so the visual center of the character aligns with the slot anchor.
-    playerSlots[0].drawOffsetY = 128.0f/2;
+    playerSlots[0].worldX             = battleCenterX + formation.player[0].offsetX;
+    playerSlots[0].worldY             = battleCenterY + formation.player[0].offsetY;
+    // Camera focus: sprite is 128px tall at scale 2.0 -> rendered height 256px.
+    // Lifting the focal point by half that (128 world units) centers the camera
+    // on the chest/head rather than the feet.
+    playerSlots[0].cameraFocusOffsetY = -128.0f;
+    playerSlots[0].cameraFocusOffsetX = 100.0f;
     // slots 1 and 2 remain occupied=false (empty party slots)
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
@@ -86,12 +116,16 @@ void BattleState::OnEnter()
     enemySlots[0].texturePath = L"assets/animations/skeleton.png";
     enemySlots[0].jsonPath    = "assets/animations/skeleton.json";
     enemySlots[0].startClip   = "idle";
-    enemySlots[0].drawOffsetY = 128.0f/2;  // same correction as player side
+    enemySlots[0].worldX             = battleCenterX + formation.enemy[0].offsetX;
+    enemySlots[0].worldY             = battleCenterY + formation.enemy[0].offsetY;
+    enemySlots[0].cameraFocusOffsetY = -128.0f;  // same: skeleton is 128px at scale 2
     enemySlots[1].occupied    = true;
     enemySlots[1].texturePath = L"assets/animations/skeleton.png";
     enemySlots[1].jsonPath    = "assets/animations/skeleton.json";
     enemySlots[1].startClip   = "idle";
-    enemySlots[1].drawOffsetY = 128.0f/2;
+    enemySlots[1].worldX             = battleCenterX + formation.enemy[1].offsetX;
+    enemySlots[1].worldY             = battleCenterY + formation.enemy[1].offsetY;
+    enemySlots[1].cameraFocusOffsetY = -128.0f;
     // slot 2 remains occupied=false
 
     mBattleRenderer.Initialize(

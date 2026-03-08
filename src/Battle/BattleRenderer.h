@@ -48,6 +48,7 @@
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/IBattler.h"
 #include "../Battle/BattleCameraController.h"
+#include "../Battle/CombatantAnim.h"
 #include <d3d11.h>
 #include <array>
 #include <vector>
@@ -102,6 +103,14 @@ public:
         // centered (e.g., a character holding a weapon to one side).
         float cameraFocusOffsetX = 0.0f;
         float cameraFocusOffsetY = 0.0f;
+
+        // Per-role animation clip name overrides.  Index with
+        //   static_cast<int>(CombatantAnim::X)
+        // Leave a slot empty to use DefaultClipName(X) for that role.
+        // BattleRenderer seeds its internal per-slot clip table from these
+        // during Initialize() so all subsequent PlayEnemyClip / PlayPlayerClip
+        // calls resolve instantly without touching SlotInfo again.
+        std::string clipOverrides[kCombatantAnimCount];
     };
 
     BattleRenderer() = default;
@@ -150,6 +159,38 @@ public:
                         int targetSlot = -1);
 
     // ------------------------------------------------------------
+    // PlayEnemyClip / PlayPlayerClip:
+    //   Request a standard animation role on a specific slot.
+    //   The role is resolved to a clip name using the per-slot override
+    //   table seeded in Initialize() (or DefaultClipName if no override).
+    //
+    //   If the character's sprite sheet does not contain that clip,
+    //   WorldSpriteRenderer logs a warning and no-ops — no crash.
+    //
+    //   Out-of-range slots and inactive slots are silently ignored.
+    // ------------------------------------------------------------
+    void PlayEnemyClip (int slot, CombatantAnim anim);
+    void PlayPlayerClip(int slot, CombatantAnim anim);
+
+    // ------------------------------------------------------------
+    // AreAllDeathAnimsDone:
+    //   Returns true when every active combatant slot on BOTH sides has
+    //   a clip that IsClipDone() == true.
+    //
+    //   Why check both sides?
+    //     For VICTORY the enemy die clips are what we wait on; for DEFEAT
+    //     the player die clips.  Checking all slots is safe because alive
+    //     combatants play looping "idle" which IsClipDone() always reports
+    //     as done — only the TARGET non-looping die clip blocks the wait.
+    //
+    //   Special case: if a character has no "die" clip, PlayClip returns false
+    //     and PlayEnemyClip/PlayPlayerClip calls FreezeCurrentFrame() so the
+    //     combatant holds its last visible pose.  IsClipDone() returns true
+    //     immediately (frozen = done), so the iris does NOT stall.
+    // ------------------------------------------------------------
+    bool AreAllDeathAnimsDone() const;
+
+    // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:
     //   Return the WORLD-SPACE center of a given slot.
     //   Bounds-checked: returns (0,0) for invalid slot indices.
@@ -186,6 +227,20 @@ private:
     // Which slots are occupied (have a live WorldSpriteRenderer).
     bool mPlayerActive[kMaxSlots] = { false, false, false };
     bool mEnemyActive [kMaxSlots] = { false, false, false };
+
+    // ----------------------------------------------------------------
+    // Per-slot clip name table — resolved during Initialize().
+    //
+    // mEnemyClipNames[slot][animIdx] holds the actual clip name string
+    // to pass to WorldSpriteRenderer::PlayClip when PlayEnemyClip(slot, anim)
+    // is called.  Seeded from SlotInfo::clipOverrides; falls back to
+    // DefaultClipName(anim) if the override is empty.
+    //
+    // Storing resolved strings avoids repeating the override/default logic
+    // every time PlayEnemyClip is called at runtime.
+    // ----------------------------------------------------------------
+    std::string mPlayerClipNames[kMaxSlots][kCombatantAnimCount];
+    std::string mEnemyClipNames [kMaxSlots][kCombatantAnimCount];
 
     // Battle camera controller — owns Camera2D and drives OVERVIEW /
     // ACTOR_FOCUS / TARGET_FOCUS transitions with smooth lerp.

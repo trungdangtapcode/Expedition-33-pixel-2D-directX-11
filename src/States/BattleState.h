@@ -124,6 +124,18 @@ private:
     int               mTargetIndex    = 0;
 
     // ---- Deferred exit state ----
+    // mWaitingForDeathAnims: set true when a battle outcome is first detected.
+    //   While true, BattleRenderer.Update(dt) keeps running (inside the
+    //   !mExitTransitionStarted block) so die clips advance.  Once
+    //   BattleRenderer::AreAllDeathAnimsDone() returns true, this flag is
+    //   cleared and mExitTransitionStarted is set + iris close begins.
+    //
+    // Why delay the iris?
+    //   mBattle.GetOutcome() fires on the same frame HP hits 0.  Without the
+    //   delay, StartClose() fires before the die clip plays even one frame.
+    //   Characters appear to vanish instantly rather than collapsing.
+    bool mWaitingForDeathAnims = false;
+
     // mExitTransitionStarted: prevents double-triggering when outcome is detected.
     //   Set to true the moment the iris starts closing; never cleared.
     bool mExitTransitionStarted = false;
@@ -155,4 +167,16 @@ private:
     void CycleTarget();
     void ConfirmSkillAndTarget();
     void DumpStateToDebugOutput() const;
+
+    // ----------------------------------------------------------------
+    // Per-slot alive state from the previous frame.
+    // Compared against the current frame after mBattle.Update(dt) to
+    // detect the exact frame when a combatant's HP reaches 0, so the
+    // die animation fires exactly once on the death frame.
+    //
+    // Initialized to true in OnEnter (all combatants alive at battle start).
+    // Updated every frame inside the !mExitTransitionStarted block.
+    // ----------------------------------------------------------------
+    bool mEnemyWasAlive [BattleRenderer::kMaxSlots] = { true, true, true };
+    bool mPlayerWasAlive[BattleRenderer::kMaxSlots] = { true, true, true };
 };

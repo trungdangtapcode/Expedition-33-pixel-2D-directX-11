@@ -78,11 +78,13 @@ public:
     // ------------------------------------------------------------
     // Function: PlayClip
     // Purpose:  Switch the active animation clip by name.
-    //           Resets mFrameIndex=0 and mFrameTimer=0.
-    // Note:     No-op if clipName is already the active clip — avoids
-    //           visible stutter on repeated calls from game logic.
+    //           Resets mFrameIndex=0, mFrameTimer=0, and mFrozen=false.
+    // Returns:  true  — clip found and activated.
+    //           false — clip not found in the sheet; active clip unchanged.
+    // Note:     No-op (returns true) if clipName is already the active clip
+    //           to avoid visible stutter on repeated calls from game logic.
     // ------------------------------------------------------------
-    void PlayClip(const std::string& clipName);
+    bool PlayClip(const std::string& clipName);
 
     // ------------------------------------------------------------
     // Function: Update
@@ -142,6 +144,42 @@ public:
     void SetDrawOffset(float dx, float dy) { mDrawOffsetX = dx; mDrawOffsetY = dy; }
 
     // ------------------------------------------------------------
+    // Function: FreezeCurrentFrame
+    // Purpose:  Stop animation advancement at the current frame and mark the
+    //           sprite as "done" for wait purposes.
+    //
+    // Use case: when a combatant dies and no die clip exists in the sprite
+    //   sheet, call FreezeCurrentFrame() so the enemy holds its last visible
+    //   pose (e.g. mid-idle) instead of continuing to loop.  IsClipDone()
+    //   returns true immediately, so the iris starts closing without stalling.
+    // ------------------------------------------------------------
+    void FreezeCurrentFrame() { mFrozen = true; }
+
+    // ------------------------------------------------------------
+    // Function: IsClipDone
+    // Purpose:  Returns true when the current clip no longer needs to be
+    //           waited on.
+    //
+    //   • No clip active          → true  (nothing to wait for)
+    //   • Frozen (FreezeCurrentFrame called) → true  (held pose; iris may proceed)
+    //   • Looping clip             → true  (never "done"; caller should not wait)
+    //   • Non-looping, playing     → false (still animating)
+    //   • Non-looping, finished    → true  (last frame reached, mClipFinished=true)
+    //
+    // Use case: BattleState waits for the die clip to finish before starting
+    // the iris close.  If the character has no die clip, PlayClip returns false
+    // and PlayEnemyClip calls FreezeCurrentFrame() → IsClipDone() = true
+    // immediately, so the iris does not stall.
+    // ------------------------------------------------------------
+    bool IsClipDone() const
+    {
+        if (!mActiveClip)          return true;  // uninitialized
+        if (mFrozen)               return true;  // forcibly paused — treat as done
+        if (mActiveClip->loop)     return true;  // looping clips are never "done"
+        return mClipFinished;                     // non-looping: finished flag
+    }
+
+    // ------------------------------------------------------------
     // Function: Shutdown
     // Purpose:  Release all GPU resources deterministically.
     //           Called from PlayState::OnExit() before D3D device teardown.
@@ -191,8 +229,18 @@ private:
     std::string          mActiveClipName;
 
     // Animation playback state — driven by Update(dt).
-    int   mFrameIndex = 0;   // index within the active clip [0, numFrames)
-    float mFrameTimer = 0.0f; // accumulated time within the current frame (seconds)
+    int   mFrameIndex    = 0;    // index within the active clip [0, numFrames)
+    float mFrameTimer    = 0.0f; // accumulated time within the current frame (seconds)
+
+    // True once a non-looping clip has played its last frame and stopped.
+    // Reset to false every time PlayClip() switches to a new clip.
+    // Used by IsClipDone() so callers can wait for death/attack clips to finish.
+    bool  mClipFinished  = false;
+
+    // True after FreezeCurrentFrame() is called.
+    // Update() skips frame advancement; IsClipDone() returns true immediately.
+    // Reset to false when PlayClip() successfully switches to a new clip.
+    bool  mFrozen        = false;
 
     // World-space draw offset — added to worldX/worldY in every Draw() call.
     // Set via SetDrawOffset(); defaults to (0, 0) so behaviour is unchanged

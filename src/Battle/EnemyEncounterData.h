@@ -48,6 +48,16 @@ struct EnemySlotData
     std::string  jsonPath;              // "assets/animations/skeleton.json"
     std::string  idleClip;             // "idle"
 
+    // ---- Per-role animation clip name overrides ----
+    // These map to CombatantAnim roles.  Leave empty to use DefaultClipName().
+    // Example: dieClip = "death" if the sprite sheet uses that name instead.
+    // If the named clip is absent from the sheet, WorldSpriteRenderer logs a
+    // warning and no-ops — the character freezes on its current frame.
+    std::string dieClip;     // CombatantAnim::Die    (default: "die")
+    std::string attackClip;  // CombatantAnim::Attack (default: "attack-1")
+    std::string walkClip;    // CombatantAnim::Walk   (default: "walk")
+    std::string hurtClip;    // CombatantAnim::Hurt   (default: "hurt")
+
     // ---- Battle stats ----
     // MUST be set from JSON — zero-stat combatants are a data authoring error.
     int hp  = 0;

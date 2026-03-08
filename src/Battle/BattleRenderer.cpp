@@ -91,6 +91,30 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
     }
 
     // ----------------------------------------------------------------
+    // Seed per-slot animation clip name tables.
+    //
+    // For each slot × each CombatantAnim role: use SlotInfo::clipOverrides[role]
+    // if non-empty, otherwise fall back to DefaultClipName(role).
+    //
+    // This is done unconditionally for all slots (occupied or not); inactive
+    // slots will never have PlayEnemyClip/PlayPlayerClip called on them, so
+    // storing the strings costs negligible RAM and avoids a special-case check.
+    // ----------------------------------------------------------------
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        for (int a = 0; a < kCombatantAnimCount; ++a)
+        {
+            const CombatantAnim role = static_cast<CombatantAnim>(a);
+
+            const std::string& pOvr = playerSlots[i].clipOverrides[a];
+            mPlayerClipNames[i][a] = pOvr.empty() ? DefaultClipName(role) : pOvr;
+
+            const std::string& eOvr = enemySlots[i].clipOverrides[a];
+            mEnemyClipNames[i][a]  = eOvr.empty() ? DefaultClipName(role) : eOvr;
+        }
+    }
+
+    // ----------------------------------------------------------------
     // Initialize the battle camera controller.
     // It starts in OVERVIEW phase: pos=(0,0), zoom=1.0 — all combatants visible.
     // BattleState will call SetCameraPhase() to drive transitions later.
@@ -158,6 +182,90 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
     }
 
     LOG("[BattleRenderer] Initialized — screen %dx%d", screenW, screenH);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: PlayEnemyClip / PlayPlayerClip
+// Purpose:
+//   Drive a standard animation role on a specific combatant slot.
+//   Looks up the resolved clip name in the per-slot table seeded in
+//   Initialize(), then delegates to WorldSpriteRenderer::PlayClip.
+//
+// Die-clip fallback:
+//   If PlayClip() returns false (clip absent from sprite sheet) AND the
+//   requested role is CombatantAnim::Die, FreezeCurrentFrame() is called.
+//   This holds the combatant on its last visible pose while the iris closes,
+//   instead of leaving it looping in idle — which would look alive.
+//   Without this, a missing die clip causes IsClipDone() to return true
+//   immediately (idle is looping), so the iris starts the same frame the
+//   enemy dies, and the enemy appears to vanish instantly.
+//
+// Graceful no-op paths:
+//   • slot out-of-range or slot not active  → silently ignored.
+//   • clip name absent in the sprite sheet for non-Die roles
+//       → WorldSpriteRenderer logs a warning; active clip unchanged.
+//
+// Why not pass a string directly?
+//   All callers (BattleState death detection, AttackAction, etc.) use the
+//   CombatantAnim enum to stay decoupled from per-character naming.
+//   The per-slot override table handles any name differences transparently.
+// ------------------------------------------------------------
+void BattleRenderer::PlayEnemyClip(int slot, CombatantAnim anim)
+{
+    // Guard: ignore out-of-range or uninitialized slots.
+    if (slot < 0 || slot >= kMaxSlots || !mEnemyActive[slot]) return;
+
+    const std::string& clipName = mEnemyClipNames[slot][static_cast<int>(anim)];
+    const bool found = mEnemyRenderers[slot].PlayClip(clipName);
+
+    // If the die clip is missing from the sprite sheet, freeze the sprite on
+    // its current frame.  This stops idle looping so the combatant looks dead
+    // and IsClipDone() returns true, allowing the iris to proceed.
+    if (!found && anim == CombatantAnim::Die)
+    {
+        mEnemyRenderers[slot].FreezeCurrentFrame();
+        LOG("[BattleRenderer] Enemy slot %d: die clip '%s' not found — frame frozen.",
+            slot, clipName.c_str());
+    }
+}
+
+void BattleRenderer::PlayPlayerClip(int slot, CombatantAnim anim)
+{
+    // Guard: ignore out-of-range or uninitialized slots.
+    if (slot < 0 || slot >= kMaxSlots || !mPlayerActive[slot]) return;
+
+    const std::string& clipName = mPlayerClipNames[slot][static_cast<int>(anim)];
+    const bool found = mPlayerRenderers[slot].PlayClip(clipName);
+
+    // Same freeze-on-missing-die logic as PlayEnemyClip.
+    if (!found && anim == CombatantAnim::Die)
+    {
+        mPlayerRenderers[slot].FreezeCurrentFrame();
+        LOG("[BattleRenderer] Player slot %d: die clip '%s' not found — frame frozen.",
+            slot, clipName.c_str());
+    }
+}
+
+// ------------------------------------------------------------
+// Function: AreAllDeathAnimsDone
+// Purpose:
+//   Iterate every active slot on both sides.  Return false if ANY active
+//   slot has a non-looping clip still in progress (IsClipDone() == false).
+//
+// Looping clips ("idle", "walk") always return IsClipDone() == true, so
+// only a death/attack non-looping clip can block this check.
+//
+// Called by BattleState each frame while mWaitingForDeathAnims == true.
+// Once this returns true, BattleState starts the iris close.
+// ------------------------------------------------------------
+bool BattleRenderer::AreAllDeathAnimsDone() const
+{
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        if (mEnemyActive[i]  && !mEnemyRenderers[i].IsClipDone())  return false;
+        if (mPlayerActive[i] && !mPlayerRenderers[i].IsClipDone()) return false;
+    }
     return true;
 }
 

@@ -146,6 +146,16 @@ void BattleState::OnEnter()
             enemySlots[i].jsonPath       = sd.jsonPath;
             enemySlots[i].startClip      = sd.idleClip;
             enemySlots[i].cameraFocusOffsetY = sd.cameraFocusOffsetY;
+
+            // Propagate per-role clip name overrides from encounter JSON.
+            // BattleRenderer seeds its internal table from these; empty strings
+            // automatically fall back to DefaultClipName() inside Initialize().
+            enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Idle)]   = sd.idleClip;
+            enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Attack)] = sd.attackClip;
+            enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Walk)]   = sd.walkClip;
+            enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Die)]    = sd.dieClip;
+            enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Hurt)]   = sd.hurtClip;
+
             // Formation offsets place each slot at its designated world position.
             enemySlots[i].worldX         = battleCenterX + formation.enemy[i].offsetX;
             enemySlots[i].worldY         = battleCenterY + formation.enemy[i].offsetY;
@@ -331,6 +341,51 @@ void BattleState::Update(float dt)
 
         mBattle.Update(dt);
 
+        // ---------------------------------------------------------------
+        // Death detection: compare alive state before and after Update.
+        // On the exact frame a combatant's HP drops to 0, trigger the
+        // CombatantAnim::Die clip on its renderer slot.
+        //
+        // Why here, not inside BattleManager?
+        //   BattleManager owns combat logic; BattleRenderer owns visuals.
+        //   BattleState is the coordinator that bridges the two.
+        //   Coupling them directly would violate Single Responsibility.
+        //
+        // If the die clip is absent from the sprite sheet,
+        // WorldSpriteRenderer logs a warning and freezes on the last frame.
+        // ---------------------------------------------------------------
+        {
+            const auto& enemies = mBattle.GetAllEnemies();
+            for (int i = 0;
+                 i < static_cast<int>(enemies.size()) && i < BattleRenderer::kMaxSlots;
+                 ++i)
+            {
+                const bool nowAlive = enemies[i]->IsAlive();
+                if (mEnemyWasAlive[i] && !nowAlive)
+                {
+                    // Enemy just died this frame — play its die animation.
+                    mBattleRenderer.PlayEnemyClip(i, CombatantAnim::Die);
+                    LOG("[BattleState] Enemy slot %d died — playing die animation.", i);
+                }
+                mEnemyWasAlive[i] = nowAlive;
+            }
+
+            const auto& players = mBattle.GetAllPlayers();
+            for (int i = 0;
+                 i < static_cast<int>(players.size()) && i < BattleRenderer::kMaxSlots;
+                 ++i)
+            {
+                const bool nowAlive = players[i]->IsAlive();
+                if (mPlayerWasAlive[i] && !nowAlive)
+                {
+                    // Player just died this frame — play their die animation.
+                    mBattleRenderer.PlayPlayerClip(i, CombatantAnim::Die);
+                    LOG("[BattleState] Player slot %d died — playing die animation.", i);
+                }
+                mPlayerWasAlive[i] = nowAlive;
+            }
+        }
+
         const BattlePhase phaseAfter = mBattle.GetPhase();
 
         if (phaseBefore != BattlePhase::PLAYER_TURN &&
@@ -367,17 +422,27 @@ void BattleState::Update(float dt)
 
         // ---------------------------------------------------------------
         // Step 4 — Check for battle conclusion.
-        // When detected for the first time, save HP and start the iris close.
-        // mExitTransitionStarted prevents re-triggering on subsequent frames
-        // while the iris animation plays out.
+        //
+        // When an outcome is first detected, enter the death-anim wait phase:
+        //   • Save persistent HP immediately (BattleManager data stays valid).
+        //   • Set mWaitingForDeathAnims = true but do NOT start the iris yet.
+        //   • mBattleRenderer.Update(dt) continues running (we are still inside
+        //     the !mExitTransitionStarted block) so die clips advance.
+        //
+        // On subsequent frames, once AreAllDeathAnimsDone() returns true:
+        //   • Clear the wait flag, set mExitTransitionStarted, start iris close.
+        //
+        // This ensures every combatant's die animation plays to its last frame
+        // before the iris hides the battle scene.
+        // For characters without a "die" clip, PlayEnemyClip/PlayPlayerClip calls
+        // FreezeCurrentFrame() — the sprite holds its last pose and IsClipDone()
+        // returns true immediately so the iris starts without stalling.
         // ---------------------------------------------------------------
         const BattleOutcome outcome = mBattle.GetOutcome();
-        if (outcome != BattleOutcome::NONE && !mExitTransitionStarted)
+        if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
         {
-            mExitTransitionStarted = true;
-
-            // Persist Verso's HP BEFORE the iris starts — we do not want to
-            // query BattleManager after the callback fires (it may be invalid).
+            // Persist Verso's HP BEFORE any transition starts so the data is
+            // always saved even if BattleManager is destroyed unexpectedly.
             const auto& players = mBattle.GetAllPlayers();
             if (!players.empty())
             {
@@ -389,9 +454,24 @@ void BattleState::Update(float dt)
             mExitEventName = (outcome == BattleOutcome::VICTORY)
                 ? "battle_end_victory" : "battle_end_defeat";
 
-            // Start closing the iris.  The callback ONLY sets the flag —
-            // PopState() is called at the top of the NEXT Update() frame.
+            // Enter the death-anim wait phase: do NOT start the iris yet.
+            mWaitingForDeathAnims = true;
+            LOG("[BattleState] Outcome detected (%s) — waiting for death animations.",
+                mExitEventName.c_str());
+        }
+
+        // Once in the wait phase, poll every frame until die clips finish.
+        // mBattleRenderer.Update(dt) is still being called above (we are inside
+        // the !mExitTransitionStarted block), so clips advance each frame.
+        if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
+        {
+            mWaitingForDeathAnims  = false;
+            mExitTransitionStarted = true;
+
+            // Now start the iris close.  The callback sets mPendingSafeExit,
+            // which triggers PopState() at the top of the next Update().
             mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+            LOG("[BattleState] Death animations done — starting iris close.");
         }
 
         // ---------------------------------------------------------------

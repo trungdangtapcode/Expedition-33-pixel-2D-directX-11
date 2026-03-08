@@ -42,30 +42,42 @@ void SceneGraph::Update(float dt)
 
 // ------------------------------------------------------------
 // Function: Render
+// Purpose:
+//   Sort objects by (layer ASC, sortY ASC), then draw in that order.
+//   This implements the painter's algorithm: objects with lower Y are
+//   drawn first (they appear further away from the viewer in a top-down
+//   scene) and are therefore occluded by objects with higher Y positions.
+//
+// Why compound sort?
+//   Layer alone is sufficient for well-separated render groups (background
+//   vs. characters vs. UI).  Within the characters layer (50-79), entities
+//   that are lower on screen (higher Y) should visually overlap those that
+//   are higher on screen (lower Y).  Y-sort achieves this without requiring
+//   each entity to manage a unique layer value.
 // ------------------------------------------------------------
 void SceneGraph::Render(ID3D11DeviceContext* ctx)
 {
     // Build a lightweight sorted index list so mObjects insertion order
     // stays stable and Spawn() during Render() is safe.
-    // Using indices instead of pointers avoids any risk of dangling references
-    // if mObjects reallocates during the sort (it cannot here, but indices
-    // are cleaner by convention).
     const int n = static_cast<int>(mObjects.size());
-
-    // Stack-allocate the index array for small scenes; heap for large ones.
-    // std::vector ensures no stack overflow risk regardless of scene size.
     std::vector<int> indices(n);
     for (int i = 0; i < n; ++i) indices[i] = i;
 
-    // stable_sort: objects with equal layers are drawn in insertion order,
-    // which is deterministic and matches artist/designer expectations.
+    // Compound sort:
+    //   Primary   — GetLayer()  ascending (lower layer = background = drawn first)
+    //   Secondary — GetSortY()  ascending (lower world Y = further back = drawn first)
+    // stable_sort guarantees deterministic ordering for ties.
     std::stable_sort(indices.begin(), indices.end(),
         [this](int a, int b)
         {
-            return mObjects[a]->GetLayer() < mObjects[b]->GetLayer();
+            const int layerA = mObjects[a]->GetLayer();
+            const int layerB = mObjects[b]->GetLayer();
+            if (layerA != layerB) return layerA < layerB;
+            // Same layer: sort by world Y so "lower on screen" = drawn on top.
+            return mObjects[a]->GetSortY() < mObjects[b]->GetSortY();
         });
 
-    // Issue draw calls in layer order.
+    // Issue draw calls in sorted order.
     for (int i : indices)
     {
         mObjects[i]->Render(ctx);

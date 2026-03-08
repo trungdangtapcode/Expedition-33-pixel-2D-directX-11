@@ -75,9 +75,14 @@ public:
     void Update(float dt) override;
     void Render(ID3D11DeviceContext* ctx) override;
 
-    // Layer 48 — rendered below the player (layer 50) so player sprite
-    // overlaps enemies when they share the same Y coordinate.
-    int  GetLayer() const override { return 48; }
+    // Layer 50 — same as world characters so Y-sort determines draw order
+    // relative to the player.  Entities lower on screen (higher Y) render
+    // on top; entities higher on screen (lower Y) render behind.
+    int  GetLayer() const override { return 50; }
+
+    // Return world Y for painter's-algorithm Y-sort within the characters layer.
+    // The anchor is the enemy's feet position — correct for bottom-center pivots.
+    float GetSortY() const override { return mWorldY; }
 
     // Overworld enemies do not die; they remain alive until the scene ends.
     // A future implementation could set mAlive = false after battle victory.

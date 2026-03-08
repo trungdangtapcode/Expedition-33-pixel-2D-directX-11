@@ -33,8 +33,9 @@ static constexpr float kBgR = 0.05f;
 static constexpr float kBgG = 0.05f;
 static constexpr float kBgB = 0.20f;
 
-BattleState::BattleState(D3DContext& d3d)
-    : mD3D(d3d)
+BattleState::BattleState(D3DContext& d3d, EnemyEncounterData encounter)
+    : mD3D     (d3d)
+    , mEncounter(std::move(encounter))
 {}
 
 // ------------------------------------------------------------
@@ -59,7 +60,7 @@ void BattleState::OnEnter()
     // AudioManager handles the transition; BattleState has no audio dependencies.
     EventManager::Get().Broadcast("bgm_play_battle", {});
 
-    mBattle.Initialize();
+    mBattle.Initialize(mEncounter);
 
     // Reset input FSM to the top-level command menu.
     mInputPhase   = PlayerInputPhase::COMMAND_SELECT;
@@ -117,21 +118,51 @@ void BattleState::OnEnter()
     // slots 1 and 2 remain occupied=false (empty party slots)
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
-    enemySlots[0].occupied    = true;
-    enemySlots[0].texturePath = L"assets/animations/skeleton.png";
-    enemySlots[0].jsonPath    = "assets/animations/skeleton.json";
-    enemySlots[0].startClip   = "idle";
-    enemySlots[0].worldX             = battleCenterX + formation.enemy[0].offsetX;
-    enemySlots[0].worldY             = battleCenterY + formation.enemy[0].offsetY;
-    enemySlots[0].cameraFocusOffsetY = -128.0f;  // same: skeleton is 128px at scale 2
-    enemySlots[1].occupied    = true;
-    enemySlots[1].texturePath = L"assets/animations/skeleton.png";
-    enemySlots[1].jsonPath    = "assets/animations/skeleton.json";
-    enemySlots[1].startClip   = "idle";
-    enemySlots[1].worldX             = battleCenterX + formation.enemy[1].offsetX;
-    enemySlots[1].worldY             = battleCenterY + formation.enemy[1].offsetY;
-    enemySlots[1].cameraFocusOffsetY = -128.0f;
-    // slot 2 remains occupied=false
+
+    // ------------------------------------------------------------
+    // Enemy slots: filled from mEncounter.battleParty (data-driven).
+    //
+    // battleParty may contain 1–3 EnemySlotData entries — each maps onto
+    // one enemy slot in BattleRenderer and one EnemyCombatant in BattleManager.
+    //
+    // Examples:
+    //   battleParty with 1 entry  → single boss fight
+    //   battleParty with 3 entries → full 3-enemy group encounter
+    //
+    // Fallback: if battleParty is empty (legacy debug push, no encounter context)
+    // a single hardcoded skeleton is used so the battle still functions.
+    // ------------------------------------------------------------
+    if (!mEncounter.battleParty.empty())
+    {
+        // Data-driven path: iterate each slot defined in the encounter JSON.
+        for (int i = 0;
+             i < static_cast<int>(mEncounter.battleParty.size())
+             && i < static_cast<int>(BattleRenderer::kMaxSlots);
+             ++i)
+        {
+            const EnemySlotData& sd      = mEncounter.battleParty[i];
+            enemySlots[i].occupied       = true;
+            enemySlots[i].texturePath    = sd.texturePath;
+            enemySlots[i].jsonPath       = sd.jsonPath;
+            enemySlots[i].startClip      = sd.idleClip;
+            enemySlots[i].cameraFocusOffsetY = sd.cameraFocusOffsetY;
+            // Formation offsets place each slot at its designated world position.
+            enemySlots[i].worldX         = battleCenterX + formation.enemy[i].offsetX;
+            enemySlots[i].worldY         = battleCenterY + formation.enemy[i].offsetY;
+        }
+    }
+    else
+    {
+        // Legacy fallback: no encounter data provided (e.g., PushState(BattleState(d3d))).
+        // Force slot 0 to the skeleton so the battle is always functional.
+        enemySlots[0].occupied           = true;
+        enemySlots[0].texturePath        = L"assets/animations/skeleton.png";
+        enemySlots[0].jsonPath           = "assets/animations/skeleton.json";
+        enemySlots[0].startClip          = "idle";
+        enemySlots[0].cameraFocusOffsetY = -128.0f;
+        enemySlots[0].worldX             = battleCenterX + formation.enemy[0].offsetX;
+        enemySlots[0].worldY             = battleCenterY + formation.enemy[0].offsetY;
+    }
 
     mBattleRenderer.Initialize(
         mD3D.GetDevice(),
@@ -204,6 +235,21 @@ void BattleState::OnEnter()
     }
 
     DumpStateToDebugOutput();
+
+    // ---------------------------------------------------------------
+    // Iris transition — open the iris to reveal the battle scene.
+    // The iris starts fully closed (screen is black from PlayState's closing
+    // iris) and grows to mMaxRadius over ~1 second at 800 px/s.
+    // Initialize must be called in OnEnter() after the D3D device is ready.
+    // ---------------------------------------------------------------
+    if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))
+    {
+        mIris.StartOpen(800.0f);
+    }
+    else
+    {
+        LOG("%s", "[BattleState] WARNING — IrisTransitionRenderer init failed.");
+    }
 }
 
 void BattleState::OnExit()
@@ -228,6 +274,9 @@ void BattleState::OnExit()
 
     // Release text renderer GPU resources (SpriteFont atlas, SpriteBatch).
     mTextRenderer.Shutdown();
+
+    // Release iris overlay GPU resources (VS, PS, VB, CB, blend state).
+    mIris.Shutdown();
 }
 
 // ------------------------------------------------------------
@@ -237,106 +286,137 @@ void BattleState::OnExit()
 // ------------------------------------------------------------
 void BattleState::Update(float dt)
 {
-    const BattlePhase phaseBefore = mBattle.GetPhase();
+    // ---------------------------------------------------------------
+    // Step 1 — Advance the iris animation.
+    // Must happen BEFORE the safe-exit check so the callback fires
+    // on the same tick the iris reaches radius == 0.
+    // ---------------------------------------------------------------
+    mIris.Update(dt);
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+    // ---------------------------------------------------------------
+    // Step 2 — Safe-exit check.
+    // The iris-close callback sets mPendingSafeExit = true.
+    // We check it HERE — at the top of Update(), before any battle or
+    // input code runs — to guarantee PopState() is called when no other
+    // BattleState code is on the call stack (prevents use-after-free).
+    // ---------------------------------------------------------------
+    if (mPendingSafeExit)
     {
-        HandleInput();
-    }
-
-    mBattle.Update(dt);
-
-    const BattlePhase phaseAfter = mBattle.GetPhase();
-
-    // When a new PLAYER_TURN begins, reset the input FSM to COMMAND_SELECT.
-    // SetInputPhase() calls DumpStateToDebugOutput() automatically.
-    if (phaseBefore != BattlePhase::PLAYER_TURN &&
-        phaseAfter  == BattlePhase::PLAYER_TURN)
-    {
-        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
-    }
-    // For every OTHER phase transition (RESOLVING, ENEMY_TURN, WIN, LOSE):
-    //   - Reset the camera to OVERVIEW — the action queue plays out in a wide shot.
-    //   - Dump the HUD so the player sees what is happening.
-    else if (phaseBefore != phaseAfter)
-    {
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
-        DumpStateToDebugOutput();
-    }
-
-    // Advance player HP bar lerp toward the target value set by the last event.
-    mHealthBar.Update(dt);
-
-    // Synchronize enemy HP bars from BattleManager every frame.
-    // Polling is used instead of events because BattleState already owns
-    // BattleManager and can query it directly — no extra event plumbing needed.
-    {
-        const auto& enemies = mBattle.GetAllEnemies();
-        for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
+        // Broadcast the outcome event before popping so listeners can react
+        // while the state is still valid.
+        if (!mExitEventName.empty())
         {
-            const auto& stats = enemies[i]->GetStats();
-            mEnemyHpBar.SetEnemy(
-                i,
-                static_cast<float>(stats.hp),
-                static_cast<float>(stats.maxHp),
-                enemies[i]->IsAlive()
-            );
-        }
-        mEnemyHpBar.Update(dt);
-    }
-
-    // Advance all combatant sprite animations.
-    mBattleRenderer.Update(dt);
-
-    // Check for battle conclusion and exit the state.
-    const BattleOutcome outcome = mBattle.GetOutcome();
-    if (outcome != BattleOutcome::NONE)
-    {
-        // Persist Verso's current HP (and MP) back to PartyManager so the
-        // next battle starts with whatever HP remained at the end of this one.
-        // Rage is intentionally reset inside PartyManager::SetVersoStats().
-        const auto& players = mBattle.GetAllPlayers();
-        if (!players.empty())
-        {
-            PartyManager::Get().SetVersoStats(players[0]->GetStats());
-            LOG("[BattleState] Saved Verso HP: %d/%d",
-                players[0]->GetStats().hp, players[0]->GetStats().maxHp);
+            EventManager::Get().Broadcast(mExitEventName, {});
         }
 
-        const char* eventName = (outcome == BattleOutcome::VICTORY)
-            ? "battle_end_victory" : "battle_end_defeat";
-
-        EventManager::Get().Broadcast(eventName, {});
+        // PopState() destroys this BattleState immediately.
+        // DO NOT access any member variable after this line.
         StateManager::Get().PopState();
-        return;  // BattleState is now destroyed — do NOT touch any member below.
+        return;
     }
 
-    // ------------------------------------------------------------
-    // Deferred flee: FleeCommand called RequestFlee() during HandleInput().
-    // We cannot PopState() there because Execute() runs inside our own
-    // call stack — destroying BattleState mid-frame is a use-after-free.
-    // Checking here, after ALL handlers have returned, is safe.
-    // ------------------------------------------------------------
-    if (mPendingFlee)
+    // ---------------------------------------------------------------
+    // Step 3 — Normal battle logic (only when no exit is in progress).
+    // Skipping input and simulation while the exit iris is closing
+    // prevents the player from taking actions after the battle ends.
+    // ---------------------------------------------------------------
+    if (!mExitTransitionStarted)
     {
-        mPendingFlee = false;   // clear before pop so OnExit sees clean state
-        LOG("%s", "[BattleState] Processing deferred flee — popping state.");
-        EventData data;
-        data.name = "battle_flee";
-        EventManager::Get().Broadcast("battle_flee", data);
-        StateManager::Get().PopState();
-        return;  // BattleState is now destroyed — do NOT touch any member below.
+        const BattlePhase phaseBefore = mBattle.GetPhase();
+
+        if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+        {
+            HandleInput();
+        }
+
+        mBattle.Update(dt);
+
+        const BattlePhase phaseAfter = mBattle.GetPhase();
+
+        if (phaseBefore != BattlePhase::PLAYER_TURN &&
+            phaseAfter  == BattlePhase::PLAYER_TURN)
+        {
+            SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        }
+        else if (phaseBefore != phaseAfter)
+        {
+            mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
+            DumpStateToDebugOutput();
+        }
+
+        // Advance player HP bar lerp.
+        mHealthBar.Update(dt);
+
+        // Synchronize enemy HP bars from BattleManager every frame.
+        {
+            const auto& enemies = mBattle.GetAllEnemies();
+            for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
+            {
+                const auto& stats = enemies[i]->GetStats();
+                mEnemyHpBar.SetEnemy(
+                    i,
+                    static_cast<float>(stats.hp),
+                    static_cast<float>(stats.maxHp),
+                    enemies[i]->IsAlive()
+                );
+            }
+            mEnemyHpBar.Update(dt);
+        }
+
+        mBattleRenderer.Update(dt);
+
+        // ---------------------------------------------------------------
+        // Step 4 — Check for battle conclusion.
+        // When detected for the first time, save HP and start the iris close.
+        // mExitTransitionStarted prevents re-triggering on subsequent frames
+        // while the iris animation plays out.
+        // ---------------------------------------------------------------
+        const BattleOutcome outcome = mBattle.GetOutcome();
+        if (outcome != BattleOutcome::NONE && !mExitTransitionStarted)
+        {
+            mExitTransitionStarted = true;
+
+            // Persist Verso's HP BEFORE the iris starts — we do not want to
+            // query BattleManager after the callback fires (it may be invalid).
+            const auto& players = mBattle.GetAllPlayers();
+            if (!players.empty())
+            {
+                PartyManager::Get().SetVersoStats(players[0]->GetStats());
+                LOG("[BattleState] Saved Verso HP: %d/%d",
+                    players[0]->GetStats().hp, players[0]->GetStats().maxHp);
+            }
+
+            mExitEventName = (outcome == BattleOutcome::VICTORY)
+                ? "battle_end_victory" : "battle_end_defeat";
+
+            // Start closing the iris.  The callback ONLY sets the flag —
+            // PopState() is called at the top of the NEXT Update() frame.
+            mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+        }
+
+        // ---------------------------------------------------------------
+        // Step 5 — Deferred flee (set by FleeCommand::Execute()).
+        // Same pattern: start iris close, defer PopState to top of Update.
+        // ---------------------------------------------------------------
+        if (mPendingFlee && !mExitTransitionStarted)
+        {
+            mPendingFlee           = false;
+            mExitTransitionStarted = true;
+            mExitEventName         = "battle_flee";
+
+            mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+            LOG("%s", "[BattleState] Flee requested — closing iris.");
+        }
     }
 }
 
 // ------------------------------------------------------------
-// Render: re-clear the back buffer to the battle navy color, then
-//         draw the HP bar UI.
-// GameApp::Render() owns BeginFrame (clear) and EndFrame (Present).
-// BattleState calls BeginFrame again to overwrite GameApp's default gray
-// with the battle-specific color — safe because BeginFrame only clears
-// the RTV; it does NOT call Present.
-// EndFrame (Present) is called exactly once per frame by GameApp — never here.
+// Render: clear to battle navy color, draw all game visuals,
+//         then draw the iris overlay on top.
+// GameApp owns BeginFrame (clear) and EndFrame (Present).
+// BattleState calls BeginFrame again to paint the navy background.
+// The iris overlay is drawn LAST — on top of all battle UI.
+// EndFrame (Present) is called once per frame by GameApp — never here.
 // ------------------------------------------------------------
 void BattleState::Render()
 {
@@ -344,14 +424,17 @@ void BattleState::Render()
     mD3D.BeginFrame(kBgR, kBgG, kBgB);
 
     // Draw all combatant sprites (player side + enemy side).
-    // BattleRenderer uses its own flat Camera2D, so world coords = screen pixels.
     mBattleRenderer.Render(mD3D.GetContext());
 
-    // Draw the player HP bar (top-left, 3 sprite layers).
+    // Draw the player HP bar (bottom-right, 3 sprite layers).
     mHealthBar.Render(mD3D.GetContext());
 
     // Draw enemy HP bars (top-center, 1–3 bars stacked vertically).
     mEnemyHpBar.Render(mD3D.GetContext());
+
+    // Draw the iris transition overlay LAST so it composites over all battle UI.
+    // No-op when IrisPhase == IDLE (iris fully open — nothing to draw).
+    mIris.Render(mD3D.GetContext());
 }
 
 // ------------------------------------------------------------

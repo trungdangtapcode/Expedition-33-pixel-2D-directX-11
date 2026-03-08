@@ -1,0 +1,24 @@
+{
+  "comment":  "Skeleton — solo encounter (1 enemy in battle).",
+  "comment2": "Top-level fields: overworld sprite + collision radius.",
+  "comment3": "battleParty: single entry = 1-on-1 fight.",
+
+  "name": "Skeleton",
+  "texturePath": "assets/animations/skeleton.png",
+  "jsonPath": "assets/animations/skeleton.json",
+  "idleClip": "idle",
+  "contactRadius": 90.0,
+
+  "battleParty": [
+    {
+      "texturePath": "assets/animations/skeleton.png",
+      "jsonPath": "assets/animations/skeleton.json",
+      "idleClip": "idle",
+      "hp": 50,
+      "atk": 10,
+      "def": 5,
+      "spd": 5,
+      "cameraFocusOffsetY": -128.0
+    }
+  ]
+}

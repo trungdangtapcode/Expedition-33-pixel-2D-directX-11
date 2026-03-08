@@ -1,0 +1,47 @@
+{
+  "comment":  "Skeleton Horde — group encounter (3 enemies in battle).",
+  "comment2": "Top-level fields: overworld sprite + collision radius.",
+  "comment3": "battleParty: three entries = 3-vs-party fight.",
+
+  "name": "Skeleton Horde",
+  "texturePath": "assets/animations/skeleton.png",
+  "jsonPath": "assets/animations/skeleton.json",
+  "idleClip": "idle",
+  "contactRadius": 90.0,
+
+  "battleParty": [
+    {
+      "comment": "Slot 0 — front-line skeleton: higher HP and ATK.",
+      "texturePath": "assets/animations/skeleton.png",
+      "jsonPath": "assets/animations/skeleton.json",
+      "idleClip": "idle",
+      "hp": 60,
+      "atk": 12,
+      "def": 6,
+      "spd": 4,
+      "cameraFocusOffsetY": -128.0
+    },
+    {
+      "comment": "Slot 1 — fast scout: low HP but high SPD.",
+      "texturePath": "assets/animations/skeleton.png",
+      "jsonPath": "assets/animations/skeleton.json",
+      "idleClip": "idle",
+      "hp": 30,
+      "atk": 7,
+      "def": 3,
+      "spd": 8,
+      "cameraFocusOffsetY": -128.0
+    },
+    {
+      "comment": "Slot 2 — archer skeleton: balanced stats.",
+      "texturePath": "assets/animations/skeleton.png",
+      "jsonPath": "assets/animations/skeleton.json",
+      "idleClip": "idle",
+      "hp": 35,
+      "atk": 8,
+      "def": 4,
+      "spd": 5,
+      "cameraFocusOffsetY": -128.0
+    }
+  ]
+}

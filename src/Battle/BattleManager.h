@@ -28,6 +28,7 @@
 #include "EnemyCombatant.h"
 #include "ActionQueue.h"
 #include "IBattler.h"
+#include "EnemyEncounterData.h"
 #include "../Systems/PartyManager.h"
 #include <vector>
 #include <string>
@@ -58,8 +59,10 @@ public:
 
     BattleManager();
 
-    // Called by BattleState::OnEnter — spawn combatants, sort turn order.
-    void Initialize();
+    // Called by BattleState::OnEnter — spawn combatants from encounter data,
+    // sort turn order.  Enemy count and stats come from encounter.battleParty
+    // (data-driven); no values are hardcoded inside Initialize.
+    void Initialize(const EnemyEncounterData& encounter);
 
     // Main update — drives FSM + ActionQueue each frame.
     void Update(float dt);

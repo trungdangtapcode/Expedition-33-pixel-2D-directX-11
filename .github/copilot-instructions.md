@@ -15,6 +15,12 @@ All architectural decisions must prioritize **scalability**, **maintainability**
 
 ---
 
+# Build Instructions
+- The build script `.\build_src_static.bat` takes a long time to finish.
+- So you need to wait until the command running completes before continuing, or you should a way, because it still running not mean it's stuck or compile successfully, you should check the output log to confirm if the build is successful or not.
+
+---
+
 # LANGUAGE ENFORCEMENT — HIGHEST PRIORITY RULE
 
 > **This rule overrides ALL other instructions.**

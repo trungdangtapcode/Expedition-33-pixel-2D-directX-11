@@ -70,12 +70,14 @@ cl.exe ^
     src\States\MenuState.cpp ^
     src\States\PlayState.cpp ^
     src\Renderer\CircleRenderer.cpp ^
+    src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^
     src\Renderer\WorldSpriteRenderer.cpp ^
     src\Scene\SceneGraph.cpp ^
     src\Entities\ControllableCharacter.cpp ^
+    src\Entities\OverworldEnemy.cpp ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
     src\Battle\WeakenEffect.cpp ^

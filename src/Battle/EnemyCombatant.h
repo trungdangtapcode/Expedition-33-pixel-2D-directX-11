@@ -11,12 +11,19 @@
 #pragma once
 #include "Combatant.h"
 #include "AttackSkill.h"
+#include "BattlerStats.h"
 #include <vector>
 
 class EnemyCombatant : public Combatant
 {
 public:
+    // Legacy constructor — uses hardcoded MVP stats.
+    // Prefer the data-driven constructor below for all new code.
     explicit EnemyCombatant(std::string name);
+
+    // Data-driven constructor — stats come from EnemySlotData (loaded from JSON).
+    // Use this when building enemies from EnemyEncounterData::battleParty.
+    EnemyCombatant(std::string name, const BattlerStats& stats);
 
     bool IsPlayerControlled() const override { return false; }
 

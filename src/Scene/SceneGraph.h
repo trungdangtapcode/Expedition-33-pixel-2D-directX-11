@@ -88,13 +88,21 @@ public:
     // ------------------------------------------------------------
     // Function: Render
     // Purpose:
-    //   Sort live objects by layer (ascending), then call Render(ctx) on each.
+    //   Sort live objects by layer (ascending), then by world Y within the
+    //   same layer (ascending — lower Y drawn first, higher Y drawn on top),
+    //   and call Render(ctx) on each in that order.
+    //
+    // Sort criteria (painter's algorithm):
+    //   Primary   : GetLayer()  ascending — lower layer = background
+    //   Secondary : GetSortY()  ascending — lower Y = further up on screen
+    //                                       = further from viewer = drawn first
     //
     // Why sort here instead of in Spawn()?
-    //   Objects may change their layer at runtime (e.g. a character jumps
-    //   onto an elevated platform and changes from layer 50 to 60).
-    //   Sorting at render time is the only correct approach.
-    //   std::stable_sort preserves insertion order for equal layers.
+    //   Objects may change their layer or Y position at runtime (e.g. a
+    //   character moves across the scene).  Sorting at render time is the
+    //   only correct approach.
+    //   std::stable_sort preserves insertion order for objects with identical
+    //   layer AND identical Y — deterministic for static scenes.
     //
     // Parameters:
     //   ctx — D3D11 device context for this frame.

@@ -1,0 +1,15 @@
+{
+  "comment": "BGM track configuration — maps track IDs to WAV file paths.",
+  "comment2": "AudioManager loads this at Initialize() and preloads all voices.",
+  "comment3": "To change a BGM file, edit 'path' here — no recompile needed.",
+  "tracks": [
+    {
+      "id":   "overworld",
+      "path": "assets/sound/OST/lumiere_a_laube.wav"
+    },
+    {
+      "id":   "battle",
+      "path": "assets/sound/OST/the_end_in_me.wav"
+    }
+  ]
+}

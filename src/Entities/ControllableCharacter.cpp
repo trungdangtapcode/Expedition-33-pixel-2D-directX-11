@@ -50,7 +50,8 @@ ControllableCharacter::ControllableCharacter(
     }
 
     // Start the first clip immediately.  If the clip name is not found,
-    // WorldSpriteRenderer::PlayClip logs the error and leaves mActiveClip null.
+    // PlayClip() logs a warning and the renderer stays in its default state
+    // (mActiveClip = nullptr), so Draw() will no-op silently.
     mRenderer.PlayClip(startClip);
 }
 

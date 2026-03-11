@@ -145,29 +145,42 @@ bool WorldSpriteRenderer::Initialize(ID3D11Device*        device,
 // ------------------------------------------------------------
 // Function: PlayClip
 // Purpose:  Switch to the named animation clip.
-//           Resets frame index and timer to the beginning of the clip.
+//           Resets frame index, timer, mClipFinished, and mFrozen.
+// Returns:  true  — clip found and activated.
+//           false — clip absent from sheet; active clip unchanged.
 // Why no-op on same clip?
 //   A game state may call PlayClip("idle") every frame to keep the
 //   character in idle.  Resetting the frame index each time would
 //   restart the animation from frame 0 each frame — a frozen sprite.
+// Why reset mFrozen here?
+//   FreezeCurrentFrame() is a per-event flag that should clear when a
+//   new clip is explicitly activated (e.g. re-entering idle after a
+//   temporary freeze).  Keeping mFrozen across clip switches would
+//   prevent the new clip from ever animating.
 // ------------------------------------------------------------
-void WorldSpriteRenderer::PlayClip(const std::string& clipName)
+bool WorldSpriteRenderer::PlayClip(const std::string& clipName)
 {
     // Guard: skip the reset if this clip is already playing.
-    if (mActiveClipName == clipName && mActiveClip != nullptr) return;
+    // Return true — the requested clip IS active; caller's goal is satisfied.
+    if (mActiveClipName == clipName && mActiveClip != nullptr) return true;
 
     const AnimationClip* clip = mSheet.FindClip(clipName);
     if (!clip)
     {
+        // Clip not present in this sprite sheet.  Leave active clip unchanged.
+        // Caller can check the return value and decide to freeze or skip.
         LOG("[WorldSpriteRenderer] Clip '%s' not found in sheet '%s'.",
             clipName.c_str(), mSheet.spriteName.c_str());
-        return;
+        return false;
     }
 
     mActiveClip     = clip;
     mActiveClipName = clipName;
     mFrameIndex     = 0;
     mFrameTimer     = 0.0f;
+    mClipFinished   = false;   // reset: new clip has not finished yet
+    mFrozen         = false;   // reset: allow the new clip to animate freely
+    return true;
 }
 
 // ------------------------------------------------------------
@@ -187,8 +200,10 @@ void WorldSpriteRenderer::PlayClip(const std::string& clipName)
 // ------------------------------------------------------------
 void WorldSpriteRenderer::Update(float dt)
 {
-    // Nothing to animate on a single-frame clip or when no clip is active.
-    if (!mActiveClip || mActiveClip->numFrames <= 1) return;
+    // Nothing to animate when frozen (FreezeCurrentFrame() was called),
+    // when no clip is active, or when the clip has only one frame.
+    // Checking mFrozen first avoids any frame advancement after a death freeze.
+    if (mFrozen || !mActiveClip || mActiveClip->numFrames <= 1) return;
 
     mFrameTimer += dt;
 
@@ -209,8 +224,11 @@ void WorldSpriteRenderer::Update(float dt)
             else
             {
                 // Hold on the last frame for non-looping clips (e.g. death animation).
-                mFrameIndex = mActiveClip->numFrames - 1;
-                mFrameTimer = 0.0f;   // prevent further accumulation
+                // Mark as finished so IsClipDone() returns true and callers
+                // (e.g. BattleState iris delay) know the animation has completed.
+                mFrameIndex   = mActiveClip->numFrames - 1;
+                mFrameTimer   = 0.0f;   // prevent further accumulation
+                mClipFinished = true;   // signal: last frame reached
                 break;
             }
         }
@@ -346,7 +364,9 @@ void WorldSpriteRenderer::Draw(ID3D11DeviceContext* context,
     );
 
     // World-space position where the pivot will land.
-    const XMFLOAT2 worldPos(worldX, worldY);
+    // mDrawOffsetX/Y shifts the whole sprite without touching pivot or scale.
+    // Offset is zero by default; set via SetDrawOffset() from BattleRenderer.
+    const XMFLOAT2 worldPos(worldX + mDrawOffsetX, worldY + mDrawOffsetY);
 
     // ----------------------------------------------------------------
     // Step 5 — SpriteBatch draw pass.

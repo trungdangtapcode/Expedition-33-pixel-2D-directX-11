@@ -256,6 +256,13 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     // Compute the fill width in pixels (integer, floored to avoid sub-pixel jitter).
     const int fillWidth = static_cast<int>(mConfig.HpBarWidth() * ratio);
 
+    // Anchor the widget to the bottom-right corner of the screen.
+    // The texture covers the full widget area (portrait + bar), so offset by
+    // (screenW - texW, screenH - texH) to align its bottom-right with the
+    // bottom-right of the render target.
+    const float originX = static_cast<float>(mScreenW - mConfig.textureWidth);
+    const float originY = static_cast<float>(mScreenH - mConfig.textureHeight);
+
     // Bind viewport — must happen before Begin() so SpriteBatch's internal
     // GetViewportTransform() uses our stored dimensions instead of querying
     // the rasterizer (which may return 0 viewports after another renderer resets it).
@@ -275,7 +282,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     );
     {
         RECT srcFull = { 0, 0, mConfig.textureWidth, mConfig.textureHeight };
-        const XMFLOAT2 pos(0.0f, 0.0f);
+        const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mBgSRV.Get(), pos, &srcFull,
                            Colors::White, 0.0f, pivot, 1.0f);
@@ -304,8 +311,8 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         );
 
         const XMFLOAT2 fillPos(
-            static_cast<float>(mConfig.hpBarLeft),
-            static_cast<float>(mConfig.hpBarTop)
+            originX + static_cast<float>(mConfig.hpBarLeft),
+            originY + static_cast<float>(mConfig.hpBarTop)
         );
         const XMFLOAT2 pivot(0.0f, 0.0f);
         // Scale the 1x1 white texel to exactly fillWidth x barHeight.
@@ -334,7 +341,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     );
     {
         RECT srcFull = { 0, 0, mConfig.textureWidth, mConfig.textureHeight };
-        const XMFLOAT2 pos(0.0f, 0.0f);
+        const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mFrameSRV.Get(), pos, &srcFull,
                            Colors::White, 0.0f, pivot, 1.0f);

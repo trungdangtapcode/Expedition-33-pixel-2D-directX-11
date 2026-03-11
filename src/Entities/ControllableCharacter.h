@@ -94,6 +94,11 @@ public:
     // World characters render at layer 50 — above background, below UI.
     int GetLayer() const override { return 50; }
 
+    // Return world Y for painter's-algorithm Y-sort within the characters layer.
+    // Higher Y = lower on screen = visually "closer" = drawn on top of entities
+    // with lower Y in the same layer.
+    float GetSortY() const override { return mPosY; }
+
     // Characters are always alive for now; extend for HP-based death later.
     bool IsAlive() const override { return mAlive; }
 

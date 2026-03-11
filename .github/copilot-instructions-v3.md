@@ -15,12 +15,6 @@ All architectural decisions must prioritize **scalability**, **maintainability**
 
 ---
 
-# Build Instructions
-- The build script `.\build_src_static.bat` takes a long time to finish.
-- So you need to wait until the command running completes before continuing, or you should a way, because it still running not mean it's stuck or compile successfully, you should check the output log to confirm if the build is successful or not.
-
----
-
 # LANGUAGE ENFORCEMENT — HIGHEST PRIORITY RULE
 
 > **This rule overrides ALL other instructions.**
@@ -478,8 +472,6 @@ For every subsystem that touches DirectX (Device, SwapChain, SpriteBatch, AudioE
 //   3. Resizing swap chain without releasing RTV first → DXGI_ERROR_INVALID_CALL.
 ```
 
-UPDATING COMMENT RULE: If you change any logic, you MUST update the comments to reflect the new behavior. Never leave code uncommented or with outdated comments.
- 
 ## 2. File Header Format (mandatory on every file)
 
 ```cpp

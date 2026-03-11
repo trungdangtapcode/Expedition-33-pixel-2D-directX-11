@@ -17,6 +17,7 @@
 #include "../States/StateManager.h"
 #include "../States/MenuState.h"
 #include "../Events/EventManager.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include <sstream>
 
@@ -37,6 +38,10 @@ GameApp::GameApp() {
 }
 
 GameApp::~GameApp() {
+    // Shut down the audio engine before COM is uninitialised and before
+    // D3D is torn down.  All source voices must be destroyed while the
+    // XAudio2 engine is still alive.
+    AudioManager::Get().Shutdown();
     sInstance = nullptr;
 }
 
@@ -107,6 +112,14 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
     if (!InitWindow(hInstance)) return false;
 
     if (!D3DContext::Get().Initialize(mHwnd, mWidth, mHeight)) return false;
+
+    // Initialise the audio engine AFTER D3D so COM is already set up.
+    // A failure here is non-fatal: the game runs silently if XAudio2 is
+    // unavailable (e.g., on a headless build/test machine).
+    if (!AudioManager::Get().Initialize())
+    {
+        LOG("[GameApp] WARNING: AudioManager failed to initialize. Game will run without audio.");
+    }
 
     // Push initial state onto the stack — MenuState is the entry point of the game.
     StateManager::Get().PushState(std::make_unique<MenuState>());

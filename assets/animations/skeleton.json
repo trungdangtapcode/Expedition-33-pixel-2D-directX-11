@@ -2,7 +2,7 @@
 	"sprite_name": "skeleton",
 	"character": "skeleton",
 	"width": 1536,
-	"height": 512,
+	"height": 640,
 	"frame_width": 128,
 	"frame_height": 128,
 	"animations":[
@@ -32,6 +32,14 @@
 		},
 		{
 			"name": "attack-2",
+			"num_frames": 6,
+			"frame_rate": 6,
+			"loop": false,
+			"pivot": [65, 122],
+			"align": "bottom-center"
+		},
+		{
+			"name": "die",
 			"num_frames": 6,
 			"frame_rate": 6,
 			"loop": false,

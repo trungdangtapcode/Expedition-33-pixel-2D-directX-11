@@ -21,6 +21,17 @@ EnemyCombatant::EnemyCombatant(std::string name)
 {}
 
 // ------------------------------------------------------------
+// Data-driven constructor — receives a fully populated BattlerStats
+// from EnemyEncounterData::battleParty so stat values come from JSON,
+// not from the hardcoded constants above.
+// Called by BattleManager::Initialize(EnemyEncounterData) exclusively.
+// ------------------------------------------------------------
+EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats)
+    : Combatant(std::move(name), stats)
+    , mAttack(std::make_unique<AttackSkill>())
+{}
+
+// ------------------------------------------------------------
 // ChooseTarget: Simple AI — first alive player.
 // Extend with targeting priority (lowest HP, highest threat) as needed.
 // ------------------------------------------------------------

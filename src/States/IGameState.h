@@ -1,35 +1,51 @@
 #pragma once
 
 // ============================================================
-// IGameState - Interface (pure virtual) cho mọi trạng thái game
+// File: IGameState.h
+// Responsibility: Pure virtual interface for all game states.
 //
-// Mọi State (MenuState, BattleState, CutsceneState...) đều kế thừa interface này.
-// GameApp và StateManager KHÔNG cần biết bên trong State làm gì.
-// Chúng chỉ gọi Update(dt) và Render() - đây là "Dependency Inversion Principle".
+// Every state (MenuState, BattleState, CutsceneState …) inherits this.
+// GameApp and StateManager have no knowledge of what a state does internally —
+// they only call Update(dt) and Render().  This is the Dependency Inversion
+// Principle: high-level policy (the game loop) depends on an abstraction,
+// not on concrete state implementations.
 //
-// VÒNG ĐỜI CỦA MỘT STATE:
-//   OnEnter()  → được gọi 1 lần khi State được push vào stack
-//   Update(dt) → được gọi mỗi frame khi State đang active
-//   Render()   → được gọi mỗi frame để vẽ
-//   OnExit()   → được gọi 1 lần khi State bị pop ra khỏi stack
+// State lifecycle:
+//   OnEnter()  — called once when the state is pushed onto the stack.
+//   Update(dt) — called every frame while the state is the top of the stack.
+//   Render()   — called every frame to draw.
+//   OnExit()   — called once when the state is popped off the stack.
+//
+// Stack semantics (StateManager):
+//   PushState(new)   — OnEnter() on new state; old state paused underneath.
+//   PopState()       — OnExit() on top state; state below resumes WITHOUT
+//                      OnEnter() being called again.
+//   ChangeState(new) — OnExit() on top, then OnEnter() on new state.
+//
+// Because OnEnter() is NOT called on resume after a pop, any resource that
+// must be restored when the state regains focus (e.g., BGM) must be restored
+// by the state that triggered the pop (in its OnExit()).
 // ============================================================
 class IGameState {
 public:
     virtual ~IGameState() = default;
 
-    // Khởi tạo tài nguyên khi state được kích hoạt
+    // Called once when the state becomes active (pushed onto the stack).
+    // Allocate GPU resources, subscribe to events, start BGM here.
     virtual void OnEnter() = 0;
 
-    // Giải phóng tài nguyên khi state bị đóng
+    // Called once when the state is removed from the stack.
+    // Release GPU resources, unsubscribe events, stop/restore BGM here.
     virtual void OnExit() = 0;
 
-    // Cập nhật logic game mỗi frame
-    // dt = deltaTime (giây) - dùng để nhân với mọi chuyển động, animation
+    // Advance all game logic by one frame.
+    // dt = delta time in seconds, always scaled by GameTimer.
+    // Never use raw wall-clock time inside a state.
     virtual void Update(float dt) = 0;
 
-    // Vẽ đồ họa mỗi frame
+    // Submit all draw calls for this frame.
     virtual void Render() = 0;
 
-    // (Optional) Tên state để debug/logging
+    // Human-readable name used for debug logging.
     virtual const char* GetName() const = 0;
 };

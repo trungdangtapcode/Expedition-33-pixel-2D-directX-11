@@ -29,6 +29,7 @@
 #include <fstream>
 #include <sstream>
 #include "../Renderer/SpriteSheet.h"
+#include "../Battle/EnemyEncounterData.h"
 #include "Log.h"
 
 namespace JsonLoader {
@@ -97,6 +98,19 @@ inline int ParseInt(const std::string& raw, int defaultVal = 0)
 {
     if (raw.empty()) return defaultVal;
     try { return std::stoi(raw); }
+    catch (...) { return defaultVal; }
+}
+
+// ------------------------------------------------------------
+// Parse a float from the raw value string returned by ValueOf.
+// Returns defaultVal if the string is empty or not a valid number.
+// Used for fields like contactRadius and cameraFocusOffsetY that
+// JSON authors express as decimal literals (e.g. 90.0, -128.0).
+// ------------------------------------------------------------
+inline float ParseFloat(const std::string& raw, float defaultVal = 0.0f)
+{
+    if (raw.empty()) return defaultVal;
+    try { return std::stof(raw); }
     catch (...) { return defaultVal; }
 }
 
@@ -205,6 +219,61 @@ inline std::vector<std::string> SplitObjects(const std::string& arrayText)
         }
         objects.push_back(arrayText.substr(open + 1, j - open - 2));
         i = j;
+    }
+    return objects;
+}
+
+// ------------------------------------------------------------
+// Extract an array of raw JSON object strings from a named array key.
+// Returns one string per { ... } object found inside the array.
+//
+// Example input:  "battleParty": [ { "hp": 50 }, { "hp": 30 } ]
+// Returns: [ "{ \"hp\": 50 }", "{ \"hp\": 30 }" ]
+//
+// Handles nested braces correctly via depth tracking.
+// Returns an empty vector if the key is not found.
+// ------------------------------------------------------------
+inline std::vector<std::string> ExtractObjectsFromArray(
+    const std::string& src, const std::string& arrayKey)
+{
+    std::vector<std::string> objects;
+    const std::string searchKey = "\"" + arrayKey + "\"";
+    const size_t kpos = src.find(searchKey);
+    if (kpos == std::string::npos) return objects;
+
+    const size_t arrStart = src.find('[', kpos);
+    if (arrStart == std::string::npos) return objects;
+
+    size_t i = arrStart + 1;
+    while (i < src.size())
+    {
+        // Skip whitespace and commas between objects.
+        while (i < src.size() &&
+               (src[i] == ' ' || src[i] == '\t' ||
+                src[i] == '\r' || src[i] == '\n' || src[i] == ','))
+            ++i;
+
+        if (i >= src.size() || src[i] == ']') break;
+
+        if (src[i] == '{')
+        {
+            // Walk forward tracking brace depth to find the matching '}'.
+            int    depth    = 1;
+            size_t objStart = i;
+            ++i;
+            while (i < src.size() && depth > 0)
+            {
+                if (src[i] == '{') ++depth;
+                if (src[i] == '}') --depth;
+                ++i;
+            }
+            // i now points one past the closing '}' — include the whole block.
+            objects.push_back(src.substr(objStart, i - objStart));
+        }
+        else
+        {
+            ++i;
+        }
     }
     return objects;
 }
@@ -323,6 +392,190 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
         sheet.frameWidth, sheet.frameHeight,
         (int)sheet.animations.size());
 
+    return true;
+}
+
+// ============================================================
+// Formation data structures
+// ============================================================
+
+// One slot entry inside a formation —
+//   offsetX/offsetY are world-space units relative to the battle center.
+//   Positive Y is downward (screen convention).  Represents the ground
+//   contact point (feet) of the character assigned to this slot.
+struct FormationSlot
+{
+    int   slot    = 0;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+};
+
+// All slots for both teams in one formation file.
+struct FormationData
+{
+    FormationSlot player[3];   // up to 3 player slots (indices 0-2)
+    FormationSlot enemy [3];   // up to 3 enemy  slots (indices 0-2)
+};
+
+// ------------------------------------------------------------
+// Function: LoadFormations
+// Purpose:
+//   Parse a formations.json file and fill a FormationData struct.
+//   Both "player_offsets" and "enemy_offsets" arrays are read;
+//   each element provides { slot, offset_x, offset_y }.
+//
+//   Offsets are world-space pixels relative to the battle center.
+//   The caller computes final world positions as:
+//     worldX = battleCenterX + slot.offsetX
+//     worldY = battleCenterY + slot.offsetY
+//
+// Parameters:
+//   path — path to the JSON file (e.g. "data/formations.json")
+//   out  — populated on success; left unchanged on failure
+// Returns:
+//   true on success, false if the file cannot be opened.
+// ------------------------------------------------------------
+inline bool LoadFormations(const std::string& path, FormationData& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open formations file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    // Helper: extract the text of a named top-level array "key": [ ... ]
+    auto extractArray = [&](const std::string& key) -> std::string
+    {
+        std::string searchKey = '"' + key + '"';
+        size_t kpos = src.find(searchKey);
+        if (kpos == std::string::npos) return {};
+        size_t bracket = src.find('[', kpos + searchKey.size());
+        if (bracket == std::string::npos) return {};
+        int depth = 1;
+        size_t i  = bracket + 1;
+        while (i < src.size() && depth > 0) {
+            if (src[i] == '[') ++depth;
+            if (src[i] == ']') --depth;
+            ++i;
+        }
+        return src.substr(bracket + 1, i - bracket - 2);
+    };
+
+    // Fill a FormationSlot[3] array from the raw array text.
+    auto parseSlots = [](const std::string& arrayText, FormationSlot (&slots)[3])
+    {
+        // Initialise all three with sequential defaults so missing entries
+        // still have sane slot indices.
+        for (int i = 0; i < 3; ++i) slots[i] = { i, 0.0f, 0.0f };
+
+        auto objects = detail::SplitObjects(arrayText);
+        for (const auto& obj : objects)
+        {
+            int   s  = detail::ParseInt  (detail::ValueOf(obj, "slot"));
+            float ox = static_cast<float>(detail::ParseInt(detail::ValueOf(obj, "offset_x")));
+            float oy = static_cast<float>(detail::ParseInt(detail::ValueOf(obj, "offset_y")));
+            if (s >= 0 && s < 3)
+            {
+                slots[s].slot    = s;
+                slots[s].offsetX = ox;
+                slots[s].offsetY = oy;
+            }
+        }
+    };
+
+    parseSlots(extractArray("player_offsets"), out.player);
+    parseSlots(extractArray("enemy_offsets"),  out.enemy);
+
+    LOG("[JsonLoader] Loaded formations from '%s'.", path.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadEnemyEncounterData
+// Purpose:
+//   Parse a data/enemies/*.json file into an EnemyEncounterData struct.
+//   The struct is used by OverworldEnemy (overworld sprite + collision)
+//   and passed directly to BattleState so enemy slots use the same
+//   texture, stats, and animation as the overworld entity.
+//
+// JSON schema (all fields required):
+//   name              — display name string
+//   texturePath       — narrow ASCII path, converted to wstring internally
+//   jsonPath          — sprite sheet JSON path
+//   idleClip          — starting animation clip name
+//   hp / atk / def / spd     — battle stats (integers)
+//   contactRadius     — overworld collision radius in world pixels (float)
+//   cameraFocusOffsetY — battle camera focus correction in world pixels (float)
+//
+// Parameters:
+//   path  — path to the enemy .json file
+//   out   — populated struct on success; left unchanged on failure
+// Returns:
+//   true  — all required fields parsed
+//   false — file not found or required fields are default-zero
+// ------------------------------------------------------------
+inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open enemy file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    // Helper: strip surrounding quotes from a ValueOf() string token.
+    auto stripQ = [](const std::string& s) -> std::string {
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"')
+            return s.substr(1, s.size() - 2);
+        return s;
+    };
+
+    // Helper: convert a narrow ASCII path string to std::wstring.
+    // All asset paths in this project are 7-bit ASCII — no multibyte handling needed.
+    auto toWide = [](const std::string& s) -> std::wstring {
+        return std::wstring(s.begin(), s.end());
+    };
+
+    // Parse the overworld identity and sprite fields (top-level).
+    // These are used by OverworldEnemy for its own world-space rendering.
+    out.name         = stripQ(detail::ValueOf(src, "name"));
+    out.texturePath  = toWide(stripQ(detail::ValueOf(src, "texturePath")));
+    out.jsonPath     = stripQ(detail::ValueOf(src, "jsonPath"));
+    out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
+    out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
+
+    if (out.name.empty() || out.texturePath.empty())
+    {
+        LOG("[JsonLoader] Missing required top-level fields in enemy file: '%s'", path.c_str());
+        return false;
+    }
+
+    // Parse the battleParty array — defines each enemy combatant in battle.
+    // Each object maps to one EnemySlotData (texture, stats, camera offset).
+    // A missing array is not a fatal error: BattleState falls back to a
+    // hardcoded skeleton when battleParty is empty.
+    const auto slotSrcs = detail::ExtractObjectsFromArray(src, "battleParty");
+    for (const auto& slotSrc : slotSrcs)
+    {
+        EnemySlotData slot;
+        slot.texturePath       = toWide(stripQ(detail::ValueOf(slotSrc, "texturePath")));
+        slot.jsonPath          = stripQ(detail::ValueOf(slotSrc, "jsonPath"));
+        slot.idleClip          = stripQ(detail::ValueOf(slotSrc, "idleClip"));
+        slot.hp                = detail::ParseInt  (detail::ValueOf(slotSrc, "hp"));
+        slot.atk               = detail::ParseInt  (detail::ValueOf(slotSrc, "atk"));
+        slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
+        slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
+        slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
+        out.battleParty.push_back(std::move(slot));
+    }
+
+    LOG("[JsonLoader] Loaded enemy '%s' from '%s': %d battle slot(s).",
+        out.name.c_str(), path.c_str(), static_cast<int>(out.battleParty.size()));
     return true;
 }
 

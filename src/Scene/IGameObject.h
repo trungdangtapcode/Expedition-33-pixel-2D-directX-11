@@ -86,6 +86,26 @@ public:
     virtual int GetLayer() const = 0;
 
     // ------------------------------------------------------------
+    // Function: GetSortY
+    // Purpose:
+    //   Return the world-space Y coordinate used as a secondary sort key
+    //   within objects that share the same GetLayer() value.
+    //   Objects with a LOWER Y are drawn first (they are further "up" on
+    //   screen, i.e. further away from the viewer in a top-down scene).
+    //   Objects with a HIGHER Y are drawn last (closer to the viewer,
+    //   visually in front).
+    //
+    //   This implements the painter's Y-sort algorithm standard in 2-D
+    //   JRPGs and top-down games so that characters "behind" others do not
+    //   incorrectly overlap characters "in front" of them.
+    //
+    // Default:
+    //   Returns 0.0f — objects that do not need Y-sorting (e.g. background
+    //   tiles, screen-space UI) keep the default and are sorted only by layer.
+    // ------------------------------------------------------------
+    virtual float GetSortY() const { return 0.0f; }
+
+    // ------------------------------------------------------------
     // Function: IsAlive
     // Purpose:
     //   Return false when this object should be removed from the scene.

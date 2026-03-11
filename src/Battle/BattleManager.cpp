@@ -5,6 +5,7 @@
 #include "BattleManager.h"
 #include "LogAction.h"
 #include "DelayedAction.h"
+#include "EnemyEncounterData.h"
 #define NOMINMAX
 #include <algorithm>
 #include "../Utils/Log.h"
@@ -13,24 +14,51 @@
 BattleManager::BattleManager() = default;
 
 // ------------------------------------------------------------
-// Initialize: create combatants and build the initial turn order.
-// In the full game the team compositions come from data/enemies/*.json
-// and the party roster loaded from save data.  For MVP they are inline.
+// Initialize: create combatants from encounter data and build the
+// initial turn order.
 //
-// Verso's stats are seeded from PartyManager so HP carries over from
-// previous battles.  On the very first battle PartyManager returns the
-// default full-HP stats (100/100).
+// Enemy team: built by iterating encounter.battleParty (1–3 entries).
+//   Each EnemySlotData provides hp/atk/def/spd; name is generated as
+//   "<encounter.name>" for single-enemy parties or
+//   "<encounter.name> A/B/C" for multi-enemy parties.
+//
+// Player team: Verso with persistent HP from PartyManager so wounds
+//   carry over from previous battles.
 // ------------------------------------------------------------
-void BattleManager::Initialize()
+void BattleManager::Initialize(const EnemyEncounterData& encounter)
 {
     // -- Spawn player party — Verso with persistent HP from PartyManager --
     mPlayers.push_back(std::make_unique<PlayerCombatant>(
         "Verso", PartyManager::Get().GetVersoStats()));
 
-    // -- Spawn enemy team — two Skeleton combatants in slots 0 and 1.
-    // Slot 2 is intentionally left empty; add a third enemy here when needed.
-    mEnemies.push_back(std::make_unique<EnemyCombatant>("Skeleton A"));
-    mEnemies.push_back(std::make_unique<EnemyCombatant>("Skeleton B"));
+    // -- Spawn enemy team from encounter.battleParty (data-driven) --
+    // Name scheme: single enemy uses the encounter name; multiple enemies
+    // append " A", " B", " C" so the HUD can distinguish them.
+    const bool multipleEnemies = encounter.battleParty.size() > 1;
+    for (int i = 0; i < static_cast<int>(encounter.battleParty.size()); ++i)
+    {
+        const EnemySlotData& sd = encounter.battleParty[i];
+
+        // Build a name: "Skeleton" for single, "Skeleton A" for multi.
+        std::string slotName = encounter.name;
+        if (multipleEnemies) { slotName += ' '; slotName += static_cast<char>('A' + i); }
+
+        // Build BattlerStats from JSON-sourced values.
+        // mp=0 and maxMp=0: enemies do not use MP in the current design.
+        // rage=0 and maxRage=0: rage resource is player-only.
+        BattlerStats stats{};
+        stats.hp     = sd.hp;
+        stats.maxHp  = sd.hp;
+        stats.mp     = 0;
+        stats.maxMp  = 0;
+        stats.atk    = sd.atk;
+        stats.def    = sd.def;
+        stats.spd    = sd.spd;
+        stats.rage   = 0;
+        stats.maxRage= 0;
+
+        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats));
+    }
 
     BuildTurnOrder();
 
@@ -62,11 +90,16 @@ void BattleManager::BuildTurnOrder()
 
 // ------------------------------------------------------------
 // Update: main FSM tick.  Called by BattleState every frame.
+//
+// Note: INIT phase is no longer handled here.
+//   BattleState::OnEnter() calls Initialize(encounter) explicitly before
+//   the first Update(), so mPhase is already PLAYER_TURN on entry.
+//   The INIT guard is kept only as a safety net for unexpected resets.
 // ------------------------------------------------------------
 void BattleManager::Update(float dt)
 {
     if (mPhase == BattlePhase::WIN || mPhase == BattlePhase::LOSE) return;
-    if (mPhase == BattlePhase::INIT) { Initialize(); return; }
+    if (mPhase == BattlePhase::INIT) return;  // should not happen; Initialize(encounter) called in OnEnter
 
     if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
     else if (mPhase == BattlePhase::ENEMY_TURN)  HandleEnemyTurn(dt);

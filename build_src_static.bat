@@ -70,12 +70,14 @@ cl.exe ^
     src\States\MenuState.cpp ^
     src\States\PlayState.cpp ^
     src\Renderer\CircleRenderer.cpp ^
+    src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^
     src\Renderer\WorldSpriteRenderer.cpp ^
     src\Scene\SceneGraph.cpp ^
     src\Entities\ControllableCharacter.cpp ^
+    src\Entities\OverworldEnemy.cpp ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
     src\Battle\WeakenEffect.cpp ^
@@ -95,10 +97,14 @@ cl.exe ^
     src\Battle\FleeCommand.cpp ^
     src\Battle\ActionQueue.cpp ^
     src\Battle\BattleManager.cpp ^
+    src\Battle\BattleCameraController.cpp ^
     src\Battle\BattleRenderer.cpp ^
     src\States\BattleState.cpp ^
     src\UI\HealthBarRenderer.cpp ^
+    src\UI\BattleTextRenderer.cpp ^
+    src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
+    src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\shared" ^
@@ -118,6 +124,7 @@ cl.exe ^
     dxgi.lib ^
     d3dcompiler.lib ^
     DirectXTK.lib ^
+    ole32.lib ^
     /SUBSYSTEM:WINDOWS
 
 if %ERRORLEVEL% == 0 (

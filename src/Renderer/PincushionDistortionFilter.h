@@ -108,7 +108,7 @@ private:
 
     // Maximum k coefficient at full intensity.
     // k=0.6 produces a pronounced but not grotesque pincushion at intensity=1.
-    static constexpr float kMaxCoefficient = -1.6f;
+    static constexpr float kMaxCoefficient = -2.0f;
 
     // Intensity below this threshold → IsActive() returns false.
     // Skips BeginCapture overhead when effect is imperceptible.

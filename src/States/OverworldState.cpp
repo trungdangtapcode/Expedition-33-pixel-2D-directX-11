@@ -41,7 +41,7 @@
 #include "MenuState.h"
 #include "BattleState.h"
 #include "../Renderer/D3DContext.h"
-#include "../Renderer/PincushionDistortionFilter.h"
+#include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Core/TimeSystem.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
@@ -135,20 +135,17 @@ void OverworldState::OnEnter()
         }
     }
 
-    // --- Pincushion distortion filter for battle transition ---
-    // Created via the concrete type but stored behind the IScreenFilter interface.
-    // Owning state (this) never calls PincushionDistortionFilter-specific methods —
-    // only the IScreenFilter interface is used, so the filter is freely swappable.
-    mPincushionFilter = std::make_unique<PincushionDistortionFilter>();
-    if (!mPincushionFilter->Initialize(device, W, H))
+    // --- Pincushion and Camera Effect for battle transition ---
+    // Created via the concrete type but stored behind the interface.
+    mTransitionController = std::make_unique<ZoomPincushionTransitionController>();
+    if (!mTransitionController->Initialize(device, W, H))
     {
-        LOG("[OverworldState] WARNING — PincushionDistortionFilter init failed; battle transition will skip distortion.");
-        mPincushionFilter.reset();  // disable filter rather than crash on use
+        LOG("[OverworldState] WARNING — ZoomPincushionTransitionController init failed; battle transition will skip distortion.");
+        mTransitionController.reset();  // disable filter rather than crash on use
     }
 
     // Reset transition state in case this state is re-entered (e.g., returning from battle).
     mBattleTransitionPhase = BattleTransitionPhase::IDLE;
-    mPincushionTimer = 0.0f;
 
     // DEBUG: load the raw texture to verify SpriteBatch works at all.
     mDebugView.Load(device, context, L"assets/animations/test.png");
@@ -160,6 +157,7 @@ void OverworldState::OnEnter()
             const int nW = D3DContext::Get().GetWidth();
             const int nH = D3DContext::Get().GetHeight();
             if (mCamera) mCamera->SetScreenSize(nW, nH);
+            if (mTransitionController) mTransitionController->OnResize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -223,16 +221,15 @@ void OverworldState::OnExit()
     mCircleRenderer.Shutdown();
     mDebugView.Shutdown();
 
-    // Release pincushion filter GPU resources.
-    if (mPincushionFilter)
+    // Release transition controller GPU resources.
+    if (mTransitionController)
     {
-        mPincushionFilter->Shutdown();
-        mPincushionFilter.reset();
+        mTransitionController->Shutdown();
+        mTransitionController.reset();
     }
 
     // Ensure transition state is clean for potential re-entry.
     mBattleTransitionPhase = BattleTransitionPhase::IDLE;
-    mPincushionTimer = 0.0f;
 
     // Clear non-owning pointers BEFORE SceneGraph::Clear() frees the entities.
     // Accessing these pointers after Clear() is a use-after-free.
@@ -323,12 +320,15 @@ void OverworldState::Update(float dt)
             mPendingEncounter   = target->GetEncounterData();
             mPendingEnemySource = target;
 
-            // Start the pincushion phase: slow gameplay and begin distortion ramp.
+            // Start the transition phase: slow gameplay and begin distortion ramp.
             mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;
-            mPincushionTimer = 0.0f;
+            if (mTransitionController)
+            {
+                mTransitionController->StartTransition(mPendingEncounter, mPendingEnemySource);
+            }
             TimeSystem::Get().SetSlowMotion(0.25f);
 
-            LOG("[OverworldState] Battle triggered vs '%s' — pincushion + slow-motion started.",
+            LOG("[OverworldState] Battle triggered vs '%s' — transition started.",
                 mPendingEncounter.name.c_str());
         }
         else
@@ -338,51 +338,52 @@ void OverworldState::Update(float dt)
     }
 
     // ---------------------------------------------------------------
-    // PINCUSHION phase: ramp distortion intensity using UI clock dt.
-    // UI clock is unaffected by SetSlowMotion() so the ramp duration is
-    // wall-clock accurate even at 0.25x gameplay speed.
+    // PINCUSHION phase: transition visual effect update.
     // ---------------------------------------------------------------
     if (mBattleTransitionPhase == BattleTransitionPhase::PINCUSHION)
     {
-        // UI clock dt: ignores slow-motion, so the pincushion lasts exactly
-        // kPincushionDuration seconds as perceived by the player.
+        // UI clock dt: ignores slow-motion
         const float uiDt = TimeSystem::Get().GetUIClock().GetDeltaTime();
-        mPincushionTimer += uiDt;
 
-        const float intensity = (mPincushionTimer < kPincushionDuration)
-                              ? (mPincushionTimer / kPincushionDuration)
-                              : 1.0f;
-
-        if (mPincushionFilter)
-            mPincushionFilter->Update(uiDt, intensity*intensity);
-
-        // When the ramp completes, push BattleState immediately (no iris close in overworld).
-        // BattleState::OnEnter() opens its own iris from black → that is the
-        // "entering battle" reveal.  The overworld has no iris of its own.
-        if (mPincushionTimer >= kPincushionDuration)
+        if (mTransitionController)
         {
-            // Restore normal speed before handing control to BattleState.
-            TimeSystem::Get().SetSlowMotion(1.0f);
+            mTransitionController->Update(uiDt, mCamera.get());
 
-            // Push BattleState — OverworldState stays alive underneath the stack.
-            // BattleState starts with iris closed (black), then opens outward.
+            if (mTransitionController->IsFinished())
+            {
+                // Restore normal speed before handing control to BattleState.
+                TimeSystem::Get().SetSlowMotion(1.0f);
+
+                // Push BattleState — OverworldState stays alive underneath the stack.
+                StateManager::Get().PushState(
+                    std::make_unique<BattleState>(D3DContext::Get(), mPendingEncounter));
+
+                // Reset transition state so OverworldState is ready when it resumes.
+                mBattleTransitionPhase = BattleTransitionPhase::IDLE;
+                mTransitionController->ClearPending();
+
+                if (mCamera)
+                {
+                    mCamera->SetZoom(1.0f);
+                    mCamera->SetRotation(0.0f);
+                }
+
+                LOG("[OverworldState] Transition complete — BattleState pushed, slow-motion restored.");
+            }
+        }
+        else
+        {
+            // Fallback if no transition controller exists
+            TimeSystem::Get().SetSlowMotion(1.0f);
             StateManager::Get().PushState(
                 std::make_unique<BattleState>(D3DContext::Get(), mPendingEncounter));
-
-            // Reset transition state so OverworldState is ready when it resumes.
             mBattleTransitionPhase = BattleTransitionPhase::IDLE;
-            mPincushionTimer = 0.0f;
-
-            // Reset filter intensity to 0 so it is invisible when overworld resumes.
-            if (mPincushionFilter)
-                mPincushionFilter->Update(0.0f, 0.0f);
-
-            LOG("[OverworldState] Pincushion complete — BattleState pushed, slow-motion restored.");
+            LOG("[OverworldState] Filter missing — BattleState pushed immediately.");
         }
     }
 
     // Camera follow — only valid use of mPlayer* here.
-    if (mPlayer && mCamera) {
+    if (mPlayer && mCamera && mBattleTransitionPhase == BattleTransitionPhase::IDLE) {
         mCamera->Follow(mPlayer->GetX(), mPlayer->GetY(), kCameraSmoothing, dt);
         mCamera->Update();
     }
@@ -416,11 +417,11 @@ void OverworldState::Render()
     // Determine whether the pincushion filter should capture this frame.
     // IsActive() returns false when intensity is below kActivationThreshold,
     // avoiding the overhead of an offscreen RT bind when not needed.
-    const bool filterActive = mPincushionFilter && mPincushionFilter->IsActive();
+    const bool filterActive = mTransitionController && mTransitionController->IsActive();
 
     // --- Redirect scene draws to offscreen render target ---
     if (filterActive)
-        mPincushionFilter->BeginCapture(ctx);
+        mTransitionController->BeginCapture(ctx);
 
     // --- Blue static circle (world-space SDF landmark) ---
     DirectX::XMFLOAT2 blueScreen = mCamera->WorldToScreen(kBlueX, kBlueY);
@@ -440,8 +441,7 @@ void OverworldState::Render()
     // EndCapture restores the saved RTV; Render draws the warped scene quad.
     if (filterActive)
     {
-        mPincushionFilter->EndCapture(ctx);
-        mPincushionFilter->Render(ctx);
+        mTransitionController->EndCaptureAndRender(ctx);
     }
 
 }

@@ -1,7 +1,7 @@
 #pragma once
 #include "IGameState.h"
 #include "../Renderer/CircleRenderer.h"
-#include "../Renderer/IScreenFilter.h"
+#include "../Systems/IBattleTransitionController.h"
 #include "../Renderer/Camera.h"
 #include "../Scene/SceneGraph.h"
 #include "../Entities/ControllableCharacter.h"
@@ -72,26 +72,16 @@ private:
     CircleRenderer mCircleRenderer;
 
     // ---------------------------------------------------------------
-    // Pincushion distortion filter — fullscreen post-process applied to the
-    // captured scene during the PINCUSHION transition phase.
-    // Interface pointer (IScreenFilter*) — caller code never binds to the
-    // concrete type; the filter is swappable without changing any other code.
-    // Created in OnEnter, destroyed in OnExit.
+    // Battle transition controller — encapsulates all visual effects
+    // (pincushion, zoom, rotation) and timings used to transition 
+    // from Overworld to BattleState.
     // ---------------------------------------------------------------
-    std::unique_ptr<IScreenFilter> mPincushionFilter;
+    std::unique_ptr<IBattleTransitionController> mTransitionController;
 
     // ---------------------------------------------------------------
     // Battle transition phase state machine (IDLE → PINCUSHION → IDLE).
     // ---------------------------------------------------------------
     BattleTransitionPhase mBattleTransitionPhase = BattleTransitionPhase::IDLE;
-
-    // Accumulates UI-clock dt during PINCUSHION phase.
-    // Uses UI clock (not gameplay clock) so the timer is wall-clock accurate
-    // even when TimeSystem::SetSlowMotion() reduces the gameplay clock rate.
-    float mPincushionTimer = 0.0f;
-
-    // Duration in seconds to ramp pincushion from intensity 0 → 1.
-    static constexpr float kPincushionDuration = 1.0f;
 
     // ---------------------------------------------------------------
     // Static blue circle — fixed world position, never updated.

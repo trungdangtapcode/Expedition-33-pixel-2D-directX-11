@@ -83,6 +83,7 @@ cl.exe ^
     src\Entities\OverworldEnemy.cpp ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
+    src\Systems\ZoomPincushionTransitionController.cpp ^
     src\Battle\WeakenEffect.cpp ^
     src\Battle\Combatant.cpp ^
     src\Battle\PlayerCombatant.cpp ^

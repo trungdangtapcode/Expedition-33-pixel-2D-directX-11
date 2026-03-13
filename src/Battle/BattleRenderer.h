@@ -43,7 +43,8 @@
 //      offsets instead; the pivot already lands feet at worldY correctly.
 // ============================================================
 #pragma once
-#include "../Renderer/WorldSpriteRenderer.h"
+#include "../Scene/SceneGraph.h"
+#include "BattleCombatantSprite.h"
 #include "../Renderer/Camera.h"
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/IBattler.h"
@@ -189,6 +190,7 @@ public:
     //     immediately (frozen = done), so the iris does NOT stall.
     // ------------------------------------------------------------
     bool AreAllDeathAnimsDone() const;
+    bool IsEnemyClipDone(int slot) const;
 
     // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:
@@ -220,11 +222,13 @@ private:
     float mEnemyCamOffX [kMaxSlots] = {};
     float mEnemyCamOffY [kMaxSlots] = {};
 
-    // One renderer per slot per team.
-    WorldSpriteRenderer mPlayerRenderers[kMaxSlots];
-    WorldSpriteRenderer mEnemyRenderers [kMaxSlots];
+    SceneGraph mScene;
 
-    // Which slots are occupied (have a live WorldSpriteRenderer).
+    // Non-owning pointers. SceneGraph owns the instances.
+    BattleCombatantSprite* mPlayerSprites[kMaxSlots] = {nullptr};
+    BattleCombatantSprite* mEnemySprites [kMaxSlots] = {nullptr};
+
+    // Which slots are occupied.
     bool mPlayerActive[kMaxSlots] = { false, false, false };
     bool mEnemyActive [kMaxSlots] = { false, false, false };
 

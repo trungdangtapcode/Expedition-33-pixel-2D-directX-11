@@ -137,20 +137,13 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
             return false;
         }
 
-        // Upload PNG to GPU and create SpriteBatch + D3D states.
-        if (!mPlayerRenderers[i].Initialize(device, context, info.texturePath, sheet))
-        {
-            LOG("[BattleRenderer] Failed to init player renderer slot %d", i);
-            return false;
-        }
-
-        // Start the idle (or configured start) clip immediately so the first
-        // Render() call has a valid mActiveClip and does not assert.
-        mPlayerRenderers[i].PlayClip(info.startClip);
-
-        // Apply the per-slot draw offset (e.g. to correct bottom-center pivot).
-        // Zero by default — set explicitly in SlotInfo when alignment needs tuning.
-        mPlayerRenderers[i].SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
+        mPlayerSprites[i] = mScene.Spawn<BattleCombatantSprite>(
+            device, context, info.texturePath, sheet, 
+            &mCameraCtrl.GetCamera(), 
+            mPlayerWorldX[i], mPlayerWorldY[i], 2.0f, false
+        );
+        mPlayerSprites[i]->PlayClip(info.startClip);
+        mPlayerSprites[i]->SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
         mPlayerActive[i] = true;
     }
 
@@ -170,14 +163,13 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
             return false;
         }
 
-        if (!mEnemyRenderers[i].Initialize(device, context, info.texturePath, sheet))
-        {
-            LOG("[BattleRenderer] Failed to init enemy renderer slot %d", i);
-            return false;
-        }
-
-        mEnemyRenderers[i].PlayClip(info.startClip);
-        mEnemyRenderers[i].SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
+        mEnemySprites[i] = mScene.Spawn<BattleCombatantSprite>(
+            device, context, info.texturePath, sheet, 
+            &mCameraCtrl.GetCamera(), 
+            mEnemyWorldX[i], mEnemyWorldY[i], 2.0f, true
+        );
+        mEnemySprites[i]->PlayClip(info.startClip);
+        mEnemySprites[i]->SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
         mEnemyActive[i] = true;
     }
 
@@ -217,14 +209,14 @@ void BattleRenderer::PlayEnemyClip(int slot, CombatantAnim anim)
     if (slot < 0 || slot >= kMaxSlots || !mEnemyActive[slot]) return;
 
     const std::string& clipName = mEnemyClipNames[slot][static_cast<int>(anim)];
-    const bool found = mEnemyRenderers[slot].PlayClip(clipName);
+    const bool found = mEnemySprites[slot]->PlayClip(clipName);
 
     // If the die clip is missing from the sprite sheet, freeze the sprite on
     // its current frame.  This stops idle looping so the combatant looks dead
     // and IsClipDone() returns true, allowing the iris to proceed.
     if (!found && anim == CombatantAnim::Die)
     {
-        mEnemyRenderers[slot].FreezeCurrentFrame();
+        mEnemySprites[slot]->FreezeCurrentFrame();
         LOG("[BattleRenderer] Enemy slot %d: die clip '%s' not found — frame frozen.",
             slot, clipName.c_str());
     }
@@ -236,15 +228,22 @@ void BattleRenderer::PlayPlayerClip(int slot, CombatantAnim anim)
     if (slot < 0 || slot >= kMaxSlots || !mPlayerActive[slot]) return;
 
     const std::string& clipName = mPlayerClipNames[slot][static_cast<int>(anim)];
-    const bool found = mPlayerRenderers[slot].PlayClip(clipName);
+    const bool found = mPlayerSprites[slot]->PlayClip(clipName);
 
     // Same freeze-on-missing-die logic as PlayEnemyClip.
     if (!found && anim == CombatantAnim::Die)
     {
-        mPlayerRenderers[slot].FreezeCurrentFrame();
+        mPlayerSprites[slot]->FreezeCurrentFrame();
         LOG("[BattleRenderer] Player slot %d: die clip '%s' not found — frame frozen.",
             slot, clipName.c_str());
     }
+}
+
+bool BattleRenderer::IsEnemyClipDone(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return true;
+    if (!mEnemyActive[slot]) return true;
+    return mEnemySprites[slot]->IsClipDone();
 }
 
 // ------------------------------------------------------------
@@ -263,8 +262,8 @@ bool BattleRenderer::AreAllDeathAnimsDone() const
 {
     for (int i = 0; i < kMaxSlots; ++i)
     {
-        if (mEnemyActive[i]  && !mEnemyRenderers[i].IsClipDone())  return false;
-        if (mPlayerActive[i] && !mPlayerRenderers[i].IsClipDone()) return false;
+        if (mEnemyActive[i]  && !mEnemySprites[i]->IsClipDone())  return false;
+        if (mPlayerActive[i] && !mPlayerSprites[i]->IsClipDone()) return false;
     }
     return true;
 }
@@ -285,11 +284,7 @@ void BattleRenderer::Update(float dt)
     // This also calls Camera2D::Update() internally to rebuild the matrix.
     mCameraCtrl.Update(dt);
 
-    for (int i = 0; i < kMaxSlots; ++i)
-    {
-        if (mPlayerActive[i]) mPlayerRenderers[i].Update(dt);
-        if (mEnemyActive[i])  mEnemyRenderers[i].Update(dt);
-    }
+    mScene.Update(dt);
 }
 
 // ------------------------------------------------------------
@@ -304,39 +299,8 @@ void BattleRenderer::Update(float dt)
 // ------------------------------------------------------------
 void BattleRenderer::Render(ID3D11DeviceContext* context)
 {
-    // Retrieve the interpolated camera from the controller.
-    // The matrix was already rebuilt in Update() — no redundant rebuild here.
-    Camera2D& cam = mCameraCtrl.GetCamera();
-
-    // -- Player side ------------------------------------------------
-    // Players face right (default sprite orientation) — flipX=false.
-    for (int i = 0; i < kMaxSlots; ++i)
-    {
-        if (!mPlayerActive[i]) continue;
-        mPlayerRenderers[i].Draw(
-            context,
-            cam,
-            mPlayerWorldX[i],   // world x — no conversion needed
-            mPlayerWorldY[i],   // world y — no conversion needed
-            2.0f,               // scale up for visibility
-            false               // face right
-        );
-    }
-
-    // -- Enemy side -------------------------------------------------
-    // Enemies face left (flipX=true) so they face the player side.
-    for (int i = 0; i < kMaxSlots; ++i)
-    {
-        if (!mEnemyActive[i]) continue;
-        mEnemyRenderers[i].Draw(
-            context,
-            cam,
-            mEnemyWorldX[i],    // world x — no conversion needed
-            mEnemyWorldY[i],    // world y — no conversion needed
-            2.0f,               // scale up for visibility
-            true                // face left — mirror the sprite
-        );
-    }
+    // The SceneGraph natively handles the painter's algorithm Y-sorting.
+    mScene.Render(context);
 }
 
 // ------------------------------------------------------------
@@ -348,11 +312,7 @@ void BattleRenderer::Render(ID3D11DeviceContext* context)
 // ------------------------------------------------------------
 void BattleRenderer::Shutdown()
 {
-    for (int i = 0; i < kMaxSlots; ++i)
-    {
-        mPlayerRenderers[i].Shutdown();
-        mEnemyRenderers[i].Shutdown();
-    }
+    mScene.Clear();
 
     // BattleCameraController owns its Camera2D via unique_ptr;
     // it will be destroyed automatically when mCameraCtrl goes out of scope.
@@ -421,3 +381,4 @@ void BattleRenderer::GetEnemySlotPos(int slot, float& outWorldX, float& outWorld
     outWorldX = mEnemyWorldX[slot];
     outWorldY = mEnemyWorldY[slot];
 }
+

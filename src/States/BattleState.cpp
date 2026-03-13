@@ -296,11 +296,14 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         mEnemyHpBar.SetTargetScale(i, enemySelected ? 1.05f : 1.0f);
 
         const auto& stats = enemies[i]->GetStats();
+        
+        bool active = enemies[i]->IsAlive() || !mBattleRenderer.IsEnemyClipDone(i);
+
         mEnemyHpBar.SetEnemy(
             i,
             static_cast<float>(stats.hp),
             static_cast<float>(stats.maxHp),
-            enemies[i]->IsAlive()
+            active
         );
     }
     mEnemyHpBar.Update(dt);

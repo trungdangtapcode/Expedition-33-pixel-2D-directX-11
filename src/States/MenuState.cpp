@@ -3,7 +3,7 @@
 // Responsibility: Main menu — the entry state of the game.
 //
 // Transitions:
-//   ENTER key → ChangeState(PlayState)
+//   ENTER key → ChangeState(OverworldState)
 //
 // Lifetime:
 //   OnEnter() called when pushed onto StateManager's stack.
@@ -11,7 +11,7 @@
 // ============================================================
 #include "MenuState.h"
 #include "StateManager.h"
-#include "PlayState.h"
+#include "OverworldState.h"
 // #include "BattleState.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
@@ -28,10 +28,10 @@ void MenuState::OnExit() {
 }
 
 void MenuState::Update(float dt) {
-    // Press ENTER to transition to PlayState.
+    // Press ENTER to transition to OverworldState.
     // TODO: Replace GetAsyncKeyState with a proper InputManager later.
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
-        StateManager::Get().ChangeState(std::make_unique<PlayState>());
+        StateManager::Get().ChangeState(std::make_unique<OverworldState>());
         // StateManager::Get().ChangeState(std::make_unique<BattleState>(D3DContext::Get()));
     }
 }

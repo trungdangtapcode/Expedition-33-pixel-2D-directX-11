@@ -65,12 +65,15 @@ cl.exe ^
     src\main.cpp ^
     src\Core\GameApp.cpp ^
     src\Core\GameTimer.cpp ^
+    src\Core\Clock.cpp ^
+    src\Core\TimeSystem.cpp ^
     src\Renderer\D3DContext.cpp ^
     src\States\StateManager.cpp ^
     src\States\MenuState.cpp ^
-    src\States\PlayState.cpp ^
+    src\States\OverworldState.cpp ^
     src\Renderer\CircleRenderer.cpp ^
     src\Renderer\IrisTransitionRenderer.cpp ^
+    src\Renderer\PincushionDistortionFilter.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^

@@ -156,23 +156,24 @@ void DebugTextureViewer::Draw(ID3D11DeviceContext* context,
         context->OMSetDepthStencilState(mDepthNone.Get(), 0);
 
     // ---------------------------------------------------------------
+    // Save the currently-bound RTV and DSV so we can restore them after draw.
+    // This is critical when Draw() is called inside a BeginCapture/EndCapture
+    // region (e.g., PincushionDistortionFilter) — the current RTV may be an
+    // offscreen texture, NOT the back buffer.  Hardcoding D3DContext::GetRTV()
+    // here would redirect subsequent draws (Circle, SceneGraph) to the back
+    // buffer, making captured characters invisible in the offscreen texture.
+    // ---------------------------------------------------------------
+    Microsoft::WRL::ComPtr<ID3D11RenderTargetView> savedRTV;
+    Microsoft::WRL::ComPtr<ID3D11DepthStencilView> savedDSV;
+    context->OMGetRenderTargets(1, savedRTV.GetAddressOf(), savedDSV.GetAddressOf());
+
     // Re-bind RTV without DSV — removes the depth buffer from the pipeline.
     //
-    // Belt-and-suspenders for the depth-block hypothesis: even with
-    // DepthEnable=FALSE, some driver implementations have been observed to
-    // still honour depth writes if the DSV is bound.  Passing nullptr for
-    // the DSV guarantees the depth buffer is completely disconnected from
-    // the OM stage, so no depth test or write can occur during this draw.
-    //
-    // We retrieve the currently-bound RTV so we do not accidentally clear it.
-    // After Draw() the DSV remains unbound — D3DContext::BeginFrame rebinds
-    // it at the start of the next frame via OMSetRenderTargets.
-    // ---------------------------------------------------------------
+    // Belt-and-suspenders: even with DepthEnable=FALSE, some driver
+    // implementations honour depth writes when the DSV is bound.  Passing
+    // nullptr guarantees the depth buffer is disconnected from the OM stage.
     {
-        Microsoft::WRL::ComPtr<ID3D11RenderTargetView> currentRTV;
-        context->OMGetRenderTargets(1, currentRTV.GetAddressOf(), nullptr);
-        // LOG("[DebugTextureViewer] RTV=%p — rebinding without DSV", currentRTV.Get());
-        ID3D11RenderTargetView* rtv = currentRTV.Get();
+        ID3D11RenderTargetView* rtv = savedRTV.Get();
         context->OMSetRenderTargets(1, &rtv, nullptr);   // DSV = nullptr → depth buffer detached
     }
 
@@ -188,13 +189,12 @@ void DebugTextureViewer::Draw(ID3D11DeviceContext* context,
     mBatch->Draw(mSRV.Get(), dest);
     mBatch->End();
 
-    // Restore RTV+DSV after draw.
-    // We unbound the DSV above to prevent depth blocking.  Any renderer that
-    // runs after us (e.g. a second CircleRenderer call or UIRenderer) expects
-    // the DSV to be bound so its depth writes go to the correct buffer.
+    // Restore whichever RTV+DSV was bound when Draw() was called.
+    // Using the saved values (not D3DContext::GetRTV) ensures correctness
+    // whether this renderer is inside a pincushion capture pass or not.
     {
-        ID3D11RenderTargetView* rtv = D3DContext::Get().GetRTV();
-        ID3D11DepthStencilView* dsv = D3DContext::Get().GetDSV();
+        ID3D11RenderTargetView* rtv = savedRTV.Get();
+        ID3D11DepthStencilView* dsv = savedDSV.Get();
         context->OMSetRenderTargets(1, &rtv, dsv);
     }
 }

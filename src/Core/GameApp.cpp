@@ -7,10 +7,16 @@
 //
 // Lifetime: Created in main.cpp (WinMain), lives until the process exits.
 //
+// Time flow each frame:
+//   GameTimer::Tick()              — raw wall-clock dt (QueryPerformanceCounter)
+//   TimeSystem::Tick(rawDt)        — propagates scaled dt down the clock tree
+//   StateManager::Update(gameplayDt) — gameplay states receive slow-mo dt
+//
 // Important:
 //   - AllocConsole() is called in Initialize (DEBUG builds only) to attach
 //     a console window so LOG() output is visible without external tools.
 //   - UNICODE is defined via /DUNICODE in build_src.bat; never #define it here.
+//   - TimeSystem::Tick() is called before Update() so all clocks are current.
 // ============================================================
 #include "GameApp.h"
 #include "../Renderer/D3DContext.h"
@@ -18,6 +24,7 @@
 #include "../States/MenuState.h"
 #include "../Events/EventManager.h"
 #include "../Audio/AudioManager.h"
+#include "TimeSystem.h"
 #include "../Utils/Log.h"
 #include <sstream>
 
@@ -184,9 +191,19 @@ int GameApp::Run() {
         else {
             mTimer.Tick();
 
+            // Advance the hierarchical Clock tree from the raw wall-clock dt.
+            // This must run BEFORE Update() so every Clock::GetDeltaTime()
+            // already reflects the current frame when states call it.
+            // TimeSystem propagates the scale factors (slow-motion, pause)
+            // down to UI and Gameplay sub-clocks automatically.
+            TimeSystem::Get().Tick(mTimer.DeltaTime());
+
             if (!mPaused) {
                 CalculateFrameStats();
-                Update(mTimer.DeltaTime());
+                // Pass the GAMEPLAY clock's scaled dt to Update().
+                // States that need UI-rate time (e.g., menu animations) should
+                // read TimeSystem::Get().GetUIClock().GetDeltaTime() directly.
+                Update(TimeSystem::Get().GetGameplayClock().GetDeltaTime());
                 Render();
             } else {
                 // Sleep to avoid burning 100% CPU when minimized or focus lost.

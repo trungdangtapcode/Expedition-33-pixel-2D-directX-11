@@ -3,7 +3,7 @@
   "comment2": "Top-level fields: overworld sprite + collision radius.",
   "comment3": "battleParty: three entries = 3-vs-party fight.",
 
-  "name": "Skeleton Horde",
+  "name": "Skeleton",
   "texturePath": "assets/animations/skeleton.png",
   "jsonPath": "assets/animations/skeleton.json",
   "idleClip": "idle",

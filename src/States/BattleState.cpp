@@ -399,6 +399,24 @@ void BattleState::Update(float dt)
             DumpStateToDebugOutput();
         }
 
+        // --- Active Character Scaling ---
+        bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN && 
+                               (
+                                // mInputPhase == PlayerInputPhase::COMMAND_SELECT || 
+                                mInputPhase == PlayerInputPhase::SKILL_SELECT));
+        mHealthBar.SetTargetScale(playerSelected ? 1.2f : 1.0f);
+
+        // Identify the dynamically targeted enemy pointer
+        IBattler* targetedEnemyPtr = nullptr;
+        if (phaseAfter == BattlePhase::PLAYER_TURN && mInputPhase == PlayerInputPhase::TARGET_SELECT)
+        {
+            const auto aliveEnemies = mBattle.GetAliveEnemies();
+            if (mTargetIndex >= 0 && mTargetIndex < static_cast<int>(aliveEnemies.size()))
+            {
+                targetedEnemyPtr = aliveEnemies[mTargetIndex];
+            }
+        }
+
         // Advance player HP bar lerp.
         mHealthBar.Update(dt);
 
@@ -407,6 +425,10 @@ void BattleState::Update(float dt)
             const auto& enemies = mBattle.GetAllEnemies();
             for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
             {
+                // Set scale: 1.2x if this is the targeted active enemy during TARGET_SELECT, else 1.0x
+                bool enemySelected = (targetedEnemyPtr == enemies[i]);
+                mEnemyHpBar.SetTargetScale(i, enemySelected ? 1.05f : 1.0f);
+
                 const auto& stats = enemies[i]->GetStats();
                 mEnemyHpBar.SetEnemy(
                     i,

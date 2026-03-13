@@ -45,6 +45,7 @@
 #include <memory>
 #include <string>
 #include "BattleTextRenderer.h"
+#include "UIEffectState.h"
 
 class EnemyHpBarRenderer
 {
@@ -102,7 +103,10 @@ public:
     // ----------------------------------------------------------------
     void SetTextRenderer(BattleTextRenderer* textRenderer);
 
-    // Advance all HP lerps.  Call once per frame, before Render().
+    // Enable effect scaling per active slot
+    void SetTargetScale(int slot, float scale);
+
+    // Update all HP lerps and effects
     void Update(float dt);
 
     // Draw all active bars.  Four passes: BG, fill, frame, names.
@@ -141,6 +145,7 @@ private:
     float       mMaxHP      [kMaxSlots] = { 1.0f, 1.0f, 1.0f };
     bool        mSlotActive [kMaxSlots] = {};
     std::string mEnemyName  [kMaxSlots];      // display name drawn above each bar
+    UIEffectState mEffectState [kMaxSlots];   // per-slot scale & shake animation
 
     // Non-owning pointer to the shared text renderer in BattleState.
     // Null-safe: Render() checks IsReady() before drawing names.

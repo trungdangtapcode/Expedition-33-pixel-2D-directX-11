@@ -53,6 +53,7 @@
 #include <string>
 #include "../UI/HealthBarConfig.h"
 #include "../Events/EventManager.h"
+#include "UIEffectState.h"
 
 class HealthBarRenderer
 {
@@ -96,6 +97,14 @@ public:
     //   Must be called before the next Render().
     // ----------------------------------------------------------------
     void SetScreenSize(int w, int h);
+    
+    // ----------------------------------------------------------------
+    // SetTargetScale
+    // Purpose:
+    //   Scale the entire widget around its bottom-right anchor.
+    //   Used to highlight the active character during their turn.
+    // ----------------------------------------------------------------
+    void SetTargetScale(float scale) { mEffectState.SetTargetScale(scale); }
 
     // ----------------------------------------------------------------
     // Update
@@ -169,6 +178,9 @@ private:
     static constexpr float kRedLerpSpeed   = 15.0f; // fast drain for the red bar
     static constexpr float kWhiteLerpSpeed = 3.0f;  // slow drain for the white background bar
     static constexpr float kDelayDuration  = 0.8f;  // seconds to wait before white bar drains
+
+    // Animates scale and coordinates screen shake
+    UIEffectState mEffectState;
 
     // -- Event subscription --
     ListenerID mHpListenerID = -1;  // used to unsubscribe in Shutdown()

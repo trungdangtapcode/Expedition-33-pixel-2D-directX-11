@@ -188,6 +188,8 @@ bool HealthBarRenderer::Initialize(ID3D11Device*        device,
             {
                 // Reset delay timer heavily when fresh damage is taken
                 mDelayTimer = 0.0f;
+                // Trigger shake effect for UI
+                mEffectState.TriggerShake();
             }
             // data.value = new HP as float (cast from int by BattleManager).
             mTargetHP = data.value;
@@ -257,6 +259,8 @@ void HealthBarRenderer::Update(float dt)
         mWhiteHP = mTargetHP;
         mDelayTimer = 0.0f;
     }
+
+    mEffectState.Update(dt);
 }
 
 // ============================================================
@@ -278,11 +282,13 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     const int whiteFillWidth = static_cast<int>(mConfig.HpBarWidth() * whiteRatio);
 
     // Anchor the widget to the bottom-right corner of the screen.
-    // The texture covers the full widget area (portrait + bar), so offset by
-    // (screenW - texW, screenH - texH) to align its bottom-right with the
-    // bottom-right of the render target.
-    const float originX = static_cast<float>(mScreenW - mConfig.textureWidth);
-    const float originY = static_cast<float>(mScreenH - mConfig.textureHeight);
+    // Ensure anchor takes current scaling into account. Let's pivot around the bottom right corner.
+    const float scale = mEffectState.GetScale();
+    const float offsetX = mEffectState.GetOffsetX();
+    const float offsetY = mEffectState.GetOffsetY();
+
+    const float originX = static_cast<float>(mScreenW) - static_cast<float>(mConfig.textureWidth) * scale + offsetX;
+    const float originY = static_cast<float>(mScreenH) - static_cast<float>(mConfig.textureHeight) * scale + offsetY;
 
     // Bind viewport — must happen before Begin() so SpriteBatch's internal
     // GetViewportTransform() uses our stored dimensions instead of querying
@@ -306,7 +312,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mBgSRV.Get(), pos, &srcFull,
-                           Colors::White, 0.0f, pivot, 1.0f);
+                           Colors::White, 0.0f, pivot, scale);
     }
     mSpriteBatch->End();
 
@@ -331,8 +337,8 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         );
 
         const XMFLOAT2 fillPos(
-            originX + static_cast<float>(mConfig.hpBarLeft),
-            originY + static_cast<float>(mConfig.hpBarTop)
+            originX + static_cast<float>(mConfig.hpBarLeft) * scale,
+            originY + static_cast<float>(mConfig.hpBarTop) * scale
         );
         const XMFLOAT2 pivot(0.0f, 0.0f);
         
@@ -340,8 +346,8 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         if (whiteFillWidth > 0)
         {
             const XMFLOAT2 whiteScale(
-                static_cast<float>(whiteFillWidth),
-                static_cast<float>(mConfig.HpBarHeight())
+                static_cast<float>(whiteFillWidth) * scale,
+                static_cast<float>(mConfig.HpBarHeight()) * scale
             );
             const XMVECTORF32 whiteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
             mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
@@ -352,8 +358,8 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         if (redFillWidth > 0)
         {
             const XMFLOAT2 redScale(
-                static_cast<float>(redFillWidth),
-                static_cast<float>(mConfig.HpBarHeight())
+                static_cast<float>(redFillWidth) * scale,
+                static_cast<float>(mConfig.HpBarHeight()) * scale
             );
             // HP-bar red — adjust RGB here to change the fill color.
             const XMVECTORF32 redColor = { 200.f/255.f, 50.f/255.f, 50.f/255.f, 1.0f };
@@ -380,7 +386,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mFrameSRV.Get(), pos, &srcFull,
-                           Colors::White, 0.0f, pivot, 1.0f);
+                           Colors::White, 0.0f, pivot, scale);
     }
     mSpriteBatch->End();
 }

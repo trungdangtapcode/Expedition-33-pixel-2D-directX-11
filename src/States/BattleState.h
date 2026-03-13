@@ -57,24 +57,13 @@
 #include "../Battle/IBattleCommand.h"
 #include "../Battle/BattleRenderer.h"
 #include "../Battle/EnemyEncounterData.h"
+#include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
 #include "../UI/BattleTextRenderer.h"
 #include <vector>
 #include <memory>
 #include <string>
-
-// ------------------------------------------------------------
-// PlayerInputPhase: which sub-menu is currently active.
-//   Owned and mutated by BattleState; read by IBattleCommand
-//   implementations via SetInputPhase().
-// ------------------------------------------------------------
-enum class PlayerInputPhase
-{
-    COMMAND_SELECT,   // top-level: Fight / Flee / Item …
-    SKILL_SELECT,     // which skill (1/2/3)
-    TARGET_SELECT     // which enemy (Tab to cycle, Enter to confirm)
-};
 
 class BattleState : public IGameState
 {
@@ -100,12 +89,14 @@ public:
     void Render()  override;
     const char* GetName() const override { return "BattleState"; }
 
-    // Public API used by IBattleCommand implementations.
-    void SetInputPhase(PlayerInputPhase phase);
+    // Public API used by IBattleCommand implementations or BattleInputController.
+    void SetInputPhase(PlayerInputPhase phase) { mInputController.SetInputPhase(phase); }
 
     // RequestFlee: called by FleeCommand — deferred exit pattern.
     // See mPendingFlee comment and BattleState.h header for full rationale.
     void RequestFlee() { mPendingFlee = true; }
+
+    void DumpStateToDebugOutput() const;
 
 private:
     D3DContext&            mD3D;
@@ -116,12 +107,7 @@ private:
     EnemyHpBarRenderer     mEnemyHpBar;
     BattleTextRenderer     mTextRenderer;
     IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
-
-    // ---- Player input FSM ----
-    PlayerInputPhase  mInputPhase     = PlayerInputPhase::COMMAND_SELECT;
-    int               mCommandIndex   = 0;
-    int               mSkillIndex     = 0;
-    int               mTargetIndex    = 0;
+    BattleInputController  mInputController;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.
@@ -152,21 +138,13 @@ private:
     //   StartClose replaces the direct PopState() — checked each frame.
     bool mPendingFlee = false;
 
-    std::vector<std::unique_ptr<IBattleCommand>> mCommands;
-
-    bool mKeyUpWasDown    = false;
-    bool mKeyDownWasDown  = false;
-    bool mEnterWasDown    = false;
-    bool mBackWasDown     = false;
-
-    void BuildCommandList();
-    void HandleInput();
-    void HandleCommandSelect();
-    void HandleSkillSelect();
-    void HandleTargetSelect();
-    void CycleTarget();
-    void ConfirmSkillAndTarget();
-    void DumpStateToDebugOutput() const;
+    void InitAudio();
+    void InitBattleSlots();
+    void InitUIRenderers();
+    void UpdateLogic(float dt);
+    void UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected);
+    void CheckDeathAnimations();
+    void CheckBattleEnd();
 
     // ----------------------------------------------------------------
     // Per-slot alive state from the previous frame.

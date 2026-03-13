@@ -96,6 +96,7 @@ cl.exe ^
     src\Battle\WaitAction.cpp ^
     src\Battle\IActionDecorator.cpp ^
     src\Battle\DelayedAction.cpp ^
+    src\Battle\BattleInputController.cpp ^
     src\Battle\FightCommand.cpp ^
     src\Battle\FleeCommand.cpp ^
     src\Battle\ActionQueue.cpp ^

@@ -36,6 +36,7 @@ void BattleCameraController::Initialize(int screenW, int screenH)
     mCurrentX    = 0.0f;
     mCurrentY    = 0.0f;
     mCurrentZoom = kZoomOverview;
+    mCurrentRotation = 0.0f;
     mPhase       = BattleCameraPhase::OVERVIEW;
 
     LOG("[BattleCamera] Initialized — screen %dx%d, phase=OVERVIEW", screenW, screenH);
@@ -72,47 +73,52 @@ void BattleCameraController::SetPhase(BattleCameraPhase phase)
 }
 
 // ------------------------------------------------------------
-// ComputeDesired: map the current phase to (desiredX, desiredY, desiredZoom).
+// ComputeDesired: map the current phase to (desiredX, desiredY, desiredZoom, desiredRotation).
 //
 //   OVERVIEW:
 //     pos = (0, 0)  — camera centered, all combatants visible.
-//     zoom = 1.0
+//     zoom = 1.0, rotation = 0.0
 //
 //   ACTOR_FOCUS:
 //     pos = actorWorldPos — camera centers on the acting character.
 //     zoom = 1.6          — mild close-up without losing context.
+//     rotation = 20 deg   — tilted for dynamic skill selection.
 //
 //   TARGET_FOCUS:
 //     pos = lerp(actorPos, targetPos, kTargetBlend)
 //           = targetPos * 0.8 + actorPos * 0.2
 //     zoom = 1.0  — wide again so the full enemy row is readable.
+//     rotation = 0.0.
 //     The 80/20 blend keeps the actor barely in frame as a reminder of
 //     who is attacking, while the target is the clear focal point.
 // ------------------------------------------------------------
 void BattleCameraController::ComputeDesired(float& outX, float& outY,
-                                             float& outZoom) const
+                                             float& outZoom, float& outRotation) const
 {
     switch (mPhase)
     {
     case BattleCameraPhase::ACTOR_FOCUS:
-        outX    = mActorX;
-        outY    = mActorY;
-        outZoom = kZoomFocus;
+        outX        = mActorX;
+        outY        = mActorY;
+        outZoom     = kZoomFocus;
+        outRotation = kRotationFocus;
         break;
 
     case BattleCameraPhase::TARGET_FOCUS:
         // Weighted blend: 80% target + 20% actor.
         // This puts the target clearly in frame while hinting at the attacker.
-        outX    = mTargetX * kTargetBlend + mActorX * (1.0f - kTargetBlend);
-        outY    = mTargetY * kTargetBlend + mActorY * (1.0f - kTargetBlend);
-        outZoom = kZoomTarget;
+        outX        = mTargetX * kTargetBlend + mActorX * (1.0f - kTargetBlend);
+        outY        = mTargetY * kTargetBlend + mActorY * (1.0f - kTargetBlend);
+        outZoom     = kZoomTarget;
+        outRotation = kRotationTarget;
         break;
 
     case BattleCameraPhase::OVERVIEW:
     default:
-        outX    = 0.0f;
-        outY    = 0.0f;
-        outZoom = kZoomOverview;
+        outX        = 0.0f;
+        outY        = 0.0f;
+        outZoom     = kZoomOverview;
+        outRotation = kRotationOverview;
         break;
     }
 }
@@ -121,7 +127,7 @@ void BattleCameraController::ComputeDesired(float& outX, float& outY,
 // Update: advance the smooth interpolation toward the desired state.
 //
 // Per-frame steps:
-//   1. Compute the desired (x, y, zoom) for the current phase.
+//   1. Compute the desired (x, y, zoom, rotation) for the current phase.
 //   2. Exponential-decay-lerp mCurrent* toward desired.
 //   3. Push the interpolated values into Camera2D and rebuild the matrix.
 //
@@ -133,18 +139,20 @@ void BattleCameraController::ComputeDesired(float& outX, float& outY,
 // ------------------------------------------------------------
 void BattleCameraController::Update(float dt)
 {
-    float desiredX, desiredY, desiredZoom;
-    ComputeDesired(desiredX, desiredY, desiredZoom);
+    float desiredX, desiredY, desiredZoom, desiredRotation;
+    ComputeDesired(desiredX, desiredY, desiredZoom, desiredRotation);
 
     const float k = kSmoothSpeed * dt;
 
     // Exponential decay toward desired position.
-    mCurrentX    += (desiredX    - mCurrentX)    * k;
-    mCurrentY    += (desiredY    - mCurrentY)    * k;
-    mCurrentZoom += (desiredZoom - mCurrentZoom) * k;
+    mCurrentX        += (desiredX        - mCurrentX)        * k;
+    mCurrentY        += (desiredY        - mCurrentY)        * k;
+    mCurrentZoom     += (desiredZoom     - mCurrentZoom)     * k;
+    mCurrentRotation += (desiredRotation - mCurrentRotation) * k;
 
     // Push the interpolated values into Camera2D.
     mCamera->SetPosition(mCurrentX, mCurrentY);
     mCamera->SetZoom(mCurrentZoom);
-    mCamera->Update();  // rebuild view matrix with the new pos/zoom
+    mCamera->SetRotation(mCurrentRotation);
+    mCamera->Update();  // rebuild view matrix with the new pos/zoom/rot
 }

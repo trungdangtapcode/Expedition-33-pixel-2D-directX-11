@@ -110,15 +110,20 @@ private:
     static constexpr float kZoomFocus     = 1.6f;   // actor focus: close-up
     static constexpr float kZoomTarget    = 1.0f;   // target select: wide again
 
+    // Camera rotation for each phase (radians). Positive = counter-clockwise.
+    static constexpr float kRotationOverview = 0.0f;
+    static constexpr float kRotationFocus    = 10.0f * (3.14159265f / 180.0f);
+    static constexpr float kRotationTarget   = 0.0f;
+
     // Blend weight: how much the camera leans toward the TARGET in TARGET_FOCUS.
     // 0.8 = 80% target, 20% actor — target is dominant but actor stays on-screen.
     static constexpr float kTargetBlend   = 0.8f;
 
     // ------------------------------------------------------------
-    // ComputeDesired: calculate the (posX, posY, zoom) that the current
+    // ComputeDesired: calculate the (posX, posY, zoom, rotation) that the current
     //   phase demands.  Called each frame in Update() to drive the lerp.
     // ------------------------------------------------------------
-    void ComputeDesired(float& outX, float& outY, float& outZoom) const;
+    void ComputeDesired(float& outX, float& outY, float& outZoom, float& outRotation) const;
 
     std::unique_ptr<Camera2D> mCamera;
 
@@ -128,6 +133,8 @@ private:
     float mCurrentX    = 0.0f;
     float mCurrentY    = 0.0f;
     float mCurrentZoom = 1.0f;
+    float mCurrentRotation = 0.0f;
+
 
     // Stored world positions for ACTOR_FOCUS and TARGET_FOCUS computations.
     float mActorX  = 0.0f;

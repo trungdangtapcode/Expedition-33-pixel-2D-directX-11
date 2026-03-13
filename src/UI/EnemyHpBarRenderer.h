@@ -135,7 +135,9 @@ private:
 
     // -- Per-slot HP and name state --
     float       mTargetHP   [kMaxSlots] = {};
-    float       mDisplayedHP[kMaxSlots] = {};
+    float       mRedHP      [kMaxSlots] = {};
+    float       mWhiteHP    [kMaxSlots] = {};
+    float       mDelayTimer [kMaxSlots] = {};
     float       mMaxHP      [kMaxSlots] = { 1.0f, 1.0f, 1.0f };
     bool        mSlotActive [kMaxSlots] = {};
     std::string mEnemyName  [kMaxSlots];      // display name drawn above each bar
@@ -147,8 +149,12 @@ private:
     int mScreenW = 1280;
     int mScreenH = 720;
 
-    // Speed at which mDisplayedHP[i] exponentially approaches mTargetHP[i].
-    static constexpr float kLerpSpeed       = 4.0f;
+    // Fast drain for red bar
+    static constexpr float kRedLerpSpeed    = 15.0f;
+    // Slow catch-up drain for white background bar
+    static constexpr float kWhiteLerpSpeed  = 3.0f;
+    // Seconds to wait before white bar begins to catch up
+    static constexpr float kDelayDuration   = 0.8f;
 
     // Desired rendered bar height in screen pixels.
     // scaleY = kTargetBarHeight / mTexH; height is always this many pixels tall.

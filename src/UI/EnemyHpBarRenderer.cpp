@@ -236,12 +236,21 @@ void EnemyHpBarRenderer::SetEnemy(int slot, float hp, float maxHp, bool active)
 
     mSlotActive[slot] = active;
     mMaxHP[slot]      = (maxHp > 0.0f) ? maxHp : 1.0f;
+    
+    // If HP decreases, reset the delay timer for the catch-up white bar
+    if (hp < mTargetHP[slot])
+    {
+        mDelayTimer[slot] = 0.0f;
+    }
     mTargetHP[slot]   = hp;
 
     // Seed displayed value on first encounter so the bar opens at the
     // correct fill level instead of lerping upward from 0 each OnEnter().
-    if (mDisplayedHP[slot] == 0.0f && hp > 0.0f)
-        mDisplayedHP[slot] = hp;
+    if (mRedHP[slot] == 0.0f && hp > 0.0f)
+    {
+        mRedHP[slot]   = hp;
+        mWhiteHP[slot] = hp;
+    }
 }
 
 // ============================================================
@@ -253,14 +262,30 @@ void EnemyHpBarRenderer::Update(float dt)
 
     for (int i = 0; i < kMaxSlots; ++i)
     {
-        // Exponential approach: fast at first, decelerates near the target.
-        const float gap = mTargetHP[i] - mDisplayedHP[i];
-        mDisplayedHP[i] += gap * kLerpSpeed * dt;
+        if (!mSlotActive[i]) continue;
 
-        // Snap to exact value when the gap is sub-pixel (< 0.5 HP) to
-        // prevent the bar hovering above 0 indefinitely on a dead enemy.
-        if (std::abs(gap) < 0.5f)
-            mDisplayedHP[i] = mTargetHP[i];
+        // Exponential approach: fast for red front bar
+        const float redGap = mTargetHP[i] - mRedHP[i];
+        mRedHP[i] += redGap * kRedLerpSpeed * dt;
+        if (std::abs(redGap) < 0.5f) mRedHP[i] = mTargetHP[i];
+
+        // Delayed catch-up for white background bar
+        if (mWhiteHP[i] > mTargetHP[i])
+        {
+            mDelayTimer[i] += dt;
+            if (mDelayTimer[i] >= kDelayDuration)
+            {
+                const float whiteGap = mTargetHP[i] - mWhiteHP[i];
+                mWhiteHP[i] += whiteGap * kWhiteLerpSpeed * dt;
+                if (std::abs(whiteGap) < 0.5f) mWhiteHP[i] = mTargetHP[i];
+            }
+        }
+        else
+        {
+            // Fully caught up or healed
+            mWhiteHP[i] = mTargetHP[i];
+            mDelayTimer[i] = 0.0f;
+        }
     }
 }
 
@@ -343,22 +368,35 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
         if (!mSlotActive[i]) continue;
 
         const float barPosY   = kTopPadding + static_cast<float>(i) * slotStride;
-        const float clampedHP = std::max(0.0f, std::min(mDisplayedHP[i], mMaxHP[i]));
-        const float ratio     = clampedHP / mMaxHP[i];
-        const float fillW     = hpRegionW * scaleX * ratio;  // horizontal: scaleX
+        const float clampedRedHP   = std::max(0.0f, std::min(mRedHP[i], mMaxHP[i]));
+        const float clampedWhiteHP = std::max(0.0f, std::min(mWhiteHP[i], mMaxHP[i]));
 
-        if (fillW < 1.0f) continue;
+        const float redRatio   = clampedRedHP / mMaxHP[i];
+        const float whiteRatio = clampedWhiteHP / mMaxHP[i];
+
+        const float redFillW   = hpRegionW * scaleX * redRatio;
+        const float whiteFillW = hpRegionW * scaleX * whiteRatio;
+
+        if (whiteFillW < 1.0f) continue;
 
         const XMFLOAT2 fillPos(
             barPosX + static_cast<float>(mHpLeft) * scaleX,  // horizontal: scaleX
             barPosY + static_cast<float>(mHpTop)  * scaleY   // vertical:   scaleY
         );
+
+        // Draw white background bar
+        const XMVECTORF32 kWhiteFillColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         mSpriteBatch->Draw(mFillSRV.Get(),
-                           fillPos,
-                           nullptr,
-                           kHpFillColor,
-                           0.0f, origin,
-                           XMFLOAT2(fillW, hpRegionH * scaleY));  // height: scaleY
+                           fillPos, nullptr, kWhiteFillColor, 0.0f, origin,
+                           XMFLOAT2(whiteFillW, hpRegionH * scaleY));
+
+        // Draw red front bar on top, if visible
+        if (redFillW >= 1.0f)
+        {
+            mSpriteBatch->Draw(mFillSRV.Get(),
+                               fillPos, nullptr, kHpFillColor, 0.0f, origin,
+                               XMFLOAT2(redFillW, hpRegionH * scaleY)); 
+        }
     }
     mSpriteBatch->End();
 

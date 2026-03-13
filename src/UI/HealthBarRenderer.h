@@ -15,9 +15,9 @@
 //
 // HP smoothing (Lerp / Tweening):
 //   mTargetHP    — updated instantly when the "verso_hp_changed" event fires.
-//   mDisplayedHP — moves toward mTargetHP each Update() via:
-//     mDisplayedHP += (mTargetHP - mDisplayedHP) * kLerpSpeed * dt
-//   This produces a smooth bar drain animation independent of frame rate.
+//   mRedHP       — front bar, moves quickly toward mTargetHP each Update()
+//   mWhiteHP     — background bar, waits for mDelayTimer then slowly lerps
+//                  toward mTargetHP, providing fighting-style catch-up animation.
 //
 // Observer:
 //   Subscribe to "verso_hp_changed" in Initialize().
@@ -100,14 +100,14 @@ public:
     // ----------------------------------------------------------------
     // Update
     // Purpose:
-    //   Advance the HP lerp: mDisplayedHP smoothly approaches mTargetHP.
+    //   Advance the HP lerp: mRedHP and mWhiteHP smoothly approach mTargetHP.
     //   dt must be the frame delta time in seconds (from GameTimer).
     //
-    //   Formula:
-    //     mDisplayedHP += (mTargetHP - mDisplayedHP) * kLerpSpeed * dt
+    //   Formula for red bar (fast):
+    //     mRedHP += (mTargetHP - mRedHP) * kRedLerpSpeed * dt
     //
-    //   At kLerpSpeed = 4.0f the bar takes ~0.5 s to drain fully.
-    //   Higher values = faster drain; lower = slower, more dramatic.
+    //   Formula for white bar (delayed, slower):
+    //     mWhiteHP += (mTargetHP - mWhiteHP) * kWhiteLerpSpeed * dt
     // ----------------------------------------------------------------
     void Update(float dt);
 
@@ -118,11 +118,12 @@ public:
     //
     //   Layer order:
     //     1. Full background quad    (256 x 256, position = (0,0))
-    //     2. HP fill strip           (clipped to hp ratio width)
-    //     3. Frame + portrait quad   (256 x 256, same position)
+    //     2. HP fill strip (white)   (clipped to white hp ratio width, bottom)
+    //     3. HP fill strip (red)     (clipped to red hp ratio width, top)
+    //     4. Frame + portrait quad   (256 x 256, same position)
     //
     //   Clipping math for the fill:
-    //     ratio       = mDisplayedHP / mMaxHP          (clamped to [0,1])
+    //     ratio       = HP / mMaxHP          (clamped to [0,1])
     //     fillWidth   = config.HpBarWidth() * ratio    (pixel width to draw)
     //     srcRect     = { hpBarLeft, hpBarTop,
     //                     hpBarLeft + fillWidth, hpBarBottom }
@@ -161,11 +162,13 @@ private:
     // -- HP state --
     float mMaxHP       = 100.0f;   // maximum HP (set from combatant at battle start)
     float mTargetHP    = 100.0f;   // actual current HP (updated by event)
-    float mDisplayedHP = 100.0f;   // smoothly lerped display value
+    float mRedHP       = 100.0f;   // front bar: drops quickly
+    float mWhiteHP     = 100.0f;   // back bar: delayed and slow drop
+    float mDelayTimer  = 0.0f;     // timer for white bar delay
 
-    // Lerp speed: higher = faster drain animation.
-    // 4.0 means the gap halves every ~0.25 s (exponential approach).
-    static constexpr float kLerpSpeed = 4.0f;
+    static constexpr float kRedLerpSpeed   = 15.0f; // fast drain for the red bar
+    static constexpr float kWhiteLerpSpeed = 3.0f;  // slow drain for the white background bar
+    static constexpr float kDelayDuration  = 0.8f;  // seconds to wait before white bar drains
 
     // -- Event subscription --
     ListenerID mHpListenerID = -1;  // used to unsubscribe in Shutdown()

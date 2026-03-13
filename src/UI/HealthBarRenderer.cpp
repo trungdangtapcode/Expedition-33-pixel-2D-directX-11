@@ -184,6 +184,11 @@ bool HealthBarRenderer::Initialize(ID3D11Device*        device,
         "verso_hp_changed",
         [this](const EventData& data)
         {
+            if (data.value < mTargetHP)
+            {
+                // Reset delay timer heavily when fresh damage is taken
+                mDelayTimer = 0.0f;
+            }
             // data.value = new HP as float (cast from int by BattleManager).
             mTargetHP = data.value;
             LOG("[HealthBarRenderer] HP event received: target HP = %.0f / %.0f",
@@ -202,7 +207,9 @@ void HealthBarRenderer::SetHP(float hp)
 {
     // Seed both displayed and target so there is no lerp on the first frame.
     mTargetHP    = hp;
-    mDisplayedHP = hp;
+    mRedHP       = hp;
+    mWhiteHP     = hp;
+    mDelayTimer  = 0.0f;
 }
 
 void HealthBarRenderer::SetMaxHP(float maxHp)
@@ -227,18 +234,29 @@ void HealthBarRenderer::Update(float dt)
 {
     if (!IsInitialized()) return;
 
-    // Exponential approach:
-    //   mDisplayedHP moves kLerpSpeed * dt * (gap) closer each frame.
-    //   When the gap is large (full drain) the bar moves fast; as it
-    //   approaches the target it decelerates naturally.
-    //   dt is always from QueryPerformanceCounter — frame-rate independent.
-    const float gap = mTargetHP - mDisplayedHP;
-    mDisplayedHP += gap * kLerpSpeed * dt;
+    // Fast approach for the red front bar
+    const float redGap = mTargetHP - mRedHP;
+    mRedHP += redGap * kRedLerpSpeed * dt;
+    if (std::abs(redGap) < 0.5f) mRedHP = mTargetHP;
 
-    // Snap to target when the gap is sub-pixel (< 0.5 HP) to avoid
-    // an infinite asymptote where the bar never quite reaches 0.
-    if (std::abs(gap) < 0.5f)
-        mDisplayedHP = mTargetHP;
+    // Delayed approach for the white background bar
+    if (mWhiteHP > mTargetHP)
+    {
+        // We took damage, wait for the delay timer
+        mDelayTimer += dt;
+        if (mDelayTimer >= kDelayDuration)
+        {
+            const float whiteGap = mTargetHP - mWhiteHP;
+            mWhiteHP += whiteGap * kWhiteLerpSpeed * dt;
+            if (std::abs(whiteGap) < 0.5f) mWhiteHP = mTargetHP;
+        }
+    }
+    else
+    {
+        // We healed or HP is full, white bar catches up instantly
+        mWhiteHP = mTargetHP;
+        mDelayTimer = 0.0f;
+    }
 }
 
 // ============================================================
@@ -248,13 +266,16 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
 {
     if (!IsInitialized()) return;
 
-    // Clamp displayedHP so ratio is always in [0, 1].
-    // Negative HP after an overkill hit must not produce a negative srcRect.
-    const float clampedHP = std::max(0.0f, std::min(mDisplayedHP, mMaxHP));
-    const float ratio     = clampedHP / mMaxHP;
+    // Clamp values so ratios are always in [0, 1].
+    const float clampedRedHP   = std::max(0.0f, std::min(mRedHP, mMaxHP));
+    const float clampedWhiteHP = std::max(0.0f, std::min(mWhiteHP, mMaxHP));
 
-    // Compute the fill width in pixels (integer, floored to avoid sub-pixel jitter).
-    const int fillWidth = static_cast<int>(mConfig.HpBarWidth() * ratio);
+    const float redRatio   = clampedRedHP / mMaxHP;
+    const float whiteRatio = clampedWhiteHP / mMaxHP;
+
+    // Compute fill widths
+    const int redFillWidth   = static_cast<int>(mConfig.HpBarWidth() * redRatio);
+    const int whiteFillWidth = static_cast<int>(mConfig.HpBarWidth() * whiteRatio);
 
     // Anchor the widget to the bottom-right corner of the screen.
     // The texture covers the full widget area (portrait + bar), so offset by
@@ -292,16 +313,15 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     // ----------------------------------------------------------------
     // Layer 2: HP Fill — solid color quad, scaled to fill area size.
     //   The BG PNG has no fill color (was removed from the source asset).
-    //   We use the runtime-created 1x1 white texture and tint it red.
+    //   We use the runtime-created 1x1 white texture and tint it.
     //   SpriteBatch scales the 1x1 texel to (fillWidth, barHeight) via
     //   the XMFLOAT2 scale parameter.
     //
-    //   Position: (hpBarLeft, hpBarTop) in screen pixels — the exact
-    //   top-left corner of the fill area defined in HP_description.json.
-    //   Scale:    (fillWidth, barHeight) — stretches the 1x1 to fill area.
-    //   Color:    HP-bar red (200, 50, 50, 255).
+    //   We render two layers here:
+    //   1. White delayed bar (behind the red bar, draws full delayed width).
+    //   2. Red front bar (draws on top of the white bar).
     // ----------------------------------------------------------------
-    if (fillWidth > 0)
+    if (whiteFillWidth > 0 || redFillWidth > 0)
     {
         mSpriteBatch->Begin(
             SpriteSortMode_Deferred,
@@ -315,15 +335,31 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
             originY + static_cast<float>(mConfig.hpBarTop)
         );
         const XMFLOAT2 pivot(0.0f, 0.0f);
-        // Scale the 1x1 white texel to exactly fillWidth x barHeight.
-        const XMFLOAT2 fillScale(
-            static_cast<float>(fillWidth),
-            static_cast<float>(mConfig.HpBarHeight())
-        );
-        // HP-bar red — adjust RGB here to change the fill color.
-        const XMVECTORF32 fillColor = { 200.f/255.f, 50.f/255.f, 50.f/255.f, 1.0f };
-        mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
-                           fillColor, 0.0f, pivot, fillScale);
+        
+        // Draw the white bar beneath
+        if (whiteFillWidth > 0)
+        {
+            const XMFLOAT2 whiteScale(
+                static_cast<float>(whiteFillWidth),
+                static_cast<float>(mConfig.HpBarHeight())
+            );
+            const XMVECTORF32 whiteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+            mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
+                               whiteColor, 0.0f, pivot, whiteScale);
+        }
+
+        // Draw the red bar on top
+        if (redFillWidth > 0)
+        {
+            const XMFLOAT2 redScale(
+                static_cast<float>(redFillWidth),
+                static_cast<float>(mConfig.HpBarHeight())
+            );
+            // HP-bar red — adjust RGB here to change the fill color.
+            const XMVECTORF32 redColor = { 200.f/255.f, 50.f/255.f, 50.f/255.f, 1.0f };
+            mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
+                               redColor, 0.0f, pivot, redScale);
+        }
 
         mSpriteBatch->End();
     }

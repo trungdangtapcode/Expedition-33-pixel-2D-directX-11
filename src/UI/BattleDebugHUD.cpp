@@ -5,10 +5,10 @@
 //   OutputDebugStringA and accumulates them into one block for LOG().
 //
 // Layout constants (change here, nowhere else):
-//   kBoxWidth   — total width of the ASCII box
-//   kKeyWidth   — left-column width in key/value rows
-//   kNameWidth  — character name column width in combatant table
-//   kLogLines   — how many recent battle log lines to show
+//   kBoxWidth   -- total width of the ASCII box
+//   kKeyWidth   -- left-column width in key/value rows
+//   kNameWidth  -- character name column width in combatant table
+//   kLogLines   -- how many recent battle log lines to show
 // ============================================================
 #include "BattleDebugHUD.h"
 #define NOMINMAX
@@ -60,7 +60,7 @@ void BattleDebugHUD::Render(const BattleHUDSnapshot& snap)
 }
 
 // ============================================================
-// Private — section builders
+// Private -- section builders
 // ============================================================
 
 void BattleDebugHUD::BuildLines(const BattleHUDSnapshot& snap,
@@ -68,7 +68,7 @@ void BattleDebugHUD::BuildLines(const BattleHUDSnapshot& snap,
 {
     PushBorder(out, snap.title, kBoxWidth);
 
-    // ---- Phase banner — the FIRST thing the player reads ----
+    // ---- Phase banner -- the FIRST thing the player reads ----
     // Show a bold, unambiguous line: what the engine is doing AND
     // what the player is expected to do right now.
     PushPhaseBanner(out, snap.simulationPhase, snap.inputPhase, kBoxWidth);
@@ -113,9 +113,9 @@ void BattleDebugHUD::BuildLines(const BattleHUDSnapshot& snap,
 //     [ ENGINE: PLAYER_TURN   ]   [ YOUR TURN: SELECT A SKILL ]
 //       [1] [2] [3] select skill   [Esc] back to commands
 //
-//     [ ENGINE: RESOLVING     ]   [ WAIT — action in progress... ]
+//     [ ENGINE: RESOLVING     ]   [ WAIT -- action in progress... ]
 //
-//     [ ENGINE: ENEMY_TURN    ]   [ WAIT — enemy is acting... ]
+//     [ ENGINE: ENEMY_TURN    ]   [ WAIT -- enemy is acting... ]
 // ------------------------------------------------------------
 void BattleDebugHUD::PushPhaseBanner(std::vector<std::string>& out,
                                       const std::string& simPhase,
@@ -150,12 +150,12 @@ void BattleDebugHUD::PushPhaseBanner(std::vector<std::string>& out,
     }
     else if (simPhase == "RESOLVING")
     {
-        actionLabel = "WAIT — action in progress...";
+        actionLabel = "WAIT - action in progress..."; //--
         keyHint     = "";
     }
     else if (simPhase == "ENEMY_TURN")
     {
-        actionLabel = "WAIT — enemy is acting...";
+        actionLabel = "WAIT - enemy is acting...";
         keyHint     = "";
     }
     else if (simPhase == "WIN")
@@ -180,7 +180,7 @@ void BattleDebugHUD::PushPhaseBanner(std::vector<std::string>& out,
         simPhase.c_str(), actionLabel.c_str());
     out.push_back(buf);
 
-    // Key hint on the very next line — only when there is something to press.
+    // Key hint on the very next line -- only when there is something to press.
     if (!keyHint.empty())
         out.push_back(keyHint);
 
@@ -256,13 +256,13 @@ void BattleDebugHUD::PushMenu(std::vector<std::string>& out,
             item.label.c_str());
         out.push_back(buf);
     }
-    // Key hint is printed by PushPhaseBanner — no duplicate here.
+    // Key hint is printed by PushPhaseBanner -- no duplicate here.
 }
 
 // ------------------------------------------------------------
 // PushSkills: skill table with slot key, availability, cursor.
 //   > [1] Attack      Strike the enemy.       (available)
-//     [2] Rage Strike Heavy hit — rage full    UNAVAILABLE
+//     [2] Rage Strike Heavy hit -- rage full    UNAVAILABLE
 // ------------------------------------------------------------
 void BattleDebugHUD::PushSkills(std::vector<std::string>& out,
                                   const std::vector<BattleHUDSnapshot::SkillRow>& rows)
@@ -279,11 +279,11 @@ void BattleDebugHUD::PushSkills(std::vector<std::string>& out,
             row.available  ? ""  : "(unavailable)");
         out.push_back(buf);
     }
-    // Key hint is printed by PushPhaseBanner — no duplicate here.
+    // Key hint is printed by PushPhaseBanner -- no duplicate here.
 }
 
 // ------------------------------------------------------------
-// PushInfoLines: "  Key        : value" — generic info rows.
+// PushInfoLines: "  Key        : value" -- generic info rows.
 // ------------------------------------------------------------
 void BattleDebugHUD::PushInfoLines(std::vector<std::string>& out,
                                      const std::vector<BattleHUDSnapshot::InfoLine>& lines)
@@ -312,7 +312,7 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
 
         if (row.maxRage > 0)
         {
-            // Player — show rage column.
+            // Player -- show rage column.
             snprintf(buf, sizeof(buf),
                 "  %s %s %-*s  HP:%3d/%-3d  Rage:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
                 turn, row.tag.c_str(), kNameWidth, row.name.c_str(),
@@ -323,7 +323,7 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
         }
         else
         {
-            // Enemy — omit rage column.
+            // Enemy -- omit rage column.
             snprintf(buf, sizeof(buf),
                 "  %s %s %-*s  HP:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
                 turn, row.tag.c_str(), kNameWidth, row.name.c_str(),

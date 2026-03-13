@@ -236,12 +236,33 @@ void EnemyHpBarRenderer::SetEnemy(int slot, float hp, float maxHp, bool active)
 
     mSlotActive[slot] = active;
     mMaxHP[slot]      = (maxHp > 0.0f) ? maxHp : 1.0f;
+    
+    // If HP decreases, reset the delay timer for the catch-up white bar
+    if (hp < mTargetHP[slot])
+    {
+        mDelayTimer[slot] = 0.0f;
+        mEffectState[slot].TriggerShake();
+    }
     mTargetHP[slot]   = hp;
 
     // Seed displayed value on first encounter so the bar opens at the
     // correct fill level instead of lerping upward from 0 each OnEnter().
-    if (mDisplayedHP[slot] == 0.0f && hp > 0.0f)
-        mDisplayedHP[slot] = hp;
+    if (mRedHP[slot] == 0.0f && hp > 0.0f)
+    {
+        mRedHP[slot]   = hp;
+        mWhiteHP[slot] = hp;
+    }
+}
+
+// ============================================================
+// SetTargetScale
+// ============================================================
+void EnemyHpBarRenderer::SetTargetScale(int slot, float scale)
+{
+    if (slot >= 0 && slot < kMaxSlots)
+    {
+        mEffectState[slot].SetTargetScale(scale);
+    }
 }
 
 // ============================================================
@@ -253,14 +274,32 @@ void EnemyHpBarRenderer::Update(float dt)
 
     for (int i = 0; i < kMaxSlots; ++i)
     {
-        // Exponential approach: fast at first, decelerates near the target.
-        const float gap = mTargetHP[i] - mDisplayedHP[i];
-        mDisplayedHP[i] += gap * kLerpSpeed * dt;
+        if (!mSlotActive[i]) continue;
 
-        // Snap to exact value when the gap is sub-pixel (< 0.5 HP) to
-        // prevent the bar hovering above 0 indefinitely on a dead enemy.
-        if (std::abs(gap) < 0.5f)
-            mDisplayedHP[i] = mTargetHP[i];
+        // Exponential approach: fast for red front bar
+        const float redGap = mTargetHP[i] - mRedHP[i];
+        mRedHP[i] += redGap * kRedLerpSpeed * dt;
+        if (std::abs(redGap) < 0.5f) mRedHP[i] = mTargetHP[i];
+
+        // Delayed catch-up for white background bar
+        if (mWhiteHP[i] > mTargetHP[i])
+        {
+            mDelayTimer[i] += dt;
+            if (mDelayTimer[i] >= kDelayDuration)
+            {
+                const float whiteGap = mTargetHP[i] - mWhiteHP[i];
+                mWhiteHP[i] += whiteGap * kWhiteLerpSpeed * dt;
+                if (std::abs(whiteGap) < 0.5f) mWhiteHP[i] = mTargetHP[i];
+            }
+        }
+        else
+        {
+            // Fully caught up or healed
+            mWhiteHP[i] = mTargetHP[i];
+            mDelayTimer[i] = 0.0f;
+        }
+
+        mEffectState[i].Update(dt);
     }
 }
 
@@ -275,11 +314,10 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     // scaleX is width-driven: bar width = screenW * kBarWidthFactor pixels.
     // The two axes are independent so height stays compact while width fills
     // ~60% of the screen — SpriteBatch accepts XMFLOAT2 scale so this is free.
-    const float scaleY  = kTargetBarHeight / static_cast<float>(mTexH);
+    const float baseScaleY  = kTargetBarHeight / static_cast<float>(mTexH);
     const float scaledW = static_cast<float>(mScreenW) * kBarWidthFactor;
-    const float scaleX  = scaledW / static_cast<float>(mTexW);
-    const float scaledH = kTargetBarHeight;   // = mTexH * scaleY by definition
-    const float barPosX = (static_cast<float>(mScreenW) - scaledW) * 0.5f;
+    const float baseScaleX  = scaledW / static_cast<float>(mTexW);
+    const float scaledH = kTargetBarHeight;   // = mTexH * baseScaleY by definition
 
     // Per-slot vertical stride = name label height + gap + bar height + spacing.
     // Adding kNameLineHeight and kNameGapY ensures the name label above slot i+1
@@ -290,7 +328,6 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
 
     const RECT     srcFull  = { 0, 0, mTexW, mTexH };
     const XMFLOAT2 origin   = { 0.0f, 0.0f };
-    const XMFLOAT2 barScale = { scaleX, scaleY };   // width stretched, height fixed
 
     // ----------------------------------------------------------------
     // Pass 1 — Background (enemy-hp-ui-background.png).
@@ -307,12 +344,18 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     for (int i = 0; i < kMaxSlots; ++i)
     {
         if (!mSlotActive[i]) continue;
-        const float barPosY = kTopPadding + static_cast<float>(i) * slotStride;
+        
+        const float slotScale = mEffectState[i].GetScale();
+        const float barScaleX = baseScaleX * slotScale;
+        const float barScaleY = baseScaleY * slotScale;
+        const float barPosX = (static_cast<float>(mScreenW) - scaledW * slotScale) * 0.5f + mEffectState[i].GetOffsetX();
+
+        const float barPosY = kTopPadding + static_cast<float>(i) * slotStride + mEffectState[i].GetOffsetY();
         mSpriteBatch->Draw(mBgSRV.Get(),
                            XMFLOAT2(barPosX, barPosY),
                            &srcFull,
                            Colors::White,
-                           0.0f, origin, barScale);
+                           0.0f, origin, XMFLOAT2(barScaleX, barScaleY));
     }
     mSpriteBatch->End();
 
@@ -342,23 +385,41 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     {
         if (!mSlotActive[i]) continue;
 
-        const float barPosY   = kTopPadding + static_cast<float>(i) * slotStride;
-        const float clampedHP = std::max(0.0f, std::min(mDisplayedHP[i], mMaxHP[i]));
-        const float ratio     = clampedHP / mMaxHP[i];
-        const float fillW     = hpRegionW * scaleX * ratio;  // horizontal: scaleX
+        const float slotScale = mEffectState[i].GetScale();
+        const float barScaleX = baseScaleX * slotScale;
+        const float barScaleY = baseScaleY * slotScale;
+        const float barPosX = (static_cast<float>(mScreenW) - scaledW * slotScale) * 0.5f + mEffectState[i].GetOffsetX();
 
-        if (fillW < 1.0f) continue;
+        const float barPosY   = kTopPadding + static_cast<float>(i) * slotStride + mEffectState[i].GetOffsetY();
+        const float clampedRedHP   = std::max(0.0f, std::min(mRedHP[i], mMaxHP[i]));
+        const float clampedWhiteHP = std::max(0.0f, std::min(mWhiteHP[i], mMaxHP[i]));
+
+        const float redRatio   = clampedRedHP / mMaxHP[i];
+        const float whiteRatio = clampedWhiteHP / mMaxHP[i];
+
+        const float redFillW   = hpRegionW * barScaleX * redRatio;
+        const float whiteFillW = hpRegionW * barScaleX * whiteRatio;
+
+        if (whiteFillW < 1.0f) continue;
 
         const XMFLOAT2 fillPos(
-            barPosX + static_cast<float>(mHpLeft) * scaleX,  // horizontal: scaleX
-            barPosY + static_cast<float>(mHpTop)  * scaleY   // vertical:   scaleY
+            barPosX + static_cast<float>(mHpLeft) * barScaleX,  // horizontal: scaleX
+            barPosY + static_cast<float>(mHpTop)  * barScaleY   // vertical:   scaleY
         );
+
+        // Draw white background bar
+        const XMVECTORF32 kWhiteFillColor = { 1.0f, 1.0f, 1.0f, 1.0f };
         mSpriteBatch->Draw(mFillSRV.Get(),
-                           fillPos,
-                           nullptr,
-                           kHpFillColor,
-                           0.0f, origin,
-                           XMFLOAT2(fillW, hpRegionH * scaleY));  // height: scaleY
+                           fillPos, nullptr, kWhiteFillColor, 0.0f, origin,
+                           XMFLOAT2(whiteFillW, hpRegionH * barScaleY));
+
+        // Draw red front bar on top, if visible
+        if (redFillW >= 1.0f)
+        {
+            mSpriteBatch->Draw(mFillSRV.Get(),
+                               fillPos, nullptr, kHpFillColor, 0.0f, origin,
+                               XMFLOAT2(redFillW, hpRegionH * barScaleY)); 
+        }
     }
     mSpriteBatch->End();
 
@@ -376,12 +437,18 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     for (int i = 0; i < kMaxSlots; ++i)
     {
         if (!mSlotActive[i]) continue;
-        const float barPosY = kTopPadding + static_cast<float>(i) * slotStride;
+        
+        const float slotScale = mEffectState[i].GetScale();
+        const float barScaleX = baseScaleX * slotScale;
+        const float barScaleY = baseScaleY * slotScale;
+        const float barPosX = (static_cast<float>(mScreenW) - scaledW * slotScale) * 0.5f + mEffectState[i].GetOffsetX();
+
+        const float barPosY = kTopPadding + static_cast<float>(i) * slotStride + mEffectState[i].GetOffsetY();
         mSpriteBatch->Draw(mFrameSRV.Get(),
                            XMFLOAT2(barPosX, barPosY),
                            &srcFull,
                            Colors::White,
-                           0.0f, origin, barScale);
+                           0.0f, origin, XMFLOAT2(barScaleX, barScaleY));
     }
     mSpriteBatch->End();
 
@@ -394,12 +461,16 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     // ----------------------------------------------------------------
     if (mTextRenderer && mTextRenderer->IsReady())
     {
-        const float barCenterX = barPosX + scaledW * 0.5f;
         mTextRenderer->BeginBatch(context);
         for (int i = 0; i < kMaxSlots; ++i)
         {
             if (!mSlotActive[i] || mEnemyName[i].empty()) continue;
-            const float barPosY = kTopPadding + static_cast<float>(i) * slotStride;
+            
+            const float slotScale = mEffectState[i].GetScale();
+            const float slotBarPosX = (static_cast<float>(mScreenW) - scaledW * slotScale) * 0.5f + mEffectState[i].GetOffsetX();
+            const float barCenterX = slotBarPosX + (scaledW * slotScale) * 0.5f;
+
+            const float barPosY = kTopPadding + static_cast<float>(i) * slotStride + mEffectState[i].GetOffsetY();
             const float nameY   = barPosY - kNameGapY - kNameLineHeight;
             // White text with a slight shadow by drawing twice: dark offset first.
             mTextRenderer->DrawStringCenteredRaw(

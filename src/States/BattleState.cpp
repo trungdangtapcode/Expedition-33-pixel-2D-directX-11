@@ -3,27 +3,14 @@
 // Responsibility: Turn-based battle IGameState — drives BattleManager,
 //                handles input via a three-phase FSM, renders combatant
 //                sprites and the HP bar UI.
-//
-// Player Input FSM (PlayerInputPhase):
-//   COMMAND_SELECT  Up/Down = move cursor, Enter = confirm IBattleCommand
-//   SKILL_SELECT    1/2/3   = pick skill,  Esc   = back to COMMAND_SELECT
-//   TARGET_SELECT   Tab     = cycle enemy, Enter = confirm, Esc = back
-//
-// Adding a new top-level menu option:
-//   1. Create a class implementing IBattleCommand.
-//   2. Append it in BuildCommandList() — no other code changes needed.
 // ============================================================
 #include "BattleState.h"
 #include "../States/StateManager.h"
 #include "../Events/EventManager.h"
 #include "../Systems/PartyManager.h"
-#include "../Battle/FightCommand.h"
-#include "../Battle/FleeCommand.h"
 #include "../UI/BattleDebugHUD.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
-#define NOMINMAX
-#include <Windows.h>      // GetAsyncKeyState
 #include <string>
 #include <algorithm>
 #include <array>
@@ -34,75 +21,51 @@ static constexpr float kBgG = 0.05f;
 static constexpr float kBgB = 0.20f;
 
 BattleState::BattleState(D3DContext& d3d, EnemyEncounterData encounter)
-    : mD3D     (d3d)
+    : mD3D(d3d)
     , mEncounter(std::move(encounter))
+    , mInputController(*this, mBattle, mBattleRenderer)
 {}
-
-// ------------------------------------------------------------
-// BuildCommandList: populate the top-level command menu.
-//   To add a new option, append one line here and create the matching class.
-//   Order of push_back == display order in the debug console.
-// ------------------------------------------------------------
-void BattleState::BuildCommandList()
-{
-    mCommands.clear();
-    mCommands.push_back(std::make_unique<FightCommand>());
-    mCommands.push_back(std::make_unique<FleeCommand>());
-    // Future: mCommands.push_back(std::make_unique<ItemCommand>());
-    // Future: mCommands.push_back(std::make_unique<DefendCommand>());
-}
 
 void BattleState::OnEnter()
 {
     LOG("%s", "[BattleState] OnEnter");
 
-    // Switch to battle BGM immediately — overworld music stops, battle music begins.
-    // AudioManager handles the transition; BattleState has no audio dependencies.
-    EventManager::Get().Broadcast("bgm_play_battle", {});
+    InitAudio();
 
     mBattle.Initialize(mEncounter);
+    mInputController.Initialize();
 
-    // Reset input FSM to the top-level command menu.
-    mInputPhase   = PlayerInputPhase::COMMAND_SELECT;
-    mCommandIndex = 0;
-    mSkillIndex   = 0;
-    mTargetIndex  = 0;
+    InitBattleSlots();
+    InitUIRenderers();
 
-    // Build the data-driven command list (Fight, Flee, …).
-    BuildCommandList();
+    DumpStateToDebugOutput();
 
-    // ----------------------------------------------------------------
-    // Load formation offsets from data/formations.json.
-    //
-    // The formation file defines where each slot's feet-anchor sits in
-    // world space relative to the battle center:
-    //   slotWorldX = battleCenterX + formation.offsetX
-    //   slotWorldY = battleCenterY + formation.offsetY
-    //
-    // For MVP the battle center is the world origin (0, 0) — screen center —
-    // so the offsets ARE the final world positions.  When battles are triggered
-    // from the overworld, pass the player's world position here instead.
-    // ----------------------------------------------------------------
+    if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))
+    {
+        mIris.StartOpen(800.0f);
+    }
+    else
+    {
+        LOG("%s", "[BattleState] WARNING — IrisTransitionRenderer init failed.");
+    }
+}
+
+void BattleState::InitAudio()
+{
+    EventManager::Get().Broadcast("bgm_play_battle", {});
+}
+
+void BattleState::InitBattleSlots()
+{
     JsonLoader::FormationData formation{};
     if (!JsonLoader::LoadFormations("data/formations.json", formation))
     {
-        // Non-fatal: fall back to zeroed FormationData (all slots at origin).
         LOG("%s", "[BattleState] WARNING: failed to load formations.json — slots will be at origin.");
     }
 
-    const float battleCenterX = 0.0f;  // world origin = screen center
+    const float battleCenterX = 0.0f;
     const float battleCenterY = 0.0f;
 
-    // ----------------------------------------------------------------
-    // Build BattleRenderer slot descriptors.
-    // Player slot 0 = Verso (always present).
-    // Slots 1 and 2 = additional party members (empty for MVP).
-    // Enemy slots 0 and 1 = Skeleton A/B; slot 2 empty.
-    //
-    // worldX/worldY = battle center + formation offset.
-    // drawOffset stays at (0, 0): bottom-center pivot means feet land
-    // exactly at worldY — no correction needed for correctly authored sprites.
-    // ----------------------------------------------------------------
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
     playerSlots[0].occupied    = true;
     playerSlots[0].texturePath = L"assets/animations/verso.png";
@@ -110,31 +73,13 @@ void BattleState::OnEnter()
     playerSlots[0].startClip   = "idle";
     playerSlots[0].worldX             = battleCenterX + formation.player[0].offsetX;
     playerSlots[0].worldY             = battleCenterY + formation.player[0].offsetY;
-    // Camera focus: sprite is 128px tall at scale 2.0 -> rendered height 256px.
-    // Lifting the focal point by half that (128 world units) centers the camera
-    // on the chest/head rather than the feet.
     playerSlots[0].cameraFocusOffsetY = -128.0f;
     playerSlots[0].cameraFocusOffsetX = 100.0f;
-    // slots 1 and 2 remain occupied=false (empty party slots)
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
 
-    // ------------------------------------------------------------
-    // Enemy slots: filled from mEncounter.battleParty (data-driven).
-    //
-    // battleParty may contain 1–3 EnemySlotData entries — each maps onto
-    // one enemy slot in BattleRenderer and one EnemyCombatant in BattleManager.
-    //
-    // Examples:
-    //   battleParty with 1 entry  → single boss fight
-    //   battleParty with 3 entries → full 3-enemy group encounter
-    //
-    // Fallback: if battleParty is empty (legacy debug push, no encounter context)
-    // a single hardcoded skeleton is used so the battle still functions.
-    // ------------------------------------------------------------
     if (!mEncounter.battleParty.empty())
     {
-        // Data-driven path: iterate each slot defined in the encounter JSON.
         for (int i = 0;
              i < static_cast<int>(mEncounter.battleParty.size())
              && i < static_cast<int>(BattleRenderer::kMaxSlots);
@@ -147,24 +92,18 @@ void BattleState::OnEnter()
             enemySlots[i].startClip      = sd.idleClip;
             enemySlots[i].cameraFocusOffsetY = sd.cameraFocusOffsetY;
 
-            // Propagate per-role clip name overrides from encounter JSON.
-            // BattleRenderer seeds its internal table from these; empty strings
-            // automatically fall back to DefaultClipName() inside Initialize().
             enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Idle)]   = sd.idleClip;
             enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Attack)] = sd.attackClip;
             enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Walk)]   = sd.walkClip;
             enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Die)]    = sd.dieClip;
             enemySlots[i].clipOverrides[static_cast<int>(CombatantAnim::Hurt)]   = sd.hurtClip;
 
-            // Formation offsets place each slot at its designated world position.
             enemySlots[i].worldX         = battleCenterX + formation.enemy[i].offsetX;
             enemySlots[i].worldY         = battleCenterY + formation.enemy[i].offsetY;
         }
     }
     else
     {
-        // Legacy fallback: no encounter data provided (e.g., PushState(BattleState(d3d))).
-        // Force slot 0 to the skeleton so the battle is always functional.
         enemySlots[0].occupied           = true;
         enemySlots[0].texturePath        = L"assets/animations/skeleton.png";
         enemySlots[0].jsonPath           = "assets/animations/skeleton.json";
@@ -182,10 +121,10 @@ void BattleState::OnEnter()
         mD3D.GetWidth(),
         mD3D.GetHeight()
     );
+}
 
-    // Initialize the 3-layer HP bar renderer.
-    // Initialize() loads both PNGs, creates SpriteBatch, and subscribes
-    // to "verso_hp_changed" via EventManager — no polling needed.
+void BattleState::InitUIRenderers()
+{
     mHealthBar.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -196,8 +135,6 @@ void BattleState::OnEnter()
         mD3D.GetHeight()
     );
 
-    // Seed the bar with the live combatant's current HP so the bar is
-    // correct before the first "verso_hp_changed" event fires.
     const auto& players = mBattle.GetAllPlayers();
     if (!players.empty())
     {
@@ -205,8 +142,6 @@ void BattleState::OnEnter()
         mHealthBar.SetHP   (static_cast<float>(players[0]->GetStats().hp));
     }
 
-    // Initialize enemy HP bars (top-center, up to 3 bars stacked vertically).
-    // Width = 60% of screen; one bar per enemy slot, rendered top to bottom.
     mEnemyHpBar.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -217,7 +152,6 @@ void BattleState::OnEnter()
         mD3D.GetHeight()
     );
 
-    // Initialize the shared text renderer (Arial 16pt, used for enemy name labels).
     mTextRenderer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -227,8 +161,6 @@ void BattleState::OnEnter()
     );
     mEnemyHpBar.SetTextRenderer(&mTextRenderer);
 
-    // Seed enemy bars immediately so they open at the correct fill level.
-    // Also store enemy names (names never change mid-battle).
     {
         const auto& enemies = mBattle.GetAllEnemies();
         for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
@@ -243,568 +175,189 @@ void BattleState::OnEnter()
             mEnemyHpBar.SetEnemyName(i, enemies[i]->GetName());
         }
     }
-
-    DumpStateToDebugOutput();
-
-    // ---------------------------------------------------------------
-    // Iris transition — open the iris to reveal the battle scene.
-    // The iris starts fully closed (screen is black from PlayState's closing
-    // iris) and grows to mMaxRadius over ~1 second at 800 px/s.
-    // Initialize must be called in OnEnter() after the D3D device is ready.
-    // ---------------------------------------------------------------
-    if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))
-    {
-        mIris.StartOpen(800.0f);
-    }
-    else
-    {
-        LOG("%s", "[BattleState] WARNING — IrisTransitionRenderer init failed.");
-    }
 }
 
 void BattleState::OnExit()
 {
     LOG("%s", "[BattleState] OnExit");
 
-    // Restore overworld BGM when returning to PlayState.
-    // PlayState::OnEnter() is NOT called again after a pop (the state was paused
-    // underneath the stack), so BattleState is responsible for restoring the music.
-    // AudioManager's idempotent PlayBGM() prevents a double-start if somehow
-    // overworld was already playing.
     EventManager::Get().Broadcast("bgm_play_overworld", {});
 
-    // Release combatant sprite GPU resources (textures, SpriteBatch, D3D states).
     mBattleRenderer.Shutdown();
-
-    // Release player HP bar GPU resources and unsubscribe the event listener.
     mHealthBar.Shutdown();
-
-    // Release enemy HP bar GPU resources (no event subscription to undo).
     mEnemyHpBar.Shutdown();
-
-    // Release text renderer GPU resources (SpriteFont atlas, SpriteBatch).
     mTextRenderer.Shutdown();
-
-    // Release iris overlay GPU resources (VS, PS, VB, CB, blend state).
     mIris.Shutdown();
 }
 
-// ------------------------------------------------------------
-// Update: process player input (only during PLAYER_TURN), then
-//         tick the battle simulation and the HP bar lerp.
-//         Pops the state when the battle concludes and broadcasts outcome.
-// ------------------------------------------------------------
 void BattleState::Update(float dt)
 {
-    // ---------------------------------------------------------------
-    // Step 1 — Advance the iris animation.
-    // Must happen BEFORE the safe-exit check so the callback fires
-    // on the same tick the iris reaches radius == 0.
-    // ---------------------------------------------------------------
     mIris.Update(dt);
 
-    // ---------------------------------------------------------------
-    // Step 2 — Safe-exit check.
-    // The iris-close callback sets mPendingSafeExit = true.
-    // We check it HERE — at the top of Update(), before any battle or
-    // input code runs — to guarantee PopState() is called when no other
-    // BattleState code is on the call stack (prevents use-after-free).
-    // ---------------------------------------------------------------
     if (mPendingSafeExit)
     {
-        // Broadcast the outcome event before popping so listeners can react
-        // while the state is still valid.
         if (!mExitEventName.empty())
         {
             EventManager::Get().Broadcast(mExitEventName, {});
         }
 
-        // PopState() destroys this BattleState immediately.
-        // DO NOT access any member variable after this line.
         StateManager::Get().PopState();
         return;
     }
 
-    // ---------------------------------------------------------------
-    // Step 3 — Normal battle logic (only when no exit is in progress).
-    // Skipping input and simulation while the exit iris is closing
-    // prevents the player from taking actions after the battle ends.
-    // ---------------------------------------------------------------
     if (!mExitTransitionStarted)
     {
-        const BattlePhase phaseBefore = mBattle.GetPhase();
-
-        if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
-        {
-            HandleInput();
-        }
-
-        mBattle.Update(dt);
-
-        // ---------------------------------------------------------------
-        // Death detection: compare alive state before and after Update.
-        // On the exact frame a combatant's HP drops to 0, trigger the
-        // CombatantAnim::Die clip on its renderer slot.
-        //
-        // Why here, not inside BattleManager?
-        //   BattleManager owns combat logic; BattleRenderer owns visuals.
-        //   BattleState is the coordinator that bridges the two.
-        //   Coupling them directly would violate Single Responsibility.
-        //
-        // If the die clip is absent from the sprite sheet,
-        // WorldSpriteRenderer logs a warning and freezes on the last frame.
-        // ---------------------------------------------------------------
-        {
-            const auto& enemies = mBattle.GetAllEnemies();
-            for (int i = 0;
-                 i < static_cast<int>(enemies.size()) && i < BattleRenderer::kMaxSlots;
-                 ++i)
-            {
-                const bool nowAlive = enemies[i]->IsAlive();
-                if (mEnemyWasAlive[i] && !nowAlive)
-                {
-                    // Enemy just died this frame — play its die animation.
-                    mBattleRenderer.PlayEnemyClip(i, CombatantAnim::Die);
-                    LOG("[BattleState] Enemy slot %d died — playing die animation.", i);
-                }
-                mEnemyWasAlive[i] = nowAlive;
-            }
-
-            const auto& players = mBattle.GetAllPlayers();
-            for (int i = 0;
-                 i < static_cast<int>(players.size()) && i < BattleRenderer::kMaxSlots;
-                 ++i)
-            {
-                const bool nowAlive = players[i]->IsAlive();
-                if (mPlayerWasAlive[i] && !nowAlive)
-                {
-                    // Player just died this frame — play their die animation.
-                    mBattleRenderer.PlayPlayerClip(i, CombatantAnim::Die);
-                    LOG("[BattleState] Player slot %d died — playing die animation.", i);
-                }
-                mPlayerWasAlive[i] = nowAlive;
-            }
-        }
-
-        const BattlePhase phaseAfter = mBattle.GetPhase();
-
-        if (phaseBefore != BattlePhase::PLAYER_TURN &&
-            phaseAfter  == BattlePhase::PLAYER_TURN)
-        {
-            SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
-        }
-        else if (phaseBefore != phaseAfter)
-        {
-            mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
-            DumpStateToDebugOutput();
-        }
-
-        // Advance player HP bar lerp.
-        mHealthBar.Update(dt);
-
-        // Synchronize enemy HP bars from BattleManager every frame.
-        {
-            const auto& enemies = mBattle.GetAllEnemies();
-            for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
-            {
-                const auto& stats = enemies[i]->GetStats();
-                mEnemyHpBar.SetEnemy(
-                    i,
-                    static_cast<float>(stats.hp),
-                    static_cast<float>(stats.maxHp),
-                    enemies[i]->IsAlive()
-                );
-            }
-            mEnemyHpBar.Update(dt);
-        }
-
-        mBattleRenderer.Update(dt);
-
-        // ---------------------------------------------------------------
-        // Step 4 — Check for battle conclusion.
-        //
-        // When an outcome is first detected, enter the death-anim wait phase:
-        //   • Save persistent HP immediately (BattleManager data stays valid).
-        //   • Set mWaitingForDeathAnims = true but do NOT start the iris yet.
-        //   • mBattleRenderer.Update(dt) continues running (we are still inside
-        //     the !mExitTransitionStarted block) so die clips advance.
-        //
-        // On subsequent frames, once AreAllDeathAnimsDone() returns true:
-        //   • Clear the wait flag, set mExitTransitionStarted, start iris close.
-        //
-        // This ensures every combatant's die animation plays to its last frame
-        // before the iris hides the battle scene.
-        // For characters without a "die" clip, PlayEnemyClip/PlayPlayerClip calls
-        // FreezeCurrentFrame() — the sprite holds its last pose and IsClipDone()
-        // returns true immediately so the iris starts without stalling.
-        // ---------------------------------------------------------------
-        const BattleOutcome outcome = mBattle.GetOutcome();
-        if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
-        {
-            // Persist Verso's HP BEFORE any transition starts so the data is
-            // always saved even if BattleManager is destroyed unexpectedly.
-            const auto& players = mBattle.GetAllPlayers();
-            if (!players.empty())
-            {
-                PartyManager::Get().SetVersoStats(players[0]->GetStats());
-                LOG("[BattleState] Saved Verso HP: %d/%d",
-                    players[0]->GetStats().hp, players[0]->GetStats().maxHp);
-            }
-
-            mExitEventName = (outcome == BattleOutcome::VICTORY)
-                ? "battle_end_victory" : "battle_end_defeat";
-
-            // Enter the death-anim wait phase: do NOT start the iris yet.
-            mWaitingForDeathAnims = true;
-            LOG("[BattleState] Outcome detected (%s) — waiting for death animations.",
-                mExitEventName.c_str());
-        }
-
-        // Once in the wait phase, poll every frame until die clips finish.
-        // mBattleRenderer.Update(dt) is still being called above (we are inside
-        // the !mExitTransitionStarted block), so clips advance each frame.
-        if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
-        {
-            mWaitingForDeathAnims  = false;
-            mExitTransitionStarted = true;
-
-            // Now start the iris close.  The callback sets mPendingSafeExit,
-            // which triggers PopState() at the top of the next Update().
-            mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-            LOG("[BattleState] Death animations done — starting iris close.");
-        }
-
-        // ---------------------------------------------------------------
-        // Step 5 — Deferred flee (set by FleeCommand::Execute()).
-        // Same pattern: start iris close, defer PopState to top of Update.
-        // ---------------------------------------------------------------
-        if (mPendingFlee && !mExitTransitionStarted)
-        {
-            mPendingFlee           = false;
-            mExitTransitionStarted = true;
-            mExitEventName         = "battle_flee";
-
-            mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-            LOG("%s", "[BattleState] Flee requested — closing iris.");
-        }
+        UpdateLogic(dt);
     }
 }
 
-// ------------------------------------------------------------
-// Render: clear to battle navy color, draw all game visuals,
-//         then draw the iris overlay on top.
-// GameApp owns BeginFrame (clear) and EndFrame (Present).
-// BattleState calls BeginFrame again to paint the navy background.
-// The iris overlay is drawn LAST — on top of all battle UI.
-// EndFrame (Present) is called once per frame by GameApp — never here.
-// ------------------------------------------------------------
+void BattleState::UpdateLogic(float dt)
+{
+    const BattlePhase phaseBefore = mBattle.GetPhase();
+
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+    {
+        mInputController.HandleInput();
+    }
+
+    mBattle.Update(dt);
+
+    CheckDeathAnimations();
+
+    const BattlePhase phaseAfter = mBattle.GetPhase();
+
+    if (phaseBefore != BattlePhase::PLAYER_TURN &&
+        phaseAfter  == BattlePhase::PLAYER_TURN)
+    {
+        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+    }
+    else if (phaseBefore != phaseAfter)
+    {
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
+        DumpStateToDebugOutput();
+    }
+
+    bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN && 
+                            mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT);
+
+    IBattler* targetedEnemyPtr = nullptr;
+    if (phaseAfter == BattlePhase::PLAYER_TURN && mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT)
+    {
+        const auto aliveEnemies = mBattle.GetAliveEnemies();
+        if (mInputController.GetTargetIndex() >= 0 && mInputController.GetTargetIndex() < static_cast<int>(aliveEnemies.size()))
+        {
+            targetedEnemyPtr = aliveEnemies[mInputController.GetTargetIndex()];
+        }
+    }
+
+    UpdateUIRenderers(dt, targetedEnemyPtr, playerSelected);
+
+    mBattleRenderer.Update(dt);
+
+    CheckBattleEnd();
+}
+
+void BattleState::CheckDeathAnimations()
+{
+    const auto& enemies = mBattle.GetAllEnemies();
+    for (int i = 0; i < static_cast<int>(enemies.size()) && i < BattleRenderer::kMaxSlots; ++i)
+    {
+        const bool nowAlive = enemies[i]->IsAlive();
+        if (mEnemyWasAlive[i] && !nowAlive)
+        {
+            mBattleRenderer.PlayEnemyClip(i, CombatantAnim::Die);
+            LOG("[BattleState] Enemy slot %d died — playing die animation.", i);
+        }
+        mEnemyWasAlive[i] = nowAlive;
+    }
+
+    const auto& players = mBattle.GetAllPlayers();
+    for (int i = 0; i < static_cast<int>(players.size()) && i < BattleRenderer::kMaxSlots; ++i)
+    {
+        const bool nowAlive = players[i]->IsAlive();
+        if (mPlayerWasAlive[i] && !nowAlive)
+        {
+            mBattleRenderer.PlayPlayerClip(i, CombatantAnim::Die);
+            LOG("[BattleState] Player slot %d died — playing die animation.", i);
+        }
+        mPlayerWasAlive[i] = nowAlive;
+    }
+}
+
+void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected)
+{
+    mHealthBar.SetTargetScale(playerSelected ? 1.2f : 1.0f);
+    mHealthBar.Update(dt);
+
+    const auto& enemies = mBattle.GetAllEnemies();
+    for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
+    {
+        bool enemySelected = (targetedEnemyPtr == enemies[i]);
+        mEnemyHpBar.SetTargetScale(i, enemySelected ? 1.05f : 1.0f);
+
+        const auto& stats = enemies[i]->GetStats();
+        mEnemyHpBar.SetEnemy(
+            i,
+            static_cast<float>(stats.hp),
+            static_cast<float>(stats.maxHp),
+            enemies[i]->IsAlive()
+        );
+    }
+    mEnemyHpBar.Update(dt);
+}
+
+void BattleState::CheckBattleEnd()
+{
+    const BattleOutcome outcome = mBattle.GetOutcome();
+    if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
+    {
+        const auto& players = mBattle.GetAllPlayers();
+        if (!players.empty())
+        {
+            PartyManager::Get().SetVersoStats(players[0]->GetStats());
+            LOG("[BattleState] Saved Verso HP: %d/%d",
+                players[0]->GetStats().hp, players[0]->GetStats().maxHp);
+        }
+
+        mExitEventName = (outcome == BattleOutcome::VICTORY) ? "battle_end_victory" : "battle_end_defeat";
+        mWaitingForDeathAnims = true;
+        LOG("[BattleState] Outcome detected (%s) — waiting for death animations.", mExitEventName.c_str());
+    }
+
+    if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
+    {
+        mWaitingForDeathAnims  = false;
+        mExitTransitionStarted = true;
+
+        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+        LOG("[BattleState] Death animations done — starting iris close.");
+    }
+
+    if (mPendingFlee && !mExitTransitionStarted)
+    {
+        mPendingFlee           = false;
+        mExitTransitionStarted = true;
+        mExitEventName         = "battle_flee";
+
+        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+        LOG("%s", "[BattleState] Flee requested — closing iris.");
+    }
+}
+
 void BattleState::Render()
 {
-    // Re-clear with battle color. No EndFrame — GameApp handles Present.
     mD3D.BeginFrame(kBgR, kBgG, kBgB);
-
-    // Draw all combatant sprites (player side + enemy side).
     mBattleRenderer.Render(mD3D.GetContext());
-
-    // Draw the player HP bar (bottom-right, 3 sprite layers).
     mHealthBar.Render(mD3D.GetContext());
-
-    // Draw enemy HP bars (top-center, 1–3 bars stacked vertically).
     mEnemyHpBar.Render(mD3D.GetContext());
-
-    // Draw the iris transition overlay LAST so it composites over all battle UI.
-    // No-op when IrisPhase == IDLE (iris fully open — nothing to draw).
     mIris.Render(mD3D.GetContext());
 }
 
-// ------------------------------------------------------------
-// HandleInput: route to the correct sub-handler based on the current
-//   input phase.  Called only when BattleManager is in PLAYER_TURN.
-// ------------------------------------------------------------
-void BattleState::HandleInput()
-{
-    switch (mInputPhase)
-    {
-    case PlayerInputPhase::COMMAND_SELECT: HandleCommandSelect(); break;
-    case PlayerInputPhase::SKILL_SELECT:   HandleSkillSelect();   break;
-    case PlayerInputPhase::TARGET_SELECT:  HandleTargetSelect();  break;
-    }
-}
-
-// ------------------------------------------------------------
-// HandleCommandSelect: Up/Down moves the cursor, Enter confirms.
-//   The confirmed IBattleCommand drives the phase transition — BattleState
-//   never switches on the command type.
-// ------------------------------------------------------------
-void BattleState::HandleCommandSelect()
-{
-    auto pressed = [](int vk, bool& wasDown) -> bool {
-        const bool down = (GetAsyncKeyState(vk) & 0x8000) != 0;
-        const bool fresh = down && !wasDown;
-        wasDown = down;
-        return fresh;
-    };
-
-    const int cmdCount = static_cast<int>(mCommands.size());
-
-    if (pressed(VK_UP, mKeyUpWasDown))
-    {
-        mCommandIndex = (mCommandIndex - 1 + cmdCount) % cmdCount;
-        LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
-        DumpStateToDebugOutput();
-    }
-    if (pressed(VK_DOWN, mKeyDownWasDown))
-    {
-        mCommandIndex = (mCommandIndex + 1) % cmdCount;
-        LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
-        DumpStateToDebugOutput();
-    }
-    if (pressed(VK_RETURN, mEnterWasDown))
-    {
-        LOG("[BattleState] Command confirmed: %s", mCommands[mCommandIndex]->GetLabel());
-        // Execute drives the phase change — open/closed, no switch needed here.
-        mCommands[mCommandIndex]->Execute(*this);
-        DumpStateToDebugOutput();
-    }
-}
-
-// ------------------------------------------------------------
-// HandleSkillSelect: Up/Down moves the skill cursor, Enter confirms.
-//   Cursor wraps around the available skill count.
-//   Enter advances to TARGET_SELECT only if the highlighted skill is usable.
-//   Backspace cancels back to COMMAND_SELECT.
-// ------------------------------------------------------------
-void BattleState::HandleSkillSelect()
-{
-    auto pressed = [](int vk, bool& wasDown) -> bool {
-        const bool down = (GetAsyncKeyState(vk) & 0x8000) != 0;
-        const bool fresh = down && !wasDown;
-        wasDown = down;
-        return fresh;
-    };
-
-    auto* player = mBattle.GetActivePlayer();
-    if (!player) return;
-
-    // Count how many skills the active player actually has.
-    // GetSkill() returns nullptr for out-of-range indices — walk until null.
-    int skillCount = 0;
-    while (player->GetSkill(skillCount) != nullptr) ++skillCount;
-    if (skillCount == 0) return;
-
-    // Up/Down move the cursor, wrapping around the skill list.
-    if (pressed(VK_UP, mKeyUpWasDown))
-    {
-        mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
-        LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
-        DumpStateToDebugOutput();
-    }
-    if (pressed(VK_DOWN, mKeyDownWasDown))
-    {
-        mSkillIndex = (mSkillIndex + 1) % skillCount;
-        LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
-        DumpStateToDebugOutput();
-    }
-
-    // Enter confirms the highlighted skill and advances to target selection.
-    if (pressed(VK_RETURN, mEnterWasDown))
-    {
-        ISkill* skill = player->GetSkill(mSkillIndex);
-        if (!skill || !skill->CanUse(*player))
-        {
-            LOG("[BattleState] Skill %d unavailable.", mSkillIndex + 1);
-            return;
-        }
-        LOG("[BattleState] Skill confirmed: %s — now pick a target", skill->GetName());
-        SetInputPhase(PlayerInputPhase::TARGET_SELECT);
-    }
-
-    // Backspace goes back to the top-level command menu.
-    if (pressed(VK_BACK, mBackWasDown))
-    {
-        LOG("%s", "[BattleState] Cancelled skill select — back to command menu.");
-        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
-    }
-}
-
-// ------------------------------------------------------------
-// HandleTargetSelect: Up/Down cycles the target cursor, Enter confirms.
-//   Down advances to the next alive enemy (same as the old Tab behaviour).
-//   Up retreats to the previous alive enemy.
-//   Backspace cancels back to SKILL_SELECT.
-// ------------------------------------------------------------
-void BattleState::HandleTargetSelect()
-{
-    auto pressed = [](int vk, bool& wasDown) -> bool {
-        const bool down = (GetAsyncKeyState(vk) & 0x8000) != 0;
-        const bool fresh = down && !wasDown;
-        wasDown = down;
-        return fresh;
-    };
-
-    const auto enemies = mBattle.GetAliveEnemies();
-    if (enemies.empty()) return;
-    const int enemyCount = static_cast<int>(enemies.size());
-
-    // Down advances to the next target (wraps around).
-    if (pressed(VK_DOWN, mKeyDownWasDown))
-    {
-        mTargetIndex = (mTargetIndex + 1) % enemyCount;
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
-
-        constexpr int kActivePlayerSlot = 0;
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                        kActivePlayerSlot, mTargetIndex);
-        DumpStateToDebugOutput();
-    }
-
-    // Up retreats to the previous target (wraps around).
-    if (pressed(VK_UP, mKeyUpWasDown))
-    {
-        mTargetIndex = (mTargetIndex - 1 + enemyCount) % enemyCount;
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
-
-        constexpr int kActivePlayerSlot = 0;
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                        kActivePlayerSlot, mTargetIndex);
-        DumpStateToDebugOutput();
-    }
-
-    if (pressed(VK_RETURN, mEnterWasDown))  ConfirmSkillAndTarget();
-
-    // Backspace cancels target selection and returns to the skill menu.
-    if (pressed(VK_BACK, mBackWasDown))
-    {
-        LOG("%s", "[BattleState] Cancelled target select — back to skill menu.");
-        SetInputPhase(PlayerInputPhase::SKILL_SELECT);
-    }
-}
-
-// ------------------------------------------------------------
-// CycleTarget: advance the target cursor among alive enemies.
-// ------------------------------------------------------------
-void BattleState::CycleTarget()
-{
-    const auto enemies = mBattle.GetAliveEnemies();
-    if (enemies.empty()) return;
-
-    mTargetIndex = (mTargetIndex + 1) % static_cast<int>(enemies.size());
-    LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
-
-    // Update the camera target position to track the newly selected enemy.
-    // The actor slot stays 0; only the target slot changes.
-    constexpr int kActivePlayerSlot = 0;
-    mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                    kActivePlayerSlot, mTargetIndex);
-
-    DumpStateToDebugOutput();
-}
-
-// ------------------------------------------------------------
-// ConfirmSkillAndTarget: validate and submit the chosen action to
-//   BattleManager.  Resets the input FSM to COMMAND_SELECT so the
-//   next player turn starts fresh at the top menu.
-// ------------------------------------------------------------
-void BattleState::ConfirmSkillAndTarget()
-{
-    auto* player = mBattle.GetActivePlayer();
-    if (!player) return;
-
-    ISkill* skill = player->GetSkill(mSkillIndex);
-    if (!skill || !skill->CanUse(*player))
-    {
-        LOG("%s", "[BattleState] Skill unavailable — action cancelled.");
-        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
-        return;
-    }
-
-    auto enemies = mBattle.GetAliveEnemies();
-    if (enemies.empty()) return;
-
-    // Clamp in case an enemy died since the last Tab press.
-    if (mTargetIndex >= static_cast<int>(enemies.size()))
-        mTargetIndex = 0;
-
-    IBattler* target = enemies[mTargetIndex];
-    mBattle.SetPlayerAction(mSkillIndex, target);
-
-    LOG("[BattleState] Action confirmed: %s -> %s",
-        skill->GetName(), target->GetName().c_str());
-
-    // Reset to top-level menu for the next player turn.
-    // Phase will effectively be re-entered when PLAYER_TURN becomes active
-    // again — the reset here just ensures a clean state.
-    SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
-}
-
-// ------------------------------------------------------------
-// SetInputPhase: public entry point for IBattleCommand implementations.
-//   Resets relevant cursors on transition so stale positions don't leak
-//   between phases.
-//   Also drives the BattleRenderer camera into the appropriate cinematic
-//   phase so the player gets a visual cue about what they are selecting.
-// ------------------------------------------------------------
-void BattleState::SetInputPhase(PlayerInputPhase phase)
-{
-    mInputPhase = phase;
-
-    // Reset the cursor for the phase being entered.
-    if (phase == PlayerInputPhase::COMMAND_SELECT) mCommandIndex = 0;
-    if (phase == PlayerInputPhase::SKILL_SELECT)   mSkillIndex   = 0;
-    if (phase == PlayerInputPhase::TARGET_SELECT)  mTargetIndex  = 0;
-
-    // ---- Drive the battle camera to match the new input phase ----
-    // Actor slot: the active player is always slot 0 (single-player party for now).
-    // When multi-character turns are added, replace 0 with the active slot index.
-    constexpr int kActivePlayerSlot = 0;
-
-    switch (phase)
-    {
-    case PlayerInputPhase::SKILL_SELECT:
-        // Player is choosing a skill — zoom in on the acting character so the
-        // player sees clearly who is about to attack.
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::ACTOR_FOCUS,
-                                        kActivePlayerSlot, -1);
-        break;
-
-    case PlayerInputPhase::TARGET_SELECT:
-        // Player is choosing a target — pan to 80% target / 20% actor blend
-        // so the target is clearly highlighted while the attacker stays in frame.
-        // mTargetIndex was just reset to 0 above, so the camera starts on the
-        // first alive enemy (slot 0).
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                        kActivePlayerSlot, mTargetIndex);
-        break;
-
-    case PlayerInputPhase::COMMAND_SELECT:
-    default:
-        // Back to top-level menu — wide shot, full battlefield visible.
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
-        break;
-    }
-
-    DumpStateToDebugOutput();
-}
-
-// ------------------------------------------------------------
-// DumpStateToDebugOutput: build a BattleHUDSnapshot from live state and
-//   delegate all formatting to BattleDebugHUD::Render().
-//   BattleState assembles the data; BattleDebugHUD owns all layout logic.
-//
-//   Called:
-//     - Every SetInputPhase() transition (player input sub-menu change)
-//     - Every simulation phase change (RESOLVING, ENEMY_TURN, WIN, LOSE)
-//   This ensures the player always has current context in the LOG console.
-// ------------------------------------------------------------
 void BattleState::DumpStateToDebugOutput() const
 {
     BattleHUDSnapshot snap;
     snap.title = "BATTLE STATE";
 
-    // ---- Simulation phase (BattleManager FSM) ----
-    // This tells the player what the engine is currently doing.
     switch (mBattle.GetPhase())
     {
     case BattlePhase::INIT:        snap.simulationPhase = "INIT";        break;
@@ -816,10 +369,11 @@ void BattleState::DumpStateToDebugOutput() const
     default:                       snap.simulationPhase = "UNKNOWN";     break;
     }
 
-    // ---- Player input phase (only meaningful during PLAYER_TURN) ----
+    auto inputPhase = mInputController.GetInputPhase();
+
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
     {
-        switch (mInputPhase)
+        switch (inputPhase)
         {
         case PlayerInputPhase::COMMAND_SELECT: snap.inputPhase = "COMMAND_SELECT"; break;
         case PlayerInputPhase::SKILL_SELECT:   snap.inputPhase = "SKILL_SELECT";   break;
@@ -827,23 +381,19 @@ void BattleState::DumpStateToDebugOutput() const
         }
     }
 
-    // ---- Command menu (Fight / Flee / …) — visible in COMMAND_SELECT ----
-    if (mInputPhase == PlayerInputPhase::COMMAND_SELECT &&
-        mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+    if (inputPhase == PlayerInputPhase::COMMAND_SELECT && mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
     {
-        for (int i = 0; i < static_cast<int>(mCommands.size()); ++i)
+        const auto& commands = mInputController.GetCommands();
+        for (int i = 0; i < static_cast<int>(commands.size()); ++i)
         {
             BattleHUDSnapshot::MenuItem item;
-            item.label    = mCommands[i]->GetLabel();
-            item.selected = (i == mCommandIndex);
+            item.label    = commands[i]->GetLabel();
+            item.selected = (i == mInputController.GetCommandIndex());
             snap.menuItems.push_back(item);
         }
     }
 
-    // ---- Skill list — visible in SKILL_SELECT and TARGET_SELECT ----
-    // Show all skills so the player knows their options before confirming.
-    if ((mInputPhase == PlayerInputPhase::SKILL_SELECT ||
-         mInputPhase == PlayerInputPhase::TARGET_SELECT) &&
+    if ((inputPhase == PlayerInputPhase::SKILL_SELECT || inputPhase == PlayerInputPhase::TARGET_SELECT) &&
         mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
     {
         const PlayerCombatant* player = mBattle.GetActivePlayer();
@@ -856,42 +406,33 @@ void BattleState::DumpStateToDebugOutput() const
                 if (!skill) continue;
 
                 BattleHUDSnapshot::SkillRow row;
-                row.slot        = i + 1;          // 1-based key shown to player
+                row.slot        = i + 1;
                 row.name        = skill->GetName();
                 row.description = skill->GetDescription();
-                // CanUse takes a const IBattler& — cast is safe, no mutation.
                 row.available   = skill->CanUse(*static_cast<const IBattler*>(player));
-                row.selected    = (i == mSkillIndex);
+                row.selected    = (i == mInputController.GetSkillIndex());
                 snap.skillRows.push_back(row);
             }
         }
     }
 
-    // ---- Info lines — target cursor hint in TARGET_SELECT ----
-    if (mInputPhase == PlayerInputPhase::TARGET_SELECT &&
-        mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+    if (inputPhase == PlayerInputPhase::TARGET_SELECT && mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
     {
         const auto enemies = mBattle.GetAliveEnemies();
-        if (mTargetIndex < static_cast<int>(enemies.size()))
+        if (mInputController.GetTargetIndex() < static_cast<int>(enemies.size()))
         {
-            snap.infoLines.push_back({ "Target",
-                enemies[mTargetIndex]->GetName() });
-            snap.infoLines.push_back({ "Hint",
-                "Tab = next target  Enter = confirm  Esc = back" });
+            snap.infoLines.push_back({ "Target", enemies[mInputController.GetTargetIndex()]->GetName() });
+            snap.infoLines.push_back({ "Hint", "Tab / Down = next target  Up = prev target  Enter = confirm  Esc = back" });
         }
 
-        // Also show which skill is about to fire.
         const PlayerCombatant* player = mBattle.GetActivePlayer();
         if (player)
         {
-            const ISkill* skill = player->GetSkill(mSkillIndex);
-            snap.infoLines.push_back({ "Skill",
-                skill ? skill->GetName() : "(none)" });
+            const ISkill* skill = player->GetSkill(mInputController.GetSkillIndex());
+            snap.infoLines.push_back({ "Skill", skill ? skill->GetName() : "(none)" });
         }
     }
 
-    // ---- Combatant table ----
-    // Determine which combatant is currently acting so we can mark them.
     const IBattler* activeCombatant = mBattle.GetActivePlayer();
     if (!activeCombatant)
         activeCombatant = mBattle.GetActiveEnemy();
@@ -919,12 +460,9 @@ void BattleState::DumpStateToDebugOutput() const
         row.hp      = s.hp;   row.maxHp = s.maxHp;
         row.atk     = s.atk;  row.def   = s.def;
         row.spd     = s.spd;  row.alive = e->IsAlive();
-        // maxRage left 0 — PushCombatants() omits the Rage bar for enemies.
         snap.combatants.push_back(row);
     }
 
-    // ---- Battle log tail — last N lines ----
-    // Copy the full log; BattleDebugHUD::Render slices to kLogLines itself.
     snap.logLines = mBattle.GetBattleLog();
 
     BattleDebugHUD::Render(snap);

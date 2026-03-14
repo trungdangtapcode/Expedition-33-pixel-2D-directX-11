@@ -109,6 +109,7 @@ cl.exe ^
     src\UI\HealthBarRenderer.cpp ^
     src\UI\BattleTextRenderer.cpp ^
     src\UI\EnemyHpBarRenderer.cpp ^
+    src\UI\PointerRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^

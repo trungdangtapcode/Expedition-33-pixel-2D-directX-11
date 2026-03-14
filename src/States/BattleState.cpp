@@ -152,6 +152,15 @@ void BattleState::InitUIRenderers()
         mD3D.GetHeight()
     );
 
+    mTargetPointer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/UI/enemy-pointer-ui.png",
+        "assets/UI/enemy-pointer-ui.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight()
+    );
+
     mDialogBox.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -195,6 +204,7 @@ void BattleState::OnExit()
     mBattleRenderer.Shutdown();
     mHealthBar.Shutdown();
     mEnemyHpBar.Shutdown();
+    mTargetPointer.Shutdown();
     mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
     mIris.Shutdown();
@@ -298,6 +308,7 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
 {
     mHealthBar.SetTargetScale(playerSelected ? 1.2f : 1.0f);
     mHealthBar.Update(dt);
+    mTargetPointer.Update(dt);
 
     const auto& enemies = mBattle.GetAllEnemies();
     for (int i = 0; i < static_cast<int>(enemies.size()) && i < EnemyHpBarRenderer::kMaxSlots; ++i)
@@ -405,6 +416,28 @@ void BattleState::Render()
             DirectX::Colors::White,
             cameraMatrix
         );
+    }
+
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT)
+    {
+        const auto aliveEnemies = mBattle.GetAliveEnemies();
+        int targetIdx = mInputController.GetTargetIndex();
+        if (targetIdx >= 0 && targetIdx < static_cast<int>(aliveEnemies.size()))
+        {
+            IBattler* targetedEnemyPtr = aliveEnemies[targetIdx];
+            const auto& allEnemies = mBattle.GetAllEnemies();
+            int slotIndex = 0;
+            for (int i = 0; i < static_cast<int>(allEnemies.size()); ++i)
+            {
+                if (allEnemies[i] == targetedEnemyPtr) { slotIndex = i; break; }
+            }
+
+            float worldX, worldY;
+            mBattleRenderer.GetEnemySlotPos(slotIndex, worldX, worldY);
+            
+            auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
+            mTargetPointer.Draw(mD3D.GetContext(), worldX, worldY, cameraMatrix);
+        }
     }
 
     mIris.Render(mD3D.GetContext());

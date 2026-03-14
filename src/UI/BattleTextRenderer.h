@@ -86,7 +86,8 @@ public:
                     const char*                 text,
                     float                       x,
                     float                       y,
-                    DirectX::FXMVECTOR          color = DirectX::Colors::White);
+                    DirectX::FXMVECTOR          color = DirectX::Colors::White,
+                    DirectX::CXMMATRIX          transform = DirectX::XMMatrixIdentity());
 
     // ----------------------------------------------------------------
     // DrawStringCentered
@@ -102,7 +103,8 @@ public:
                             const char*          text,
                             float                centerX,
                             float                y,
-                            DirectX::FXMVECTOR   color = DirectX::Colors::White);
+                            DirectX::FXMVECTOR   color = DirectX::Colors::White,
+                            DirectX::CXMMATRIX   transform = DirectX::XMMatrixIdentity());
 
     // ----------------------------------------------------------------
     // BeginBatch / DrawStringRaw / EndBatch
@@ -119,7 +121,8 @@ public:
     // WARNING: Do NOT mix with DrawString / DrawStringCentered inside the
     //   same BeginBatch/EndBatch block.
     // ----------------------------------------------------------------
-    void BeginBatch (ID3D11DeviceContext* context);
+    void BeginBatch (ID3D11DeviceContext* context, 
+                     DirectX::CXMMATRIX transform = DirectX::XMMatrixIdentity());
     void DrawStringRaw(const char*       text,
                        float             x,
                        float             y,

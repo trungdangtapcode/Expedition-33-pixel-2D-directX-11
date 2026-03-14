@@ -61,6 +61,7 @@
 #include "../UI/HealthBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
 #include "../UI/BattleTextRenderer.h"
+#include "../Renderer/NineSliceRenderer.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -105,6 +106,7 @@ private:
     BattleRenderer         mBattleRenderer;
     HealthBarRenderer      mHealthBar;
     EnemyHpBarRenderer     mEnemyHpBar;
+    NineSliceRenderer      mDialogBox;
     BattleTextRenderer     mTextRenderer;
     IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;

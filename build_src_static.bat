@@ -74,6 +74,7 @@ cl.exe ^
     src\Renderer\CircleRenderer.cpp ^
     src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\PincushionDistortionFilter.cpp ^
+    src\Renderer\NineSliceRenderer.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^

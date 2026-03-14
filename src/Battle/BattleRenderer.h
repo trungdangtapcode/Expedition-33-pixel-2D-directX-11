@@ -144,6 +144,9 @@ public:
     // Release all GPU resources.
     void Shutdown();
 
+    Camera2D& GetCamera() { return mCameraCtrl.GetCamera(); }
+    const Camera2D& GetCamera() const { return const_cast<BattleCameraController&>(mCameraCtrl).GetCamera(); }
+
     // ------------------------------------------------------------
     // SetCameraPhase: drive the BattleCameraController from BattleState.
     //

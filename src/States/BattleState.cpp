@@ -152,6 +152,15 @@ void BattleState::InitUIRenderers()
         mD3D.GetHeight()
     );
 
+    mDialogBox.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/UI/ui-dialog-box-hd.png",
+        "assets/UI/ui-dialog-box-hd.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight()
+    );
+
     mTextRenderer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -186,6 +195,7 @@ void BattleState::OnExit()
     mBattleRenderer.Shutdown();
     mHealthBar.Shutdown();
     mEnemyHpBar.Shutdown();
+    mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
     mIris.Shutdown();
 }
@@ -353,6 +363,50 @@ void BattleState::Render()
     mBattleRenderer.Render(mD3D.GetContext());
     mHealthBar.Render(mD3D.GetContext());
     mEnemyHpBar.Render(mD3D.GetContext());
+
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
+        mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT)
+    {
+        const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
+        const auto& players = mBattle.GetAllPlayers();
+        int slotIndex = 0;
+        for (int i = 0; i < static_cast<int>(players.size()); ++i)
+        {
+            if (players[i] == activePlayer) { slotIndex = i; break; }
+        }
+
+        float worldX, worldY;
+        mBattleRenderer.GetPlayerSlotPos(slotIndex, worldX, worldY);
+
+        float dialogWidth = 240.0f;
+        float dialogHeight = 80.0f;
+
+        // Position 80px right, 120px up from the character's feet.
+        float dialogX = worldX + 80.0f;
+        float dialogY = worldY - 120.0f;
+
+        auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
+
+        // Draw 9-slice in WORLD SPACE
+        mDialogBox.Draw(
+            mD3D.GetContext(), 
+            dialogX, dialogY, 
+            dialogWidth, dialogHeight, 
+            0.4f,
+            cameraMatrix
+        );
+
+        // Draw Text inside the dialog box (WORLD SPACE)
+        mTextRenderer.DrawString(
+            mD3D.GetContext(),
+            "Hello World",
+            dialogX + 30.0f,  // padding left
+            dialogY + 25.0f,  // padding top
+            DirectX::Colors::White,
+            cameraMatrix
+        );
+    }
+
     mIris.Render(mD3D.GetContext());
 }
 
@@ -470,4 +524,5 @@ void BattleState::DumpStateToDebugOutput() const
 
     BattleDebugHUD::Render(snap);
 }
+
 

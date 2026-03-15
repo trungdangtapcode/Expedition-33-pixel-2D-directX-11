@@ -40,6 +40,9 @@ enum class CombatantAnim
     Walk,    // Movement cycle — played when navigating the overworld.
     Die,     // Death collapse — triggered the frame HP reaches 0.
     Hurt,    // Hit-reaction — optionally triggered when taking damage.
+    Ready,   // Pre-combat transition from Idle to FightState.
+    FightState, // Active combat stance while selecting skills or acting.
+    Unready,    // Post-combat transition from FightState back to Idle.
     kCount   // Sentinel — array size; do NOT use as an anim request.
 };
 
@@ -64,6 +67,9 @@ inline const char* DefaultClipName(CombatantAnim anim)
         case CombatantAnim::Walk:   return "walk";
         case CombatantAnim::Die:    return "die";
         case CombatantAnim::Hurt:   return "hurt";
+        case CombatantAnim::Ready:       return "ready";
+        case CombatantAnim::FightState:  return "fight-state";
+        case CombatantAnim::Unready:     return "unready";
         default:                    return "idle";
     }
 }

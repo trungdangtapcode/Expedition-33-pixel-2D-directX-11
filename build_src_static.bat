@@ -74,6 +74,7 @@ cl.exe ^
     src\Renderer\CircleRenderer.cpp ^
     src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\PincushionDistortionFilter.cpp ^
+    src\Renderer\NineSliceRenderer.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^
@@ -83,6 +84,7 @@ cl.exe ^
     src\Entities\OverworldEnemy.cpp ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
+    src\Systems\ZoomPincushionTransitionController.cpp ^
     src\Battle\WeakenEffect.cpp ^
     src\Battle\Combatant.cpp ^
     src\Battle\PlayerCombatant.cpp ^
@@ -101,12 +103,14 @@ cl.exe ^
     src\Battle\FleeCommand.cpp ^
     src\Battle\ActionQueue.cpp ^
     src\Battle\BattleManager.cpp ^
+    src\Battle\CombatantStanceState.cpp ^
     src\Battle\BattleCameraController.cpp ^
     src\Battle\BattleRenderer.cpp ^
     src\States\BattleState.cpp ^
     src\UI\HealthBarRenderer.cpp ^
     src\UI\BattleTextRenderer.cpp ^
     src\UI\EnemyHpBarRenderer.cpp ^
+    src\UI\PointerRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^

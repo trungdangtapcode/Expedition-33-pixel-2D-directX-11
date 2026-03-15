@@ -87,7 +87,8 @@ void BattleTextRenderer::DrawString(ID3D11DeviceContext* context,
                                     const char*          text,
                                     float                x,
                                     float                y,
-                                    FXMVECTOR            color)
+                                    FXMVECTOR            color,
+                                    CXMMATRIX            transform)
 {
     if (!IsReady() || !text || !*text) return;
 
@@ -95,10 +96,7 @@ void BattleTextRenderer::DrawString(ID3D11DeviceContext* context,
 
     // NonPremultiplied: glyph atlas was generated without premultiplied alpha.
     // LinearClamp: smooth sub-pixel glyph rendering at non-integer positions.
-    mSpriteBatch->Begin(SpriteSortMode_Deferred,
-                        mStates->NonPremultiplied(),
-                        mStates->LinearClamp(),
-                        mStates->DepthNone());
+    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->LinearClamp(), mStates->DepthNone(), nullptr, nullptr, transform);
 
     mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x, y), color);
 
@@ -112,7 +110,8 @@ void BattleTextRenderer::DrawStringCentered(ID3D11DeviceContext* context,
                                             const char*          text,
                                             float                centerX,
                                             float                y,
-                                            FXMVECTOR            color)
+                                            FXMVECTOR            color,
+                                            CXMMATRIX            transform)
 {
     if (!IsReady() || !text || !*text) return;
 
@@ -123,10 +122,7 @@ void BattleTextRenderer::DrawStringCentered(ID3D11DeviceContext* context,
 
     BindViewport(context);
 
-    mSpriteBatch->Begin(SpriteSortMode_Deferred,
-                        mStates->NonPremultiplied(),
-                        mStates->LinearClamp(),
-                        mStates->DepthNone());
+    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->LinearClamp(), mStates->DepthNone(), nullptr, nullptr, transform);
 
     mFont->DrawString(mSpriteBatch.get(), text,
                       XMFLOAT2(centerX - halfW, y), color);
@@ -137,16 +133,13 @@ void BattleTextRenderer::DrawStringCentered(ID3D11DeviceContext* context,
 // ============================================================
 // BeginBatch / DrawStringRaw / DrawStringCenteredRaw / EndBatch
 // ============================================================
-void BattleTextRenderer::BeginBatch(ID3D11DeviceContext* context)
+void BattleTextRenderer::BeginBatch(ID3D11DeviceContext* context, DirectX::CXMMATRIX transform)
 {
     if (!IsReady()) return;
 
     BindViewport(context);
 
-    mSpriteBatch->Begin(SpriteSortMode_Deferred,
-                        mStates->NonPremultiplied(),
-                        mStates->LinearClamp(),
-                        mStates->DepthNone());
+    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->LinearClamp(), mStates->DepthNone(), nullptr, nullptr, transform);
 }
 
 void BattleTextRenderer::DrawStringRaw(const char*  text,
@@ -194,3 +187,5 @@ void BattleTextRenderer::Shutdown()
 
     LOG("[BattleTextRenderer] Shutdown complete.");
 }
+
+

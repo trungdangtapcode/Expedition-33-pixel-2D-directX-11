@@ -61,6 +61,9 @@
 #include "../UI/HealthBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
 #include "../UI/BattleTextRenderer.h"
+#include "../UI/PointerRenderer.h"
+#include "../Renderer/NineSliceRenderer.h"
+#include "../Utils/JsonLoader.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -105,9 +108,13 @@ private:
     BattleRenderer         mBattleRenderer;
     HealthBarRenderer      mHealthBar;
     EnemyHpBarRenderer     mEnemyHpBar;
+    PointerRenderer        mTargetPointer;
+    NineSliceRenderer      mDialogBox;
     BattleTextRenderer     mTextRenderer;
     IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
+
+    JsonLoader::BattleMenuLayout mMenuLayout;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.
@@ -157,4 +164,11 @@ private:
     // ----------------------------------------------------------------
     bool mEnemyWasAlive [BattleRenderer::kMaxSlots] = { true, true, true };
     bool mPlayerWasAlive[BattleRenderer::kMaxSlots] = { true, true, true };
+
+    // ----------------------------------------------------------------
+    // UI Animations
+    // ----------------------------------------------------------------
+    float mCmdMenuTimer = 0.0f;
+    float mSkillMenuTimer = 0.0f;
+    PlayerInputPhase mLastInputPhase = PlayerInputPhase::COMMAND_SELECT;
 };

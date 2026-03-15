@@ -43,12 +43,14 @@
 //      offsets instead; the pivot already lands feet at worldY correctly.
 // ============================================================
 #pragma once
-#include "../Renderer/WorldSpriteRenderer.h"
+#include "../Scene/SceneGraph.h"
+#include "BattleCombatantSprite.h"
 #include "../Renderer/Camera.h"
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/IBattler.h"
 #include "../Battle/BattleCameraController.h"
 #include "../Battle/CombatantAnim.h"
+#include "../Battle/CombatantStanceState.h"
 #include <d3d11.h>
 #include <array>
 #include <vector>
@@ -143,6 +145,9 @@ public:
     // Release all GPU resources.
     void Shutdown();
 
+    Camera2D& GetCamera() { return mCameraCtrl.GetCamera(); }
+    const Camera2D& GetCamera() const { return const_cast<BattleCameraController&>(mCameraCtrl).GetCamera(); }
+
     // ------------------------------------------------------------
     // SetCameraPhase: drive the BattleCameraController from BattleState.
     //
@@ -189,6 +194,8 @@ public:
     //     immediately (frozen = done), so the iris does NOT stall.
     // ------------------------------------------------------------
     bool AreAllDeathAnimsDone() const;
+    bool IsEnemyClipDone(int slot) const;
+    bool IsPlayerClipDone(int slot) const;
 
     // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:
@@ -197,6 +204,12 @@ public:
     // ------------------------------------------------------------
     void GetPlayerSlotPos(int slot, float& outWorldX, float& outWorldY) const;
     void GetEnemySlotPos (int slot, float& outWorldX, float& outWorldY) const;
+
+    // ------------------------------------------------------------
+    // Stance Machine API
+    // ------------------------------------------------------------
+    void SetPlayerFightStance(int slot, bool active);
+    void SetPlayerStanceEnabled(int slot, bool enabled);
 
 private:
     // ----------------------------------------------------------------
@@ -220,11 +233,13 @@ private:
     float mEnemyCamOffX [kMaxSlots] = {};
     float mEnemyCamOffY [kMaxSlots] = {};
 
-    // One renderer per slot per team.
-    WorldSpriteRenderer mPlayerRenderers[kMaxSlots];
-    WorldSpriteRenderer mEnemyRenderers [kMaxSlots];
+    SceneGraph mScene;
 
-    // Which slots are occupied (have a live WorldSpriteRenderer).
+    // Non-owning pointers. SceneGraph owns the instances.
+    BattleCombatantSprite* mPlayerSprites[kMaxSlots] = {nullptr};
+    BattleCombatantSprite* mEnemySprites [kMaxSlots] = {nullptr};
+
+    // Which slots are occupied.
     bool mPlayerActive[kMaxSlots] = { false, false, false };
     bool mEnemyActive [kMaxSlots] = { false, false, false };
 
@@ -241,6 +256,11 @@ private:
     // ----------------------------------------------------------------
     std::string mPlayerClipNames[kMaxSlots][kCombatantAnimCount];
     std::string mEnemyClipNames [kMaxSlots][kCombatantAnimCount];
+
+    // State Pattern track
+    ICombatantStanceState* mPlayerStanceState[kMaxSlots] = {nullptr};
+    bool mPlayerStanceRequested[kMaxSlots] = {false};
+    bool mPlayerStanceEnabled[kMaxSlots] = {true, true, true};
 
     // Battle camera controller — owns Camera2D and drives OVERVIEW /
     // ACTOR_FOCUS / TARGET_FOCUS transitions with smooth lerp.

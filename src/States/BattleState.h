@@ -63,6 +63,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
+#include "../Utils/JsonLoader.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -112,6 +113,8 @@ private:
     BattleTextRenderer     mTextRenderer;
     IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
+
+    JsonLoader::BattleMenuLayout mMenuLayout;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.

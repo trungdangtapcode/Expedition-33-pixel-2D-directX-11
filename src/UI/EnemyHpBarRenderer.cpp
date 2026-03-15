@@ -289,7 +289,7 @@ void EnemyHpBarRenderer::Update(float dt)
             {
                 const float whiteGap = mTargetHP[i] - mWhiteHP[i];
                 mWhiteHP[i] += whiteGap * kWhiteLerpSpeed * dt;
-                if (std::abs(whiteGap) < 0.5f) mWhiteHP[i] = mTargetHP[i];
+                if (std::abs(whiteGap) < 0.1f) mWhiteHP[i] = mTargetHP[i];
             }
         }
         else

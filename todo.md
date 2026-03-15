@@ -9,6 +9,7 @@ Todo:
 - Develop statical formula and system for battle
 
 - Refactor structure of code, make it more modular and easier to maintain: FOLDER STRUCTURE
+- PlayerInputPhase::CHARACTER_ACTION_SELECT -> PlayerInputPhase::SKILL_SELECT
 
 Done:
 - Enhance hp bar

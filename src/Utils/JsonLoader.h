@@ -579,4 +579,73 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     return true;
 }
 
+// ============================================================
+// Battle Menu Layout
+// ============================================================
+
+struct BattleMenuLayout
+{
+    struct MenuConfig {
+        float width = 180.0f;
+        float height = 45.0f;
+        float spacing = 10.0f;
+        float textOffsetX = 30.0f;
+        float textOffsetY = 12.0f;
+        float sliceScale = 0.3f;
+        float hoverScale = 1.05f;
+    };
+
+    struct CommandMenuConfig : MenuConfig {
+        float paddingLeft = 40.0f;
+        float paddingBottom = 40.0f;
+    };
+    
+    struct SkillMenuConfig : MenuConfig {
+        float offsetX = 80.0f;
+        float offsetY = -100.0f;
+    };
+
+    CommandMenuConfig command;
+    SkillMenuConfig skill;
+};
+
+// ------------------------------------------------------------
+// Function: LoadBattleMenuLayout
+// Purpose: Load UI magic numbers for the Battle State menu.
+// ------------------------------------------------------------
+inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open battle menu layout file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    out.command.width = detail::ParseFloat(detail::ValueOf(src, "cmd_width"), 180.0f);
+    out.command.height = detail::ParseFloat(detail::ValueOf(src, "cmd_height"), 45.0f);
+    out.command.spacing = detail::ParseFloat(detail::ValueOf(src, "cmd_spacing"), 10.0f);
+    out.command.textOffsetX = detail::ParseFloat(detail::ValueOf(src, "cmd_textOffsetX"), 30.0f);
+    out.command.textOffsetY = detail::ParseFloat(detail::ValueOf(src, "cmd_textOffsetY"), 12.0f);
+    out.command.sliceScale = detail::ParseFloat(detail::ValueOf(src, "cmd_sliceScale"), 0.3f);
+    out.command.hoverScale = detail::ParseFloat(detail::ValueOf(src, "cmd_hoverScale"), 1.05f);
+    out.command.paddingLeft = detail::ParseFloat(detail::ValueOf(src, "cmd_paddingLeft"), 40.0f);
+    out.command.paddingBottom = detail::ParseFloat(detail::ValueOf(src, "cmd_paddingBottom"), 40.0f);
+
+    out.skill.width = detail::ParseFloat(detail::ValueOf(src, "skill_width"), 240.0f);
+    out.skill.height = detail::ParseFloat(detail::ValueOf(src, "skill_height"), 45.0f);
+    out.skill.spacing = detail::ParseFloat(detail::ValueOf(src, "skill_spacing"), 5.0f);
+    out.skill.textOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_textOffsetX"), 25.0f);
+    out.skill.textOffsetY = detail::ParseFloat(detail::ValueOf(src, "skill_textOffsetY"), 12.0f);
+    out.skill.sliceScale = detail::ParseFloat(detail::ValueOf(src, "skill_sliceScale"), 0.3f);
+    out.skill.hoverScale = detail::ParseFloat(detail::ValueOf(src, "skill_hoverScale"), 1.05f);
+    out.skill.offsetX = detail::ParseFloat(detail::ValueOf(src, "skill_offsetX"), 80.0f);
+    out.skill.offsetY = detail::ParseFloat(detail::ValueOf(src, "skill_offsetY"), -100.0f);
+
+    LOG("[JsonLoader] Loaded BattleMenuLayout from '%s'.", path.c_str());
+    return true;
+}
+
 } // namespace JsonLoader

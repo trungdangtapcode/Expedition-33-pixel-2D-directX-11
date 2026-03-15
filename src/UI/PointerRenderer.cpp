@@ -18,7 +18,19 @@ bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
     mScreenW = screenW;
     mScreenH = screenH;
 
-    HRESULT hr = DirectX::CreateWICTextureFromFile(device, texturePath.c_str(), nullptr, mTextureSRV.GetAddressOf());
+    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
+        device,
+        context,
+        texturePath.c_str(),
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0,
+        0,
+        DirectX::WIC_LOADER_IGNORE_SRGB,
+        nullptr,
+        mTextureSRV.GetAddressOf()
+    );
     if (FAILED(hr))
     {
         LOG("[PointerRenderer] Failed to load texture: %ls", texturePath.c_str());

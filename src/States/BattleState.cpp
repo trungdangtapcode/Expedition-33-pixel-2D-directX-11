@@ -125,6 +125,12 @@ void BattleState::InitBattleSlots()
 
 void BattleState::InitUIRenderers()
 {
+    // Load UI data constants so we're not hardcoding layout numbers
+    if (!JsonLoader::LoadBattleMenuLayout("data/battle_menu_layout.json", mMenuLayout))
+    {
+        LOG("[BattleState] WARNING — failed to load data/battle_menu_layout.json");
+    }
+
     mHealthBar.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -306,7 +312,7 @@ void BattleState::CheckDeathAnimations()
 
 void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected)
 {
-    mHealthBar.SetTargetScale(playerSelected ? 1.2f : 1.0f);
+    mHealthBar.SetTargetScale(playerSelected ? 1.25f : 1.0f);
     mHealthBar.Update(dt);
     mTargetPointer.Update(dt);
 
@@ -376,6 +382,75 @@ void BattleState::Render()
     mEnemyHpBar.Render(mD3D.GetContext());
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
+        mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)
+    {
+        const auto& commands = mInputController.GetCommands();
+        const int commandCount = static_cast<int>(commands.size());
+        const int hoveredIndex = mInputController.GetCommandIndex();
+
+        // Screen-space metrics for bottom-left anchoring
+        const float screenW = static_cast<float>(mD3D.GetWidth());
+        const float screenH = static_cast<float>(mD3D.GetHeight());
+
+        const float baseDialogWidth = mMenuLayout.command.width;
+        const float baseDialogHeight = mMenuLayout.command.height;
+        
+        // Offset from bottom-left corner
+        const float paddingLeft = mMenuLayout.command.paddingLeft;
+        const float paddingBottom = mMenuLayout.command.paddingBottom;
+        const float itemSpacing = mMenuLayout.command.spacing;
+        const float hoverScale = mMenuLayout.command.hoverScale;
+        const float sliceScale = mMenuLayout.command.sliceScale;
+        
+        // Calculate Base Y so the bottom of the list aligns with paddingBottom
+        const float startX = paddingLeft;
+        const float totalHeight = commandCount * (baseDialogHeight + itemSpacing);
+        const float startY = screenH - paddingBottom - totalHeight;
+
+        // Render in Screen Space (Identity Matrix)
+        auto identityMatrix = DirectX::XMMatrixIdentity();
+
+        for (int i = 0; i < commandCount; ++i)
+        {
+            bool isHovered = (i == hoveredIndex);
+            float scaleMultiplier = isHovered ? hoverScale : 1.0f;
+
+            float dialogWidth = baseDialogWidth * scaleMultiplier;
+            float dialogHeight = baseDialogHeight * scaleMultiplier;
+
+            // Shift by half the difference to scale from center
+            float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
+            float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
+
+            float dialogX = startX - offsetX;
+            float dialogY = startY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
+
+            // Draw 9-slice in SCREEN SPACE
+            mDialogBox.Draw(
+                mD3D.GetContext(), 
+                dialogX, dialogY, 
+                dialogWidth, dialogHeight, 
+                sliceScale * scaleMultiplier,
+                identityMatrix
+            );
+
+            float textX = dialogX + mMenuLayout.command.textOffsetX * scaleMultiplier;
+            float textY = dialogY + mMenuLayout.command.textOffsetY * scaleMultiplier;
+
+            DirectX::XMVECTOR textColor = isHovered ? DirectX::Colors::Yellow : DirectX::Colors::White;
+
+            // Draw Text (SCREEN SPACE)
+            mTextRenderer.DrawString(
+                mD3D.GetContext(),
+                commands[i]->GetLabel(),
+                textX, textY,
+                textColor,
+                identityMatrix
+            );
+        }
+    }
+
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
         mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT)
     {
         const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
@@ -389,33 +464,70 @@ void BattleState::Render()
         float worldX, worldY;
         mBattleRenderer.GetPlayerSlotPos(slotIndex, worldX, worldY);
 
-        float dialogWidth = 240.0f;
-        float dialogHeight = 80.0f;
-
-        // Position 80px right, 120px up from the character's feet.
-        float dialogX = worldX + 80.0f;
-        float dialogY = worldY - 120.0f;
-
         auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
 
-        // Draw 9-slice in WORLD SPACE
-        mDialogBox.Draw(
-            mD3D.GetContext(), 
-            dialogX, dialogY, 
-            dialogWidth, dialogHeight, 
-            0.4f,
-            cameraMatrix
-        );
+        if (activePlayer)
+        {
+            const int skillCount = activePlayer->GetSkillCount();
+            const int hoveredIndex = mInputController.GetSkillIndex();
 
-        // Draw Text inside the dialog box (WORLD SPACE)
-        mTextRenderer.DrawString(
-            mD3D.GetContext(),
-            "Hello World",
-            dialogX + 30.0f,  // padding left
-            dialogY + 25.0f,  // padding top
-            DirectX::Colors::White,
-            cameraMatrix
-        );
+            const float baseDialogWidth = mMenuLayout.skill.width;
+            const float baseDialogHeight = mMenuLayout.skill.height;
+            const float itemSpacing = mMenuLayout.skill.spacing;
+            const float hoverScale = mMenuLayout.skill.hoverScale;
+            const float sliceScale = mMenuLayout.skill.sliceScale;
+
+            // Position right from character, centered vertically based on skill count
+            const float baseX = worldX + mMenuLayout.skill.offsetX;
+            const float totalHeight = skillCount * (baseDialogHeight + itemSpacing);
+            const float baseY = worldY + mMenuLayout.skill.offsetY - (totalHeight / 2.0f);
+
+            for (int i = 0; i < skillCount; ++i)
+            {
+                const ISkill* skill = activePlayer->GetSkill(i);
+                if (!skill) continue;
+
+                bool isHovered = (i == hoveredIndex);
+                float scaleMultiplier = isHovered ? hoverScale : 1.0f;
+
+                float dialogWidth = baseDialogWidth * scaleMultiplier;
+                float dialogHeight = baseDialogHeight * scaleMultiplier;
+
+                // Shift by half the difference to scale from center
+                float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
+                float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
+
+                float dialogX = baseX - offsetX;
+                float dialogY = baseY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
+
+                // Draw 9-slice in WORLD SPACE
+                mDialogBox.Draw(
+                    mD3D.GetContext(),
+                    dialogX, dialogY,
+                    dialogWidth, dialogHeight,
+                    sliceScale * scaleMultiplier,
+                    cameraMatrix
+                );
+
+                float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier;
+                float textY = dialogY + mMenuLayout.skill.textOffsetY * scaleMultiplier;
+
+                bool canUse = skill->CanUse(*static_cast<const IBattler*>(activePlayer));
+                DirectX::XMVECTOR textColor = canUse ? DirectX::Colors::White : DirectX::Colors::Gray;
+                if (isHovered) {
+                    textColor = canUse ? DirectX::Colors::Yellow : DirectX::Colors::Orange;
+                }
+
+                // Draw Text inside the dialog box (WORLD SPACE)
+                mTextRenderer.DrawString(
+                    mD3D.GetContext(),
+                    skill->GetName(),
+                    textX, textY,
+                    textColor,
+                    cameraMatrix
+                );
+            }
+        }
     }
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT)

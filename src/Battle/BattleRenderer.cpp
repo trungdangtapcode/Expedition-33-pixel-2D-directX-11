@@ -34,6 +34,7 @@
 //   4. Not calling SetCameraPhase() on input phase change — camera stays stuck.
 // ============================================================
 #include "BattleRenderer.h"
+#include "CombatantStanceState.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
 
@@ -145,6 +146,9 @@ bool BattleRenderer::Initialize(ID3D11Device*                          device,
         mPlayerSprites[i]->PlayClip(info.startClip);
         mPlayerSprites[i]->SetDrawOffset(info.drawOffsetX, info.drawOffsetY);
         mPlayerActive[i] = true;
+
+        mPlayerStanceState[i] = StanceStateIdle::Get();
+        mPlayerStanceRequested[i] = false;
     }
 
     // ----------------------------------------------------------------
@@ -246,6 +250,13 @@ bool BattleRenderer::IsEnemyClipDone(int slot) const
     return mEnemySprites[slot]->IsClipDone();
 }
 
+bool BattleRenderer::IsPlayerClipDone(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return true;
+    if (!mPlayerActive[slot]) return true;
+    return mPlayerSprites[slot]->IsClipDone();
+}
+
 // ------------------------------------------------------------
 // Function: AreAllDeathAnimsDone
 // Purpose:
@@ -280,11 +291,41 @@ bool BattleRenderer::AreAllDeathAnimsDone() const
 // ------------------------------------------------------------
 void BattleRenderer::Update(float dt)
 {
+    // Update Stance State Pattern for all active players
+    for (int i = 0; i < kMaxSlots; ++i)
+    {
+        if (mPlayerActive[i] && mPlayerStanceState[i] != nullptr && mPlayerStanceEnabled[i])
+        {
+            ICombatantStanceState* newState = mPlayerStanceState[i]->Update(this, i, true, mPlayerStanceRequested[i]);
+            if (newState)
+            {
+                mPlayerStanceState[i] = newState;
+                mPlayerStanceState[i]->Enter(this, i, true);
+            }
+        }
+    }
+
     // Advance the battle camera lerp toward the desired phase target.
     // This also calls Camera2D::Update() internally to rebuild the matrix.
     mCameraCtrl.Update(dt);
 
     mScene.Update(dt);
+}
+
+void BattleRenderer::SetPlayerFightStance(int slot, bool active)
+{
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot])
+    {
+        mPlayerStanceRequested[slot] = active;
+    }
+}
+
+void BattleRenderer::SetPlayerStanceEnabled(int slot, bool enabled)
+{
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot])
+    {
+        mPlayerStanceEnabled[slot] = enabled;
+    }
 }
 
 // ------------------------------------------------------------

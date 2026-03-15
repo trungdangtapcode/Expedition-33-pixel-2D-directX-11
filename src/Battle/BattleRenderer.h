@@ -50,6 +50,7 @@
 #include "../Battle/IBattler.h"
 #include "../Battle/BattleCameraController.h"
 #include "../Battle/CombatantAnim.h"
+#include "../Battle/CombatantStanceState.h"
 #include <d3d11.h>
 #include <array>
 #include <vector>
@@ -194,6 +195,7 @@ public:
     // ------------------------------------------------------------
     bool AreAllDeathAnimsDone() const;
     bool IsEnemyClipDone(int slot) const;
+    bool IsPlayerClipDone(int slot) const;
 
     // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:
@@ -202,6 +204,12 @@ public:
     // ------------------------------------------------------------
     void GetPlayerSlotPos(int slot, float& outWorldX, float& outWorldY) const;
     void GetEnemySlotPos (int slot, float& outWorldX, float& outWorldY) const;
+
+    // ------------------------------------------------------------
+    // Stance Machine API
+    // ------------------------------------------------------------
+    void SetPlayerFightStance(int slot, bool active);
+    void SetPlayerStanceEnabled(int slot, bool enabled);
 
 private:
     // ----------------------------------------------------------------
@@ -248,6 +256,11 @@ private:
     // ----------------------------------------------------------------
     std::string mPlayerClipNames[kMaxSlots][kCombatantAnimCount];
     std::string mEnemyClipNames [kMaxSlots][kCombatantAnimCount];
+
+    // State Pattern track
+    ICombatantStanceState* mPlayerStanceState[kMaxSlots] = {nullptr};
+    bool mPlayerStanceRequested[kMaxSlots] = {false};
+    bool mPlayerStanceEnabled[kMaxSlots] = {true, true, true};
 
     // Battle camera controller — owns Camera2D and drives OVERVIEW /
     // ACTOR_FOCUS / TARGET_FOCUS transitions with smooth lerp.

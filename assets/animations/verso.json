@@ -21,6 +21,30 @@
 			"loop": true,
 			"pivot": [64, 128],
 			"align": "bottom-center"
+		},
+		{
+			"name": "ready",
+			"num_frames": 12,
+			"frame_rate": 20,
+			"loop": false,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		},
+		{
+			"name": "fight-state",
+			"num_frames": 9,
+			"frame_rate": 9,
+			"loop": true,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		},
+		{
+			"name": "unready",
+			"num_frames": 5,
+			"frame_rate": 10,
+			"loop": false,
+			"pivot": [64, 128],
+			"align": "bottom-center"
 		}
 	]
 }

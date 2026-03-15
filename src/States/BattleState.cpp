@@ -278,6 +278,34 @@ void BattleState::UpdateLogic(float dt)
 
     UpdateUIRenderers(dt, targetedEnemyPtr, playerSelected);
 
+    // ------------------------------------------------------------
+    // Update Combat Stance State
+    // ------------------------------------------------------------
+    const PlayerCombatant* activeP = mBattle.GetActivePlayer();
+    const auto& players = mBattle.GetAllPlayers();
+    for (int i = 0; i < static_cast<int>(players.size()) && i < BattleRenderer::kMaxSlots; ++i)
+    {
+        bool inStance = false;
+        if (players[i] == activeP && activeP->IsAlive())
+        {
+            if (phaseAfter == BattlePhase::PLAYER_TURN)
+            {
+                auto inputPhase = mInputController.GetInputPhase();
+                if (inputPhase == PlayerInputPhase::SKILL_SELECT || 
+                    inputPhase == PlayerInputPhase::TARGET_SELECT)
+                {
+                    inStance = true;
+                }
+            }
+            else if (phaseAfter == BattlePhase::RESOLVING)
+            {
+                // Action is playing out
+                inStance = true;
+            }
+        }
+        mBattleRenderer.SetPlayerFightStance(i, inStance);
+    }
+
     mBattleRenderer.Update(dt);
 
     CheckBattleEnd();
@@ -303,6 +331,7 @@ void BattleState::CheckDeathAnimations()
         const bool nowAlive = players[i]->IsAlive();
         if (mPlayerWasAlive[i] && !nowAlive)
         {
+            mBattleRenderer.SetPlayerStanceEnabled(i, false);
             mBattleRenderer.PlayPlayerClip(i, CombatantAnim::Die);
             LOG("[BattleState] Player slot %d died — playing die animation.", i);
         }

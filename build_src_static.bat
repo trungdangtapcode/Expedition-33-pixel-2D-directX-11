@@ -103,6 +103,7 @@ cl.exe ^
     src\Battle\FleeCommand.cpp ^
     src\Battle\ActionQueue.cpp ^
     src\Battle\BattleManager.cpp ^
+    src\Battle\CombatantStanceState.cpp ^
     src\Battle\BattleCameraController.cpp ^
     src\Battle\BattleRenderer.cpp ^
     src\States\BattleState.cpp ^

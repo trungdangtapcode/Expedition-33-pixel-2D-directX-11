@@ -51,11 +51,11 @@ public:
     
     // Draw the 9-slice UI.
     // By default, draws with Identity Matrix. To project to a specific camera view, pass a custom transform.
-    void Draw(ID3D11DeviceContext* context, float destX, float destY, float targetWidth, float targetHeight, 
-              float scale = 1.0f, DirectX::CXMMATRIX transform = DirectX::XMMatrixIdentity());
-              
-    void Shutdown();
+    void Draw(ID3D11DeviceContext* context, float destX, float destY, float targetWidth, float targetHeight,
+              float scale = 1.0f, DirectX::CXMMATRIX transform = DirectX::XMMatrixIdentity(),
+              DirectX::XMVECTOR color = DirectX::Colors::White);
 
+    void Shutdown();
 private:
     void BindViewport(ID3D11DeviceContext* context);
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mTextureSRV;

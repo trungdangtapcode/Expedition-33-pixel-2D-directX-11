@@ -8,6 +8,10 @@
   "cmd_hoverScale": 1.05,
   "cmd_paddingLeft": 40.0,
   "cmd_paddingBottom": 40.0,
+  "cmd_entryDelay": 0.0,
+  "cmd_entryDuration": 0.35,
+  "cmd_slideOffsetX": -40.0,
+  "cmd_fadeStartAlpha": 0.0,
 
   "skill_width": 240.0,
   "skill_height": 45.0,
@@ -17,5 +21,9 @@
   "skill_sliceScale": 0.3,
   "skill_hoverScale": 1.05,
   "skill_offsetX": 80.0,
-  "skill_offsetY": -100.0
+  "skill_offsetY": -100.0,
+  "skill_entryDelay": 0.05,
+  "skill_entryDuration": 0.35,
+  "skill_slideOffsetX": 80.0,
+  "skill_fadeStartAlpha": 0.0
 }

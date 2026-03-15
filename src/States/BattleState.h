@@ -164,4 +164,11 @@ private:
     // ----------------------------------------------------------------
     bool mEnemyWasAlive [BattleRenderer::kMaxSlots] = { true, true, true };
     bool mPlayerWasAlive[BattleRenderer::kMaxSlots] = { true, true, true };
+
+    // ----------------------------------------------------------------
+    // UI Animations
+    // ----------------------------------------------------------------
+    float mCmdMenuTimer = 0.0f;
+    float mSkillMenuTimer = 0.0f;
+    PlayerInputPhase mLastInputPhase = PlayerInputPhase::COMMAND_SELECT;
 };

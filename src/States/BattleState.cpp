@@ -256,11 +256,26 @@ void BattleState::UpdateLogic(float dt)
         phaseAfter  == BattlePhase::PLAYER_TURN)
     {
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        mCmdMenuTimer = 0.0f;
     }
     else if (phaseBefore != phaseAfter)
     {
         mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
         DumpStateToDebugOutput();
+    }
+
+    PlayerInputPhase currentInputPhase = mInputController.GetInputPhase();
+    if (mLastInputPhase != currentInputPhase)
+    {
+        if (currentInputPhase == PlayerInputPhase::COMMAND_SELECT) mCmdMenuTimer = 0.0f;
+        if (currentInputPhase == PlayerInputPhase::SKILL_SELECT) mSkillMenuTimer = 0.0f;
+        mLastInputPhase = currentInputPhase;
+    }
+
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
+    {
+        mCmdMenuTimer += dt;
+        mSkillMenuTimer += dt;
     }
 
     bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN && 
@@ -439,6 +454,14 @@ void BattleState::Render()
         // Render in Screen Space (Identity Matrix)
         auto identityMatrix = DirectX::XMMatrixIdentity();
 
+        // Ease interpolation (cubic ease-out)
+        float activeCmdTimer = (std::max)(0.0f, mCmdMenuTimer - mMenuLayout.command.entryDelay);
+        float t = mMenuLayout.command.entryDuration > 0.f ? (std::min)(activeCmdTimer / mMenuLayout.command.entryDuration, 1.0f) : 1.0f;
+        float easeT = 1.0f - std::pow(1.0f - t, 3.0f);
+        float slideOffset = mMenuLayout.command.slideOffsetX * (1.0f - easeT);
+        float currentAlpha = mMenuLayout.command.fadeStartAlpha + (1.0f - mMenuLayout.command.fadeStartAlpha) * easeT;
+        DirectX::XMVECTOR dboxColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
+
         for (int i = 0; i < commandCount; ++i)
         {
             bool isHovered = (i == hoveredIndex);
@@ -451,22 +474,24 @@ void BattleState::Render()
             float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
             float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
 
-            float dialogX = startX - offsetX;
+            float dialogX = startX - offsetX - slideOffset;
             float dialogY = startY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
 
             // Draw 9-slice in SCREEN SPACE
             mDialogBox.Draw(
-                mD3D.GetContext(), 
-                dialogX, dialogY, 
-                dialogWidth, dialogHeight, 
+                mD3D.GetContext(),
+                dialogX, dialogY,
+                dialogWidth, dialogHeight,
                 sliceScale * scaleMultiplier,
-                identityMatrix
+                identityMatrix,
+                dboxColor
             );
 
             float textX = dialogX + mMenuLayout.command.textOffsetX * scaleMultiplier;
             float textY = dialogY + mMenuLayout.command.textOffsetY * scaleMultiplier;
 
             DirectX::XMVECTOR textColor = isHovered ? DirectX::Colors::Yellow : DirectX::Colors::White;
+            textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
 
             // Draw Text (SCREEN SPACE)
             mTextRenderer.DrawString(
@@ -511,6 +536,14 @@ void BattleState::Render()
             const float totalHeight = skillCount * (baseDialogHeight + itemSpacing);
             const float baseY = worldY + mMenuLayout.skill.offsetY - (totalHeight / 2.0f);
 
+            // Ease interpolation (cubic ease-out)
+            float activeSkillTimer = (std::max)(0.0f, mSkillMenuTimer - mMenuLayout.skill.entryDelay);
+            float t = mMenuLayout.skill.entryDuration > 0.f ? (std::min)(activeSkillTimer / mMenuLayout.skill.entryDuration, 1.0f) : 1.0f;
+            float easeT = 1.0f - std::pow(1.0f - t, 3.0f);
+            float slideOffset = mMenuLayout.skill.slideOffsetX * (1.0f - easeT);
+            float currentAlpha = mMenuLayout.skill.fadeStartAlpha + (1.0f - mMenuLayout.skill.fadeStartAlpha) * easeT;
+            DirectX::XMVECTOR dboxColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
+
             for (int i = 0; i < skillCount; ++i)
             {
                 const ISkill* skill = activePlayer->GetSkill(i);
@@ -526,7 +559,7 @@ void BattleState::Render()
                 float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
                 float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
 
-                float dialogX = baseX - offsetX;
+                float dialogX = baseX - offsetX - slideOffset;
                 float dialogY = baseY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
 
                 // Draw 9-slice in WORLD SPACE
@@ -535,7 +568,8 @@ void BattleState::Render()
                     dialogX, dialogY,
                     dialogWidth, dialogHeight,
                     sliceScale * scaleMultiplier,
-                    cameraMatrix
+                    cameraMatrix,
+                    dboxColor
                 );
 
                 float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier;
@@ -546,6 +580,7 @@ void BattleState::Render()
                 if (isHovered) {
                     textColor = canUse ? DirectX::Colors::Yellow : DirectX::Colors::Orange;
                 }
+                textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
 
                 // Draw Text inside the dialog box (WORLD SPACE)
                 mTextRenderer.DrawString(

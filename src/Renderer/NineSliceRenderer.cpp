@@ -86,8 +86,9 @@ bool NineSliceRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* co
     return true;
 }
 
-void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float destY, 
-                             float targetWidth, float targetHeight, float scale, DirectX::CXMMATRIX transform)
+void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float destY,
+                             float targetWidth, float targetHeight, float scale, DirectX::CXMMATRIX transform,
+                             DirectX::XMVECTOR color)
 {
     if (!mSpriteBatch || !mTextureSRV) return;
 
@@ -139,10 +140,6 @@ void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float de
 
     BindViewport(context);
     mSpriteBatch->Begin(DirectX::SpriteSortMode_Deferred, mStates->AlphaBlend(), mStates->PointClamp(), mStates->DepthNone(), nullptr, nullptr, transform);
-
-
-
-    DirectX::XMVECTOR color = DirectX::Colors::White;
 
     mSpriteBatch->Draw(mTextureSRV.Get(), dstLeftTop,   &srcLeftTop,   color);
     mSpriteBatch->Draw(mTextureSRV.Get(), dstCenterTop, &srcCenterTop, color);

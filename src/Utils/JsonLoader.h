@@ -593,6 +593,12 @@ struct BattleMenuLayout
         float textOffsetY = 12.0f;
         float sliceScale = 0.3f;
         float hoverScale = 1.05f;
+        
+        // Animation params
+        float entryDelay = 0.0f;
+        float entryDuration = 0.25f;
+        float slideOffsetX = -40.0f;
+        float fadeStartAlpha = 0.0f;
     };
 
     struct CommandMenuConfig : MenuConfig {
@@ -633,6 +639,10 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.command.hoverScale = detail::ParseFloat(detail::ValueOf(src, "cmd_hoverScale"), 1.05f);
     out.command.paddingLeft = detail::ParseFloat(detail::ValueOf(src, "cmd_paddingLeft"), 40.0f);
     out.command.paddingBottom = detail::ParseFloat(detail::ValueOf(src, "cmd_paddingBottom"), 40.0f);
+    out.command.entryDelay = detail::ParseFloat(detail::ValueOf(src, "cmd_entryDelay"), 0.0f);
+    out.command.entryDuration = detail::ParseFloat(detail::ValueOf(src, "cmd_entryDuration"), 0.25f);
+    out.command.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "cmd_slideOffsetX"), -40.0f);
+    out.command.fadeStartAlpha = detail::ParseFloat(detail::ValueOf(src, "cmd_fadeStartAlpha"), 0.0f);
 
     out.skill.width = detail::ParseFloat(detail::ValueOf(src, "skill_width"), 240.0f);
     out.skill.height = detail::ParseFloat(detail::ValueOf(src, "skill_height"), 45.0f);
@@ -643,6 +653,10 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.hoverScale = detail::ParseFloat(detail::ValueOf(src, "skill_hoverScale"), 1.05f);
     out.skill.offsetX = detail::ParseFloat(detail::ValueOf(src, "skill_offsetX"), 80.0f);
     out.skill.offsetY = detail::ParseFloat(detail::ValueOf(src, "skill_offsetY"), -100.0f);
+    out.skill.entryDelay = detail::ParseFloat(detail::ValueOf(src, "skill_entryDelay"), 0.0f);
+    out.skill.entryDuration = detail::ParseFloat(detail::ValueOf(src, "skill_entryDuration"), 0.25f);
+    out.skill.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_slideOffsetX"), -40.0f);
+    out.skill.fadeStartAlpha = detail::ParseFloat(detail::ValueOf(src, "skill_fadeStartAlpha"), 0.0f);
 
     LOG("[JsonLoader] Loaded BattleMenuLayout from '%s'.", path.c_str());
     return true;

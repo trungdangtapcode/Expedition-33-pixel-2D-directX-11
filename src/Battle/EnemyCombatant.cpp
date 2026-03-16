@@ -1,3 +1,4 @@
+#include "../Utils/JsonLoader.h"
 // ============================================================
 // File: EnemyCombatant.cpp
 // ============================================================
@@ -17,7 +18,11 @@ EnemyCombatant::EnemyCombatant(std::string name)
         kEnemyAtk, kEnemyDef, kEnemySpd,
         0, 0    // rage=0, maxRage=0 — enemies do not use rage
     })
-    , mAttack(std::make_unique<AttackSkill>())
+    , mAttack([]() {
+            JsonLoader::SkillData attackData;
+            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            return std::make_unique<AttackSkill>(attackData);
+        }())
 {}
 
 // ------------------------------------------------------------
@@ -28,7 +33,11 @@ EnemyCombatant::EnemyCombatant(std::string name)
 // ------------------------------------------------------------
 EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats)
     : Combatant(std::move(name), stats)
-    , mAttack(std::make_unique<AttackSkill>())
+    , mAttack([]() {
+            JsonLoader::SkillData attackData;
+            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            return std::make_unique<AttackSkill>(attackData);
+        }())
 {}
 
 // ------------------------------------------------------------

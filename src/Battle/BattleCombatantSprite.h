@@ -48,7 +48,15 @@ public:
     bool PlayClip(const std::string& clip) { return mRenderer.PlayClip(clip); }
     void FreezeCurrentFrame() { mRenderer.FreezeCurrentFrame(); }
     bool IsClipDone() const { return mRenderer.IsClipDone(); }
-    void SetDrawOffset(float offX, float offY) { mRenderer.SetDrawOffset(offX, offY); }
+    void SetDrawOffset(float offX, float offY) {
+        mDrawOffsetX = offX;
+        mDrawOffsetY = offY;
+        mRenderer.SetDrawOffset(offX, offY); 
+    }
+    void GetDrawOffset(float& x, float& y) const {
+        x = mDrawOffsetX;
+        y = mDrawOffsetY;
+    }
 
 private:
     WorldSpriteRenderer mRenderer;
@@ -57,4 +65,6 @@ private:
     float               mWorldY;
     float               mScale;
     bool                mFlipX;
+    float               mDrawOffsetX = 0.f;
+    float               mDrawOffsetY = 0.f;
 };

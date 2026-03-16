@@ -423,3 +423,25 @@ void BattleRenderer::GetEnemySlotPos(int slot, float& outWorldX, float& outWorld
     outWorldY = mEnemyWorldY[slot];
 }
 
+
+
+void BattleRenderer::SetPlayerDrawOffset(int slot, float x, float y) {
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot]) {
+        mPlayerSprites[slot]->SetDrawOffset(x, y);
+    }
+}
+void BattleRenderer::SetEnemyDrawOffset(int slot, float x, float y) {
+    if (slot >= 0 && slot < kMaxSlots && mEnemyActive[slot]) {
+        mEnemySprites[slot]->SetDrawOffset(x, y);
+    }
+}
+void BattleRenderer::GetPlayerDrawOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot]) {
+        mPlayerSprites[slot]->GetDrawOffset(x, y);
+    } else { x = 0; y = 0; }
+}
+void BattleRenderer::GetEnemyDrawOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mEnemyActive[slot]) {
+        mEnemySprites[slot]->GetDrawOffset(x, y);
+    } else { x = 0; y = 0; }
+}

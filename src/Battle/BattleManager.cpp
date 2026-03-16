@@ -4,7 +4,7 @@
 // ============================================================
 #include "BattleManager.h"
 #include "LogAction.h"
-#include "DelayedAction.h"
+
 #include "EnemyEncounterData.h"
 #define NOMINMAX
 #include <algorithm>
@@ -284,10 +284,7 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
             finalAction = std::move(action);
         }
 
-        // Wrap the concrete action in a DelayedAction so the queue pauses
-        // for kDefaultDelay seconds after each step.
-        // Pass ownership into DelayedAction; it takes sole responsibility.
-        mQueue.Enqueue(std::make_unique<DelayedAction>(std::move(finalAction)));
+        mQueue.Enqueue(std::move(finalAction));
     }
 }
 

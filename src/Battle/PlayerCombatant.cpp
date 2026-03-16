@@ -1,3 +1,4 @@
+#include "../Utils/JsonLoader.h"
 // ============================================================
 // File: PlayerCombatant.cpp
 // ============================================================
@@ -25,7 +26,11 @@ PlayerCombatant::PlayerCombatant(std::string name)
     })
 {
     // Register the three default player skills.
-    mSkills.push_back(std::make_unique<AttackSkill>());
+    mSkills.push_back([]() {
+            JsonLoader::SkillData attackData;
+            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            return std::make_unique<AttackSkill>(attackData);
+        }());
     mSkills.push_back(std::make_unique<RageSkill>());
     mSkills.push_back(std::make_unique<WeakenSkill>());
 }
@@ -39,7 +44,11 @@ PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats
     : Combatant(std::move(name), seedStats)
 {
     // Register the three default player skills.
-    mSkills.push_back(std::make_unique<AttackSkill>());
+    mSkills.push_back([]() {
+            JsonLoader::SkillData attackData;
+            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            return std::make_unique<AttackSkill>(attackData);
+        }());
     mSkills.push_back(std::make_unique<RageSkill>());
     mSkills.push_back(std::make_unique<WeakenSkill>());
 }

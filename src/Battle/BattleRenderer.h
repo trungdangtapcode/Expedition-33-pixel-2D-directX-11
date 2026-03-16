@@ -205,6 +205,11 @@ public:
     void GetPlayerSlotPos(int slot, float& outWorldX, float& outWorldY) const;
     void GetEnemySlotPos (int slot, float& outWorldX, float& outWorldY) const;
 
+    void SetPlayerDrawOffset(int slot, float x, float y);
+    void SetEnemyDrawOffset(int slot, float x, float y);
+    void GetPlayerDrawOffset(int slot, float& x, float& y) const;
+    void GetEnemyDrawOffset(int slot, float& x, float& y) const;
+
     // ------------------------------------------------------------
     // Stance Machine API
     // ------------------------------------------------------------

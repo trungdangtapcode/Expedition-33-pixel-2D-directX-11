@@ -45,6 +45,30 @@
 			"loop": false,
 			"pivot": [64, 128],
 			"align": "bottom-center"
+		},
+		{
+			"name": "battle-move",
+			"num_frames": 5,
+			"frame_rate": 8,
+			"loop": false,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		},
+		{
+			"name": "battle-unmove",
+			"num_frames": 5,
+			"frame_rate": 8,
+			"loop": false,
+			"pivot": [64, 128],
+			"align": "bottom-center"
+		},
+		{
+			"name": "attack-1",
+			"num_frames": 11,
+			"frame_rate": 11,
+			"loop": false,
+			"pivot": [64, 128],
+			"align": "bottom-center"
 		}
 	]
 }

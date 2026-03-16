@@ -8,10 +8,15 @@
 // ============================================================
 #pragma once
 #include "ISkill.h"
+#include "../Utils/JsonLoader.h"
+
 
 class AttackSkill : public ISkill
 {
+private:
+    JsonLoader::SkillData mData;
 public:
+    AttackSkill(const JsonLoader::SkillData& data) : mData(data) {}
     const char* GetName()        const override { return "Attack"; }
     const char* GetDescription() const override { return "Strike the enemy."; }
 

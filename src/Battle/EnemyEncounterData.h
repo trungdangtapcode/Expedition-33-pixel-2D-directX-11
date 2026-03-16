@@ -59,11 +59,13 @@ struct EnemySlotData
     std::string hurtClip;    // CombatantAnim::Hurt   (default: "hurt")
 
     // ---- Battle stats ----
-    // MUST be set from JSON — zero-stat combatants are a data authoring error.
+    // ---- Validation ----
     int hp  = 0;
     int atk = 0;
     int def = 0;
     int spd = 0;
+
+    std::string attackJsonPath = "data/skills/skeleton_attack.json";
 
     // ---- Battle camera ----
     // Lifts ACTOR_FOCUS / TARGET_FOCUS from feet-anchor to chest.

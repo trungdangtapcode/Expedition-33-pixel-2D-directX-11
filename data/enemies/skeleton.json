@@ -18,6 +18,7 @@
       "atk": 10,
       "def": 5,
       "spd": 5,
+      "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     }
   ]

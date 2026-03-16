@@ -571,6 +571,12 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
+        
+        std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));
+        if (!attackJson.empty()) {
+            slot.attackJsonPath = attackJson;
+        }
+
         out.battleParty.push_back(std::move(slot));
     }
 

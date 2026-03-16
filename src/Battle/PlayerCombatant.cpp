@@ -17,7 +17,7 @@ static constexpr int kPlayerDef     = 10;
 static constexpr int kPlayerSpd     = 10;
 static constexpr int kPlayerMaxRage = 100;
 
-PlayerCombatant::PlayerCombatant(std::string name)
+PlayerCombatant::PlayerCombatant(std::string name, std::string attackJsonPath)
     : Combatant(std::move(name), BattlerStats{
         kPlayerMaxHp, kPlayerMaxHp,       // hp, maxHp
         kPlayerMaxMp, kPlayerMaxMp,       // mp, maxMp
@@ -26,9 +26,9 @@ PlayerCombatant::PlayerCombatant(std::string name)
     })
 {
     // Register the three default player skills.
-    mSkills.push_back([]() {
+    mSkills.push_back([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            JsonLoader::LoadSkillData(attackJsonPath, attackData);
             return std::make_unique<AttackSkill>(attackData);
         }());
     mSkills.push_back(std::make_unique<RageSkill>());
@@ -40,13 +40,13 @@ PlayerCombatant::PlayerCombatant(std::string name)
 // to restore persistent HP from PartyManager.
 // The skill list is always rebuilt fresh — skills are not persisted.
 // ------------------------------------------------------------
-PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats)
+PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats, std::string attackJsonPath)
     : Combatant(std::move(name), seedStats)
 {
     // Register the three default player skills.
-    mSkills.push_back([]() {
+    mSkills.push_back([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            JsonLoader::LoadSkillData(attackJsonPath, attackData);
             return std::make_unique<AttackSkill>(attackData);
         }());
     mSkills.push_back(std::make_unique<RageSkill>());

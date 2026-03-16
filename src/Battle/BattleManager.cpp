@@ -57,7 +57,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         stats.rage   = 0;
         stats.maxRage= 0;
 
-        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats));
+        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats, sd.attackJsonPath));
     }
 
     BuildTurnOrder();

@@ -11,16 +11,16 @@ static constexpr int kEnemyAtk    = 15;
 static constexpr int kEnemyDef    = 5;
 static constexpr int kEnemySpd    = 8;
 
-EnemyCombatant::EnemyCombatant(std::string name)
+EnemyCombatant::EnemyCombatant(std::string name, std::string attackJsonPath)
     : Combatant(std::move(name), BattlerStats{
         kEnemyMaxHp, kEnemyMaxHp,
         kEnemyMaxMp, kEnemyMaxMp,
         kEnemyAtk, kEnemyDef, kEnemySpd,
         0, 0    // rage=0, maxRage=0 — enemies do not use rage
     })
-    , mAttack([]() {
+    , mAttack([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            JsonLoader::LoadSkillData(attackJsonPath, attackData);
             return std::make_unique<AttackSkill>(attackData);
         }())
 {}
@@ -31,11 +31,11 @@ EnemyCombatant::EnemyCombatant(std::string name)
 // not from the hardcoded constants above.
 // Called by BattleManager::Initialize(EnemyEncounterData) exclusively.
 // ------------------------------------------------------------
-EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats)
+EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats, std::string attackJsonPath)
     : Combatant(std::move(name), stats)
-    , mAttack([]() {
+    , mAttack([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData("data/skills/attack.json", attackData);
+            JsonLoader::LoadSkillData(attackJsonPath, attackData);
             return std::make_unique<AttackSkill>(attackData);
         }())
 {}

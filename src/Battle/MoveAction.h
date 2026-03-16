@@ -16,6 +16,7 @@ public:
     enum class TargetType { MeleeRange, Origin };
 
     MoveAction(IBattler* mover, IBattler* target, TargetType type, float duration,
+               float meleeOffset = 80.0f,
                CombatantAnim movingAnim = CombatantAnim::BattleMove,
                CombatantAnim stopAnim = CombatantAnim::BattleUnmove);
 
@@ -33,6 +34,7 @@ private:
     float       mStartY = 0.f;
     float       mTargetOffsetX = 0.f;
     float       mTargetOffsetY = 0.f;
+    float       mMeleeOffset   = 80.0f;
 
     CombatantAnim mMovingAnim;
     CombatantAnim mStopAnim;

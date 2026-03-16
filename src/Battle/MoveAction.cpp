@@ -7,8 +7,8 @@
 #include "../Events/EventManager.h"
 #include <DirectXMath.h>
 
-MoveAction::MoveAction(IBattler* mover, IBattler* target, TargetType type, float duration, CombatantAnim movingAnim, CombatantAnim stopAnim)
-    : mMover(mover), mTarget(target), mType(type), mDuration(duration), mMovingAnim(movingAnim), mStopAnim(stopAnim)
+MoveAction::MoveAction(IBattler* mover, IBattler* target, TargetType type, float duration, float meleeOffset, CombatantAnim movingAnim, CombatantAnim stopAnim)
+    : mMover(mover), mTarget(target), mType(type), mDuration(duration), mMeleeOffset(meleeOffset), mMovingAnim(movingAnim), mStopAnim(stopAnim)
 {}
 
 bool MoveAction::Execute(float dt)
@@ -33,7 +33,7 @@ bool MoveAction::Execute(float dt)
             // Calculate destination offset
             // We want to be slightly in front of the target.
             // If target is right of us, stand to their left.
-            float dirX = (pTarget.x > pMover.x) ? -80.0f : 80.0f;
+            float dirX = (pTarget.x > pMover.x) ? -mMeleeOffset : mMeleeOffset;
             
             float targetWorldX = pTarget.x + dirX;
             float targetWorldY = pTarget.y;

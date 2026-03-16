@@ -37,7 +37,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     actions.push_back(std::make_unique<PlayAnimationAction>(&caster, CombatantAnim::FightState, false));
 
     // 2. Move to target's melee range (automatically manages BattleMove and BattleUnmove inside MoveAction)
-    actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration));
+    actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
     // 4. Play attack animation
     actions.push_back(std::make_unique<PlayAnimationAction>(&caster, CombatantAnim::Attack, true));
@@ -46,7 +46,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     actions.push_back(std::make_unique<DamageAction>(&caster, target, rawDamage));
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)
-    actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration));
+    actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration, mData.meleeOffset));
 
     // 8. Return to idle state
     actions.push_back(std::make_unique<PlayAnimationAction>(&caster, CombatantAnim::Idle, true));

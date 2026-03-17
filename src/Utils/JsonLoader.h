@@ -673,6 +673,7 @@ struct SkillData {
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
+    float damageTakenOccurMoment = 0.8f;
 };
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
@@ -689,6 +690,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);
+    out.damageTakenOccurMoment = detail::ParseFloat(detail::ValueOf(src, "damageTakenOccurMoment"), 0.8f);
 
     LOG("[JsonLoader] Loaded SkillData from '%s'.", path.c_str());
     return true;

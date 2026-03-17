@@ -180,6 +180,23 @@ public:
     }
 
     // ------------------------------------------------------------
+    // Function: GetClipProgress
+    // Purpose:  Returns the normalized progress [0.0, 1.0] of the current clip.
+    // ------------------------------------------------------------
+    float GetClipProgress() const
+    {
+        if (!mActiveClip || mActiveClip->numFrames <= 0) return 1.0f;
+        if (mClipFinished || mFrozen) return 1.0f;
+        
+        float frameDuration = 1.0f / mActiveClip->frameRate;
+        float totalDuration = frameDuration * mActiveClip->numFrames;
+        float elapsed = (mFrameIndex * frameDuration) + mFrameTimer;
+        
+        float progress = elapsed / totalDuration;
+        return (progress > 1.0f) ? 1.0f : progress;
+    }
+
+    // ------------------------------------------------------------
     // Function: Shutdown
     // Purpose:  Release all GPU resources deterministically.
     //           Called from PlayState::OnExit() before D3D device teardown.

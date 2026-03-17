@@ -170,6 +170,7 @@ private:
     // ----------------------------------------------------------------
     int mPlayAnimListener = -1;
     int mIsAnimDoneListener = -1;
+    int mGetAnimProgressListener = -1;
     int mMoveOffsetListener = -1;
     int mGetWorldPosListener = -1;
     int mGetOffsetListener = -1;
@@ -177,6 +178,7 @@ private:
     bool GetBattlerSlot(IBattler* target, int& outSlot, bool& outIsPlayer) const;
     void OnPlayAnim(const struct EventData& e);
     void OnIsAnimDone(const struct EventData& e);
+    void OnGetAnimProgress(const struct EventData& e);
     void OnMoveOffset(const struct EventData& e);
     void OnGetWorldPos(const struct EventData& e);
     void OnGetOffset(const struct EventData& e);

@@ -48,6 +48,7 @@ public:
     bool PlayClip(const std::string& clip) { return mRenderer.PlayClip(clip); }
     void FreezeCurrentFrame() { mRenderer.FreezeCurrentFrame(); }
     bool IsClipDone() const { return mRenderer.IsClipDone(); }
+    float GetClipProgress() const { return mRenderer.GetClipProgress(); }
     void SetDrawOffset(float offX, float offY) {
         mDrawOffsetX = offX;
         mDrawOffsetY = offY;

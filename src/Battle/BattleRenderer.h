@@ -196,6 +196,9 @@ public:
     bool AreAllDeathAnimsDone() const;
     bool IsEnemyClipDone(int slot) const;
     bool IsPlayerClipDone(int slot) const;
+    
+    float GetEnemyClipProgress(int slot) const;
+    float GetPlayerClipProgress(int slot) const;
 
     // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:

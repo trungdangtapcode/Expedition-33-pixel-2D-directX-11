@@ -1,0 +1,1543 @@
+[11:44:49.011] [GameApp] Debug working directory: D:\lab\vscworkplace\directX
+[11:44:49.096] [D3DContext] WARNING: Debug layer unavailable (DXGI_ERROR_SDK_COMPONENT_MISSING).
+[11:44:49.097] [D3DContext] Retrying without D3D11_CREATE_DEVICE_DEBUG.
+[11:44:49.098] [D3DContext] To enable: Settings > Optional Features > Graphics Tools
+[11:44:49.309] [AudioManager] Loaded BGM track 'overworld' (37235568 bytes PCM).
+[11:44:49.360] [AudioManager] Loaded BGM track 'battle' (29789372 bytes PCM).
+[11:44:49.361] [AudioManager] Initialized. 2 BGM track(s) loaded.
+[11:44:49.362] [MenuState] OnEnter
+[11:44:49.362] [GameApp] Initialized. First state: MenuState.
+[11:44:49.364] [TimeSystem] Clock tree built: Root -> UI, Gameplay
+[11:44:51.951] [MenuState] OnExit
+[11:44:51.952] [OverworldState] OnEnter
+[11:44:51.952] [AudioManager] Playing BGM: 'overworld'.
+[11:44:51.973] [CircleRenderer] Initialized successfully.
+[11:44:51.974] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:44:52.001] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:52.007] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:52.008] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:44:52.009] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton.json': 1 battle slot(s).
+[11:44:52.009] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:44:52.020] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:52.021] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:52.021] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:44:52.022] [OverworldEnemy] Spawned 'Skeleton' at world (300.0, 150.0).
+[11:44:52.023] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton_group.json': 3 battle slot(s).
+[11:44:52.024] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:44:52.039] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:52.040] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:52.041] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:44:52.042] [OverworldEnemy] Spawned 'Skeleton' at world (-250.0, -100.0).
+[11:44:52.057] [PincushionFilter] Initialized (1280x720).
+[11:44:52.058] [DebugTextureViewer] Loaded 'assets/animations/test.png' — 100x100
+[11:44:52.162] [GameApp] Debug working directory: D:\lab\vscworkplace\directX
+[11:44:52.291] [D3DContext] WARNING: Debug layer unavailable (DXGI_ERROR_SDK_COMPONENT_MISSING).
+[11:44:52.291] [D3DContext] Retrying without D3D11_CREATE_DEVICE_DEBUG.
+[11:44:52.293] [D3DContext] To enable: Settings > Optional Features > Graphics Tools
+[11:44:52.552] [AudioManager] Loaded BGM track 'overworld' (37235568 bytes PCM).
+[11:44:52.606] [AudioManager] Loaded BGM track 'battle' (29789372 bytes PCM).
+[11:44:52.606] [AudioManager] Initialized. 2 BGM track(s) loaded.
+[11:44:52.608] [MenuState] OnEnter
+[11:44:52.608] [GameApp] Initialized. First state: MenuState.
+[11:44:52.613] [TimeSystem] Clock tree built: Root -> UI, Gameplay
+[11:44:55.792] [AudioManager] Shutdown complete.
+[11:44:58.197] [OverworldState] B pressed but no enemy in range (contactRadius check failed).
+[11:44:58.762] [ZoomPincushionTransition] Started transition vs 'Skeleton'.
+[11:44:58.763] [OverworldState] Battle triggered vs 'Skeleton' — transition started.
+[11:44:59.762] [ZoomPincushionTransition] Transition sequence completed.
+[11:44:59.764] [BattleState] OnEnter
+[11:44:59.765] [AudioManager] Playing BGM: 'battle'.
+[11:44:59.766] [JsonLoader] Loaded SkillData from 'data/skills/verso_attack.json'. damageMoment: 0.010000 (raw='0.01')
+[11:44:59.766] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:44:59.767] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:44:59.768] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:44:59.768] [Battle] --- BATTLE START ---
+[11:44:59.769] [Battle] Verso HP:100
+[11:44:59.769] [Battle] Skeleton A HP:60
+[11:44:59.770] [Battle] Skeleton B HP:30
+[11:44:59.770] [Battle] Skeleton C HP:35
+[11:44:59.771] [JsonLoader] Loaded formations from 'data/formations.json'.
+[11:44:59.772] [BattleCamera] Initialized — screen 1280x720, phase=OVERVIEW
+[11:44:59.773] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:44:59.784] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:59.785] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:59.786] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:44:59.787] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:44:59.794] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:59.795] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:59.796] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:44:59.796] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:44:59.803] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:59.805] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:59.806] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:44:59.808] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:44:59.816] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:44:59.818] [WorldSpriteRenderer] SpriteBatch created.
+[11:44:59.819] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:44:59.819] [BattleRenderer] Initialized — screen 1280x720
+[11:44:59.820] [JsonLoader] Loaded BattleMenuLayout from 'data/battle_menu_layout.json'.
+[11:44:59.821] [HealthBarConfig] Loaded from 'assets/UI/HP_description.json' — HP bar: [60,174]→[186,189]
+[11:44:59.824] [HealthBarRenderer] Background texture loaded.
+[11:44:59.829] [HealthBarRenderer] Frame + portrait texture loaded.
+[11:44:59.829] [HealthBarRenderer] 1x1 fill texture created.
+[11:44:59.829] [HealthBarRenderer] Initialized. Screen: 1280x720
+[11:44:59.836] [EnemyHpBarRenderer] Config: tex=128x16, HP fill [16,6]->[111,10]
+[11:44:59.836] [EnemyHpBarRenderer] Background texture loaded.
+[11:44:59.836] [EnemyHpBarRenderer] Frame texture loaded.
+[11:44:59.836] [EnemyHpBarRenderer] 1x1 fill texture created.
+[11:44:59.839] [EnemyHpBarRenderer] Initialized. Screen: 1280x720
+[11:44:59.843] [NineSliceRenderer] Loaded NineSliceData from 'assets/UI/ui-dialog-box-hd.json'.
+[11:44:59.843] [BattleTextRenderer] Font loaded: assets/fonts/arial_16.spritefont
+[11:44:59.843] [BattleTextRenderer] Initialized. Screen: 1280x720
+[11:44:59.843] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:44:59.856] [IrisTransitionRenderer] Initialized. maxRadius=758.3 center=(640.0,360.0)
+[11:44:59.857] [IrisTransitionRenderer] StartOpen: speed=800 px/s
+[11:44:59.858] [OverworldState] Transition complete — BattleState pushed, slow-motion restored.
+[11:45:00.201] [BattleState] Command confirmed: Fight
+[11:45:00.203] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:00.207] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:00.368] [BattleState] Skill confirmed: Attack — now pick a target
+[11:45:00.369] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A TARGET ]
+  [Tab] next target   [Enter] confirm   [Esc] back to skills
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  Target      : Skeleton A
+  Hint        : Tab / Down = next target  Up = prev target  Enter = confirm  Esc = back
+  Skill       : Attack
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60[11:45:00.506] [BattleState] Action confirmed: Attack -> Skeleton A
+[11:45:00.509] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:00.515] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:00.923] [AnimDamageAction] Progress=0.000921, mDamageMoment=0.010000
+[11:45:00.928] [AnimDamageAction] Progress=0.002391, mDamageMoment=0.010000
+[11:45:00.930] [AnimDamageAction] Progress=0.003676, mDamageMoment=0.010000
+[11:45:00.934] [AnimDamageAction] Progress=0.004853, mDamageMoment=0.010000
+[11:45:00.938] [AnimDamageAction] Progress=0.006072, mDamageMoment=0.010000
+[11:45:00.942] [AnimDamageAction] Progress=0.007980, mDamageMoment=0.010000
+[11:45:00.947] [AnimDamageAction] Progress=0.009154, mDamageMoment=0.010000
+[11:45:00.948] [AnimDamageAction] FIRING DAMAGE AT Progress=0.010024 (Target=0.010000)
+[11:45:00.949] Skeleton A takes 19 damage (raw=25 def=6) HP=41/60
+[11:45:00.950] [AnimDamageAction] Progress=0.010906, mDamageMoment=0.010000
+[11:45:00.954] [AnimDamageAction] Progress=0.011943, mDamageMoment=0.010000
+[11:45:00.957] [AnimDamageAction] Progress=0.013079, mDamageMoment=0.010000
+[11:45:00.960] [AnimDamageAction] Progress=0.014407, mDamageMoment=0.010000
+[11:45:00.964] [AnimDamageAction] Progress=0.015500, mDamageMoment=0.010000
+[11:45:00.966] [AnimDamageAction] Progress=0.016673, mDamageMoment=0.010000
+[11:45:00.970] [AnimDamageAction] Progress=0.018052, mDamageMoment=0.010000
+[11:45:00.970] [AnimDamageAction] Progress=0.019496, mDamageMoment=0.010000
+[11:45:00.978] [AnimDamageAction] Progress=0.020889, mDamageMoment=0.010000
+[11:45:00.982] [AnimDamageAction] Progress=0.022186, mDamageMoment=0.010000
+[11:45:00.986] [AnimDamageAction] Progress=0.023678, mDamageMoment=0.010000
+[11:45:00.990] [AnimDamageAction] Progress=0.024902, mDamageMoment=0.010000
+[11:45:00.992] [AnimDamageAction] Progress=0.026055, mDamageMoment=0.010000
+[11:45:00.995] [AnimDamageAction] Progress=0.027126, mDamageMoment=0.010000
+[11:45:00.999] [AnimDamageAction] Progress=0.028274, mDamageMoment=0.010000
+[11:45:01.002] [AnimDamageAction] Progress=0.029437, mDamageMoment=0.010000
+[11:45:01.004] [AnimDamageAction] Progress=0.030680, mDamageMoment=0.010000
+[11:45:01.007] [AnimDamageAction] Progress=0.031888, mDamageMoment=0.010000
+[11:45:01.012] [AnimDamageAction] Progress=0.033096, mDamageMoment=0.010000
+[11:45:01.015] [AnimDamageAction] Progress=0.034406, mDamageMoment=0.010000
+[11:45:01.020] [AnimDamageAction] Progress=0.035848, mDamageMoment=0.010000
+[11:45:01.023] [AnimDamageAction] Progress=0.037110, mDamageMoment=0.010000
+[11:45:01.026] [AnimDamageAction] Progress=0.038252, mDamageMoment=0.010000
+[11:45:01.029] [AnimDamageAction] Progress=0.039433, mDamageMoment=0.010000
+[11:45:01.033] [AnimDamageAction] Progress=0.040641, mDamageMoment=0.010000
+[11:45:01.036] [AnimDamageAction] Progress=0.042001, mDamageMoment=0.010000
+[11:45:01.040] [AnimDamageAction] Progress=0.043280, mDamageMoment=0.010000
+[11:45:01.043] [AnimDamageAction] Progress=0.044382, mDamageMoment=0.010000
+[11:45:01.046] [AnimDamageAction] Progress=0.045614, mDamageMoment=0.010000
+[11:45:01.050] [AnimDamageAction] Progress=0.046857, mDamageMoment=0.010000
+[11:45:01.052] [AnimDamageAction] Progress=0.048015, mDamageMoment=0.010000
+[11:45:01.056] [AnimDamageAction] Progress=0.049177, mDamageMoment=0.010000
+[11:45:01.060] [AnimDamageAction] Progress=0.050368, mDamageMoment=0.010000
+[11:45:01.063] [AnimDamageAction] Progress=0.051688, mDamageMoment=0.010000
+[11:45:33.424] [GameApp] Debug working directory: D:\lab\vscworkplace\directX
+[11:45:33.532] [D3DContext] WARNING: Debug layer unavailable (DXGI_ERROR_SDK_COMPONENT_MISSING).
+[11:45:33.533] [D3DContext] Retrying without D3D11_CREATE_DEVICE_DEBUG.
+[11:45:33.534] [D3DContext] To enable: Settings > Optional Features > Graphics Tools
+[11:45:33.740] [AudioManager] Loaded BGM track 'overworld' (37235568 bytes PCM).
+[11:45:33.792] [AudioManager] Loaded BGM track 'battle' (29789372 bytes PCM).
+[11:45:33.792] [AudioManager] Initialized. 2 BGM track(s) loaded.
+[11:45:33.792] [MenuState] OnEnter
+[11:45:33.794] [GameApp] Initialized. First state: MenuState.
+[11:45:33.797] [TimeSystem] Clock tree built: Root -> UI, Gameplay
+[11:45:33.937] [MenuState] OnExit
+[11:45:33.938] [OverworldState] OnEnter
+[11:45:33.938] [AudioManager] Playing BGM: 'overworld'.
+[11:45:33.956] [CircleRenderer] Initialized successfully.
+[11:45:33.958] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:45:33.986] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:33.990] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:33.991] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:45:33.992] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton.json': 1 battle slot(s).
+[11:45:33.992] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:45:34.003] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:34.003] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:34.004] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:45:34.004] [OverworldEnemy] Spawned 'Skeleton' at world (300.0, 150.0).
+[11:45:34.005] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton_group.json': 3 battle slot(s).
+[11:45:34.006] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:45:34.021] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:34.023] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:34.024] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:45:34.024] [OverworldEnemy] Spawned 'Skeleton' at world (-250.0, -100.0).
+[11:45:34.039] [PincushionFilter] Initialized (1280x720).
+[11:45:34.040] [DebugTextureViewer] Loaded 'assets/animations/test.png' — 100x100
+[11:45:35.403] [OverworldState] B pressed but no enemy in range (contactRadius check failed).
+[11:45:35.803] [ZoomPincushionTransition] Started transition vs 'Skeleton'.
+[11:45:35.803] [OverworldState] Battle triggered vs 'Skeleton' — transition started.
+[11:45:36.803] [ZoomPincushionTransition] Transition sequence completed.
+[11:45:36.803] [BattleState] OnEnter
+[11:45:36.809] [AudioManager] Playing BGM: 'battle'.
+[11:45:36.809] [JsonLoader] Loaded SkillData from 'data/skills/verso_attack.json'. damageMoment: 0.010000 (raw='0.01')
+[11:45:36.811] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:45:36.811] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:45:36.812] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'. damageMoment: 0.100000 (raw='0.1')
+[11:45:36.813] [Battle] --- BATTLE START ---
+[11:45:36.813] [Battle] Verso HP:100
+[11:45:36.815] [Battle] Skeleton A HP:60
+[11:45:36.815] [Battle] Skeleton B HP:30
+[11:45:36.817] [Battle] Skeleton C HP:35
+[11:45:36.818] [JsonLoader] Loaded formations from 'data/formations.json'.
+[11:45:36.819] [BattleCamera] Initialized — screen 1280x720, phase=OVERVIEW
+[11:45:36.820] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:45:36.831] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:36.831] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:36.831] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:45:36.831] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:45:36.843] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:36.843] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:36.843] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:45:36.843] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:45:36.852] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:36.857] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:36.858] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:45:36.859] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:45:36.868] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:45:36.868] [WorldSpriteRenderer] SpriteBatch created.
+[11:45:36.868] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:45:36.871] [BattleRenderer] Initialized — screen 1280x720
+[11:45:36.871] [JsonLoader] Loaded BattleMenuLayout from 'data/battle_menu_layout.json'.
+[11:45:36.871] [HealthBarConfig] Loaded from 'assets/UI/HP_description.json' — HP bar: [60,174]→[186,189]
+[11:45:36.875] [HealthBarRenderer] Background texture loaded.
+[11:45:36.879] [HealthBarRenderer] Frame + portrait texture loaded.
+[11:45:36.884] [HealthBarRenderer] 1x1 fill texture created.
+[11:45:36.884] [HealthBarRenderer] Initialized. Screen: 1280x720
+[11:45:36.884] [EnemyHpBarRenderer] Config: tex=128x16, HP fill [16,6]->[111,10]
+[11:45:36.884] [EnemyHpBarRenderer] Background texture loaded.
+[11:45:36.887] [EnemyHpBarRenderer] Frame texture loaded.
+[11:45:36.887] [EnemyHpBarRenderer] 1x1 fill texture created.
+[11:45:36.889] [EnemyHpBarRenderer] Initialized. Screen: 1280x720
+[11:45:36.892] [NineSliceRenderer] Loaded NineSliceData from 'assets/UI/ui-dialog-box-hd.json'.
+[11:45:36.894] [BattleTextRenderer] Font loaded: assets/fonts/arial_16.spritefont
+[11:45:36.894] [BattleTextRenderer] Initialized. Screen: 1280x720
+[11:45:36.895] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:36.905] [IrisTransitionRenderer] Initialized. maxRadius=758.3 center=(640.0,360.0)
+[11:45:36.905] [IrisTransitionRenderer] StartOpen: speed=800 px/s
+[11:45:36.907] [OverworldState] Transition complete — BattleState pushed, slow-motion restored.
+[11:45:36.967] [BattleState] Command confirmed: Fight
+[11:45:36.969] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:36.972] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:37.121] [BattleState] Skill confirmed: Attack — now pick a target
+[11:45:37.123] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A TARGET ]
+  [Tab] next target   [Enter] confirm   [Esc] back to skills
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  Target      : Skeleton A
+  Hint        : Tab / Down = next target  Up = prev target  Enter = confirm  Esc = back
+  Skill       : Attack
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60[11:45:37.283] [BattleState] Action confirmed: Attack -> Skeleton A
+[11:45:37.284] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:37.288] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:45:37.695] [AnimDamageAction] Progress=0.000915, mDamageMoment=0.010000
+[11:45:37.699] [AnimDamageAction] Progress=0.002531, mDamageMoment=0.010000
+[11:45:37.703] [AnimDamageAction] Progress=0.003895, mDamageMoment=0.010000
+[11:45:37.707] [AnimDamageAction] Progress=0.005412, mDamageMoment=0.010000
+[11:45:37.707] [AnimDamageAction] Progress=0.006771, mDamageMoment=0.010000
+[11:45:37.715] [AnimDamageAction] Progress=0.008369, mDamageMoment=0.010000
+[11:45:37.719] [AnimDamageAction] Progress=0.009651, mDamageMoment=0.010000
+[11:45:37.721] [AnimDamageAction] FIRING DAMAGE AT Progress=0.010415 (Target=0.010000)
+[11:45:37.721] Skeleton A takes 19 damage (raw=25 def=6) HP=41/60
+[11:45:37.725] [AnimDamageAction] Progress=0.011749, mDamageMoment=0.010000
+[11:45:37.729] [AnimDamageAction] Progress=0.013253, mDamageMoment=0.010000
+[11:45:37.733] [AnimDamageAction] Progress=0.014757, mDamageMoment=0.010000
+[11:45:37.739] [AnimDamageAction] Progress=0.016948, mDamageMoment=0.010000
+[11:45:37.741] [AnimDamageAction] Progress=0.018499, mDamageMoment=0.010000
+[11:45:37.747] [AnimDamageAction] Progress=0.020033, mDamageMoment=0.010000
+[11:45:37.751] [AnimDamageAction] Progress=0.021704, mDamageMoment=0.010000
+[11:45:37.756] [AnimDamageAction] Progress=0.023222, mDamageMoment=0.010000
+[11:45:37.760] [AnimDamageAction] Progress=0.024627, mDamageMoment=0.010000
+[11:45:37.765] [AnimDamageAction] Progress=0.026295, mDamageMoment=0.010000
+[11:45:37.769] [AnimDamageAction] Progress=0.027903, mDamageMoment=0.010000
+[11:45:37.771] [AnimDamageAction] Progress=0.029253, mDamageMoment=0.010000
+[11:45:37.777] [AnimDamageAction] Progress=0.030749, mDamageMoment=0.010000
+[11:45:37.781] [AnimDamageAction] Progress=0.032117, mDamageMoment=0.010000
+[11:45:37.784] [AnimDamageAction] Progress=0.033452, mDamageMoment=0.010000
+[11:45:37.787] [AnimDamageAction] Progress=0.034685, mDamageMoment=0.010000
+[11:45:37.791] [AnimDamageAction] Progress=0.036015, mDamageMoment=0.010000
+[11:45:37.791] [AnimDamageAction] Progress=0.037197, mDamageMoment=0.010000
+[11:45:37.799] [AnimDamageAction] Progress=0.038806, mDamageMoment=0.010000
+[11:45:37.803] [AnimDamageAction] Progress=0.040068, mDamageMoment=0.010000
+[11:45:37.804] [AnimDamageAction] Progress=0.041291, mDamageMoment=0.010000
+[11:45:37.809] [AnimDamageAction] Progress=0.042545, mDamageMoment=0.010000
+[11:45:37.813] [AnimDamageAction] Progress=0.044093, mDamageMoment=0.010000
+[11:45:37.817] [AnimDamageAction] Progress=0.045422, mDamageMoment=0.010000
+[11:45:37.821] [AnimDamageAction] Progress=0.046654, mDamageMoment=0.010000
+[11:45:37.823] [AnimDamageAction] Progress=0.047894, mDamageMoment=0.010000
+[11:45:37.827] [AnimDamageAction] Progress=0.049165, mDamageMoment=0.010000
+[11:45:37.831] [AnimDamageAction] Progress=0.050383, mDamageMoment=0.010000
+[11:45:37.834] [AnimDamageAction] Progress=0.051694, mDamageMoment=0.010000
+[11:45:37.838] [AnimDamageAction] Progress=0.052909, mDamageMoment=0.010000
+[11:45:37.841] [AnimDamageAction] Progress=0.054141, mDamageMoment=0.010000
+[11:45:37.845] [AnimDamageAction] Progress=0.055371, mDamageMoment=0.010000
+[11:45:37.848] [AnimDamageAction] Progress=0.056795, mDamageMoment=0.010000
+[11:45:37.851] [AnimDamageAction] Progress=0.058001, mDamageMoment=0.010000
+[11:45:37.854] [AnimDamageAction] Progress=0.059195, mDamageMoment=0.010000
+[11:45:37.858] [AnimDamageAction] Progress=0.060360, mDamageMoment=0.010000
+[11:45:37.863] [AnimDamageAction] Progress=0.061907, mDamageMoment=0.010000
+[11:45:37.865] [AnimDamageAction] Progress=0.063335, mDamageMoment=0.010000
+[11:45:37.867] [AnimDamageAction] Progress=0.064596, mDamageMoment=0.010000
+[11:45:37.873] [AnimDamageAction] Progress=0.066015, mDamageMoment=0.010000
+[11:45:37.877] [AnimDamageAction] Progress=0.067175, mDamageMoment=0.010000
+[11:45:37.880] [AnimDamageAction] Progress=0.068391, mDamageMoment=0.010000
+[11:45:37.883] [AnimDamageAction] Progress=0.069534, mDamageMoment=0.010000
+[11:45:37.887] [AnimDamageAction] Progress=0.070943, mDamageMoment=0.010000
+[11:45:37.890] [AnimDamageAction] Progress=0.072190, mDamageMoment=0.010000
+[11:45:37.894] [AnimDamageAction] Progress=0.073603, mDamageMoment=0.010000
+[11:45:37.897] [AnimDamageAction] Progress=0.074801, mDamageMoment=0.010000
+[11:45:37.902] [AnimDamageAction] Progress=0.076154, mDamageMoment=0.010000
+[11:45:37.905] [AnimDamageAction] Progress=0.077345, mDamageMoment=0.010000
+[11:45:37.909] [AnimDamageAction] Progress=0.078828, mDamageMoment=0.010000
+[11:45:37.911] [AnimDamageAction] Progress=0.080147, mDamageMoment=0.010000
+[11:45:37.916] [AnimDamageAction] Progress=0.081461, mDamageMoment=0.010000
+[11:45:37.920] [AnimDamageAction] Progress=0.082659, mDamageMoment=0.010000
+[11:45:37.923] [AnimDamageAction] Progress=0.084077, mDamageMoment=0.010000
+[11:45:37.927] [AnimDamageAction] Progress=0.085327, mDamageMoment=0.010000
+[11:45:37.931] [AnimDamageAction] Progress=0.086796, mDamageMoment=0.010000
+[11:45:37.934] [AnimDamageAction] Progress=0.088085, mDamageMoment=0.010000
+[11:45:37.938] [AnimDamageAction] Progress=0.089299, mDamageMoment=0.010000
+[11:45:37.941] [AnimDamageAction] Progress=0.090390, mDamageMoment=0.010000
+[11:45:37.945] [AnimDamageAction] Progress=0.091750, mDamageMoment=0.010000
+[11:45:37.948] [AnimDamageAction] Progress=0.093034, mDamageMoment=0.010000
+[11:45:37.951] [AnimDamageAction] Progress=0.094402, mDamageMoment=0.010000
+[11:45:37.955] [AnimDamageAction] Progress=0.095553, mDamageMoment=0.010000
+[11:45:37.959] [AnimDamageAction] Progress=0.097013, mDamageMoment=0.010000
+[11:45:37.962] [AnimDamageAction] Progress=0.098336, mDamageMoment=0.010000
+[11:45:37.966] [AnimDamageAction] Progress=0.099633, mDamageMoment=0.010000
+[11:45:37.971] [AnimDamageAction] Progress=0.101702, mDamageMoment=0.010000
+[11:45:37.977] [AnimDamageAction] Progress=0.103524, mDamageMoment=0.010000
+[11:45:37.980] [AnimDamageAction] Progress=0.104796, mDamageMoment=0.010000
+[11:45:37.983] [AnimDamageAction] Progress=0.106318, mDamageMoment=0.010000
+[11:45:37.987] [AnimDamageAction] Progress=0.107583, mDamageMoment=0.010000
+[11:45:37.992] [AnimDamageAction] Progress=0.109083, mDamageMoment=0.010000
+[11:45:37.996] [AnimDamageAction] Progress=0.110321, mDamageMoment=0.010000
+[11:45:37.999] [AnimDamageAction] Progress=0.111729, mDamageMoment=0.010000
+[11:45:38.003] [AnimDamageAction] Progress=0.113046, mDamageMoment=0.010000
+[11:45:38.004] [AnimDamageAction] Progress=0.114357, mDamageMoment=0.010000
+[11:45:38.011] [AnimDamageAction] Progress=0.116024, mDamageMoment=0.010000
+[11:45:38.015] [AnimDamageAction] Progress=0.117532, mDamageMoment=0.010000
+[11:45:38.020] [AnimDamageAction] Progress=0.119041, mDamageMoment=0.010000
+[11:45:38.023] [AnimDamageAction] Progress=0.120316, mDamageMoment=0.010000
+[11:45:38.025] [AnimDamageAction] Progress=0.121773, mDamageMoment=0.010000
+[11:45:38.030] [AnimDamageAction] Progress=0.123008, mDamageMoment=0.010000
+[11:45:38.032] [AnimDamageAction] Progress=0.124447, mDamageMoment=0.010000
+[11:45:38.037] [AnimDamageAction] Progress=0.125753, mDamageMoment=0.010000
+[11:45:38.041] [AnimDamageAction] Progress=0.127138, mDamageMoment=0.010000
+[11:45:38.045] [AnimDamageAction] Progress=0.128358, mDamageMoment=0.010000
+[11:45:38.048] [AnimDamageAction] Progress=0.130008, mDamageMoment=0.010000
+[11:45:38.053] [AnimDamageAction] Progress=0.131205, mDamageMoment=0.010000
+[11:45:38.056] [AnimDamageAction] Progress=0.132492, mDamageMoment=0.010000
+[11:45:38.060] [AnimDamageAction] Progress=0.133820, mDamageMoment=0.010000
+[11:45:38.061] [AnimDamageAction] Progress=0.135151, mDamageMoment=0.010000
+[11:45:38.067] [AnimDamageAction] Progress=0.136424, mDamageMoment=0.010000
+[11:45:38.067] [AnimDamageAction] Progress=0.137970, mDamageMoment=0.010000
+[11:45:38.075] [AnimDamageAction] Progress=0.139582, mDamageMoment=0.010000
+[11:45:38.079] [AnimDamageAction] Progress=0.140926, mDamageMoment=0.010000
+[11:45:38.081] [AnimDamageAction] Progress=0.142310, mDamageMoment=0.010000
+[11:45:38.084] [AnimDamageAction] Progress=0.143483, mDamageMoment=0.010000
+[11:45:38.088] [AnimDamageAction] Progress=0.144881, mDamageMoment=0.010000
+[11:45:38.094] [AnimDamageAction] Progress=0.146283, mDamageMoment=0.010000
+[11:45:38.098] [AnimDamageAction] Progress=0.147628, mDamageMoment=0.010000
+[11:45:38.101] [AnimDamageAction] Progress=0.148997, mDamageMoment=0.010000
+[11:45:38.104] [AnimDamageAction] Progress=0.150251, mDamageMoment=0.010000
+[11:45:38.109] [AnimDamageAction] Progress=0.151566, mDamageMoment=0.010000
+[11:45:38.112] [AnimDamageAction] Progress=0.152869, mDamageMoment=0.010000
+[11:45:38.116] [AnimDamageAction] Progress=0.154135, mDamageMoment=0.010000
+[11:45:38.119] [AnimDamageAction] Progress=0.155366, mDamageMoment=0.010000
+[11:45:38.122] [AnimDamageAction] Progress=0.156605, mDamageMoment=0.010000
+[11:45:38.127] [AnimDamageAction] Progress=0.157931, mDamageMoment=0.010000
+[11:45:38.131] [AnimDamageAction] Progress=0.159462, mDamageMoment=0.010000
+[11:45:38.134] [AnimDamageAction] Progress=0.160728, mDamageMoment=0.010000
+[11:45:38.138] [AnimDamageAction] Progress=0.162134, mDamageMoment=0.010000
+[11:45:38.142] [AnimDamageAction] Progress=0.163387, mDamageMoment=0.010000
+[11:45:38.145] [AnimDamageAction] Progress=0.164713, mDamageMoment=0.010000
+[11:45:38.149] [AnimDamageAction] Progress=0.166046, mDamageMoment=0.010000
+[11:45:38.152] [AnimDamageAction] Progress=0.167314, mDamageMoment=0.010000
+[11:45:38.155] [AnimDamageAction] Progress=0.168552, mDamageMoment=0.010000
+[11:45:38.159] [AnimDamageAction] Progress=0.169839, mDamageMoment=0.010000
+[11:45:38.163] [AnimDamageAction] Progress=0.171109, mDamageMoment=0.010000
+[11:45:38.167] [AnimDamageAction] Progress=0.172491, mDamageMoment=0.010000
+[11:45:38.170] [AnimDamageAction] Progress=0.173849, mDamageMoment=0.010000
+[11:45:38.175] [AnimDamageAction] Progress=0.175545, mDamageMoment=0.010000
+[11:45:38.178] [AnimDamageAction] Progress=0.176915, mDamageMoment=0.010000
+[11:45:38.181] [AnimDamageAction] Progress=0.178135, mDamageMoment=0.010000
+[11:45:38.186] [AnimDamageAction] Progress=0.179333, mDamageMoment=0.010000
+[11:45:38.188] [AnimDamageAction] Progress=0.180767, mDamageMoment=0.010000
+[11:45:38.193] [AnimDamageAction] Progress=0.182341, mDamageMoment=0.010000
+[11:45:38.197] [AnimDamageAction] Progress=0.183507, mDamageMoment=0.010000
+[11:45:38.200] [AnimDamageAction] Progress=0.184760, mDamageMoment=0.010000
+[11:45:38.203] [AnimDamageAction] Progress=0.185930, mDamageMoment=0.010000
+[11:45:38.207] [AnimDamageAction] Progress=0.187237, mDamageMoment=0.010000
+[11:45:38.210] [AnimDamageAction] Progress=0.188487, mDamageMoment=0.010000
+[11:45:38.214] [AnimDamageAction] Progress=0.189639, mDamageMoment=0.010000
+[11:45:38.217] [AnimDamageAction] Progress=0.190748, mDamageMoment=0.010000
+[11:45:38.220] [AnimDamageAction] Progress=0.191872, mDamageMoment=0.010000
+[11:45:38.224] [AnimDamageAction] Progress=0.193141, mDamageMoment=0.010000
+[11:45:38.227] [AnimDamageAction] Progress=0.194348, mDamageMoment=0.010000
+[11:45:38.230] [AnimDamageAction] Progress=0.195569, mDamageMoment=0.010000
+[11:45:38.233] [AnimDamageAction] Progress=0.196728, mDamageMoment=0.010000
+[11:45:38.236] [AnimDamageAction] Progress=0.198033, mDamageMoment=0.010000
+[11:45:38.240] [AnimDamageAction] Progress=0.199562, mDamageMoment=0.010000
+[11:45:38.244] [AnimDamageAction] Progress=0.200967, mDamageMoment=0.010000
+[11:45:38.248] [AnimDamageAction] Progress=0.202365, mDamageMoment=0.010000
+[11:45:38.251] [AnimDamageAction] Progress=0.203571, mDamageMoment=0.010000
+[11:45:38.256] [AnimDamageAction] Progress=0.204934, mDamageMoment=0.010000
+[11:45:38.259] [AnimDamageAction] Progress=0.206109, mDamageMoment=0.010000
+[11:45:38.262] [AnimDamageAction] Progress=0.207289, mDamageMoment=0.010000
+[11:45:38.265] [AnimDamageAction] Progress=0.208519, mDamageMoment=0.010000
+[11:45:38.269] [AnimDamageAction] Progress=0.209827, mDamageMoment=0.010000
+[11:45:38.273] [AnimDamageAction] Progress=0.211364, mDamageMoment=0.010000
+[11:45:38.278] [AnimDamageAction] Progress=0.212849, mDamageMoment=0.010000
+[11:45:38.281] [AnimDamageAction] Progress=0.214109, mDamageMoment=0.010000
+[11:45:38.285] [AnimDamageAction] Progress=0.215466, mDamageMoment=0.010000
+[11:45:38.289] [AnimDamageAction] Progress=0.216962, mDamageMoment=0.010000
+[11:45:38.293] [AnimDamageAction] Progress=0.218301, mDamageMoment=0.010000
+[11:45:38.296] [AnimDamageAction] Progress=0.219547, mDamageMoment=0.010000
+[11:45:38.299] [AnimDamageAction] Progress=0.220791, mDamageMoment=0.010000
+[11:45:38.303] [AnimDamageAction] Progress=0.222260, mDamageMoment=0.010000
+[11:45:38.307] [AnimDamageAction] Progress=0.223643, mDamageMoment=0.010000
+[11:45:38.310] [AnimDamageAction] Progress=0.224955, mDamageMoment=0.010000
+[11:45:38.315] [AnimDamageAction] Progress=0.226534, mDamageMoment=0.010000
+[11:45:38.319] [AnimDamageAction] Progress=0.227906, mDamageMoment=0.010000
+[11:45:38.322] [AnimDamageAction] Progress=0.229212, mDamageMoment=0.010000
+[11:45:38.327] [AnimDamageAction] Progress=0.230854, mDamageMoment=0.010000
+[11:45:38.331] [AnimDamageAction] Progress=0.232417, mDamageMoment=0.010000
+[11:45:38.336] [AnimDamageAction] Progress=0.233848, mDamageMoment=0.010000
+[11:45:38.339] [AnimDamageAction] Progress=0.235256, mDamageMoment=0.010000
+[11:45:38.343] [AnimDamageAction] Progress=0.236621, mDamageMoment=0.010000
+[11:45:38.348] [AnimDamageAction] Progress=0.238236, mDamageMoment=0.010000
+[11:45:38.351] [AnimDamageAction] Progress=0.239531, mDamageMoment=0.010000
+[11:45:38.354] [AnimDamageAction] Progress=0.240858, mDamageMoment=0.010000
+[11:45:38.357] [AnimDamageAction] Progress=0.242003, mDamageMoment=0.010000
+[11:45:38.361] [AnimDamageAction] Progress=0.243334, mDamageMoment=0.010000
+[11:45:38.365] [AnimDamageAction] Progress=0.244588, mDamageMoment=0.010000
+[11:45:38.369] [AnimDamageAction] Progress=0.245926, mDamageMoment=0.010000
+[11:45:38.371] [AnimDamageAction] Progress=0.247098, mDamageMoment=0.010000
+[11:45:38.375] [AnimDamageAction] Progress=0.248357, mDamageMoment=0.010000
+[11:45:38.379] [AnimDamageAction] Progress=0.249862, mDamageMoment=0.010000
+[11:45:38.383] [AnimDamageAction] Progress=0.251266, mDamageMoment=0.010000
+[11:45:38.387] [AnimDamageAction] Progress=0.252539, mDamageMoment=0.010000
+[11:45:38.390] [AnimDamageAction] Progress=0.253832, mDamageMoment=0.010000
+[11:45:38.395] [AnimDamageAction] Progress=0.255494, mDamageMoment=0.010000
+[11:45:38.399] [AnimDamageAction] Progress=0.256776, mDamageMoment=0.010000
+[11:45:38.403] [AnimDamageAction] Progress=0.258268, mDamageMoment=0.010000
+[11:45:38.406] [AnimDamageAction] Progress=0.259523, mDamageMoment=0.010000
+[11:45:38.410] [AnimDamageAction] Progress=0.260951, mDamageMoment=0.010000
+[11:45:38.413] [AnimDamageAction] Progress=0.262310, mDamageMoment=0.010000
+[11:45:38.417] [AnimDamageAction] Progress=0.263506, mDamageMoment=0.010000
+[11:45:38.420] [AnimDamageAction] Progress=0.264822, mDamageMoment=0.010000
+[11:45:38.424] [AnimDamageAction] Progress=0.266258, mDamageMoment=0.010000
+[11:45:38.428] [AnimDamageAction] Progress=0.267834, mDamageMoment=0.010000
+[11:45:38.432] [AnimDamageAction] Progress=0.269161, mDamageMoment=0.010000
+[11:45:38.437] [AnimDamageAction] Progress=0.270749, mDamageMoment=0.010000
+[11:45:38.440] [AnimDamageAction] Progress=0.272119, mDamageMoment=0.010000
+[11:45:38.444] [AnimDamageAction] Progress=0.273542, mDamageMoment=0.010000
+[11:45:38.448] [AnimDamageAction] Progress=0.274837, mDamageMoment=0.010000
+[11:45:38.452] [AnimDamageAction] Progress=0.276121, mDamageMoment=0.010000
+[11:45:38.455] [AnimDamageAction] Progress=0.277342, mDamageMoment=0.010000
+[11:45:38.458] [AnimDamageAction] Progress=0.278788, mDamageMoment=0.010000
+[11:45:38.462] [AnimDamageAction] Progress=0.280012, mDamageMoment=0.010000
+[11:45:38.465] [AnimDamageAction] Progress=0.281331, mDamageMoment=0.010000
+[11:45:38.469] [AnimDamageAction] Progress=0.282572, mDamageMoment=0.010000
+[11:45:38.473] [AnimDamageAction] Progress=0.283782, mDamageMoment=0.010000
+[11:45:38.476] [AnimDamageAction] Progress=0.284869, mDamageMoment=0.010000
+[11:45:38.479] [AnimDamageAction] Progress=0.286105, mDamageMoment=0.010000
+[11:45:38.482] [AnimDamageAction] Progress=0.287328, mDamageMoment=0.010000
+[11:45:38.485] [AnimDamageAction] Progress=0.288807, mDamageMoment=0.010000
+[11:45:38.491] [AnimDamageAction] Progress=0.290214, mDamageMoment=0.010000
+[11:45:38.494] [AnimDamageAction] Progress=0.291574, mDamageMoment=0.010000
+[11:45:38.497] [AnimDamageAction] Progress=0.292731, mDamageMoment=0.010000
+[11:45:38.502] [AnimDamageAction] Progress=0.294263, mDamageMoment=0.010000
+[11:45:38.505] [AnimDamageAction] Progress=0.295582, mDamageMoment=0.010000
+[11:45:38.508] [AnimDamageAction] Progress=0.296898, mDamageMoment=0.010000
+[11:45:38.512] [AnimDamageAction] Progress=0.298258, mDamageMoment=0.010000
+[11:45:38.515] [AnimDamageAction] Progress=0.299425, mDamageMoment=0.010000
+[11:45:38.519] [AnimDamageAction] Progress=0.300631, mDamageMoment=0.010000
+[11:45:38.522] [AnimDamageAction] Progress=0.301831, mDamageMoment=0.010000
+[11:45:38.526] [AnimDamageAction] Progress=0.303247, mDamageMoment=0.010000
+[11:45:38.529] [AnimDamageAction] Progress=0.304529, mDamageMoment=0.010000
+[11:45:38.533] [AnimDamageAction] Progress=0.305737, mDamageMoment=0.010000
+[11:45:38.536] [AnimDamageAction] Progress=0.307145, mDamageMoment=0.010000
+[11:45:38.540] [AnimDamageAction] Progress=0.308261, mDamageMoment=0.010000
+[11:45:38.543] [AnimDamageAction] Progress=0.309500, mDamageMoment=0.010000
+[11:45:38.546] [AnimDamageAction] Progress=0.310635, mDamageMoment=0.010000
+[11:45:38.549] [AnimDamageAction] Progress=0.311844, mDamageMoment=0.010000
+[11:45:38.553] [AnimDamageAction] Progress=0.313208, mDamageMoment=0.010000
+[11:45:38.557] [AnimDamageAction] Progress=0.314340, mDamageMoment=0.010000
+[11:45:38.560] [AnimDamageAction] Progress=0.315459, mDamageMoment=0.010000
+[11:45:38.564] [AnimDamageAction] Progress=0.317044, mDamageMoment=0.010000
+[11:45:38.567] [AnimDamageAction] Progress=0.318389, mDamageMoment=0.010000
+[11:45:38.572] [AnimDamageAction] Progress=0.319894, mDamageMoment=0.010000
+[11:45:38.576] [AnimDamageAction] Progress=0.321386, mDamageMoment=0.010000
+[11:45:38.580] [AnimDamageAction] Progress=0.322838, mDamageMoment=0.010000
+[11:45:38.584] [AnimDamageAction] Progress=0.324545, mDamageMoment=0.010000
+[11:45:38.589] [AnimDamageAction] Progress=0.326190, mDamageMoment=0.010000
+[11:45:38.593] [AnimDamageAction] Progress=0.327666, mDamageMoment=0.010000
+[11:45:38.597] [AnimDamageAction] Progress=0.329258, mDamageMoment=0.010000
+[11:45:38.602] [AnimDamageAction] Progress=0.330851, mDamageMoment=0.010000
+[11:45:38.606] [AnimDamageAction] Progress=0.332409, mDamageMoment=0.010000
+[11:45:38.611] [AnimDamageAction] Progress=0.334299, mDamageMoment=0.010000
+[11:45:38.616] [AnimDamageAction] Progress=0.335820, mDamageMoment=0.010000
+[11:45:38.619] [AnimDamageAction] Progress=0.337234, mDamageMoment=0.010000
+[11:45:38.623] [AnimDamageAction] Progress=0.338703, mDamageMoment=0.010000
+[11:45:38.628] [AnimDamageAction] Progress=0.340532, mDamageMoment=0.010000
+[11:45:38.633] [AnimDamageAction] Progress=0.342179, mDamageMoment=0.010000
+[11:45:38.637] [AnimDamageAction] Progress=0.343891, mDamageMoment=0.010000
+[11:45:38.642] [AnimDamageAction] Progress=0.345554, mDamageMoment=0.010000
+[11:45:38.647] [AnimDamageAction] Progress=0.347067, mDamageMoment=0.010000
+[11:45:38.651] [AnimDamageAction] Progress=0.348396, mDamageMoment=0.010000
+[11:45:38.655] [AnimDamageAction] Progress=0.349995, mDamageMoment=0.010000
+[11:45:38.659] [AnimDamageAction] Progress=0.351575, mDamageMoment=0.010000
+[11:45:38.663] [AnimDamageAction] Progress=0.353117, mDamageMoment=0.010000
+[11:45:38.668] [AnimDamageAction] Progress=0.354820, mDamageMoment=0.010000
+[11:45:38.672] [AnimDamageAction] Progress=0.356335, mDamageMoment=0.010000
+[11:45:38.677] [AnimDamageAction] Progress=0.357905, mDamageMoment=0.010000
+[11:45:38.681] [AnimDamageAction] Progress=0.359789, mDamageMoment=0.010000
+[11:45:38.688] [AnimDamageAction] Progress=0.361753, mDamageMoment=0.010000
+[11:45:38.692] [AnimDamageAction] Progress=0.363430, mDamageMoment=0.010000
+[11:45:38.697] [AnimDamageAction] Progress=0.365380, mDamageMoment=0.010000
+[11:45:38.702] [AnimDamageAction] Progress=0.367241, mDamageMoment=0.010000
+[11:45:38.706] [AnimDamageAction] Progress=0.368626, mDamageMoment=0.010000
+[11:45:38.710] [AnimDamageAction] Progress=0.370192, mDamageMoment=0.010000
+[11:45:38.715] [AnimDamageAction] Progress=0.371738, mDamageMoment=0.010000
+[11:45:38.718] [AnimDamageAction] Progress=0.372959, mDamageMoment=0.010000
+[11:45:38.721] [AnimDamageAction] Progress=0.374313, mDamageMoment=0.010000
+[11:45:38.725] [AnimDamageAction] Progress=0.375717, mDamageMoment=0.010000
+[11:45:38.730] [AnimDamageAction] Progress=0.377249, mDamageMoment=0.010000
+[11:45:38.732] [AnimDamageAction] Progress=0.378637, mDamageMoment=0.010000
+[11:45:38.738] [AnimDamageAction] Progress=0.380087, mDamageMoment=0.010000
+[11:45:38.742] [AnimDamageAction] Progress=0.381621, mDamageMoment=0.010000
+[11:45:38.746] [AnimDamageAction] Progress=0.383135, mDamageMoment=0.010000
+[11:45:38.750] [AnimDamageAction] Progress=0.384677, mDamageMoment=0.010000
+[11:45:38.754] [AnimDamageAction] Progress=0.386240, mDamageMoment=0.010000
+[11:45:38.759] [AnimDamageAction] Progress=0.387764, mDamageMoment=0.010000
+[11:45:38.763] [AnimDamageAction] Progress=0.389286, mDamageMoment=0.010000
+[11:45:38.765] [AnimDamageAction] Progress=0.390637, mDamageMoment=0.010000
+[11:45:38.769] [AnimDamageAction] Progress=0.392260, mDamageMoment=0.010000
+[11:45:38.773] [AnimDamageAction] Progress=0.393645, mDamageMoment=0.010000
+[11:45:38.780] [AnimDamageAction] Progress=0.395337, mDamageMoment=0.010000
+[11:45:38.784] [AnimDamageAction] Progress=0.396810, mDamageMoment=0.010000
+[11:45:38.788] [AnimDamageAction] Progress=0.398553, mDamageMoment=0.010000
+[11:45:38.792] [AnimDamageAction] Progress=0.400302, mDamageMoment=0.010000
+[11:45:38.797] [AnimDamageAction] Progress=0.401949, mDamageMoment=0.010000
+[11:45:38.802] [AnimDamageAction] Progress=0.403540, mDamageMoment=0.010000
+[11:45:38.804] [AnimDamageAction] Progress=0.405058, mDamageMoment=0.010000
+[11:45:38.809] [AnimDamageAction] Progress=0.406505, mDamageMoment=0.010000
+[11:45:38.816] [AnimDamageAction] Progress=0.408428, mDamageMoment=0.010000
+[11:45:38.820] [AnimDamageAction] Progress=0.410027, mDamageMoment=0.010000
+[11:45:38.824] [AnimDamageAction] Progress=0.411388, mDamageMoment=0.010000
+[11:45:38.828] [AnimDamageAction] Progress=0.413118, mDamageMoment=0.010000
+[11:45:38.832] [AnimDamageAction] Progress=0.414552, mDamageMoment=0.010000
+[11:45:38.836] [AnimDamageAction] Progress=0.415960, mDamageMoment=0.010000
+[11:45:38.840] [AnimDamageAction] Progress=0.417388, mDamageMoment=0.010000
+[11:45:38.844] [AnimDamageAction] Progress=0.418904, mDamageMoment=0.010000
+[11:45:38.848] [AnimDamageAction] Progress=0.420373, mDamageMoment=0.010000
+[11:45:38.853] [AnimDamageAction] Progress=0.422042, mDamageMoment=0.010000
+[11:45:38.857] [AnimDamageAction] Progress=0.423488, mDamageMoment=0.010000
+[11:45:38.861] [AnimDamageAction] Progress=0.424887, mDamageMoment=0.010000
+[11:45:38.865] [AnimDamageAction] Progress=0.426453, mDamageMoment=0.010000
+[11:45:38.868] [AnimDamageAction] Progress=0.427868, mDamageMoment=0.010000
+[11:45:38.873] [AnimDamageAction] Progress=0.429306, mDamageMoment=0.010000
+[11:45:38.877] [AnimDamageAction] Progress=0.430749, mDamageMoment=0.010000
+[11:45:38.880] [AnimDamageAction] Progress=0.432089, mDamageMoment=0.010000
+[11:45:38.885] [AnimDamageAction] Progress=0.433627, mDamageMoment=0.010000
+[11:45:38.888] [AnimDamageAction] Progress=0.434984, mDamageMoment=0.010000
+[11:45:38.892] [AnimDamageAction] Progress=0.436388, mDamageMoment=0.010000
+[11:45:38.897] [AnimDamageAction] Progress=0.437912, mDamageMoment=0.010000
+[11:45:38.900] [AnimDamageAction] Progress=0.439157, mDamageMoment=0.010000
+[11:45:38.904] [AnimDamageAction] Progress=0.440602, mDamageMoment=0.010000
+[11:45:38.907] [AnimDamageAction] Progress=0.441873, mDamageMoment=0.010000
+[11:45:38.911] [AnimDamageAction] Progress=0.443441, mDamageMoment=0.010000
+[11:45:38.917] [AnimDamageAction] Progress=0.445216, mDamageMoment=0.010000
+[11:45:38.920] [AnimDamageAction] Progress=0.446499, mDamageMoment=0.010000
+[11:45:38.923] [AnimDamageAction] Progress=0.447885, mDamageMoment=0.010000
+[11:45:38.928] [AnimDamageAction] Progress=0.449261, mDamageMoment=0.010000
+[11:45:38.932] [AnimDamageAction] Progress=0.450835, mDamageMoment=0.010000
+[11:45:38.936] [AnimDamageAction] Progress=0.452150, mDamageMoment=0.010000
+[11:45:38.940] [AnimDamageAction] Progress=0.453837, mDamageMoment=0.010000
+[11:45:38.943] [AnimDamageAction] Progress=0.455137, mDamageMoment=0.010000
+[11:45:38.947] [AnimDamageAction] Progress=0.456520, mDamageMoment=0.010000
+[11:45:38.951] [AnimDamageAction] Progress=0.458032, mDamageMoment=0.010000
+[11:45:38.956] [AnimDamageAction] Progress=0.459379, mDamageMoment=0.010000
+[11:45:38.959] [AnimDamageAction] Progress=0.460875, mDamageMoment=0.010000
+[11:45:38.963] [AnimDamageAction] Progress=0.462166, mDamageMoment=0.010000
+[11:45:38.968] [AnimDamageAction] Progress=0.463966, mDamageMoment=0.010000
+[11:45:38.971] [AnimDamageAction] Progress=0.465360, mDamageMoment=0.010000
+[11:45:38.976] [AnimDamageAction] Progress=0.466695, mDamageMoment=0.010000
+[11:45:38.980] [AnimDamageAction] Progress=0.468112, mDamageMoment=0.010000
+[11:45:38.983] [AnimDamageAction] Progress=0.469435, mDamageMoment=0.010000
+[11:45:38.987] [AnimDamageAction] Progress=0.471031, mDamageMoment=0.010000
+[11:45:38.992] [AnimDamageAction] Progress=0.472634, mDamageMoment=0.010000
+[11:45:38.995] [AnimDamageAction] Progress=0.474056, mDamageMoment=0.010000
+[11:45:39.000] [AnimDamageAction] Progress=0.475489, mDamageMoment=0.010000
+[11:45:39.003] [AnimDamageAction] Progress=0.476943, mDamageMoment=0.010000
+[11:45:39.007] [AnimDamageAction] Progress=0.478557, mDamageMoment=0.010000
+[11:45:39.012] [AnimDamageAction] Progress=0.479968, mDamageMoment=0.010000
+[11:45:39.016] [AnimDamageAction] Progress=0.481357, mDamageMoment=0.010000
+[11:45:39.020] [AnimDamageAction] Progress=0.482835, mDamageMoment=0.010000
+[11:45:39.024] [AnimDamageAction] Progress=0.484391, mDamageMoment=0.010000
+[11:45:39.028] [AnimDamageAction] Progress=0.486004, mDamageMoment=0.010000
+[11:45:39.032] [AnimDamageAction] Progress=0.487331, mDamageMoment=0.010000
+[11:45:39.036] [AnimDamageAction] Progress=0.488870, mDamageMoment=0.010000
+[11:45:39.041] [AnimDamageAction] Progress=0.490700, mDamageMoment=0.010000
+[11:45:39.045] [AnimDamageAction] Progress=0.492321, mDamageMoment=0.010000
+[11:45:39.052] [AnimDamageAction] Progress=0.494301, mDamageMoment=0.010000
+[11:45:39.056] [AnimDamageAction] Progress=0.496079, mDamageMoment=0.010000
+[11:45:39.061] [AnimDamageAction] Progress=0.497688, mDamageMoment=0.010000
+[11:45:39.063] [AnimDamageAction] Progress=0.499697, mDamageMoment=0.010000
+[11:45:39.068] [AnimDamageAction] Progress=0.501518, mDamageMoment=0.010000
+[11:45:39.076] [AnimDamageAction] Progress=0.502894, mDamageMoment=0.010000
+[11:45:39.080] [AnimDamageAction] Progress=0.504710, mDamageMoment=0.010000
+[11:45:39.085] [AnimDamageAction] Progress=0.506466, mDamageMoment=0.010000
+[11:45:39.089] [AnimDamageAction] Progress=0.508337, mDamageMoment=0.010000
+[11:45:39.094] [AnimDamageAction] Progress=0.509969, mDamageMoment=0.010000
+[11:45:39.099] [AnimDamageAction] Progress=0.511738, mDamageMoment=0.010000
+[11:45:39.104] [AnimDamageAction] Progress=0.513175, mDamageMoment=0.010000
+[11:45:39.108] [AnimDamageAction] Progress=0.514890, mDamageMoment=0.010000
+[11:45:39.113] [AnimDamageAction] Progress=0.516598, mDamageMoment=0.010000
+[11:45:39.118] [AnimDamageAction] Progress=0.518148, mDamageMoment=0.010000
+[11:45:39.122] [AnimDamageAction] Progress=0.519873, mDamageMoment=0.010000
+[11:45:39.126] [AnimDamageAction] Progress=0.521511, mDamageMoment=0.010000
+[11:45:39.130] [AnimDamageAction] Progress=0.522955, mDamageMoment=0.010000
+[11:45:39.135] [AnimDamageAction] Progress=0.524779, mDamageMoment=0.010000
+[11:45:39.139] [AnimDamageAction] Progress=0.526463, mDamageMoment=0.010000
+[11:45:39.141] [AnimDamageAction] Progress=0.527915, mDamageMoment=0.010000
+[11:45:39.149] [AnimDamageAction] Progress=0.529716, mDamageMoment=0.010000
+[11:45:39.153] [AnimDamageAction] Progress=0.531240, mDamageMoment=0.010000
+[11:45:39.158] [AnimDamageAction] Progress=0.532798, mDamageMoment=0.010000
+[11:45:39.162] [AnimDamageAction] Progress=0.534457, mDamageMoment=0.010000
+[11:45:39.166] [AnimDamageAction] Progress=0.536013, mDamageMoment=0.010000
+[11:45:39.170] [AnimDamageAction] Progress=0.537481, mDamageMoment=0.010000
+[11:45:39.175] [AnimDamageAction] Progress=0.539192, mDamageMoment=0.010000
+[11:45:39.180] [AnimDamageAction] Progress=0.540665, mDamageMoment=0.010000
+[11:45:39.184] [AnimDamageAction] Progress=0.542428, mDamageMoment=0.010000
+[11:45:39.189] [AnimDamageAction] Progress=0.544102, mDamageMoment=0.010000
+[11:45:39.192] [AnimDamageAction] Progress=0.545519, mDamageMoment=0.010000
+[11:45:39.198] [AnimDamageAction] Progress=0.547364, mDamageMoment=0.010000
+[11:45:39.202] [AnimDamageAction] Progress=0.549018, mDamageMoment=0.010000
+[11:45:39.206] [AnimDamageAction] Progress=0.550413, mDamageMoment=0.010000
+[11:45:39.211] [AnimDamageAction] Progress=0.552197, mDamageMoment=0.010000
+[11:45:39.215] [AnimDamageAction] Progress=0.553619, mDamageMoment=0.010000
+[11:45:39.220] [AnimDamageAction] Progress=0.555360, mDamageMoment=0.010000
+[11:45:39.223] [AnimDamageAction] Progress=0.557146, mDamageMoment=0.010000
+[11:45:39.229] [AnimDamageAction] Progress=0.559033, mDamageMoment=0.010000
+[11:45:39.231] [AnimDamageAction] Progress=0.560828, mDamageMoment=0.010000
+[11:45:39.239] [AnimDamageAction] Progress=0.562749, mDamageMoment=0.010000
+[11:45:39.242] [AnimDamageAction] Progress=0.564562, mDamageMoment=0.010000
+[11:45:39.249] [AnimDamageAction] Progress=0.566301, mDamageMoment=0.010000
+[11:45:39.251] [AnimDamageAction] Progress=0.568116, mDamageMoment=0.010000
+[11:45:39.260] [AnimDamageAction] Progress=0.569932, mDamageMoment=0.010000
+[11:45:39.263] [AnimDamageAction] Progress=0.571705, mDamageMoment=0.010000
+[11:45:39.270] [AnimDamageAction] Progress=0.573639, mDamageMoment=0.010000
+[11:45:39.275] [AnimDamageAction] Progress=0.575539, mDamageMoment=0.010000
+[11:45:39.280] [AnimDamageAction] Progress=0.577626, mDamageMoment=0.010000
+[11:45:39.285] [AnimDamageAction] Progress=0.579243, mDamageMoment=0.010000
+[11:45:39.288] [AnimDamageAction] Progress=0.580674, mDamageMoment=0.010000
+[11:45:39.294] [AnimDamageAction] Progress=0.582324, mDamageMoment=0.010000
+[11:45:39.298] [AnimDamageAction] Progress=0.583818, mDamageMoment=0.010000
+[11:45:39.302] [AnimDamageAction] Progress=0.585727, mDamageMoment=0.010000
+[11:45:39.308] [AnimDamageAction] Progress=0.587297, mDamageMoment=0.010000
+[11:45:39.311] [AnimDamageAction] Progress=0.588957, mDamageMoment=0.010000
+[11:45:39.316] [AnimDamageAction] Progress=0.590412, mDamageMoment=0.010000
+[11:45:39.320] [AnimDamageAction] Progress=0.592204, mDamageMoment=0.010000
+[11:45:39.324] [AnimDamageAction] Progress=0.593568, mDamageMoment=0.010000
+[11:45:39.327] [AnimDamageAction] Progress=0.595151, mDamageMoment=0.010000
+[11:45:39.333] [AnimDamageAction] Progress=0.596800, mDamageMoment=0.010000
+[11:45:39.337] [AnimDamageAction] Progress=0.598490, mDamageMoment=0.010000
+[11:45:39.343] [AnimDamageAction] Progress=0.600166, mDamageMoment=0.010000
+[11:45:39.347] [AnimDamageAction] Progress=0.601741, mDamageMoment=0.010000
+[11:45:39.351] [AnimDamageAction] Progress=0.603356, mDamageMoment=0.010000
+[11:45:39.356] [AnimDamageAction] Progress=0.605072, mDamageMoment=0.010000
+[11:45:39.361] [AnimDamageAction] Progress=0.606844, mDamageMoment=0.010000
+[11:45:39.366] [AnimDamageAction] Progress=0.608541, mDamageMoment=0.010000
+[11:45:39.371] [AnimDamageAction] Progress=0.610313, mDamageMoment=0.010000
+[11:45:39.375] [AnimDamageAction] Progress=0.612070, mDamageMoment=0.010000
+[11:45:39.380] [AnimDamageAction] Progress=0.613833, mDamageMoment=0.010000
+[11:45:39.381] [AnimDamageAction] Progress=0.615618, mDamageMoment=0.010000
+[11:45:39.388] [AnimDamageAction] Progress=0.617533, mDamageMoment=0.010000
+[11:45:39.395] [AnimDamageAction] Progress=0.619483, mDamageMoment=0.010000
+[11:45:39.403] [AnimDamageAction] Progress=0.622061, mDamageMoment=0.010000
+[11:45:39.410] [AnimDamageAction] Progress=0.624546, mDamageMoment=0.010000
+[11:45:39.414] [AnimDamageAction] Progress=0.626348, mDamageMoment=0.010000
+[11:45:39.420] [AnimDamageAction] Progress=0.628438, mDamageMoment=0.010000
+[11:45:39.426] [AnimDamageAction] Progress=0.630219, mDamageMoment=0.010000
+[11:45:39.429] [AnimDamageAction] Progress=0.631711, mDamageMoment=0.010000
+[11:45:39.435] [AnimDamageAction] Progress=0.633682, mDamageMoment=0.010000
+[11:45:39.439] [AnimDamageAction] Progress=0.635340, mDamageMoment=0.010000
+[11:45:39.444] [AnimDamageAction] Progress=0.636851, mDamageMoment=0.010000
+[11:45:39.449] [AnimDamageAction] Progress=0.638717, mDamageMoment=0.010000
+[11:45:39.453] [AnimDamageAction] Progress=0.640373, mDamageMoment=0.010000
+[11:45:39.458] [AnimDamageAction] Progress=0.641825, mDamageMoment=0.010000
+[11:45:39.461] [AnimDamageAction] Progress=0.643347, mDamageMoment=0.010000
+[11:45:39.465] [AnimDamageAction] Progress=0.644755, mDamageMoment=0.010000
+[11:45:39.470] [AnimDamageAction] Progress=0.646252, mDamageMoment=0.010000
+[11:45:39.473] [AnimDamageAction] Progress=0.647778, mDamageMoment=0.010000
+[11:45:39.478] [AnimDamageAction] Progress=0.649246, mDamageMoment=0.010000
+[11:45:39.481] [AnimDamageAction] Progress=0.650618, mDamageMoment=0.010000
+[11:45:39.485] [AnimDamageAction] Progress=0.651960, mDamageMoment=0.010000
+[11:45:39.490] [AnimDamageAction] Progress=0.653865, mDamageMoment=0.010000
+[11:45:39.495] [AnimDamageAction] Progress=0.655478, mDamageMoment=0.010000
+[11:45:39.498] [AnimDamageAction] Progress=0.656728, mDamageMoment=0.010000
+[11:45:39.502] [AnimDamageAction] Progress=0.658342, mDamageMoment=0.010000
+[11:45:39.507] [AnimDamageAction] Progress=0.659930, mDamageMoment=0.010000
+[11:45:39.511] [AnimDamageAction] Progress=0.661339, mDamageMoment=0.010000
+[11:45:39.515] [AnimDamageAction] Progress=0.662833, mDamageMoment=0.010000
+[11:45:39.518] [AnimDamageAction] Progress=0.663968, mDamageMoment=0.010000
+[11:45:39.523] [AnimDamageAction] Progress=0.665575, mDamageMoment=0.010000
+[11:45:39.526] [AnimDamageAction] Progress=0.667023, mDamageMoment=0.010000
+[11:45:39.531] [AnimDamageAction] Progress=0.668573, mDamageMoment=0.010000
+[11:45:39.534] [AnimDamageAction] Progress=0.669846, mDamageMoment=0.010000
+[11:45:39.539] [AnimDamageAction] Progress=0.671502, mDamageMoment=0.010000
+[11:45:39.543] [AnimDamageAction] Progress=0.672993, mDamageMoment=0.010000
+[11:45:39.546] [AnimDamageAction] Progress=0.674232, mDamageMoment=0.010000
+[11:45:39.551] [AnimDamageAction] Progress=0.675825, mDamageMoment=0.010000
+[11:45:39.555] [AnimDamageAction] Progress=0.677302, mDamageMoment=0.010000
+[11:45:39.559] [AnimDamageAction] Progress=0.678893, mDamageMoment=0.010000
+[11:45:39.562] [AnimDamageAction] Progress=0.680123, mDamageMoment=0.010000
+[11:45:39.566] [AnimDamageAction] Progress=0.681569, mDamageMoment=0.010000
+[11:45:39.569] [AnimDamageAction] Progress=0.683160, mDamageMoment=0.010000
+[11:45:39.573] [AnimDamageAction] Progress=0.684565, mDamageMoment=0.010000
+[11:45:39.579] [AnimDamageAction] Progress=0.686182, mDamageMoment=0.010000
+[11:45:39.583] [AnimDamageAction] Progress=0.687470, mDamageMoment=0.010000
+[11:45:39.587] [AnimDamageAction] Progress=0.689166, mDamageMoment=0.010000
+[11:45:39.591] [AnimDamageAction] Progress=0.690810, mDamageMoment=0.010000
+[11:45:39.596] [AnimDamageAction] Progress=0.692130, mDamageMoment=0.010000
+[11:45:39.600] [AnimDamageAction] Progress=0.693659, mDamageMoment=0.010000
+[11:45:39.604] [AnimDamageAction] Progress=0.695032, mDamageMoment=0.010000
+[11:45:39.607] [AnimDamageAction] Progress=0.696511, mDamageMoment=0.010000
+[11:45:39.612] [AnimDamageAction] Progress=0.698138, mDamageMoment=0.010000
+[11:45:39.616] [AnimDamageAction] Progress=0.699600, mDamageMoment=0.010000
+[11:45:39.620] [AnimDamageAction] Progress=0.701046, mDamageMoment=0.010000
+[11:45:39.623] [AnimDamageAction] Progress=0.702220, mDamageMoment=0.010000
+[11:45:39.625] [AnimDamageAction] Progress=0.703549, mDamageMoment=0.010000
+[11:45:39.628] [AnimDamageAction] Progress=0.704752, mDamageMoment=0.010000
+[11:45:39.631] [AnimDamageAction] Progress=0.706072, mDamageMoment=0.010000
+[11:45:39.637] [AnimDamageAction] Progress=0.707264, mDamageMoment=0.010000
+[11:45:39.641] [AnimDamageAction] Progress=0.708560, mDamageMoment=0.010000
+[11:45:39.644] [AnimDamageAction] Progress=0.709827, mDamageMoment=0.010000
+[11:45:39.648] [AnimDamageAction] Progress=0.711122, mDamageMoment=0.010000
+[11:45:39.651] [AnimDamageAction] Progress=0.712287, mDamageMoment=0.010000
+[11:45:39.655] [AnimDamageAction] Progress=0.713635, mDamageMoment=0.010000
+[11:45:39.658] [AnimDamageAction] Progress=0.714822, mDamageMoment=0.010000
+[11:45:39.662] [AnimDamageAction] Progress=0.716123, mDamageMoment=0.010000
+[11:45:39.664] [AnimDamageAction] Progress=0.717280, mDamageMoment=0.010000
+[11:45:39.668] [AnimDamageAction] Progress=0.718559, mDamageMoment=0.010000
+[11:45:39.671] [AnimDamageAction] Progress=0.719737, mDamageMoment=0.010000
+[11:45:39.675] [AnimDamageAction] Progress=0.720923, mDamageMoment=0.010000
+[11:45:39.678] [AnimDamageAction] Progress=0.722135, mDamageMoment=0.010000
+[11:45:39.681] [AnimDamageAction] Progress=0.723427, mDamageMoment=0.010000
+[11:45:39.685] [AnimDamageAction] Progress=0.724666, mDamageMoment=0.010000
+[11:45:39.689] [AnimDamageAction] Progress=0.726041, mDamageMoment=0.010000
+[11:45:39.692] [AnimDamageAction] Progress=0.727305, mDamageMoment=0.010000
+[11:45:39.696] [AnimDamageAction] Progress=0.728662, mDamageMoment=0.010000
+[11:45:39.699] [AnimDamageAction] Progress=0.729892, mDamageMoment=0.010000
+[11:45:39.703] [AnimDamageAction] Progress=0.731103, mDamageMoment=0.010000
+[11:45:39.706] [AnimDamageAction] Progress=0.732468, mDamageMoment=0.010000
+[11:45:39.710] [AnimDamageAction] Progress=0.733860, mDamageMoment=0.010000
+[11:45:39.713] [AnimDamageAction] Progress=0.735062, mDamageMoment=0.010000
+[11:45:39.717] [AnimDamageAction] Progress=0.736296, mDamageMoment=0.010000
+[11:45:39.720] [AnimDamageAction] Progress=0.737488, mDamageMoment=0.010000
+[11:45:39.723] [AnimDamageAction] Progress=0.738797, mDamageMoment=0.010000
+[11:45:39.728] [AnimDamageAction] Progress=0.740046, mDamageMoment=0.010000
+[11:45:39.731] [AnimDamageAction] Progress=0.741357, mDamageMoment=0.010000
+[11:45:39.734] [AnimDamageAction] Progress=0.742555, mDamageMoment=0.010000
+[11:45:39.738] [AnimDamageAction] Progress=0.743883, mDamageMoment=0.010000
+[11:45:39.741] [AnimDamageAction] Progress=0.745105, mDamageMoment=0.010000
+[11:45:39.745] [AnimDamageAction] Progress=0.746410, mDamageMoment=0.010000
+[11:45:39.749] [AnimDamageAction] Progress=0.747854, mDamageMoment=0.010000
+[11:45:39.753] [AnimDamageAction] Progress=0.749168, mDamageMoment=0.010000
+[11:45:39.756] [AnimDamageAction] Progress=0.750410, mDamageMoment=0.010000
+[11:45:39.759] [AnimDamageAction] Progress=0.751650, mDamageMoment=0.010000
+[11:45:39.763] [AnimDamageAction] Progress=0.753004, mDamageMoment=0.010000
+[11:45:39.767] [AnimDamageAction] Progress=0.754318, mDamageMoment=0.010000
+[11:45:39.770] [AnimDamageAction] Progress=0.755514, mDamageMoment=0.010000
+[11:45:39.774] [AnimDamageAction] Progress=0.756850, mDamageMoment=0.010000
+[11:45:39.778] [AnimDamageAction] Progress=0.758284, mDamageMoment=0.010000
+[11:45:39.781] [AnimDamageAction] Progress=0.759718, mDamageMoment=0.010000
+[11:45:39.785] [AnimDamageAction] Progress=0.760990, mDamageMoment=0.010000
+[11:45:39.789] [AnimDamageAction] Progress=0.762460, mDamageMoment=0.010000
+[11:45:39.792] [AnimDamageAction] Progress=0.763848, mDamageMoment=0.010000
+[11:45:39.796] [AnimDamageAction] Progress=0.765117, mDamageMoment=0.010000
+[11:45:39.800] [AnimDamageAction] Progress=0.766617, mDamageMoment=0.010000
+[11:45:39.804] [AnimDamageAction] Progress=0.767895, mDamageMoment=0.010000
+[11:45:39.808] [AnimDamageAction] Progress=0.769238, mDamageMoment=0.010000
+[11:45:39.811] [AnimDamageAction] Progress=0.770497, mDamageMoment=0.010000
+[11:45:39.814] [AnimDamageAction] Progress=0.771738, mDamageMoment=0.010000
+[11:45:39.818] [AnimDamageAction] Progress=0.773046, mDamageMoment=0.010000
+[11:45:39.822] [AnimDamageAction] Progress=0.774516, mDamageMoment=0.010000
+[11:45:39.825] [AnimDamageAction] Progress=0.775746, mDamageMoment=0.010000
+[11:45:39.830] [AnimDamageAction] Progress=0.777150, mDamageMoment=0.010000
+[11:45:39.833] [AnimDamageAction] Progress=0.778317, mDamageMoment=0.010000
+[11:45:39.837] [AnimDamageAction] Progress=0.779963, mDamageMoment=0.010000
+[11:45:39.841] [AnimDamageAction] Progress=0.781299, mDamageMoment=0.010000
+[11:45:39.841] [AnimDamageAction] Progress=0.782656, mDamageMoment=0.010000
+[11:45:39.848] [AnimDamageAction] Progress=0.784042, mDamageMoment=0.010000
+[11:45:39.851] [AnimDamageAction] Progress=0.785370, mDamageMoment=0.010000
+[11:45:39.855] [AnimDamageAction] Progress=0.786865, mDamageMoment=0.010000
+[11:45:39.860] [AnimDamageAction] Progress=0.788060, mDamageMoment=0.010000
+[11:45:39.863] [AnimDamageAction] Progress=0.789393, mDamageMoment=0.010000
+[11:45:39.866] [AnimDamageAction] Progress=0.790586, mDamageMoment=0.010000
+[11:45:39.870] [AnimDamageAction] Progress=0.791884, mDamageMoment=0.010000
+[11:45:39.873] [AnimDamageAction] Progress=0.793102, mDamageMoment=0.010000
+[11:45:39.877] [AnimDamageAction] Progress=0.794362, mDamageMoment=0.010000
+[11:45:39.880] [AnimDamageAction] Progress=0.795568, mDamageMoment=0.010000
+[11:45:39.884] [AnimDamageAction] Progress=0.796886, mDamageMoment=0.010000
+[11:45:39.887] [AnimDamageAction] Progress=0.798106, mDamageMoment=0.010000
+[11:45:39.891] [AnimDamageAction] Progress=0.799357, mDamageMoment=0.010000
+[11:45:39.894] [AnimDamageAction] Progress=0.800542, mDamageMoment=0.010000
+[11:45:39.897] [AnimDamageAction] Progress=0.801953, mDamageMoment=0.010000
+[11:45:39.901] [AnimDamageAction] Progress=0.803163, mDamageMoment=0.010000
+[11:45:39.905] [AnimDamageAction] Progress=0.804490, mDamageMoment=0.010000
+[11:45:39.908] [AnimDamageAction] Progress=0.805691, mDamageMoment=0.010000
+[11:45:39.912] [AnimDamageAction] Progress=0.807129, mDamageMoment=0.010000
+[11:45:39.916] [AnimDamageAction] Progress=0.808643, mDamageMoment=0.010000
+[11:45:39.920] [AnimDamageAction] Progress=0.810018, mDamageMoment=0.010000
+[11:45:39.922] [AnimDamageAction] Progress=0.811148, mDamageMoment=0.010000
+[11:45:39.927] [AnimDamageAction] Progress=0.812640, mDamageMoment=0.010000
+[11:45:39.931] [AnimDamageAction] Progress=0.813808, mDamageMoment=0.010000
+[11:45:39.933] [AnimDamageAction] Progress=0.815090, mDamageMoment=0.010000
+[11:45:39.936] [AnimDamageAction] Progress=0.816257, mDamageMoment=0.010000
+[11:45:39.941] [AnimDamageAction] Progress=0.817773, mDamageMoment=0.010000
+[11:45:39.945] [AnimDamageAction] Progress=0.819036, mDamageMoment=0.010000
+[11:45:39.947] [AnimDamageAction] Progress=0.820379, mDamageMoment=0.010000
+[11:45:39.952] [AnimDamageAction] Progress=0.821795, mDamageMoment=0.010000
+[11:45:39.955] [AnimDamageAction] Progress=0.823059, mDamageMoment=0.010000
+[11:45:39.959] [AnimDamageAction] Progress=0.824308, mDamageMoment=0.010000
+[11:45:39.963] [AnimDamageAction] Progress=0.825665, mDamageMoment=0.010000
+[11:45:39.966] [AnimDamageAction] Progress=0.826989, mDamageMoment=0.010000
+[11:45:39.970] [AnimDamageAction] Progress=0.828321, mDamageMoment=0.010000
+[11:45:39.974] [AnimDamageAction] Progress=0.829832, mDamageMoment=0.010000
+[11:45:39.978] [AnimDamageAction] Progress=0.831144, mDamageMoment=0.010000
+[11:45:39.982] [AnimDamageAction] Progress=0.832443, mDamageMoment=0.010000
+[11:45:39.985] [AnimDamageAction] Progress=0.833698, mDamageMoment=0.010000
+[11:45:39.988] [AnimDamageAction] Progress=0.835147, mDamageMoment=0.010000
+[11:45:39.993] [AnimDamageAction] Progress=0.836432, mDamageMoment=0.010000
+[11:45:39.996] [AnimDamageAction] Progress=0.837762, mDamageMoment=0.010000
+[11:45:39.999] [AnimDamageAction] Progress=0.838966, mDamageMoment=0.010000
+[11:45:40.003] [AnimDamageAction] Progress=0.840303, mDamageMoment=0.010000
+[11:45:40.007] [AnimDamageAction] Progress=0.841529, mDamageMoment=0.010000
+[11:45:40.010] [AnimDamageAction] Progress=0.842994, mDamageMoment=0.010000
+[11:45:40.015] [AnimDamageAction] Progress=0.844586, mDamageMoment=0.010000
+[11:45:40.019] [AnimDamageAction] Progress=0.846019, mDamageMoment=0.010000
+[11:45:40.023] [AnimDamageAction] Progress=0.847645, mDamageMoment=0.010000
+[11:45:40.026] [AnimDamageAction] Progress=0.848909, mDamageMoment=0.010000
+[11:45:40.031] [AnimDamageAction] Progress=0.850311, mDamageMoment=0.010000
+[11:45:40.038] [AnimDamageAction] Progress=0.852922, mDamageMoment=0.010000
+[11:45:40.041] [AnimDamageAction] Progress=0.854193, mDamageMoment=0.010000
+[11:45:40.045] [AnimDamageAction] Progress=0.855612, mDamageMoment=0.010000
+[11:45:40.049] [AnimDamageAction] Progress=0.856806, mDamageMoment=0.010000
+[11:45:40.052] [AnimDamageAction] Progress=0.858268, mDamageMoment=0.010000
+[11:45:40.056] [AnimDamageAction] Progress=0.859661, mDamageMoment=0.010000
+[11:45:40.060] [AnimDamageAction] Progress=0.861016, mDamageMoment=0.010000
+[11:45:40.064] [AnimDamageAction] Progress=0.862491, mDamageMoment=0.010000
+[11:45:40.067] [AnimDamageAction] Progress=0.863756, mDamageMoment=0.010000
+[11:45:40.071] [AnimDamageAction] Progress=0.865201, mDamageMoment=0.010000
+[11:45:40.075] [AnimDamageAction] Progress=0.866474, mDamageMoment=0.010000
+[11:45:40.078] [AnimDamageAction] Progress=0.867932, mDamageMoment=0.010000
+[11:45:40.083] [AnimDamageAction] Progress=0.869268, mDamageMoment=0.010000
+[11:45:40.086] [AnimDamageAction] Progress=0.870540, mDamageMoment=0.010000
+[11:45:40.090] [AnimDamageAction] Progress=0.871806, mDamageMoment=0.010000
+[11:45:40.093] [AnimDamageAction] Progress=0.873094, mDamageMoment=0.010000
+[11:45:40.096] [AnimDamageAction] Progress=0.874287, mDamageMoment=0.010000
+[11:45:40.101] [AnimDamageAction] Progress=0.875683, mDamageMoment=0.010000
+[11:45:40.104] [AnimDamageAction] Progress=0.877040, mDamageMoment=0.010000
+[11:45:40.108] [AnimDamageAction] Progress=0.878423, mDamageMoment=0.010000
+[11:45:40.112] [AnimDamageAction] Progress=0.879862, mDamageMoment=0.010000
+[11:45:40.116] [AnimDamageAction] Progress=0.881410, mDamageMoment=0.010000
+[11:45:40.120] [AnimDamageAction] Progress=0.882836, mDamageMoment=0.010000
+[11:45:40.124] [AnimDamageAction] Progress=0.884181, mDamageMoment=0.010000
+[11:45:40.126] [AnimDamageAction] Progress=0.885448, mDamageMoment=0.010000
+[11:45:40.131] [AnimDamageAction] Progress=0.886684, mDamageMoment=0.010000
+[11:45:40.134] [AnimDamageAction] Progress=0.887971, mDamageMoment=0.010000
+[11:45:40.138] [AnimDamageAction] Progress=0.889294, mDamageMoment=0.010000
+[11:45:40.142] [AnimDamageAction] Progress=0.890760, mDamageMoment=0.010000
+[11:45:40.145] [AnimDamageAction] Progress=0.891995, mDamageMoment=0.010000
+[11:45:40.149] [AnimDamageAction] Progress=0.893427, mDamageMoment=0.010000
+[11:45:40.152] [AnimDamageAction] Progress=0.894653, mDamageMoment=0.010000
+[11:45:40.156] [AnimDamageAction] Progress=0.895953, mDamageMoment=0.010000
+[11:45:40.159] [AnimDamageAction] Progress=0.897171, mDamageMoment=0.010000
+[11:45:40.162] [AnimDamageAction] Progress=0.898362, mDamageMoment=0.010000
+[11:45:40.165] [AnimDamageAction] Progress=0.899553, mDamageMoment=0.010000
+[11:45:40.169] [AnimDamageAction] Progress=0.901090, mDamageMoment=0.010000
+[11:45:40.174] [AnimDamageAction] Progress=0.902464, mDamageMoment=0.010000
+[11:45:40.177] [AnimDamageAction] Progress=0.903872, mDamageMoment=0.010000
+[11:45:40.182] [AnimDamageAction] Progress=0.905225, mDamageMoment=0.010000
+[11:45:40.182] [AnimDamageAction] Progress=0.906475, mDamageMoment=0.010000
+[11:45:40.189] [AnimDamageAction] Progress=0.908032, mDamageMoment=0.010000
+[11:45:40.193] [AnimDamageAction] Progress=0.909435, mDamageMoment=0.010000
+[11:45:40.196] [AnimDamageAction] Progress=0.910815, mDamageMoment=0.010000
+[11:45:40.200] [AnimDamageAction] Progress=0.912003, mDamageMoment=0.010000
+[11:45:40.203] [AnimDamageAction] Progress=0.913322, mDamageMoment=0.010000
+[11:45:40.207] [AnimDamageAction] Progress=0.914575, mDamageMoment=0.010000
+[11:45:40.211] [AnimDamageAction] Progress=0.915829, mDamageMoment=0.010000
+[11:45:40.216] [AnimDamageAction] Progress=0.917495, mDamageMoment=0.010000
+[11:45:40.217] [AnimDamageAction] Progress=0.918784, mDamageMoment=0.010000
+[11:45:40.222] [AnimDamageAction] Progress=0.919935, mDamageMoment=0.010000
+[11:45:40.225] [AnimDamageAction] Progress=0.921127, mDamageMoment=0.010000
+[11:45:40.229] [AnimDamageAction] Progress=0.922289, mDamageMoment=0.010000
+[11:45:40.232] [AnimDamageAction] Progress=0.923915, mDamageMoment=0.010000
+[11:45:40.237] [AnimDamageAction] Progress=0.925419, mDamageMoment=0.010000
+[11:45:40.237] [AnimDamageAction] Progress=0.926649, mDamageMoment=0.010000
+[11:45:40.244] [AnimDamageAction] Progress=0.927877, mDamageMoment=0.010000
+[11:45:40.247] [AnimDamageAction] Progress=0.929197, mDamageMoment=0.010000
+[11:45:40.251] [AnimDamageAction] Progress=0.930484, mDamageMoment=0.010000
+[11:45:40.254] [AnimDamageAction] Progress=0.931651, mDamageMoment=0.010000
+[11:45:40.258] [AnimDamageAction] Progress=0.932967, mDamageMoment=0.010000
+[11:45:40.261] [AnimDamageAction] Progress=0.934407, mDamageMoment=0.010000
+[11:45:40.266] [AnimDamageAction] Progress=0.935639, mDamageMoment=0.010000
+[11:45:40.269] [AnimDamageAction] Progress=0.936873, mDamageMoment=0.010000
+[11:45:40.272] [AnimDamageAction] Progress=0.938109, mDamageMoment=0.010000
+[11:45:40.276] [AnimDamageAction] Progress=0.939641, mDamageMoment=0.010000
+[11:45:40.279] [AnimDamageAction] Progress=0.940855, mDamageMoment=0.010000
+[11:45:40.283] [AnimDamageAction] Progress=0.942074, mDamageMoment=0.010000
+[11:45:40.286] [AnimDamageAction] Progress=0.943262, mDamageMoment=0.010000
+[11:45:40.290] [AnimDamageAction] Progress=0.944618, mDamageMoment=0.010000
+[11:45:40.293] [AnimDamageAction] Progress=0.945939, mDamageMoment=0.010000
+[11:45:40.296] [AnimDamageAction] Progress=0.947136, mDamageMoment=0.010000
+[11:45:40.300] [AnimDamageAction] Progress=0.948333, mDamageMoment=0.010000
+[11:45:40.303] [AnimDamageAction] Progress=0.949588, mDamageMoment=0.010000
+[11:45:40.308] [AnimDamageAction] Progress=0.951053, mDamageMoment=0.010000
+[11:45:40.311] [AnimDamageAction] Progress=0.952283, mDamageMoment=0.010000
+[11:45:40.314] [AnimDamageAction] Progress=0.953491, mDamageMoment=0.010000
+[11:45:40.318] [AnimDamageAction] Progress=0.954659, mDamageMoment=0.010000
+[11:45:40.321] [AnimDamageAction] Progress=0.955990, mDamageMoment=0.010000
+[11:45:40.325] [AnimDamageAction] Progress=0.957433, mDamageMoment=0.010000
+[11:45:40.330] [AnimDamageAction] Progress=0.959027, mDamageMoment=0.010000
+[11:45:40.333] [AnimDamageAction] Progress=0.960337, mDamageMoment=0.010000
+[11:45:40.337] [AnimDamageAction] Progress=0.961819, mDamageMoment=0.010000
+[11:45:40.341] [AnimDamageAction] Progress=0.963180, mDamageMoment=0.010000
+[11:45:40.345] [AnimDamageAction] Progress=0.964552, mDamageMoment=0.010000
+[11:45:40.348] [AnimDamageAction] Progress=0.965769, mDamageMoment=0.010000
+[11:45:40.352] [AnimDamageAction] Progress=0.967030, mDamageMoment=0.010000
+[11:45:40.356] [AnimDamageAction] Progress=0.968445, mDamageMoment=0.010000
+[11:45:40.359] [AnimDamageAction] Progress=0.969605, mDamageMoment=0.010000
+[11:45:40.363] [AnimDamageAction] Progress=0.970920, mDamageMoment=0.010000
+[11:45:40.366] [AnimDamageAction] Progress=0.972331, mDamageMoment=0.010000
+[11:45:40.369] [AnimDamageAction] Progress=0.973752, mDamageMoment=0.010000
+[11:45:40.374] [AnimDamageAction] Progress=0.975036, mDamageMoment=0.010000
+[11:45:40.377] [AnimDamageAction] Progress=0.976490, mDamageMoment=0.010000
+[11:45:40.381] [AnimDamageAction] Progress=0.977772, mDamageMoment=0.010000
+[11:45:40.384] [AnimDamageAction] Progress=0.979061, mDamageMoment=0.010000
+[11:45:40.387] [AnimDamageAction] Progress=0.980251, mDamageMoment=0.010000
+[11:45:40.391] [AnimDamageAction] Progress=0.981656, mDamageMoment=0.010000
+[11:45:40.395] [AnimDamageAction] Progress=0.982878, mDamageMoment=0.010000
+[11:45:40.399] [AnimDamageAction] Progress=0.984226, mDamageMoment=0.010000
+[11:45:40.402] [AnimDamageAction] Progress=0.985496, mDamageMoment=0.010000
+[11:45:40.406] [AnimDamageAction] Progress=0.986848, mDamageMoment=0.010000
+[11:45:40.409] [AnimDamageAction] Progress=0.988208, mDamageMoment=0.010000
+[11:45:40.569] [AudioManager] Shutdown complete.
+[11:45:40.571] [WorldSpriteRenderer] Shutdown complete.
+[11:45:40.571] [WorldSpriteRenderer] Shutdown complete.
+[11:45:40.574] [WorldSpriteRenderer] Shutdown complete.
+[11:48:29.781] [GameApp] Debug working directory: D:\lab\vscworkplace\directX
+[11:48:29.867] [D3DContext] WARNING: Debug layer unavailable (DXGI_ERROR_SDK_COMPONENT_MISSING).
+[11:48:29.867] [D3DContext] Retrying without D3D11_CREATE_DEVICE_DEBUG.
+[11:48:29.867] [D3DContext] To enable: Settings > Optional Features > Graphics Tools
+[11:48:30.309] [AudioManager] Loaded BGM track 'overworld' (37235568 bytes PCM).
+[11:48:30.354] [AudioManager] Loaded BGM track 'battle' (29789372 bytes PCM).
+[11:48:30.355] [AudioManager] Initialized. 2 BGM track(s) loaded.
+[11:48:30.355] [MenuState] OnEnter
+[11:48:30.356] [GameApp] Initialized. First state: MenuState.
+[11:48:30.357] [TimeSystem] Clock tree built: Root -> UI, Gameplay
+[11:48:30.383] [MenuState] OnExit
+[11:48:30.383] [OverworldState] OnEnter
+[11:48:30.383] [AudioManager] Playing BGM: 'overworld'.
+[11:48:30.397] [CircleRenderer] Initialized successfully.
+[11:48:30.399] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:48:30.417] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:48:30.422] [WorldSpriteRenderer] SpriteBatch created.
+[11:48:30.422] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:48:30.424] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton.json': 1 battle slot(s).
+[11:48:30.424] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:48:30.432] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:48:30.432] [WorldSpriteRenderer] SpriteBatch created.
+[11:48:30.433] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:48:30.433] [OverworldEnemy] Spawned 'Skeleton' at world (300.0, 150.0).
+[11:48:30.434] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton_group.json': 3 battle slot(s).
+[11:48:30.435] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:48:30.446] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:48:30.446] [WorldSpriteRenderer] SpriteBatch created.
+[11:48:30.446] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:48:30.446] [OverworldEnemy] Spawned 'Skeleton' at world (-250.0, -100.0).
+[11:48:30.457] [PincushionFilter] Initialized (1280x720).
+[11:48:30.458] [DebugTextureViewer] Loaded 'assets/animations/test.png' — 100x100
+[11:48:32.969] [AudioManager] Shutdown complete.
+[11:48:32.971] [WorldSpriteRenderer] Shutdown complete.
+[11:48:32.971] [WorldSpriteRenderer] Shutdown complete.
+[11:48:32.973] [WorldSpriteRenderer] Shutdown complete.
+[11:50:52.467] [GameApp] Debug working directory: D:\lab\vscworkplace\directX
+[11:50:52.562] [D3DContext] WARNING: Debug layer unavailable (DXGI_ERROR_SDK_COMPONENT_MISSING).
+[11:50:52.562] [D3DContext] Retrying without D3D11_CREATE_DEVICE_DEBUG.
+[11:50:52.562] [D3DContext] To enable: Settings > Optional Features > Graphics Tools
+[11:50:52.815] [AudioManager] Loaded BGM track 'overworld' (37235568 bytes PCM).
+[11:50:52.883] [AudioManager] Loaded BGM track 'battle' (29789372 bytes PCM).
+[11:50:52.883] [AudioManager] Initialized. 2 BGM track(s) loaded.
+[11:50:52.883] [MenuState] OnEnter
+[11:50:52.883] [GameApp] Initialized. First state: MenuState.
+[11:50:52.889] [TimeSystem] Clock tree built: Root -> UI, Gameplay
+[11:50:53.095] [MenuState] OnExit
+[11:50:53.096] [OverworldState] OnEnter
+[11:50:53.097] [AudioManager] Playing BGM: 'overworld'.
+[11:50:53.121] [CircleRenderer] Initialized successfully.
+[11:50:53.124] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:50:53.157] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:53.162] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:53.162] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:50:53.162] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton.json': 1 battle slot(s).
+[11:50:53.166] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:50:53.176] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:53.177] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:53.177] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:50:53.177] [OverworldEnemy] Spawned 'Skeleton' at world (300.0, 150.0).
+[11:50:53.179] [JsonLoader] Loaded enemy 'Skeleton' from 'data/enemies/skeleton_group.json': 3 battle slot(s).
+[11:50:53.181] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:50:53.195] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:53.196] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:53.196] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:50:53.197] [OverworldEnemy] Spawned 'Skeleton' at world (-250.0, -100.0).
+[11:50:53.209] [PincushionFilter] Initialized (1280x720).
+[11:50:53.209] [DebugTextureViewer] Loaded 'assets/animations/test.png' — 100x100
+[11:50:55.529] [ZoomPincushionTransition] Started transition vs 'Skeleton'.
+[11:50:55.530] [OverworldState] Battle triggered vs 'Skeleton' — transition started.
+[11:50:56.529] [ZoomPincushionTransition] Transition sequence completed.
+[11:50:56.529] [BattleState] OnEnter
+[11:50:56.531] [AudioManager] Playing BGM: 'battle'.
+[11:50:56.533] [JsonLoader] Loaded SkillData from 'data/skills/verso_attack.json'.
+[11:50:56.533] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'.
+[11:50:56.533] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'.
+[11:50:56.533] [JsonLoader] Loaded SkillData from 'data/skills/skeleton_attack.json'.
+[11:50:56.533] [Battle] --- BATTLE START ---
+[11:50:56.533] [Battle] Verso HP:100
+[11:50:56.533] [Battle] Skeleton A HP:60
+[11:50:56.536] [Battle] Skeleton B HP:30
+[11:50:56.536] [Battle] Skeleton C HP:35
+[11:50:56.536] [JsonLoader] Loaded formations from 'data/formations.json'.
+[11:50:56.539] [BattleCamera] Initialized — screen 1280x720, phase=OVERVIEW
+[11:50:56.539] [JsonLoader] Loaded 'assets/animations/verso.json': 1792x256, frames 128x128, 8 clip(s).
+[11:50:56.552] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:56.553] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:56.553] [WorldSpriteRenderer] Initialize complete — sheet 'verso', 8 clip(s).
+[11:50:56.554] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:50:56.562] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:56.562] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:56.562] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:50:56.562] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:50:56.573] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:56.574] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:56.575] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:50:56.575] [JsonLoader] Loaded 'assets/animations/skeleton.json': 1536x640, frames 128x128, 5 clip(s).
+[11:50:56.582] [WorldSpriteRenderer] Texture uploaded to GPU.
+[11:50:56.582] [WorldSpriteRenderer] SpriteBatch created.
+[11:50:56.582] [WorldSpriteRenderer] Initialize complete — sheet 'skeleton', 5 clip(s).
+[11:50:56.582] [BattleRenderer] Initialized — screen 1280x720
+[11:50:56.582] [JsonLoader] Loaded BattleMenuLayout from 'data/battle_menu_layout.json'.
+[11:50:56.587] [HealthBarConfig] Loaded from 'assets/UI/HP_description.json' — HP bar: [60,174]→[186,189]
+[11:50:56.589] [HealthBarRenderer] Background texture loaded.
+[11:50:56.591] [HealthBarRenderer] Frame + portrait texture loaded.
+[11:50:56.591] [HealthBarRenderer] 1x1 fill texture created.
+[11:50:56.595] [HealthBarRenderer] Initialized. Screen: 1280x720
+[11:50:56.596] [EnemyHpBarRenderer] Config: tex=128x16, HP fill [16,6]->[111,10]
+[11:50:56.597] [EnemyHpBarRenderer] Background texture loaded.
+[11:50:56.597] [EnemyHpBarRenderer] Frame texture loaded.
+[11:50:56.599] [EnemyHpBarRenderer] 1x1 fill texture created.
+[11:50:56.599] [EnemyHpBarRenderer] Initialized. Screen: 1280x720
+[11:50:56.603] [NineSliceRenderer] Loaded NineSliceData from 'assets/UI/ui-dialog-box-hd.json'.
+[11:50:56.603] [BattleTextRenderer] Font loaded: assets/fonts/arial_16.spritefont
+[11:50:56.603] [BattleTextRenderer] Initialized. Screen: 1280x720
+[11:50:56.605] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:50:56.616] [IrisTransitionRenderer] Initialized. maxRadius=758.3 center=(640.0,360.0)
+[11:50:56.617] [IrisTransitionRenderer] StartOpen: speed=800 px/s
+[11:50:56.618] [OverworldState] Transition complete — BattleState pushed, slow-motion restored.
+[11:50:57.009] [BattleState] Command confirmed: Fight
+[11:50:57.009] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:50:57.014] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A SKILL ]
+  [1] [2] [3] select skill   [Esc] back to commands
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:50:57.262] [BattleState] Skill confirmed: Attack — now pick a target
+[11:50:57.263] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A TARGET ]
+  [Tab] next target   [Enter] confirm   [Esc] back to skills
+
+  Skills  :
+    > [1] Attack          Strike the enemy.  
+      [2] Rage Burst      Unleash full rage for massive damage.  (unavailable)
+      [3] Weaken          Reduce target ATK and DEF for 2 turns.  
+  Target      : Skeleton A
+  Hint        : Tab / Down = next target  Up = prev target  Enter = confirm  Esc = back
+  Skill       : Attack
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60[11:50:57.725] [BattleState] Action confirmed: Attack -> Skeleton A
+[11:50:57.728] 
+======================== BATTLE STATE ========================
+  [ ENGINE: PLAYER_TURN  ]   [ YOUR TURN: SELECT A COMMAND ]
+  [Up/Down] navigate   [Enter] confirm
+
+  Actions :
+    > Fight
+      Flee
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:50:57.731] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+  >>> [PLAYER] Verso         HP:100/100  Rage:  0/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 60/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- BATTLE START ---
+  Verso HP:100
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+==============================================================
+
+[11:50:59.033] Skeleton A takes 19 damage (raw=25 def=6) HP=41/60
+[11:50:59.734] [HealthBarRenderer] HP event received: target HP = 100 / 100
+[11:50:59.735] [Battle] --- Skeleton B's turn ---
+[11:50:59.736] 
+======================== BATTLE STATE ========================
+  [ ENGINE: ENEMY_TURN   ]   [ WAIT - enemy is acting... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP:100/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+  >>> [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+  Verso attacks Skeleton A!
+  --- Skeleton B's turn ---
+==============================================================
+
+[11:50:59.739] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP:100/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+  >>> [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  Skeleton A HP:60
+  Skeleton B HP:30
+  Skeleton C HP:35
+  Verso attacks Skeleton A!
+  --- Skeleton B's turn ---
+==============================================================
+
+[11:50:59.744] [WorldSpriteRenderer] Clip 'fight-state' not found in sheet 'skeleton'.
+[11:50:59.745] [WorldSpriteRenderer] Clip 'battle-move' not found in sheet 'skeleton'.
+[11:51:00.243] [WorldSpriteRenderer] Clip 'battle-unmove' not found in sheet 'skeleton'.
+[11:51:00.778] Verso takes 1 damage (raw=7 def=10) HP=99/100
+[11:51:00.911] [WorldSpriteRenderer] Clip 'battle-move' not found in sheet 'skeleton'.
+[11:51:01.411] [WorldSpriteRenderer] Clip 'battle-unmove' not found in sheet 'skeleton'.
+[11:51:01.412] [HealthBarRenderer] HP event received: target HP = 99 / 100
+[11:51:01.413] [Battle] --- Skeleton C's turn ---
+[11:51:01.414] 
+======================== BATTLE STATE ========================
+  [ ENGINE: ENEMY_TURN   ]   [ WAIT - enemy is acting... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP: 99/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+  >>> [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  Skeleton C HP:35
+  Verso attacks Skeleton A!
+  --- Skeleton B's turn ---
+  Skeleton B attacks Verso!
+  --- Skeleton C's turn ---
+==============================================================
+
+[11:51:01.419] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP: 99/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+      [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+  >>> [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  Skeleton C HP:35
+  Verso attacks Skeleton A!
+  --- Skeleton B's turn ---
+  Skeleton B attacks Verso!
+  --- Skeleton C's turn ---
+==============================================================
+
+[11:51:01.422] [WorldSpriteRenderer] Clip 'fight-state' not found in sheet 'skeleton'.
+[11:51:01.423] [WorldSpriteRenderer] Clip 'battle-move' not found in sheet 'skeleton'.
+[11:51:01.922] [WorldSpriteRenderer] Clip 'battle-unmove' not found in sheet 'skeleton'.
+[11:51:02.456] Verso takes 1 damage (raw=8 def=10) HP=98/100
+[11:51:02.590] [WorldSpriteRenderer] Clip 'battle-move' not found in sheet 'skeleton'.
+[11:51:03.090] [WorldSpriteRenderer] Clip 'battle-unmove' not found in sheet 'skeleton'.
+[11:51:03.092] [HealthBarRenderer] HP event received: target HP = 98 / 100
+[11:51:03.093] [Battle] --- Skeleton A's turn ---
+[11:51:03.094] 
+======================== BATTLE STATE ========================
+  [ ENGINE: ENEMY_TURN   ]   [ WAIT - enemy is acting... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP: 98/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+  >>> [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- Skeleton B's turn ---
+  Skeleton B attacks Verso!
+  --- Skeleton C's turn ---
+  Skeleton C attacks Verso!
+  --- Skeleton A's turn ---
+==============================================================
+
+[11:51:03.096] 
+======================== BATTLE STATE ========================
+  [ ENGINE: RESOLVING    ]   [ WAIT - action in progress... ]
+
+  ------------------------ Combatants ------------------------
+      [PLAYER] Verso         HP: 98/100  Rage:  4/100  ATK:25  DEF:10  SPD:10  ALIVE
+  >>> [ENEMY ] Skeleton A    HP: 41/60   ATK:12  DEF: 6  SPD: 4  ALIVE
+      [ENEMY ] Skeleton B    HP: 30/30   ATK: 7  DEF: 3  SPD: 8  ALIVE
+      [ENEMY ] Skeleton C    HP: 35/35   ATK: 8  DEF: 4  SPD: 5  ALIVE
+  ------------------------ Battle Log ------------------------
+  --- Skeleton B's turn ---
+  Skeleton B attacks Verso!
+  --- Skeleton C's turn ---
+  Skeleton C attacks Verso!
+  --- Skeleton A's turn ---
+==============================================================
+
+[11:51:03.100] [WorldSpriteRenderer] Clip 'fight-state' not found in sheet 'skeleton'.
+[11:51:03.101] [WorldSpriteRenderer] Clip 'battle-move' not found in sheet 'skeleton'.
+[11:51:03.351] [AudioManager] Shutdown complete.
+[11:51:03.351] [WorldSpriteRenderer] Shutdown complete.
+[11:51:03.353] [WorldSpriteRenderer] Shutdown complete.
+[11:51:03.355] [WorldSpriteRenderer] Shutdown complete.

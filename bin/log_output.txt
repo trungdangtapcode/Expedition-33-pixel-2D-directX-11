@@ -1,0 +1,7 @@
+[11:38:10.316] [GameApp] Debug console attached.
+[11:42:27.725] [GameApp] Debug console attached.
+[11:44:49.010] [GameApp] Debug console attached.
+[11:44:52.161] [GameApp] Debug console attached.
+[11:45:33.423] [GameApp] Debug console attached.
+[11:48:29.780] [GameApp] Debug console attached.
+[11:50:52.464] [GameApp] Debug console attached.

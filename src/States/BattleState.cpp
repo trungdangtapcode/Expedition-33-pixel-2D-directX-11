@@ -117,6 +117,7 @@ void BattleState::InitBattleSlots()
     
     mPlayAnimListener = EventManager::Get().Subscribe("battler_play_anim", [this](const EventData& e){ OnPlayAnim(e); });
     mIsAnimDoneListener = EventManager::Get().Subscribe("battler_is_anim_done", [this](const EventData& e){ OnIsAnimDone(e); });
+    mGetAnimProgressListener = EventManager::Get().Subscribe("battler_get_anim_progress", [this](const EventData& e){ OnGetAnimProgress(e); });
     mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
     mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
     mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
@@ -217,6 +218,7 @@ void BattleState::OnExit()
 
         EventManager::Get().Unsubscribe("battler_play_anim", mPlayAnimListener);
     EventManager::Get().Unsubscribe("battler_is_anim_done", mIsAnimDoneListener);
+    EventManager::Get().Unsubscribe("battler_get_anim_progress", mGetAnimProgressListener);
     EventManager::Get().Unsubscribe("battler_set_offset", mMoveOffsetListener);
     EventManager::Get().Unsubscribe("battler_get_world_pos", mGetWorldPosListener);
     EventManager::Get().Unsubscribe("battler_get_offset", mGetOffsetListener);
@@ -784,6 +786,18 @@ void BattleState::OnIsAnimDone(const EventData& e)
     if (GetBattlerSlot(p->target, slot, isPlayer)) {
         if (isPlayer) p->isDone = mBattleRenderer.IsPlayerClipDone(slot);
         else p->isDone = mBattleRenderer.IsEnemyClipDone(slot);
+    }
+}
+
+void BattleState::OnGetAnimProgress(const EventData& e)
+{
+    auto p = static_cast<GetAnimProgressPayload*>(e.payload);
+    int slot; bool isPlayer;
+    if (GetBattlerSlot(p->target, slot, isPlayer)) {
+        if (isPlayer) p->progress = mBattleRenderer.GetPlayerClipProgress(slot);
+        else p->progress = mBattleRenderer.GetEnemyClipProgress(slot);
+    } else {
+        p->progress = 1.0f;
     }
 }
 

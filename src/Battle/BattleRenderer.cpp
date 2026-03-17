@@ -250,11 +250,25 @@ bool BattleRenderer::IsEnemyClipDone(int slot) const
     return mEnemySprites[slot]->IsClipDone();
 }
 
+float BattleRenderer::GetEnemyClipProgress(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return 1.0f;
+    if (!mEnemyActive[slot]) return 1.0f;
+    return mEnemySprites[slot]->GetClipProgress();
+}
+
 bool BattleRenderer::IsPlayerClipDone(int slot) const
 {
     if (slot < 0 || slot >= kMaxSlots) return true;
     if (!mPlayerActive[slot]) return true;
     return mPlayerSprites[slot]->IsClipDone();
+}
+
+float BattleRenderer::GetPlayerClipProgress(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return 1.0f;
+    if (!mPlayerActive[slot]) return 1.0f;
+    return mPlayerSprites[slot]->GetClipProgress();
 }
 
 // ------------------------------------------------------------

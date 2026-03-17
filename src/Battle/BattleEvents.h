@@ -19,6 +19,12 @@ struct IsAnimDonePayload
     bool      isDone; // Out parameter
 };
 
+struct GetAnimProgressPayload
+{
+    IBattler* target;
+    float     progress; // Out parameter
+};
+
 struct MoveOffsetPayload
 {
     IBattler* target;

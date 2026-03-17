@@ -100,6 +100,7 @@ cl.exe ^
     src\Battle\DelayedAction.cpp ^
     src\Battle\MoveAction.cpp ^
     src\Battle\PlayAnimationAction.cpp ^
+    src\Battle\AnimDamageAction.cpp ^
     src\Battle\BattleInputController.cpp ^
     src\Battle\FightCommand.cpp ^
     src\Battle\FleeCommand.cpp ^

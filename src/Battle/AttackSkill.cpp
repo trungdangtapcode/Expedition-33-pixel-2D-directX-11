@@ -8,6 +8,7 @@
 #include "LogAction.h"
 #include "MoveAction.h"
 #include "PlayAnimationAction.h"
+#include "AnimDamageAction.h"
 
 bool AttackSkill::CanUse(const IBattler& /*caster*/) const
 {
@@ -39,11 +40,8 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     // 2. Move to target's melee range (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
-    // 4. Play attack animation
-    actions.push_back(std::make_unique<PlayAnimationAction>(&caster, CombatantAnim::Attack, true));
-
-    // 5. Apply damage
-    actions.push_back(std::make_unique<DamageAction>(&caster, target, rawDamage));
+    // 4. Play attack animation and apply damage simultaneously at normalized progress
+    actions.push_back(std::make_unique<AnimDamageAction>(&caster, target, rawDamage, CombatantAnim::Attack, mData.damageTakenOccurMoment));
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration, mData.meleeOffset));

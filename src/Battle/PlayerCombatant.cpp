@@ -6,6 +6,7 @@
 #include "AttackSkill.h"
 #include "RageSkill.h"
 #include "WeakenSkill.h"
+#include "../Utils/Log.h"
 
 // ------------------------------------------------------------
 // MVP stats — hardcoded constants only; in production these come from JSON.
@@ -28,7 +29,10 @@ PlayerCombatant::PlayerCombatant(std::string name, std::string attackJsonPath)
     // Register the three default player skills.
     mSkills.push_back([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData(attackJsonPath, attackData);
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
             return std::make_unique<AttackSkill>(attackData);
         }());
     mSkills.push_back(std::make_unique<RageSkill>());
@@ -46,7 +50,10 @@ PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats
     // Register the three default player skills.
     mSkills.push_back([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData(attackJsonPath, attackData);
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
             return std::make_unique<AttackSkill>(attackData);
         }());
     mSkills.push_back(std::make_unique<RageSkill>());

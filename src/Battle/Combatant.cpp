@@ -6,8 +6,9 @@
 #define NOMINMAX           // prevent Windows.h from defining min/max macros
 #include <algorithm>    // std::max
 #include "../Utils/Log.h"
+#include "../Events/EventManager.h"
 
-// Convenience wrapper: LOG() only accepts printf-style args, so convert
+// Convenience wrapper: LOG() only accepts printf-style args, so convert        
 // std::string messages to C-strings before passing to the macro.
 static inline void LogStr(const std::string& msg)
 {
@@ -48,6 +49,13 @@ void Combatant::TakeDamage(int rawDamage, IBattler* source)
     {
         source->GetStats().AddRage(effective / 4);
     }
+
+    // Broadcast HP change immediately so UI reacts precisely when damage occurs.
+    const std::string eventName = (mName == "Verso") ? "verso_hp_changed" : mName + "_hp_changed";
+    EventData data;
+    data.name = eventName;
+    data.value = static_cast<float>(mStats.hp);
+    EventManager::Get().Broadcast(eventName, data);
 }
 
 void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)

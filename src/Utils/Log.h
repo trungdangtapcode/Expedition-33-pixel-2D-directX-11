@@ -26,6 +26,7 @@
 #pragma once
 #include <windows.h>  // OutputDebugStringA, GetLocalTime, SYSTEMTIME
 #include <cstdio>     // snprintf, printf
+#define _CRT_SECURE_NO_WARNINGS
 
 #ifdef _DEBUG
 

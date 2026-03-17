@@ -4,6 +4,7 @@
 // ============================================================
 #include "EnemyCombatant.h"
 #include "IBattler.h"
+#include "../Utils/Log.h"
 
 static constexpr int kEnemyMaxHp  = 50;
 static constexpr int kEnemyMaxMp  = 0;
@@ -20,7 +21,10 @@ EnemyCombatant::EnemyCombatant(std::string name, std::string attackJsonPath)
     })
     , mAttack([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData(attackJsonPath, attackData);
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[EnemyCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[EnemyCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
             return std::make_unique<AttackSkill>(attackData);
         }())
 {}
@@ -35,7 +39,10 @@ EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats, std:
     : Combatant(std::move(name), stats)
     , mAttack([&]() {
             JsonLoader::SkillData attackData;
-            JsonLoader::LoadSkillData(attackJsonPath, attackData);
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[EnemyCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[EnemyCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
             return std::make_unique<AttackSkill>(attackData);
         }())
 {}

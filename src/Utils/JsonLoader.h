@@ -28,6 +28,7 @@
 #include <string>
 #include <fstream>
 #include <sstream>
+#include <filesystem>
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/EnemyEncounterData.h"
 #include "Log.h"
@@ -38,6 +39,21 @@ namespace JsonLoader {
 // Internal helpers — not part of the public API
 // ============================================================
 namespace detail {
+
+// ------------------------------------------------------------
+// Warn if the file is UTF-16. std::ifstream fails to parse UTF-16
+// correctly because of interspersed null bytes.
+// ------------------------------------------------------------
+inline void WarnIfUTF16(const std::string& src, const std::string& path)
+{
+    if (src.size() >= 2) {
+        unsigned char b1 = static_cast<unsigned char>(src[0]);
+        unsigned char b2 = static_cast<unsigned char>(src[1]);
+        if ((b1 == 0xFF && b2 == 0xFE) || (b1 == 0xFE && b2 == 0xFF)) {
+            LOG("[JsonLoader] FATAL ERROR: File '%s' is saved as UTF-16! C++ parser requires UTF-8. Please re-save your file.", path.c_str());
+        }
+    }
+}
 
 // ------------------------------------------------------------
 // Trim leading and trailing whitespace (space, tab, CR, LF).
@@ -678,7 +694,19 @@ struct SkillData {
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
 {
-    std::ifstream file(path);
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    // Support both workspace-root cwd and bin/ cwd at runtime.
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
     if (!file.is_open()) {
         LOG("[JsonLoader] Cannot open skill data file: '%s'", path.c_str());
         return false;
@@ -687,12 +715,19 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     buffer << file.rdbuf();
     std::string src = buffer.str();
 
+    detail::WarnIfUTF16(src, path);
+
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);
     out.damageTakenOccurMoment = detail::ParseFloat(detail::ValueOf(src, "damageTakenOccurMoment"), 0.8f);
+    if (out.damageTakenOccurMoment < 0.0f) out.damageTakenOccurMoment = 0.0f;
+    if (out.damageTakenOccurMoment > 1.0f) out.damageTakenOccurMoment = 1.0f;
 
-    LOG("[JsonLoader] Loaded SkillData from '%s'.", path.c_str());
+    LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
+        path.c_str(),
+        resolvedPath.string().c_str(),
+        out.damageTakenOccurMoment);
     return true;
 }
 

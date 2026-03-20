@@ -3,13 +3,15 @@
 Todo:
 - QTE
 - Enhance walking anim
-- Move in battle
 - Develop statical formula and system for battle
 
 - Refactor structure of code, make it more modular and easier to maintain: FOLDER STRUCTURE
 - PlayerInputPhase::CHARACTER_ACTION_SELECT -> PlayerInputPhase::SKILL_SELECT
 
-- Attack animations
+- enemy also need to move
+
+- Add agility stat to determine turn order, randomize system
+- Add turn order UI
 
 Done:
 - Enhance hp bar
@@ -19,3 +21,6 @@ Done:
 - [fix] Hp disappear when dead but it's not waiting for the animation to end
 
 - ready to fight animation
+- Move in battle
+- Attack animations
+- dealing dame sync with animation

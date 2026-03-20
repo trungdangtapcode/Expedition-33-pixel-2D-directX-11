@@ -68,22 +68,26 @@ void BattleDebugHUD::BuildLines(const BattleHUDSnapshot& snap,
 {
     PushBorder(out, snap.title, kBoxWidth);
 
-    // ---- Phase banner -- the FIRST thing the player reads ----
-    // Show a bold, unambiguous line: what the engine is doing AND
-    // what the player is expected to do right now.
+    // ---- Phase banner / Menus temporarily hidden for debug focus ----
+    /*
     PushPhaseBanner(out, snap.simulationPhase, snap.inputPhase, kBoxWidth);
 
-    // ---- Command menu ----
     if (!snap.menuItems.empty())
         PushMenu(out, snap.menuItems);
 
-    // ---- Skill list ----
     if (!snap.skillRows.empty())
         PushSkills(out, snap.skillRows);
 
-    // ---- Info lines (target, hints, etc.) ----
     if (!snap.infoLines.empty())
         PushInfoLines(out, snap.infoLines);
+    */
+
+    // ---- Timeline Queue ----
+    if (!snap.timeline.empty())
+    {
+        PushDivider(out, "Action Value Timeline", kBoxWidth);
+        PushTimeline(out, snap.timeline, kBoxWidth);
+    }
 
     // ---- Combatant table ----
     if (!snap.combatants.empty())
@@ -334,6 +338,22 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
 
         out.push_back(buf);
     }
+}
+
+// ------------------------------------------------------------
+// PushTimeline: shows the upcoming action queue AVs
+// ------------------------------------------------------------
+void BattleDebugHUD::PushTimeline(std::vector<std::string>& out,
+                                  const std::vector<BattleHUDSnapshot::TimelineRow>& timeline, int w)
+{
+    std::string qstr = "  Turn Queue: [";
+    for (size_t i = 0; i < timeline.size(); ++i)
+    {
+        qstr += timeline[i].name;
+        if (i < timeline.size() - 1) qstr += ", ";
+    }
+    qstr += "]";
+    out.push_back(qstr);
 }
 
 // ------------------------------------------------------------

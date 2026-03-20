@@ -7,6 +7,7 @@
 // No need to redefine it here to avoid warning C4005
 #include <windows.h>
 #include "Core/GameApp.h"
+#define _CRT_SECURE_NO_WARNINGS
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     GameApp app;

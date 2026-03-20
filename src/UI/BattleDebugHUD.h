@@ -74,6 +74,13 @@ struct BattleHUDSnapshot
     };
     std::vector<CombatantRow> combatants;
 
+    // ---- Turn queue (timeline) ----
+    struct TimelineRow {
+        std::string name;
+        float currentAV = 0.0f;
+    };
+    std::vector<TimelineRow> timeline;
+
     // ---- Recent battle log (caller provides last N lines) ----
     std::vector<std::string> logLines;
 };
@@ -108,6 +115,8 @@ private:
                                 const std::vector<BattleHUDSnapshot::InfoLine>& lines);
     static void PushCombatants(std::vector<std::string>& out,
                                 const std::vector<BattleHUDSnapshot::CombatantRow>& rows);
+    static void PushTimeline  (std::vector<std::string>& out,
+                                const std::vector<BattleHUDSnapshot::TimelineRow>& timeline, int w);
     static void PushLog       (std::vector<std::string>& out,
                                 const std::vector<std::string>& lines);
 };

@@ -93,14 +93,25 @@ public:
     PlayerCombatant* GetActivePlayer() const;
     IBattler*        GetActiveEnemy()  const;
 
+    // Turn timeline for tick-based agility system
+    struct TurnNode {
+        IBattler* battler;
+        float currentAV;
+        float baseAgility;
+    };
+
+    const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
+    
+    // Simulate the future actions in the queue based on the current AV timeline
+    std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;
+
 private:
     // -- Team storage --
     std::vector<std::unique_ptr<PlayerCombatant>> mPlayers;
     std::vector<std::unique_ptr<EnemyCombatant>>  mEnemies;
 
-    // Turn order: raw non-owning pointers sorted by SPD descending.
-    std::vector<IBattler*> mTurnOrder;
-    int                    mCurrentTurnIndex = 0;
+    std::vector<TurnNode> mTimeline;
+    static constexpr float kActionGauge = 10000.0f;
 
     ActionQueue            mQueue;
     BattlePhase            mPhase   = BattlePhase::INIT;

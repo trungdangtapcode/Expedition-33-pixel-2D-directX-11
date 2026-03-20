@@ -60,32 +60,55 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats, sd.attackJsonPath));
     }
 
-    BuildTurnOrder();
-
     Log("--- BATTLE START ---");
     for (auto& p : mPlayers) Log(p->GetName() + " HP:" + std::to_string(p->GetStats().hp));
     for (auto& e : mEnemies) Log(e->GetName() + " HP:" + std::to_string(e->GetStats().hp));
 
-    mPhase = BattlePhase::PLAYER_TURN;
+    BuildTurnOrder();
 }
 
 // ------------------------------------------------------------
-// BuildTurnOrder: sort all living combatants by SPD descending.
-// This snapshot is taken at battle start; combatants that die mid-battle
-// are skipped by AdvanceTurn() via the IsAlive() check.
+// BuildTurnOrder: Initialize tick-based timeline sorted by AV descending (so smallest AV is first).
 // ------------------------------------------------------------
 void BattleManager::BuildTurnOrder()
 {
-    mTurnOrder.clear();
-    for (auto& p : mPlayers) mTurnOrder.push_back(p.get());
-    for (auto& e : mEnemies) mTurnOrder.push_back(e.get());
+    mTimeline.clear();
 
-    std::sort(mTurnOrder.begin(), mTurnOrder.end(),
-        [](const IBattler* a, const IBattler* b) {
-            return a->GetStats().spd > b->GetStats().spd;  // higher SPD acts first
+    auto addBattler = [this](IBattler* b) {
+        if (b && b->IsAlive()) {
+            float spd = static_cast<float>(b->GetStats().spd);
+            if (spd <= 0.0f) spd = 1.0f; // Prevent division by zero
+            
+            TurnNode node;
+            node.battler = b;
+            node.baseAgility = spd;
+            node.currentAV = kActionGauge / spd;
+            mTimeline.push_back(node);
+        }
+    };
+
+    for (auto& p : mPlayers) addBattler(p.get());
+    for (auto& e : mEnemies) addBattler(e.get());
+
+    std::sort(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& a, const TurnNode& b) {
+            return a.currentAV < b.currentAV;
         });
 
-    mCurrentTurnIndex = 0;
+    if (mTimeline.empty()) return;
+
+    // Advance time for the very first turn so the first combatant reaches 0 AV
+    float elapsedAV = mTimeline[0].currentAV;
+    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
+
+    IBattler* next = mTimeline[0].battler;
+    next->OnTurnStart();
+    Log("--- " + next->GetName() + "'s turn ---");
+
+    if (next->IsPlayerControlled())
+        mPhase = BattlePhase::PLAYER_TURN;
+    else
+        mPhase = BattlePhase::ENEMY_TURN;
 }
 
 // ------------------------------------------------------------
@@ -218,21 +241,36 @@ void BattleManager::HandleResolving(float dt)
 }
 
 // ------------------------------------------------------------
-// AdvanceTurn: move to the next living combatant in turn order.
+// AdvanceTurn: push the current combatant back and advance time.
 // ------------------------------------------------------------
 void BattleManager::AdvanceTurn()
 {
-    if (mTurnOrder.empty()) return;
+    // 1. Remove dead combatants from the timeline
+    mTimeline.erase(std::remove_if(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& n) { return !n.battler->IsAlive(); }), mTimeline.end());
 
-    // Cycle to next living combatant; guard against infinite loop if all dead.
-    const int total = static_cast<int>(mTurnOrder.size());
-    for (int attempts = 0; attempts < total; ++attempts)
+    if (mTimeline.empty()) return;
+
+    // 2. Reset AV for the combatant who just acted (should be at timeline index 0 with AV near 0)
+    if (mTimeline[0].currentAV <= 0.001f)
     {
-        mCurrentTurnIndex = (mCurrentTurnIndex + 1) % total;
-        if (mTurnOrder[mCurrentTurnIndex]->IsAlive()) break;
+        float spd = static_cast<float>(mTimeline[0].battler->GetStats().spd);
+        if (spd <= 0.0f) spd = 1.0f;
+        mTimeline[0].currentAV = kActionGauge / spd;
     }
 
-    IBattler* next = CurrentCombatant();
+    // 3. Sort timeline by AV (smallest first)
+    std::sort(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& a, const TurnNode& b) {
+            return a.currentAV < b.currentAV;
+        });
+
+    // 4. Advance time globally so the next combatant reaches 0 AV
+    float elapsedAV = mTimeline[0].currentAV;
+    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
+
+    // 5. Start their turn
+    IBattler* next = mTimeline[0].battler;
     if (!next) return;
 
     next->OnTurnStart();
@@ -329,22 +367,71 @@ void BattleManager::SetPlayerAction(int skillIndex, IBattler* target)
 
 PlayerCombatant* BattleManager::GetActivePlayer() const
 {
-    IBattler* c = mTurnOrder.empty() ? nullptr : mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    IBattler* c = mTimeline[0].battler;
     if (c && c->IsPlayerControlled()) return static_cast<PlayerCombatant*>(c);
     return nullptr;
 }
 
 IBattler* BattleManager::GetActiveEnemy() const
 {
-    IBattler* c = mTurnOrder.empty() ? nullptr : mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    IBattler* c = mTimeline[0].battler;
     if (c && !c->IsPlayerControlled()) return c;
     return nullptr;
 }
 
 IBattler* BattleManager::CurrentCombatant()
 {
-    if (mTurnOrder.empty()) return nullptr;
-    return mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    return mTimeline[0].battler;
+}
+
+std::vector<IBattler*> BattleManager::GetFutureTurnQueue(int queueSize) const
+{
+    std::vector<IBattler*> queueOut;
+    if (mTimeline.empty()) return queueOut;
+
+    // We clone the timeline to safely advance and predict turns
+    std::vector<TurnNode> simTimeline;
+    for (const auto& node : mTimeline)
+    {
+        if (node.battler->IsAlive())
+        {
+            simTimeline.push_back(node);
+        }
+    }
+
+    if (simTimeline.empty()) return queueOut;
+
+    // Simulate to retrieve the next `queueSize` valid active turns.
+    for (int i = 0; i < queueSize; ++i)
+    {
+        if (simTimeline.empty()) break;
+        
+        // Push the character presently holding AV 0 
+        TurnNode& activeNode = simTimeline[0];
+        queueOut.push_back(activeNode.battler);
+        
+        // Give them a new AV simulating they just took a turn
+        float spd = static_cast<float>(activeNode.battler->GetStats().spd);
+        if (spd <= 0.0f) spd = 1.0f;
+        activeNode.currentAV += (kActionGauge / spd);
+        
+        // Re-sort the timeline
+        std::sort(simTimeline.begin(), simTimeline.end(),
+            [](const TurnNode& a, const TurnNode& b) {
+                return a.currentAV < b.currentAV;
+            });
+            
+        // Advance time forward so the new earliest node hits 0 AV
+        float elapsedAV = simTimeline[0].currentAV;
+        for (auto& n : simTimeline) {
+            n.currentAV -= elapsedAV;
+        }
+    }
+    
+    return queueOut;
 }
 
 void BattleManager::Log(const std::string& msg)

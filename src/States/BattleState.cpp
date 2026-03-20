@@ -744,6 +744,16 @@ void BattleState::DumpStateToDebugOutput() const
         snap.combatants.push_back(row);
     }
 
+    int queueSize = 6; // Queue size can be configured
+    const auto& predictedQueue = mBattle.GetFutureTurnQueue(queueSize);
+    for (IBattler* b : predictedQueue)
+    {
+        BattleHUDSnapshot::TimelineRow row;
+        row.name = b->GetName();
+        row.currentAV = 0.0f; // No longer needed for visual queue
+        snap.timeline.push_back(row);
+    }
+
     snap.logLines = mBattle.GetBattleLog();
 
     BattleDebugHUD::Render(snap);

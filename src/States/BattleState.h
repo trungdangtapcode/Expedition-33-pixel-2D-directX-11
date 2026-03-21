@@ -60,6 +60,7 @@
 #include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
+#include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
@@ -108,6 +109,7 @@ private:
     BattleRenderer         mBattleRenderer;
     HealthBarRenderer      mHealthBar;
     EnemyHpBarRenderer     mEnemyHpBar;
+    TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
     NineSliceRenderer      mDialogBox;
     BattleTextRenderer     mTextRenderer;

@@ -13,6 +13,7 @@
     {
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
+      "turnViewPath": "assets/UI/turn-view-skeleton.png",
       "idleClip": "idle",
       "hp": 50,
       "atk": 10,

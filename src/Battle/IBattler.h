@@ -25,6 +25,7 @@ public:
     // Identity
     // --------------------------------------------------------
     virtual const std::string& GetName() const = 0;
+    virtual const std::wstring& GetTurnViewPath() const = 0;
 
     // --------------------------------------------------------
     // Stats — mutable ref allows skills/actions to modify directly.

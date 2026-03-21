@@ -167,6 +167,16 @@ void BattleState::InitUIRenderers()
         mD3D.GetHeight()
     );
 
+    mTurnQueueUI.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        "assets/UI/turn-view.json",
+        L"assets/UI/turn-view-background.png",
+        L"assets/UI/turn-view-frame.png",
+        mD3D.GetWidth(),
+        mD3D.GetHeight()
+    );
+
     mTargetPointer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -225,6 +235,7 @@ void BattleState::OnExit()
     mBattleRenderer.Shutdown();
     mHealthBar.Shutdown();
     mEnemyHpBar.Shutdown();
+    mTurnQueueUI.Shutdown();
     mTargetPointer.Shutdown();
     mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
@@ -373,6 +384,8 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
 {
     mHealthBar.SetTargetScale(playerSelected ? 1.25f : 1.0f);
     mHealthBar.Update(dt);
+    mTurnQueueUI.Update(dt);
+    mTurnQueueUI.UpdateQueue(mBattle.GetFutureTurnQueue(6));
     mTargetPointer.Update(dt);
 
     const auto& enemies = mBattle.GetAllEnemies();
@@ -439,6 +452,7 @@ void BattleState::Render()
     mBattleRenderer.Render(mD3D.GetContext());
     mHealthBar.Render(mD3D.GetContext());
     mEnemyHpBar.Render(mD3D.GetContext());
+    mTurnQueueUI.Render(mD3D.GetContext());
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
         mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)

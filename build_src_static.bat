@@ -115,6 +115,7 @@ cl.exe ^
     src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\PointerRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
+    src\UI\TurnQueueUI.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^

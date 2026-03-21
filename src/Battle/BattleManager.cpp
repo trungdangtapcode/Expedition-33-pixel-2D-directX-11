@@ -29,7 +29,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
 {
     // -- Spawn player party — Verso with persistent HP from PartyManager --
     mPlayers.push_back(std::make_unique<PlayerCombatant>(
-        "Verso", PartyManager::Get().GetVersoStats()));
+        "Verso", L"assets/UI/turn-view-verso.png", PartyManager::Get().GetVersoStats()));
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
@@ -57,7 +57,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         stats.rage   = 0;
         stats.maxRage= 0;
 
-        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats, sd.attackJsonPath));
+        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, sd.turnViewPath, stats, sd.attackJsonPath));
     }
 
     Log("--- BATTLE START ---");

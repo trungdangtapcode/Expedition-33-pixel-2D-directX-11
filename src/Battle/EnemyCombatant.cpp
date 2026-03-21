@@ -12,8 +12,8 @@ static constexpr int kEnemyAtk    = 15;
 static constexpr int kEnemyDef    = 5;
 static constexpr int kEnemySpd    = 8;
 
-EnemyCombatant::EnemyCombatant(std::string name, std::string attackJsonPath)
-    : Combatant(std::move(name), BattlerStats{
+EnemyCombatant::EnemyCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), BattlerStats{
         kEnemyMaxHp, kEnemyMaxHp,
         kEnemyMaxMp, kEnemyMaxMp,
         kEnemyAtk, kEnemyDef, kEnemySpd,
@@ -35,8 +35,8 @@ EnemyCombatant::EnemyCombatant(std::string name, std::string attackJsonPath)
 // not from the hardcoded constants above.
 // Called by BattleManager::Initialize(EnemyEncounterData) exclusively.
 // ------------------------------------------------------------
-EnemyCombatant::EnemyCombatant(std::string name, const BattlerStats& stats, std::string attackJsonPath)
-    : Combatant(std::move(name), stats)
+EnemyCombatant::EnemyCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& stats, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), stats)
     , mAttack([&]() {
             JsonLoader::SkillData attackData;
             if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {

@@ -8,10 +8,14 @@ Todo:
 - Refactor structure of code, make it more modular and easier to maintain: FOLDER STRUCTURE
 - PlayerInputPhase::CHARACTER_ACTION_SELECT -> PlayerInputPhase::SKILL_SELECT
 
-- enemy also need to move
 
-- Add agility stat to determine turn order, randomize system
+- Queue randomize system
 - Add turn order UI
+- Add background assets
+- A readable damage calculation formula and system, with clear separation between damage types (physical, magical, true damage) and modifiers (buffs, debuffs, critical hits).
+- Items and inventory system
+- Winning screen -> reward screen with loot and experience points
+
 
 Done:
 - Enhance hp bar
@@ -24,3 +28,7 @@ Done:
 - Move in battle
 - Attack animations
 - dealing dame sync with animation
+
+- Add agility stat to determine turn order, 
+
+- enemy also need to move

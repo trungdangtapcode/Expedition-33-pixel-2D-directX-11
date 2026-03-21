@@ -18,8 +18,8 @@ static constexpr int kPlayerDef     = 10;
 static constexpr int kPlayerSpd     = 10;
 static constexpr int kPlayerMaxRage = 100;
 
-PlayerCombatant::PlayerCombatant(std::string name, std::string attackJsonPath)
-    : Combatant(std::move(name), BattlerStats{
+PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), BattlerStats{
         kPlayerMaxHp, kPlayerMaxHp,       // hp, maxHp
         kPlayerMaxMp, kPlayerMaxMp,       // mp, maxMp
         kPlayerAtk, kPlayerDef, kPlayerSpd,
@@ -44,8 +44,8 @@ PlayerCombatant::PlayerCombatant(std::string name, std::string attackJsonPath)
 // to restore persistent HP from PartyManager.
 // The skill list is always rebuilt fresh — skills are not persisted.
 // ------------------------------------------------------------
-PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats, std::string attackJsonPath)
-    : Combatant(std::move(name), seedStats)
+PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& seedStats, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), seedStats)
 {
     // Register the three default player skills.
     mSkills.push_back([&]() {

@@ -30,8 +30,8 @@ public:
     // In the full game stats always come from data/characters/verso.json
     // via PartyManager; the name-only overload is kept for testing.
     // ------------------------------------------------------------
-    explicit PlayerCombatant(std::string name, std::string attackJsonPath = "data/skills/verso_attack.json");
-    PlayerCombatant(std::string name, const BattlerStats& seedStats, std::string attackJsonPath = "data/skills/verso_attack.json");
+    explicit PlayerCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath = "data/skills/verso_attack.json");
+    PlayerCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& seedStats, std::string attackJsonPath = "data/skills/verso_attack.json");
 
     bool IsPlayerControlled() const override { return true; }
 

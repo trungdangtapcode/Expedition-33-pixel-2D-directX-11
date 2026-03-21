@@ -15,12 +15,14 @@ static inline void LogStr(const std::string& msg)
     LOG("%s", msg.c_str());
 }
 
-Combatant::Combatant(std::string name, BattlerStats stats)
+Combatant::Combatant(std::string name, std::wstring turnViewPath, BattlerStats stats)
     : mName(std::move(name))
+    , mTurnViewPath(std::move(turnViewPath))
     , mStats(stats)
 {}
 
 const std::string& Combatant::GetName() const { return mName; }
+const std::wstring& Combatant::GetTurnViewPath() const { return mTurnViewPath; }
       BattlerStats& Combatant::GetStats()       { return mStats; }
 const BattlerStats& Combatant::GetStats() const { return mStats; }
 

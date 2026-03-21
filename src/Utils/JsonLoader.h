@@ -582,6 +582,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.texturePath       = toWide(stripQ(detail::ValueOf(slotSrc, "texturePath")));
         slot.jsonPath          = stripQ(detail::ValueOf(slotSrc, "jsonPath"));
         slot.idleClip          = stripQ(detail::ValueOf(slotSrc, "idleClip"));
+        slot.turnViewPath      = toWide(stripQ(detail::ValueOf(slotSrc, "turnViewPath")));
         slot.hp                = detail::ParseInt  (detail::ValueOf(slotSrc, "hp"));
         slot.atk               = detail::ParseInt  (detail::ValueOf(slotSrc, "atk"));
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
@@ -598,6 +599,28 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
 
     LOG("[JsonLoader] Loaded enemy '%s' from '%s': %d battle slot(s).",
         out.name.c_str(), path.c_str(), static_cast<int>(out.battleParty.size()));
+    return true;
+}
+
+struct TurnViewConfig {
+    float width = 256.0f;
+    float height = 128.0f;
+};
+
+inline bool LoadTurnViewConfig(const std::string& path, TurnViewConfig& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open turn view config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 256.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 128.0f);
+
     return true;
 }
 

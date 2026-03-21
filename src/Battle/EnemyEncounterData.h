@@ -47,6 +47,7 @@ struct EnemySlotData
     std::wstring texturePath;           // L"assets/animations/skeleton.png"
     std::string  jsonPath;              // "assets/animations/skeleton.json"
     std::string  idleClip;             // "idle"
+    std::wstring turnViewPath;          // L"assets/UI/turn-view-skeleton.png"
 
     // ---- Per-role animation clip name overrides ----
     // These map to CombatantAnim roles.  Leave empty to use DefaultClipName().

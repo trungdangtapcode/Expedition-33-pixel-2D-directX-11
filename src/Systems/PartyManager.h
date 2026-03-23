@@ -91,9 +91,16 @@ private:
     // In the full game these will be loaded from data/characters/verso.json.
     // ------------------------------------------------------------
     BattlerStats mVersoStats {
-        100, 100,   // hp, maxHp
-        50,  50,    // mp, maxMp
-        25, 10, 10, // atk, def, spd
-        0,  100     // rage, maxRage
+        100, // hp
+        100, // maxHp
+        50,  // mp
+        50,  // maxMp
+        25,  // atk
+        10,  // def
+        25,  // matk
+        10,  // mdef
+        10,  // spd
+        0,   // rage
+        100  // maxRage
     };
 };

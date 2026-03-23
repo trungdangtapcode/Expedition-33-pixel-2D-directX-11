@@ -28,28 +28,25 @@ const BattlerStats& Combatant::GetStats() const { return mStats; }
 
 // ------------------------------------------------------------
 // TakeDamage
-//   Damage reduction formula: effective = max(1, raw - def)
-//   Minimum 1 ensures a hit always registers, preventing immortal turtles.
+//   Receives pre-calculated effective damage from IDamageCalculator evaluation.
 //   Rage is split: attacker gains more (rewarding aggression), defender gains
 //   less (rewarding survival + triggering RageSkill after taking punishment).
 // ------------------------------------------------------------
-void Combatant::TakeDamage(int rawDamage, IBattler* source)
+void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
 {
-    // Clamp to at least 1 so every hit feels impactful.
-    const int effective = std::max(1, rawDamage - mStats.def);
-    mStats.hp -= effective;
+    mStats.hp -= result.effectiveDamage;
     mStats.ClampHp();
 
     LOG("%s takes %d damage (raw=%d def=%d) HP=%d/%d",
-        mName.c_str(), effective, rawDamage, mStats.def, mStats.hp, mStats.maxHp);
+        mName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
 
     // Receiver gains rage from the pain of being hit.
-    mStats.AddRage(effective / 8);
+    mStats.AddRage(result.effectiveDamage / 8);
 
     // Attacker gains more rage from landing the blow.
     if (source)
     {
-        source->GetStats().AddRage(effective / 4);
+        source->GetStats().AddRage(result.effectiveDamage / 4);
     }
 
     // Broadcast HP change immediately so UI reacts precisely when damage occurs.

@@ -8,18 +8,17 @@
 #pragma once
 #include "IAction.h"
 #include "IBattler.h"
+#include "IDamageCalculator.h"
 
 class DamageAction : public IAction
 {
 public:
-    // rawDamage — pre-DEF-reduction damage. DEF subtraction happens in TakeDamage.
-    DamageAction(IBattler* attacker, IBattler* defender, int rawDamage);
+    // Takes a full request to be evaluated at the exact execution frame.
+    DamageAction(const DamageRequest& request);
 
-    // Calls defender->TakeDamage(mRawDamage, mAttacker). Completes in one frame.
+    // Runs DamageCalculator::Calculate on mRequest, then calls TakeDamage. Completes in one frame.
     bool Execute(float dt) override;
 
 private:
-    IBattler* mAttacker;   // non-owning — BattleManager owns the combatants
-    IBattler* mDefender;
-    int       mRawDamage;
+    DamageRequest mRequest;
 };

@@ -43,7 +43,7 @@ public:
     //   source.rage += effective / 4                ← attacker gains rage
     //   target.rage += effective / 8                ← receiver gains rage from pain
     // ------------------------------------------------------------
-    void TakeDamage(int rawDamage, IBattler* source) override;
+    void TakeDamage(const DamageResult& result, IBattler* source) override;
 
     void AddEffect(std::unique_ptr<IStatusEffect> effect) override;
 

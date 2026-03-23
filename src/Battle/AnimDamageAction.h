@@ -7,18 +7,17 @@
 #include "IAction.h"
 #include "IBattler.h"
 #include "CombatantAnim.h"
+#include "IDamageCalculator.h"
 
 class AnimDamageAction : public IAction
 {
 public:
-    AnimDamageAction(IBattler* attacker, IBattler* defender, int rawDamage, CombatantAnim animType, float damageMoment);
+    AnimDamageAction(const DamageRequest& request, CombatantAnim animType, float damageMoment);
 
     bool Execute(float dt) override;
 
 private:
-    IBattler*     mAttacker;
-    IBattler*     mDefender;
-    int           mRawDamage;
+    DamageRequest mRequest;
     CombatantAnim mAnimType;
     float         mDamageMoment;
 

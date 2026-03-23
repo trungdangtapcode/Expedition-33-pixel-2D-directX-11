@@ -2,16 +2,19 @@
 // File: DamageAction.cpp
 // ============================================================
 #include "DamageAction.h"
+#include "DefaultDamageCalculator.h"
 
-DamageAction::DamageAction(IBattler* attacker, IBattler* defender, int rawDamage)
-    : mAttacker(attacker)
-    , mDefender(defender)
-    , mRawDamage(rawDamage)
+DamageAction::DamageAction(const DamageRequest& request)
+    : mRequest(request)
 {}
 
 bool DamageAction::Execute(float /*dt*/)
 {
-    // TakeDamage handles DEF reduction, rage distribution, and logging internally.
-    mDefender->TakeDamage(mRawDamage, mAttacker);
+    if (mRequest.defender)
+    {
+        DefaultDamageCalculator calculator;
+        DamageResult result = calculator.Calculate(mRequest);
+        mRequest.defender->TakeDamage(result, mRequest.attacker);
+    }
     return true;    // instantaneous — complete on first frame
 }

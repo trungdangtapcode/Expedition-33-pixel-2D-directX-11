@@ -15,6 +15,7 @@
 #include <memory>
 #include "BattlerStats.h"
 #include "IStatusEffect.h"
+#include "IDamageCalculator.h"  // For DamageResult
 
 class IBattler
 {
@@ -34,13 +35,13 @@ public:
     virtual const BattlerStats& GetStats() const = 0;
 
     // --------------------------------------------------------
-    // TakeDamage: apply raw damage reduced by DEF; also grants rage.
-    //   rawDamage — pre-reduction damage amount.
-    //   source    — the attacker (may be nullptr for environmental dmg).
+    // TakeDamage: apply calculated damage; also grants rage.
+    //   result    - encapsulated post-evaluation damage amount.
+    //   source    - the attacker (may be nullptr).
     //               Source gains rage from dealing damage.
     //               Target gains rage from receiving damage.
     // --------------------------------------------------------
-    virtual void TakeDamage(int rawDamage, IBattler* source) = 0;
+    virtual void TakeDamage(const DamageResult& result, IBattler* source) = 0;
 
     // --------------------------------------------------------
     // Effect management — AddEffect transfers ownership immediately.

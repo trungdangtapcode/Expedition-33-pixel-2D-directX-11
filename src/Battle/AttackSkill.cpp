@@ -25,8 +25,11 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
 
     IBattler* target = targets[0];  // single-target skill
 
-    // Raw damage = attacker ATK; DEF subtraction happens inside TakeDamage.
-    const int rawDamage = caster.GetStats().atk;
+    DamageRequest req;
+    req.attacker = &caster;
+    req.defender = target;
+    req.type = DamageType::Physical;
+    req.skillMultiplier = 1.0f;     // basic attack is 1.0x
 
     // Log message first so it appears before the damage number.
     actions.push_back(std::make_unique<LogAction>(
@@ -41,7 +44,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
     // 4. Play attack animation and apply damage simultaneously at normalized progress
-    actions.push_back(std::make_unique<AnimDamageAction>(&caster, target, rawDamage, CombatantAnim::Attack, mData.damageTakenOccurMoment));
+    actions.push_back(std::make_unique<AnimDamageAction>(req, CombatantAnim::Attack, mData.damageTakenOccurMoment));
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration, mData.meleeOffset));

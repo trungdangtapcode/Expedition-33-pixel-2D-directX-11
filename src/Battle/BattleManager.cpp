@@ -53,6 +53,8 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         stats.maxMp  = 0;
         stats.atk    = sd.atk;
         stats.def    = sd.def;
+        stats.matk   = 0; // Defaulting matk, optionally pull from sd.matk if added later
+        stats.mdef   = 0; // Defaulting mdef
         stats.spd    = sd.spd;
         stats.rage   = 0;
         stats.maxRage= 0;

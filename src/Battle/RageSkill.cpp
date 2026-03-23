@@ -23,15 +23,18 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
 
     IBattler* target = targets[0];
 
-    // Double ATK raw damage; DEF reduction happens inside TakeDamage.
-    const int rawDamage = caster.GetStats().atk * 2;
+    DamageRequest req;
+    req.attacker = &caster;
+    req.defender = target;
+    req.type = DamageType::Physical; // Or TrueDamage/Magical if needed
+    req.skillMultiplier = 2.0f;      // Double damage
 
     actions.push_back(std::make_unique<LogAction>(
         nullptr,
         caster.GetName() + " unleashes RAGE BURST on " + target->GetName() + "!"
     ));
 
-    actions.push_back(std::make_unique<DamageAction>(&caster, target, rawDamage));
+    actions.push_back(std::make_unique<DamageAction>(req));
 
     // Reset rage to 0 after the burst — captured by pointer, safe because
     // caster outlives the ActionQueue (BattleManager owns both).

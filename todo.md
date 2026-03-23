@@ -10,7 +10,6 @@ Todo:
 
 
 - Queue randomize system
-- Add turn order UI
 - Add background assets
 - A readable damage calculation formula and system, with clear separation between damage types (physical, magical, true damage) and modifiers (buffs, debuffs, critical hits).
 - Items and inventory system
@@ -32,3 +31,4 @@ Done:
 - Add agility stat to determine turn order, 
 
 - enemy also need to move
+- Add turn order UI

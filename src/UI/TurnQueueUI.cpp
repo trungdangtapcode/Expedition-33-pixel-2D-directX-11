@@ -1,6 +1,4 @@
-// ============================================================
-// File: TurnQueueUI.cpp
-// ============================================================
+
 #include "TurnQueueUI.h"
 #include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
@@ -8,7 +6,7 @@
 
 using namespace DirectX;
 
-bool TurnQueueUI::Initialize(ID3D11Device* device, ID3D11DeviceContext* context, 
+bool TurnQueueUI::Initialize(ID3D11Device* device, ID3D11DeviceContext* context,
                              const std::string& configPath,
                              const std::wstring& bgPath, const std::wstring& framePath,
                              int screenW, int screenH)
@@ -21,11 +19,10 @@ bool TurnQueueUI::Initialize(ID3D11Device* device, ID3D11DeviceContext* context,
 
     mSpriteBatch = std::make_unique<SpriteBatch>(context);
     mStates      = std::make_unique<CommonStates>(device);
+    mConfigPath  = configPath;
 
-    JsonLoader::TurnViewConfig config;
-    if (JsonLoader::LoadTurnViewConfig(configPath, config)) {
-        mNodeWidth = config.width;
-        mNodeHeight = config.height;
+    if (!JsonLoader::LoadTurnViewConfig(configPath, mConfig)) {
+        LOG("[TurnQueueUI] Failed to load config from %s, using defaults.", configPath.c_str());
     }
 
     auto loadTexture = [&](const std::wstring& path, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& outSRV) {
@@ -46,15 +43,13 @@ bool TurnQueueUI::Initialize(ID3D11Device* device, ID3D11DeviceContext* context,
     loadTexture(bgPath, mBgSRV);
     loadTexture(framePath, mFrameSRV);
 
-    mStartX = 10.0f; // Padding from left
-    mStartY = 10.0f; // Padding from top
-
     return true;
 }
 
 void TurnQueueUI::Shutdown()
 {
     mNodes.clear();
+    mFadingNodes.clear();
     mTextureCache.clear();
     mBgSRV.Reset();
     mFrameSRV.Reset();
@@ -89,7 +84,7 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> TurnQueueUI::GetTexture(const s
         return srv;
     }
 
-    LOG("[TurnQueueUI] WARNING � failed to load portrait: %ls", path.c_str());
+    LOG("[TurnQueueUI] WARNING - failed to load portrait: %ls", path.c_str());
     mTextureCache[path] = nullptr;
     return nullptr;
 }
@@ -97,50 +92,120 @@ Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> TurnQueueUI::GetTexture(const s
 void TurnQueueUI::UpdateQueue(const std::vector<IBattler*>& anticipatedQueue)
 {
     const int count = static_cast<int>(anticipatedQueue.size());
-
-    // We keep existing currentY for animations if matches, but for simplicity here we just rebuild logic, 
-    // or we can reuse structs to tween smoothly.
-    
-    // Smooth update
     std::vector<QueueNode> newNodes;
     newNodes.reserve(count);
 
-    float layoutY = mStartY;
+    float layoutY = mConfig.startY;
 
     for (int i = 0; i < count; ++i) {
         IBattler* b = anticipatedQueue[i];
         if (!b) continue;
 
         QueueNode node;
+        node.battler = b;
         node.portraitPath = b->GetTurnViewPath();
-        node.targetY = layoutY;
         
-        // Find if this path was roughly in previous so we can continue animation
-        // For a more advanced logic we could check object pointer mapping. Here we just snap or animate.
-        node.currentY = layoutY + 20.0f; // start slightly offset for pop-in, but let's just match for MVP
-        
-        // Let's try to find an existing node with same portrait to tween from
-        if (i < mNodes.size() && mNodes[i].portraitPath == node.portraitPath) {
-            node.currentY = mNodes[i].currentY; // continue tweening
+        // Size configuration: Top one is bigger
+        if (i == 0) {
+            node.targetScale = mConfig.topScale;
         } else {
-            node.currentY = node.targetY; // hard snap on change
+            node.targetScale = mConfig.normalScale;
+        }
+        
+        node.targetX = mConfig.startX;
+        node.targetY = layoutY;
+
+// The core constraint: Items in a queue should strictly slide UP (index decreases) 
+        // to take the place of finished actions. An action should NEVER slide DOWN.
+        int bestOldIdx = -1;
+        int minDistance = 9999;
+
+        for (int oldIdx = 0; oldIdx < (int)mNodes.size(); ++oldIdx) {
+            auto& oldNode = mNodes[oldIdx];
+            if (oldNode.battler == b && !oldNode.matched) {
+                // oldIdx >= i means either staying in place or shifting UP the visual queue 
+                if (oldIdx >= i) {
+                    int dist = oldIdx - i;
+                    if (dist < minDistance) {
+                        minDistance = dist;
+                        bestOldIdx = oldIdx;
+                    }
+                }
+            }
+        }
+
+        bool found = false;
+        if (bestOldIdx != -1) {
+            auto& oldNode = mNodes[bestOldIdx];
+            node.currentX = oldNode.currentX;
+            node.currentY = oldNode.currentY;
+            node.currentScale = oldNode.currentScale;
+            oldNode.matched = true;
+            found = true;
+        }
+
+        // Initial setup for completely new items coming from the bottom        
+        if (!found) {
+            node.currentX = mConfig.startX + mConfig.slideOffsetX;
+            node.currentY = layoutY + mConfig.spawnOffsetY;
+            node.currentScale = mConfig.normalScale;
         }
 
         node.srv = GetTexture(node.portraitPath);
         newNodes.push_back(node);
 
-        float renderScale = 0.6f;
-        layoutY += (mNodeHeight * renderScale) + mSpacing;
+        float spacing = (i == 0) ? mConfig.topSpacing : mConfig.spacing;
+        layoutY += (mConfig.height * node.targetScale) + spacing;
     }
 
+    for (auto& oldNode : mNodes) {
+        if (!oldNode.matched) {
+            oldNode.targetX += mConfig.popOffX; 
+            oldNode.targetScale *= mConfig.popScale; 
+            mFadingNodes.push_back(oldNode);
+        }
+    }
     mNodes = std::move(newNodes);
 }
 
 void TurnQueueUI::Update(float dt)
 {
-    const float kLerpSpeed = 10.0f;
+    // Simple Hot-Reload for Config every 1 second
+    mConfigReloadTimer += dt;
+    if (mConfigReloadTimer >= 1.0f) {
+        mConfigReloadTimer = 0.0f;
+        JsonLoader::LoadTurnViewConfig(mConfigPath, mConfig);
+        
+        // Re-calculate target positions based on new config instantly
+        float layoutY = mConfig.startY;
+        for (int i = 0; i < (int)mNodes.size(); ++i) {
+            auto& node = mNodes[i];
+            node.targetScale = (i == 0) ? mConfig.topScale : mConfig.normalScale;
+            node.targetX = mConfig.startX;
+            node.targetY = layoutY;
+            float spacing = (i == 0) ? mConfig.topSpacing : mConfig.spacing;
+            layoutY += (mConfig.height * node.targetScale) + spacing;
+        }
+    }
+
     for (auto& node : mNodes) {
-        node.currentY += (node.targetY - node.currentY) * kLerpSpeed * dt;
+        node.currentX += (node.targetX - node.currentX) * mConfig.animSpeed * dt;
+        node.currentY += (node.targetY - node.currentY) * mConfig.animSpeed * dt;
+        node.currentScale += (node.targetScale - node.currentScale) * mConfig.animSpeed * dt;
+    }
+
+    // Update Fading Nodes
+    for (auto it = mFadingNodes.begin(); it != mFadingNodes.end(); ) {
+        it->currentX += (it->targetX - it->currentX) * mConfig.animSpeed * dt;
+        it->currentY += (it->targetY - it->currentY) * mConfig.animSpeed * dt;
+        it->currentScale += (it->targetScale - it->currentScale) * mConfig.animSpeed * dt;
+        it->alpha -= mConfig.fadeSpeed * dt; 
+        
+        if (it->alpha <= 0.0f) {
+            it = mFadingNodes.erase(it);
+        } else {
+            ++it;
+        }
     }
 }
 
@@ -170,40 +235,48 @@ void TurnQueueUI::Render(ID3D11DeviceContext* context)
         mStates->CullNone()
     );
 
-    float scale = 0.6f; // Adjust scale for UI so it doesn't take up entire screen
-    
-    // Draw bottom-up ordering logic: index 0 (next to act) must be drawn last so it appears on top conceptually if they overlap.
-    // Index 0 has the smallest Y coordinate (highest on screen).
+    // Draw bottom-up: index 0 (next to act) must be drawn last
     for (int i = static_cast<int>(mNodes.size()) - 1; i >= 0; --i)
     {
         const auto& node = mNodes[i];
-        
-        XMFLOAT2 pos(mStartX, node.currentY);
-        
-        // Base sizes
+
         RECT destRect;
-        destRect.left   = static_cast<LONG>(pos.x);
-        destRect.top    = static_cast<LONG>(pos.y);
-        destRect.right  = static_cast<LONG>(pos.x + mNodeWidth * scale);
-        destRect.bottom = static_cast<LONG>(pos.y + mNodeHeight * scale);
+        destRect.left   = static_cast<LONG>(node.currentX);
+        destRect.top    = static_cast<LONG>(node.currentY);
+        destRect.right  = static_cast<LONG>(node.currentX + mConfig.width * node.currentScale);
+        destRect.bottom = static_cast<LONG>(node.currentY + mConfig.height * node.currentScale);
 
         XMVECTOR color = Colors::White;
 
-        // Background
         if (mBgSRV) {
             mSpriteBatch->Draw(mBgSRV.Get(), destRect, color);
         }
 
-        // Portrait
         if (node.srv) {
             mSpriteBatch->Draw(node.srv.Get(), destRect, color);
         }
 
-        // Frame
         if (mFrameSRV) {
             mSpriteBatch->Draw(mFrameSRV.Get(), destRect, color);
         }
     }
 
+    // Render fading out nodes on top
+    for (const auto& node : mFadingNodes)
+    {
+        RECT destRect;
+        destRect.left   = static_cast<LONG>(node.currentX);
+        destRect.top    = static_cast<LONG>(node.currentY);
+        destRect.right  = static_cast<LONG>(node.currentX + mConfig.width * node.currentScale);
+        destRect.bottom = static_cast<LONG>(node.currentY + mConfig.height * node.currentScale);
+
+        XMVECTOR color = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, node.alpha);
+
+        if (mBgSRV)   mSpriteBatch->Draw(mBgSRV.Get(), destRect, color);
+        if (node.srv) mSpriteBatch->Draw(node.srv.Get(), destRect, color);
+        if (mFrameSRV) mSpriteBatch->Draw(mFrameSRV.Get(), destRect, color);
+    }
+    
     mSpriteBatch->End();
 }
+

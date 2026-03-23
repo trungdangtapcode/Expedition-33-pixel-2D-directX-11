@@ -605,6 +605,18 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
 struct TurnViewConfig {
     float width = 256.0f;
     float height = 128.0f;
+    float topScale = 1.0f;
+    float normalScale = 0.7f;
+    float startX = 20.0f;
+    float startY = 20.0f;
+    float spacing = 15.0f;
+    float topSpacing = 25.0f;
+    float animSpeed = 12.0f;
+    float slideOffsetX = -80.0f;
+    float popOffX = -150.0f;
+    float popScale = 1.2f;
+    float fadeSpeed = 3.0f;
+    float spawnOffsetY = 150.0f;
 };
 
 inline bool LoadTurnViewConfig(const std::string& path, TurnViewConfig& out)
@@ -620,6 +632,18 @@ inline bool LoadTurnViewConfig(const std::string& path, TurnViewConfig& out)
 
     out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 256.0f);
     out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 128.0f);
+    out.topScale = detail::ParseFloat(detail::ValueOf(src, "topScale"), 1.0f);
+    out.normalScale = detail::ParseFloat(detail::ValueOf(src, "normalScale"), 0.7f);
+    out.startX = detail::ParseFloat(detail::ValueOf(src, "startX"), 20.0f);
+    out.startY = detail::ParseFloat(detail::ValueOf(src, "startY"), 20.0f);
+    out.spacing = detail::ParseFloat(detail::ValueOf(src, "spacing"), 15.0f);
+    out.topSpacing = detail::ParseFloat(detail::ValueOf(src, "topSpacing"), 25.0f);
+    out.animSpeed = detail::ParseFloat(detail::ValueOf(src, "animSpeed"), 12.0f);
+    out.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "slideOffsetX"), -80.0f);
+    out.popOffX = detail::ParseFloat(detail::ValueOf(src, "popOffX"), -150.0f);
+    out.popScale = detail::ParseFloat(detail::ValueOf(src, "popScale"), 1.2f);
+    out.fadeSpeed = detail::ParseFloat(detail::ValueOf(src, "fadeSpeed"), 3.0f);
+    out.spawnOffsetY = detail::ParseFloat(detail::ValueOf(src, "spawnOffsetY"), 150.0f);
 
     return true;
 }

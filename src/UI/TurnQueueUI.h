@@ -12,6 +12,7 @@
 #include <wrl/client.h>
 #include <SpriteBatch.h>
 #include <CommonStates.h>
+#include "../Utils/JsonLoader.h"
 #include "../Battle/IBattler.h"
 
 class TurnQueueUI
@@ -37,15 +38,26 @@ public:
     void Render(ID3D11DeviceContext* context);
 
 private:
+    float mConfigReloadTimer = 0.0f;
+    std::string mConfigPath;
     struct QueueNode {
+        IBattler* battler = nullptr;
         std::wstring portraitPath;
         float currentY = 0.0f;
         float targetY = 0.0f;
+        float currentX = 0.0f;
+        float targetX = 0.0f;
+        float currentScale = 0.0f;
+        float targetScale = 0.0f;
+        float alpha = 1.0f;
+        bool matched = false;
         Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
     };
 
     std::vector<QueueNode> mNodes;
+    std::vector<QueueNode> mFadingNodes;
     std::map<std::wstring, Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>> mTextureCache;
+    JsonLoader::TurnViewConfig mConfig;
 
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> GetTexture(const std::wstring& path);
 
@@ -56,14 +68,6 @@ private:
 
     ID3D11Device* mDevice = nullptr;
     ID3D11DeviceContext* mContext = nullptr;
-
-    float mNodeWidth = 256.0f;
-    float mNodeHeight = 128.0f;
-    float mSpacing = -10.0f; // slight overlap usually
-
-    // Top-left Anchor
-    float mStartX = -50.0f;
-    float mStartY = -50.0f;
     
     int mScreenW = 1280;
     int mScreenH = 720;

@@ -59,7 +59,7 @@ cl.exe ^
     /W3 ^
     %CRT_FLAG% ^
     %OPT_FLAG% ^
-    /DUNICODE /D_UNICODE ^
+    /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS /D__CRT_SECURE_NO_WARNINGS ^
     /Fe:%OUT_DIR%\game.exe ^
     /Fo:%OBJ_DIR%\ ^
     src\main.cpp ^

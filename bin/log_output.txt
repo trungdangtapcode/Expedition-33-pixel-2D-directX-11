@@ -62,3 +62,5 @@
 [17:32:21.220] [GameApp] Debug console attached.
 [17:32:56.010] [GameApp] Debug console attached.
 [17:34:20.298] [GameApp] Debug console attached.
+[21:58:15.070] [GameApp] Debug console attached.
+[21:59:13.547] [GameApp] Debug console attached.

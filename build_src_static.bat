@@ -86,6 +86,7 @@ cl.exe ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
     src\Systems\ZoomPincushionTransitionController.cpp ^
+    src\Systems\CollisionSystem.cpp ^
     src\Battle\WeakenEffect.cpp ^
     src\Battle\Combatant.cpp ^
     src\Battle\PlayerCombatant.cpp ^

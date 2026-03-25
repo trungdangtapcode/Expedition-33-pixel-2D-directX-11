@@ -95,6 +95,7 @@ public:
     //   of this enemy's world-space anchor.
     // Called by:
     //   PlayState::Update() each frame to check if the player can engage.
+    //   (Ideally, pass ICollisionSystem here or have it injected).
     // ------------------------------------------------------------
     bool IsPlayerNearby(float px, float py) const;
 

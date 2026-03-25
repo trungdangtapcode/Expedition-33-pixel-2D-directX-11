@@ -564,6 +564,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     out.jsonPath     = stripQ(detail::ValueOf(src, "jsonPath"));
     out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
     out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
+    out.environmentPath = stripQ(detail::ValueOf(src, "environmentPath"));
 
     if (out.name.empty() || out.texturePath.empty())
     {
@@ -775,6 +776,55 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
         path.c_str(),
         resolvedPath.string().c_str(),
         out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+struct EnvironmentConfig {
+    float width = 0.0f;
+    float height = 0.0f;
+    std::wstring background;
+    std::wstring foreground;
+    float targetViewHeight = 1080.0f;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+};
+
+inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open environment config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 1920.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 1080.0f);
+
+    auto stripQ = [](const std::string& s) -> std::string {
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"')
+            return s.substr(1, s.size() - 2);
+        return s;
+    };
+
+    auto toWide = [](const std::string& s) -> std::wstring {
+        return std::wstring(s.begin(), s.end());
+    };
+
+    std::string bg = detail::ValueOf(src, "background");
+    if (!bg.empty() && bg != "null") out.background = toWide(stripQ(bg));
+    
+    std::string fg = detail::ValueOf(src, "foreground");
+    if (!fg.empty() && fg != "null") out.foreground = toWide(stripQ(fg));
+
+    out.targetViewHeight = detail::ParseFloat(detail::ValueOf(src, "targetViewHeight"), 1080.0f);
+    out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
+    out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
+
+    LOG("[JsonLoader] Loaded EnvironmentConfig from '%s'.", path.c_str());
     return true;
 }
 

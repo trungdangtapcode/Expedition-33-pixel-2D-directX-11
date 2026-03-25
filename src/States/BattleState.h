@@ -65,6 +65,7 @@
 #include "../UI/PointerRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
+#include "../Renderer/EnvironmentRenderer.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -112,8 +113,7 @@ private:
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
     NineSliceRenderer      mDialogBox;
-    BattleTextRenderer     mTextRenderer;
-    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
+    BattleTextRenderer     mTextRenderer;      EnvironmentRenderer    mEnvRenderer;    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
 
     JsonLoader::BattleMenuLayout mMenuLayout;

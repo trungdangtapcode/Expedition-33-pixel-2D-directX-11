@@ -8,6 +8,7 @@
   "jsonPath": "assets/animations/skeleton.json",
   "idleClip": "idle",
   "contactRadius": 90.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
 
   "battleParty": [
     {

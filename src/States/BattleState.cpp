@@ -38,8 +38,13 @@ void BattleState::OnEnter()
 
     InitBattleSlots();
     InitUIRenderers();
-
-    DumpStateToDebugOutput();
+      
+      mEnvRenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext());
+      std::string envPath = mEncounter.environmentPath;
+      if (envPath.empty()) {
+          envPath = "assets/environments/battle-paris-view.json"; // Default
+      }
+      mEnvRenderer.LoadEnvironment(envPath);
 
     if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))
     {
@@ -449,7 +454,11 @@ void BattleState::CheckBattleEnd()
 void BattleState::Render()
 {
     mD3D.BeginFrame(kBgR, kBgG, kBgB);
+
+    mEnvRenderer.RenderBackground(mBattleRenderer.GetCamera());
     mBattleRenderer.Render(mD3D.GetContext());
+    mEnvRenderer.RenderForeground(mBattleRenderer.GetCamera());
+
     mHealthBar.Render(mD3D.GetContext());
     mEnemyHpBar.Render(mD3D.GetContext());
     mTurnQueueUI.Render(mD3D.GetContext());

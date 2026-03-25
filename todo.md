@@ -11,7 +11,7 @@ Todo:
 
 - Queue randomize system
 - Add background assets
-- A readable damage calculation formula and system, with clear separation between damage types (physical, magical, true damage) and modifiers (buffs, debuffs, critical hits).
+-  with clear separation between damage types (physical, magical, true damage) and modifiers (buffs, debuffs, critical hits).
 - Items and inventory system
 - Winning screen -> reward screen with loot and experience points
 
@@ -32,3 +32,4 @@ Done:
 
 - enemy also need to move
 - Add turn order UI
+- A readable damage calculation formula and system,

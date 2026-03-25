@@ -103,6 +103,10 @@ struct EnemyEncounterData
     // Typical value: 80–120 world pixels.
     float contactRadius = 80.0f;
 
+    // ---- Battle Environment ----
+    // Path to the environment JSON (e.g. "assets/environments/battle-paris-view.json")
+    std::string environmentPath;
+
     // ---- Battle party (1–3 slots) ----
     // Defines every enemy combatant that appears when this encounter starts.
     // battleParty[0] = front slot, [1] = back-top, [2] = back-bottom.

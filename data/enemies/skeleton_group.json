@@ -9,6 +9,7 @@
   "turnViewPath": "assets/UI/turn-view-skeleton.png",
         "idleClip": "idle",
   "contactRadius": 90.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
 
   "battleParty": [
     {

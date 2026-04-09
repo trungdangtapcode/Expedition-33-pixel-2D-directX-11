@@ -8,6 +8,7 @@
 #pragma once
 
 class IBattler;
+struct BattleContext;
 
 enum class DamageType
 {
@@ -48,6 +49,11 @@ class IDamageCalculator
 public:
     virtual ~IDamageCalculator() = default;
 
-    // Evaluate the combat math based on the given request context
-    virtual DamageResult Calculate(const DamageRequest& request) const = 0;
+    // Evaluate the combat math using the given request + live battle context.
+    //
+    // ctx is required so the calculator (and any stat lookup it performs
+    // via StatResolver::Get) can evaluate conditional modifiers that
+    // depend on roster composition, turn count, or environment.
+    virtual DamageResult Calculate(const DamageRequest& request,
+                                    const BattleContext& ctx) const = 0;
 };

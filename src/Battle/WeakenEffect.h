@@ -4,22 +4,26 @@
 //
 // Implements IStatusEffect.
 //
-// Mechanic:
-//   On Apply():    target.atk -= mAtkReduction;  target.def -= mDefReduction;
-//   On Revert():   target.atk += mAtkReduction;  target.def += mDefReduction;
-//   On each turn end: mDuration decrements; IsExpired() when duration == 0.
+// Mechanic (new, modifier-based):
+//   On Apply():      push two StatModifier entries (AddFlat -atk / -def)
+//                    tagged with a unique sourceId.
+//   On OnTurnEnd():  mDuration decrements; IsExpired() flips when it
+//                    reaches 0.
+//   On Revert():     target.RemoveStatModifiersBySource(mSourceId) strips
+//                    both modifiers in one call.
+//
+// Why modifiers instead of mutating BattlerStats directly:
+//   - Stacking two Weakens produces -30 ATK total (two modifiers), not
+//     arithmetic cancellation.
+//   - Healing/dispel can remove the debuff cleanly via sourceId.
+//   - StatResolver::Get is the single site that folds buffs into a
+//     final stat, keeping formulas consistent across every system.
 //
 // Reduction values come from WeakenSkill's data — no hardcoding here.
-// The skill controls how strong the debuff is; this class just applies it.
-//
-// Example: WeakenEffect(2, 15, 10) → reduce ATK by 15, DEF by 10 for 2 turns.
 // ============================================================
 #pragma once
 #include "IStatusEffect.h"
 
-// ============================================================
-// Class: WeakenEffect
-// ============================================================
 class WeakenEffect : public IStatusEffect
 {
 public:
@@ -27,21 +31,21 @@ public:
     // Constructor
     // Parameters:
     //   duration     — how many of the TARGET's turns this effect lasts
-    //   atkReduction — flat ATK reduction applied on attach
-    //   defReduction — flat DEF reduction applied on attach
+    //   atkReduction — flat ATK reduction pushed as a StatModifier on Apply
+    //   defReduction — flat DEF reduction pushed as a StatModifier on Apply
     // ------------------------------------------------------------
     WeakenEffect(int duration, int atkReduction, int defReduction);
 
-    // IStatusEffect interface
-    void Apply(BattlerStats& target)     override;
-    void OnTurnEnd(BattlerStats& target) override;
-    void Revert(BattlerStats& target)    override;
-    bool IsExpired()    const            override;
-    const char* GetName() const          override { return "Weaken"; }
+    // IStatusEffect interface (new signature: takes IBattler&).
+    void Apply(IBattler& target)     override;
+    void OnTurnEnd(IBattler& target) override;
+    void Revert(IBattler& target)    override;
+    bool IsExpired()    const        override;
+    const char* GetName() const      override { return "Weaken"; }
 
 private:
     int mDuration;       // turns remaining (decremented in OnTurnEnd)
-    int mAtkReduction;   // amount subtracted from target.atk on Apply
-    int mDefReduction;   // amount subtracted from target.def on Apply
-    bool mApplied = false; // guard: Revert is a no-op if Apply never ran
+    int mAtkReduction;   // magnitude of the flat ATK modifier pushed on Apply
+    int mDefReduction;   // magnitude of the flat DEF modifier pushed on Apply
+    int mSourceId = 0;   // identifies the modifiers we pushed, for Revert
 };

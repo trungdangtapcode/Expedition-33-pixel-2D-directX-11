@@ -1,0 +1,8 @@
+{
+  "id": "leather_cap",
+  "name": "Leather Cap",
+  "description": "A worn leather cap. Deflects glancing blows.",
+  "iconPath": "assets/items/leather_cap.png",
+  "kind": "helmet",
+  "bonusDef": 1
+}

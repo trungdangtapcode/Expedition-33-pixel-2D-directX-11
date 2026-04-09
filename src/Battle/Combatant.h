@@ -21,6 +21,7 @@
 #include "IBattler.h"
 #include "BattlerStats.h"
 #include "IStatusEffect.h"
+#include "StatModifier.h"
 
 class Combatant : public IBattler
 {
@@ -46,11 +47,18 @@ public:
     void TakeDamage(const DamageResult& result, IBattler* source) override;
 
     void AddEffect(std::unique_ptr<IStatusEffect> effect) override;
+    void ClearAllStatusEffects() override;
+    bool HasAnyStatusEffect() const override { return !mEffects.empty(); }
+
+    // Stat modifier storage — see IBattler for the pipeline contract.
+    void AddStatModifier(const StatModifier& mod) override;
+    void RemoveStatModifiersBySource(int sourceId) override;
+    const std::vector<StatModifier>& GetStatModifiers() const override;
 
     // OnTurnStart: currently a no-op base — subclasses may override.
     void OnTurnStart() override;
 
-    // OnTurnEnd: call OnTurnEnd(stats) on every effect, then purge expired.
+    // OnTurnEnd: call OnTurnEnd(*this) on every effect, then purge expired.
     void OnTurnEnd() override;
 
     bool IsAlive() const override;
@@ -72,4 +80,8 @@ protected:
     std::wstring                             mTurnViewPath;
     BattlerStats                             mStats;
     std::vector<std::unique_ptr<IStatusEffect>> mEffects;
+
+    // Active stat modifiers.  Populated by effects via AddStatModifier.
+    // Walked by StatResolver every time a combat formula asks for a stat.
+    std::vector<StatModifier>                mStatModifiers;
 };

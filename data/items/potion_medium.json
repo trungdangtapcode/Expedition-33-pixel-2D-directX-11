@@ -1,0 +1,9 @@
+{
+  "id": "potion_medium",
+  "name": "Medium Potion",
+  "description": "Restores 75 HP to one ally.",
+  "iconPath": "assets/items/potion_medium.png",
+  "targeting": "single_ally",
+  "effect": "heal_hp",
+  "amount": 75
+}

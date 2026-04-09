@@ -9,15 +9,17 @@
 #include "MoveAction.h"
 #include "PlayAnimationAction.h"
 #include "AnimDamageAction.h"
+#include "BattleContext.h"
 
-bool AttackSkill::CanUse(const IBattler& /*caster*/) const
+bool AttackSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
 {
     return true;    // basic attack is always available
 }
 
 std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     IBattler& caster,
-    std::vector<IBattler*>& targets) const
+    std::vector<IBattler*>& targets,
+    const BattleContext& ctx) const
 {
     std::vector<std::unique_ptr<IAction>> actions;
 
@@ -43,8 +45,10 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     // 2. Move to target's melee range (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
-    // 4. Play attack animation and apply damage simultaneously at normalized progress
-    actions.push_back(std::make_unique<AnimDamageAction>(req, CombatantAnim::Attack, mData.damageTakenOccurMoment));
+    // 4. Play attack animation and apply damage simultaneously at normalized progress.
+    //    Pass &ctx so the damage calculator reads live stats (including buffs)
+    //    at the exact animation frame, not at queue time.
+    actions.push_back(std::make_unique<AnimDamageAction>(req, CombatantAnim::Attack, mData.damageTakenOccurMoment, &ctx));
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration, mData.meleeOffset));

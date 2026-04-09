@@ -2,22 +2,31 @@
 # PROJECT OVERVIEW
 
 You are a **Senior C++ Game Developer**.
-Your task is to assist in developing a **Turn-based JRPG** using **pure C++ and DirectX 11**.
+Your task is to assist in developing a **Turn-based JRPG** using **pure C++17 and DirectX 11**.
 No game engines (Unity, Unreal, Godot) are permitted under any circumstance.
 
-Core gameplay features that must be supported by the architecture:
-- Quick Time Events (QTE)
-- Voice-acted cutscenes with lip-sync
-- In-combat story interruption events
-- A diverse, data-driven skill system
+The project already has a working overworld + battle loop. Your job is to extend it
+in keeping with the architecture below — not to redesign it.
+
+Core gameplay features the architecture must continue to support:
+- Tick-based agility turn order (Action Value timeline)
+- Data-driven combatants, skills, items, and encounters
+- Status effects via stat-modifier pipeline (no direct stat mutation)
+- Animation-driven action queue (damage applied at exact animation frames)
+- Quick Time Events (QTE) — planned, slot is reserved in input FSM
+- Voice-acted cutscenes with lip-sync — planned, hooks live in EventManager
+- In-combat story interruption events — wired through EventManager + ITrigger (planned)
 
 All architectural decisions must prioritize **scalability**, **maintainability**, and **clean separation of concerns**.
 
 ---
 
 # Build Instructions
+
 - The build script `.\build_src_static.bat` takes a long time to finish.
-- So you need to wait until the command running completes before continuing, or you should a way, because it still running not mean it's stuck or compile successfully, you should check the output log to confirm if the build is successful or not.
+- Wait until the command completes before continuing. While the build runs you cannot tell from the spinner alone whether it succeeded; you must read the tail of the output and confirm it ends with `[OK] Build succeeded > bin\game.exe`.
+- The same script also builds Release with `.\build_src_static.bat Release`. Default is Debug.
+- After a successful build, the binary is at `bin\game.exe`. The exe holds a file lock while the game is running — kill any leftover instance before relinking, or LNK1168 will fail the link step.
 
 ---
 
@@ -28,16 +37,16 @@ All architectural decisions must prioritize **scalability**, **maintainability**
 - ALL code, comments, variable names, function names, file headers, and documentation MUST be written in **English only**.
 - ALL responses and explanations MUST be in **English only**.
 - If the user writes in Vietnamese or any other language, the response MUST still be entirely in English.
-- **No exceptions.** Not even `MessageBoxW` strings, `OutputDebugStringA` text, or `assert` messages may contain non-English text.
-- Compile code with PS command: `.\build_src_static.bat 2>&1`
+- **No exceptions.** Not even `MessageBoxW` strings, `OutputDebugStringA` text, `LOG()` messages, or `assert` messages may contain non-English text.
+- Compile code with: `.\build_src_static.bat 2>&1`
 
 **Violation examples to actively correct:**
 ```cpp
-// ❌ WRONG — non-English text in source code
-MessageBoxW(nullptr, L"Khởi tạo thất bại!", L"Lỗi", MB_OK);
-assert(state != nullptr && "state không được là nullptr");
+// WRONG — non-English text in source code
+MessageBoxW(nullptr, L"Khoi tao that bai!", L"Loi", MB_OK);
+assert(state != nullptr && "state khong duoc la nullptr");
 
-// ✅ CORRECT
+// CORRECT
 MessageBoxW(nullptr, L"Initialization failed.", L"Error", MB_OK);
 assert(state != nullptr && "StateManager::ChangeState — state must not be nullptr");
 ```
@@ -53,8 +62,8 @@ The project uses a **manual MSVC build** — no CMake, no MSBuild `.vcxproj` fil
 | Item | Value |
 |---|---|
 | Compiler | `D:\VisualStudio\2022\BuildTools\VC\Tools\MSVC\14.40.33807\bin\Hostx64\x64\cl.exe` |
-| Windows SDK | `C:\Program Files (x86)\Windows Kits\10\` (version auto-detected via `for /f` loop in bat) |
-| DirectXTK (vcpkg) | `D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows\` |
+| Windows SDK | `C:\Program Files (x86)\Windows Kits\10\` (version auto-detected via `for /f` in the .bat) |
+| DirectXTK (vcpkg) | `D:\lab\vscworkplace\directX\vcpkg\installed\x64-windows-static\` (Debug variant under `\debug\lib`) |
 | Build script | `build_src_static.bat` in workspace root |
 | Output binary | `bin\game.exe` |
 | Object files | `bin\obj\*.obj` |
@@ -66,89 +75,181 @@ The project uses a **manual MSVC build** — no CMake, no MSBuild `.vcxproj` fil
 
 **Compiler flags in use:**
 ```
-/std:c++17  /EHsc  /W3  /MTd  /Zi  /DUNICODE  /D_UNICODE
+/std:c++17  /EHsc  /W3  /MTd  /Zi  /D_DEBUG  /DUNICODE  /D_UNICODE
 ```
+Release flips `/MTd /Zi /D_DEBUG` to `/MT /O2 /DNDEBUG`.
 
-- `/DUNICODE /D_UNICODE` are passed via the build script. **NEVER** `#define UNICODE` inside any source file — doing so causes warning C4005.
-- `/MTd` — static CRT linkage, matches the vcpkg x64-windows-static DirectXTK binary.
+- `/DUNICODE /D_UNICODE` are passed via the build script. **NEVER** `#define UNICODE` inside any source file — it triggers warning C4005.
+- `/MTd` — static debug CRT, required because vcpkg `x64-windows-static` builds DirectXTK against the static CRT. Mixing `/MD` with the static lib produces LNK2019 on `_CrtDbgReport` and friends.
 
 **Linker libraries:**
 ```
-user32.lib  gdi32.lib  d3d11.lib  dxgi.lib  DirectXTK.lib
+user32.lib  gdi32.lib  d3d11.lib  dxgi.lib  d3dcompiler.lib  DirectXTK.lib  ole32.lib
 ```
 
-**When creating a new `.cpp` file**, you MUST also add it to the source file list inside `build_src_static.bat`. Never leave the build script out of sync with the source tree.
+**When creating a new `.cpp` file**, you MUST also add it to the source file list inside `build_src_static.bat`. The script lists every TU explicitly — there is no glob. A missing entry causes "unresolved external symbol" at link time.
+
+**Windows headers + `std::min` / `std::max`:** `Log.h` transitively pulls in `Windows.h`, which defines `min` / `max` macros. Any `.cpp` that uses `std::max` / `std::min` MUST `#define NOMINMAX` **before** including any project header. Putting it after the includes is a recurring beginner bug — the macro has already eaten the identifier by then.
 
 ---
 
 # REQUIRED TECH STACK
 
 - **Language:** C++17
-  - Ownership: `std::unique_ptr` (sole owner), `std::shared_ptr` (shared ownership)
+  - Ownership: `std::unique_ptr` (sole owner), `std::shared_ptr` (shared ownership only when ownership is genuinely shared)
   - COM objects: always `Microsoft::WRL::ComPtr<T>` — never call raw `->Release()`
-  - No raw `new` / `delete` for game objects
-- **Graphics:** DirectX 11 + Win32 API + DirectXTK (SpriteBatch, SpriteFont, texture loading)
-- **Audio:** XAudio2 (Windows SDK) or FMOD / SoLoud
-  - Must support per-frame audio position queries for lip-sync timing
-- **Data:** JSON (preferred) or XML — all configurable game data lives in data files, never hardcoded
+  - No raw `new` / `delete` for game objects — use `std::make_unique` / `std::make_shared`
+- **Graphics:** DirectX 11 + Win32 API + DirectXTK (`SpriteBatch`, `SpriteFont`, `WICTextureLoader`)
+- **Audio:** XAudio2 via `src/Audio/AudioManager` (existing). Lip-sync hooks not yet wired.
+- **Data:** JSON only. The parser is the hand-rolled `JsonLoader` namespace in `src/Utils/JsonLoader.h` — flat scalar fields and shallow object arrays only. Do **not** add a third-party JSON dependency without explicit instruction.
+- **Build system:** plain `cl.exe` invoked from `build_src_static.bat`.
 
 ---
 
-# ESTABLISHED PROJECT STRUCTURE
+# ACTUAL PROJECT STRUCTURE (current state)
+
+Inspect this carefully — earlier revisions of this file described a planned layout that no longer matches reality.
 
 ```
 src/
+  main.cpp                                — WinMain, delegates to GameApp
   Core/
-    GameTimer.h/.cpp          — High-resolution timer (QueryPerformanceCounter)
-    GameApp.h/.cpp            — Win32 window + main game loop coordinator
+    GameApp.h/.cpp                         — Win32 window + main loop coordinator
+    GameTimer.h/.cpp                       — High-resolution timer (QueryPerformanceCounter)
+    Clock.h/.cpp                           — Wall-clock helper
+    TimeSystem.h/.cpp                      — Game-time abstraction (pause, scale)
   Renderer/
-    D3DContext.h/.cpp         — Facade over all DirectX 11 init/teardown
-    Camera.h/.cpp             — Camera2D: view matrix, zoom, world↔screen
-    WorldSpriteRenderer.h/.cpp — World-space animated sprite (Camera-aware)
-    UIRenderer.h/.cpp         — Screen-space UI sprite/text renderer
+    D3DContext.h/.cpp                      — Facade for D3D11 device/swapchain/RTV
+    Camera.h                               — 2D camera (view matrix, zoom, world<->screen)
+    SpriteRenderer.h/.cpp                  — Static sprite draws via SpriteBatch
+    WorldSpriteRenderer.h/.cpp             — World-space animated sprite (camera-aware)
+    UIRenderer.h/.cpp                      — Screen-space UI sprite/text
+    WorldRenderer.h/.cpp                   — Tilemap / world-layer composition
+    EnvironmentRenderer.h/.cpp             — Background + foreground parallax layers
+    NineSliceRenderer.h/.cpp               — Stretchable 9-slice dialog boxes
+    CircleRenderer.h/.cpp                  — Solid-color circle primitive
+    IrisTransitionRenderer.h/.cpp          — Iris-open/close fullscreen overlay
+    PincushionDistortionFilter.h/.cpp      — Post-process screen filter
+    IScreenFilter.h                        — Interface for fullscreen post effects
+    SpriteSheet.h                          — Sheet/clip descriptors loaded from JSON
   Scene/
-    IGameObject.h             — Pure virtual: Update(dt) + Render(ctx) + layer + alive
-    SceneGraph.h/.cpp         — Owns all IGameObject; drives Update + Render loops
+    IGameObject.h                          — Pure virtual: Update / Render / GetLayer / GetSortY / IsAlive
+    SceneGraph.h/.cpp                      — Owns IGameObject*; drives Update + Y-sorted Render
   Entities/
-    Character.h/.cpp          — OOP character: stats, animation, position
-    Enemy.h/.cpp              — Enemy subclass of Character
-    Projectile.h/.cpp         — Bullet / hit-effect entity
-    VFXSprite.h/.cpp          — One-shot animated effect (dies on last frame)
-  Components/
-    AnimationComponent.h/.cpp — Sprite-sheet clip state machine + WorldSpriteRenderer
-    TransformComponent.h      — Position, rotation, scale in world space
-    StatsComponent.h/.cpp     — HP, MP, ATK, DEF, SPD — loaded from JSON
-  States/
-    IGameState.h              — Pure virtual interface for all states
-    StateManager.h/.cpp       — Singleton + stack-based state machine
-    MenuState.h/.cpp          — Main menu
-    PlayState.h/.cpp          — Gameplay (owns SceneGraph, Camera)
-    BattleState.h/.cpp        — Turn-based combat (owns ActionQueue)
-    QTEState.h/.cpp           — Quick Time Event overlay state
+    ControllableCharacter.h/.cpp           — Player overworld entity (input-driven)
+    OverworldEnemy.h/.cpp                  — Overworld enemy sprite + collision + encounter trigger
   Events/
-    EventManager.h/.cpp       — Observer pattern — global Pub/Sub event bus
+    EventManager.h/.cpp                    — Meyers' singleton pub/sub event bus
   Systems/
-    ActionQueue.h/.cpp        — Serialised IAction pipeline for combat
-    CutsceneSystem.h/.cpp     — Cutscene playback + lip-sync controller
+    PartyManager.h                         — Singleton; persists Verso's BattlerStats across battles
+    Inventory.h/.cpp                       — Singleton; count-per-id persistent inventory (seeded on first use)
+    CollisionSystem.h/.cpp                 — Overworld collision queries
+    ICollisionSystem.h                     — Interface
+    IBattleTransitionController.h          — Interface for the iris/zoom transition
+    ZoomPincushionTransitionController.h/.cpp — Concrete iris+pincushion transition
+  States/
+    IGameState.h                           — Pure virtual: OnEnter/OnExit/Update/Render/GetName
+    StateManager.h/.cpp                    — Stack-based state machine
+    MenuState.h/.cpp                       — Title / main menu
+    PlayState.h/.cpp                       — Wrapper that hosts overworld
+    OverworldState.h/.cpp                  — Real overworld scene (camera, party, enemies)
+    BattleState.h/.cpp                     — Turn-based combat state (owns BattleManager)
+  Battle/
+    --- Interfaces ---
+    IBattler.h                             — Combatant abstraction
+    ISkill.h                               — Skill abstraction (CanUse + Execute return IAction list)
+    IStatusEffect.h                        — Buff/debuff abstraction
+    IDamageCalculator.h                    — Damage formula abstraction
+    IDamageStep.h                          — One fold step in the damage pipeline (NEW: chain-of-resp)
+    IAction.h                              — One frame-stepped action in the queue
+    IActionDecorator.h/.cpp                — Wrapper action with OnBefore / inner / OnAfter hooks
+    IBattleCommand.h                       — One top-level battle menu entry
+    --- Combatants ---
+    BattlerStats.h                         — Plain-data: hp, mp, atk, def, matk, mdef, spd, rage
+    Combatant.h/.cpp                       — IBattler base; owns effects and stat modifiers
+    PlayerCombatant.h/.cpp                 — Player-controlled combatant; loads skills + holds pending action
+    EnemyCombatant.h/.cpp                  — AI combatant; ChooseTarget + GetAttackSkill
+    EnemyEncounterData.h                   — Encounter JSON struct (party composition, art, camera offsets)
+    --- Skills ---
+    AttackSkill.h/.cpp                     — Basic attack with melee move + animation
+    RageSkill.h/.cpp                       — Consume full rage for 2x damage
+    WeakenSkill.h/.cpp                     — Apply WeakenEffect debuff to one enemy
+    --- Status effects ---
+    WeakenEffect.h/.cpp                    — ATK/DEF debuff via stat modifiers (NOT direct mutation)
+    TimedStatBuffEffect.h/.cpp             — Generic stat buff/debuff for N turns (used by item buffs)
+    --- Stat modifier pipeline ---
+    StatId.h                               — Enum: ATK, DEF, MATK, MDEF, SPD, MAX_HP, MAX_MP
+    StatModifier.h                         — Modifier struct: Op + StatId + value + condition + sourceId
+    StatResolver.h/.cpp                    — Folds base + modifiers into an effective int (the ONLY way to read a stat)
+    --- Damage pipeline ---
+    IDamageStep.h                          — Pipeline interface
+    DamageSteps.h/.cpp                     — BaseFormulaStep, StatusBonusStep, CritRollStep, FinalClampStep
+    DefaultDamageCalculator.h/.cpp         — Owns vector<unique_ptr<IDamageStep>>; the order IS the formula
+    --- Action queue ---
+    ActionQueue.h/.cpp                     — Sequential FIFO of IAction pointers
+    DamageAction.h/.cpp                    — Apply DamageRequest -> DamageResult -> TakeDamage
+    AnimDamageAction.h/.cpp                — Same as DamageAction but waits for an animation frame
+    StatusEffectAction.h/.cpp              — Attach an IStatusEffect to a target
+    LogAction.h/.cpp                       — Push a line to the live battle log
+    WaitAction.h/.cpp                      — Pause the queue for N seconds
+    DelayedAction.h/.cpp                   — Decorator: run inner then wait
+    MoveAction.h/.cpp                      — Lerp combatant to a slot / origin / melee range
+    PlayAnimationAction.h/.cpp             — Play a clip; wait for it to end
+    --- Items ---
+    ItemData.h                             — POD describing one item (id, name, targeting, effect, tuning)
+    ItemRegistry.h/.cpp                    — Singleton catalog loaded lazily from data/items/*.json
+    BuildItemActions.h/.cpp                — Free function: ItemData + target -> action sequence
+    ItemEffectAction.h/.cpp                — Single-target dispatcher for every ItemEffectKind
+    ItemConsumeAction.h/.cpp               — Decrement Inventory after use
+    ItemCommand.h/.cpp                     — Top-level menu entry that opens ITEM_SELECT
+    --- Battle FSM + UI ---
+    BattleManager.h/.cpp                   — FSM: INIT/PLAYER_TURN/RESOLVING/ENEMY_TURN/WIN/LOSE; owns timeline + ActionQueue
+    BattleContext.h                        — Per-frame read-only snapshot passed to skills, AI, calculator, predicates
+    BattleEvents.h                         — Typed payloads for animation hand-off events
+    BattleInputController.h/.cpp           — Player input FSM (COMMAND / SKILL / TARGET / ITEM / ITEM_TARGET)
+    FightCommand.h/.cpp                    — Routes to SKILL_SELECT
+    FleeCommand.h/.cpp                     — Triggers iris-out and battle exit
+    BattleRenderer.h/.cpp                  — Slot positions, sprite draws, camera-phase orchestration
+    BattleCameraController.h/.cpp          — Pans the battle camera between actor / target / overview phases
+    BattleCombatantSprite.h                — Per-slot sprite owner (used by BattleRenderer)
+    CombatantStanceState.h/.cpp            — Per-combatant stance state machine (idle / fight / move)
+    CombatantAnim.h                        — Enum of canonical clip names (Idle, FightState, Attack, ...)
+  UI/
+    BattleDebugHUD.h/.cpp                  — ASCII HUD formatter (snapshot -> text block)
+    BattleTextRenderer.h/.cpp              — World-space text rendering for battle menus
+    HealthBarRenderer.h/.cpp               — Player HP bar (3-layer: bg, fill, frame)
+    HealthBarConfig.h                      — Tunable bar dimensions
+    EnemyHpBarRenderer.h/.cpp              — Up to 3 enemy HP bars at top-center
+    PointerRenderer.h/.cpp                 — Target pointer cursor
+    TurnQueueUI.h/.cpp                     — Upcoming-turn portrait list
+    UIEffectState.h                        — Shared fade/slide animation state
+  Audio/
+    AudioManager.h/.cpp                    — XAudio2 wrapper (BGM + SFX, no lip-sync yet)
+  Debug/
+    DebugTextureViewer.h/.cpp              — On-screen texture inspector
   Utils/
-    Log.h                     — Timestamped console logger
-    HrCheck.h                 — HR_CHECK macro for HRESULT validation
-  main.cpp                    — Entry point (WinMain only, delegates to GameApp)
+    Log.h                                  — LOG() macro; timestamped console + file
+    HrCheck.h                              — HR_CHECK macro for HRESULT validation
+    JsonLoader.h                           — Hand-rolled JSON helpers (header-only)
 data/
-  characters/*.json           — CharacterData structs (stats, sprite path, clips)
-  skills/*.json               — SkillData structs
-  enemies/*.json              — EnemyData + encounter compositions
-  cutscenes/*.json            — CutsceneScript timing + dialogue
-  items/*.json                — ItemData / equipment properties
+  characters/                              — (placeholder; not yet populated)
+  skills/*.json                            — SkillData (move/return durations, melee offset, damage moment)
+  enemies/*.json                           — EnemyEncounterData (party, art, camera offsets)
+  items/*.json                             — 15 starter items (potions, ethers, revive, buffs, bombs, ...)
+  formations.json                          — Slot offsets per team for each formation
+  battle_menu_layout.json                  — Menu dialog box dimensions and animation timings
 assets/
-  animations/*.png            — Sprite sheets (one atlas per character)
-  animations/*.json           — SpriteSheet frame/pivot descriptors
-  ui/*.png                    — UI atlases
+  animations/*.png                         — Sprite sheets (one atlas per character)
+  animations/*.json                        — SpriteSheet frame/pivot descriptors
+  UI/*.png                                 — UI atlases (turn-view portraits, dialog 9-slice, ...)
+  environments/                            — Battle backgrounds and overworld tiles
 ```
 
 **`GameApp` is NOT a game logic class.**
 It owns only: the Win32 window, `D3DContext`, `GameTimer`, and the `StateManager`.
-All game logic lives inside States, SceneGraph, and Systems.
+All game logic lives inside States, SceneGraph, and Battle systems.
+
+There is also an empty `src/ECS/` and `src/Platform/` folder reserved for future work — do not put files there until they have a defined responsibility.
 
 ---
 
@@ -158,146 +259,142 @@ All game logic lives inside States, SceneGraph, and Systems.
 
 - Use `QueryPerformanceCounter` for all timing — never `clock()`, `time()`, or `GetTickCount()`
 - `GameTimer::Tick()` is called once per frame at the top of the loop
-- `deltaTime` flows: `GameApp::Update(dt)` → `StateManager::Update(dt)` → `ActiveState::Update(dt)` → `SceneGraph::Update(dt)`
-- **All** time-dependent values (movement, animation frames, timers, QTE countdowns) MUST be scaled by `deltaTime`
+- `deltaTime` flows: `GameApp::Update(dt)` -> `StateManager::Update(dt)` -> `ActiveState::Update(dt)` -> `SceneGraph::Update(dt)` (overworld) or `BattleManager::Update(dt)` (battle)
+- **All** time-dependent values (movement, animation frames, timers, AV ticks, QTE countdowns) MUST be scaled by `deltaTime`
 - Frame-rate-independent logic is non-negotiable
 
-## 2. OOP Entity Hierarchy — `IGameObject` (MANDATORY)
+## 2. OOP Entity Hierarchy — `IGameObject` (Overworld)
 
 > **GameApp, StateManager, and SceneGraph MUST NOT know about concrete entity types.**
 > They only know `IGameObject*`. This is the Single Responsibility + Open/Closed principle in action.
 
-### The interface contract
-
 ```cpp
-// IGameObject.h — pure virtual base for every visible or logical game entity.
-// Anything that lives in a scene MUST inherit from this.
+// IGameObject.h — pure virtual base for every visible or logical overworld entity.
 class IGameObject {
 public:
     virtual ~IGameObject() = default;
-
-    // Advance logic, animation, physics for one frame.
-    // dt is seconds, always scaled by GameTimer. NEVER use raw wall time.
-    virtual void Update(float dt) = 0;
-
-    // Draw this object. The caller does NOT know what the object is,
-    // how large it is, where it is, or how many draw calls it needs.
-    // All of that is encapsulated inside the concrete class.
-    virtual void Render(ID3D11DeviceContext* ctx) = 0;
-
-    // Layer controls draw order. Lower = rendered first (background).
-    // Suggested ranges: world=0..49, characters=50..79, effects=80..99, UI=100+
-    virtual int  GetLayer() const = 0;
-
-    // SceneGraph removes objects where IsAlive()==false at end of each frame.
-    virtual bool IsAlive() const = 0;
+    virtual void  Update(float dt) = 0;
+    virtual void  Render(ID3D11DeviceContext* ctx) = 0;
+    virtual int   GetLayer() const = 0;          // primary draw order key
+    virtual float GetSortY() const { return 0.f; } // secondary key for Y-sort
+    virtual bool  IsAlive() const = 0;
 };
 ```
 
-### SceneGraph — the only caller of Update and Render
+`SceneGraph::Render()` sorts by `(GetLayer, GetSortY)` so overlapping characters paint correctly.
 
-```cpp
-// SceneGraph::Update — iterates ALL objects; caller provides only dt.
-// PlayState never counts objects, checks positions, or knows types.
-void SceneGraph::Update(float dt) {
-    for (auto& obj : mObjects) obj->Update(dt);
-    PurgeDead();   // safe removal after the full Update pass
-}
-
-// SceneGraph::Render — sorts by layer, then calls Render on each.
-// Render order is fully self-managed; no external sort or switch needed.
-void SceneGraph::Render(ID3D11DeviceContext* ctx) {
-    SortByLayer();
-    for (auto& obj : mObjects) obj->Render(ctx);
-}
-```
-
-**The calling state does exactly this — nothing more:**
-```cpp
-void PlayState::Update(float dt) { mScene.Update(dt); }
-void PlayState::Render()         { mScene.Render(mD3D.GetContext()); }
-```
-
-### Entity class hierarchy
-
-```
-IGameObject  (pure virtual: Update / Render / GetLayer / IsAlive)
-  └── GameObject  (base: TransformComponent, alive flag, layer value)
-        ├── Character      (stats, AnimationComponent, faction tag)
-        │     ├── PlayerCharacter  (input-driven actions)
-        │     └── EnemyCharacter   (AI-driven actions)
-        ├── Projectile     (velocity, lifetime, collision callback)
-        ├── VFXSprite      (one-shot animation, IsAlive()=false on last frame)
-        └── UIWidget       (screen-space; layer >= 100)
-```
+**Suggested layer ranges:**
+- 0..49 — background tiles / terrain
+- 50..79 — world characters and enemies
+- 80..99 — particle effects and VFX
+- 100+ — screen-space UI
 
 **Access rules:**
-- No code outside a class reads `obj->mPosition` directly. Position is exposed only via `GetTransform()` (const ref).
-- `BattleState` addresses combatants as `Character*` — never as `PlayerCharacter*` unless a documented downcast is required.
-- All `Character` stats (HP, ATK, DEF, name, sprite path) come from JSON. Zero values are hardcoded in `.cpp` files.
+- No code outside an entity reads its private fields directly. Use narrow getters.
+- Spawn entities via `SceneGraph::Spawn<T>(...)` so ownership stays with the graph.
 
-### SceneGraph factory — spawning entities at runtime
+## 3. Battle Architecture — `IBattler` family
 
-```cpp
-// Spawn a new entity into the scene. Returns an observer pointer;
-// SceneGraph holds sole ownership via unique_ptr.
-template<typename T, typename... Args>
-T* SceneGraph::Spawn(Args&&... args) {
-    auto obj = std::make_unique<T>(std::forward<Args>(args)...);
-    T* raw = obj.get();
-    mObjects.push_back(std::move(obj));
-    return raw;    // caller may keep a non-owning pointer for one-time setup
-}
+The battle system is a **separate hierarchy** from `IGameObject`. Combatants do not live in `SceneGraph`; they live in `BattleManager`'s team vectors. This is intentional — battle is a self-contained state with its own update tick, its own renderer, and its own entity types.
+
+```
+IBattler (interface)
+  └── Combatant (base; owns BattlerStats + status effects + stat modifiers)
+        ├── PlayerCombatant  (input-driven; holds pending action / pending item)
+        └── EnemyCombatant   (AI ChooseTarget; shared attack skill)
 ```
 
-## 3. Component Pattern — Composition over Inheritance
+`BattleManager` works exclusively through `IBattler*`. Downcasting to `PlayerCombatant*` is allowed only inside `BattleManager` itself (to read pending input) and is documented at each site.
 
-For behaviours that must be mixed across unrelated entity types, encapsulate them
-as components. `GameObject` owns components as value members and delegates to them.
+## 4. Stat Modifier Pipeline (MANDATORY for any stat read)
+
+**Never read `stats.atk`, `stats.def`, etc. directly when computing damage, AI scores, or UI tooltips.** Always go through `StatResolver::Get(battler, ctx, StatId::ATK)`.
+
+`BattlerStats` stores **base values only**. Buffs and debuffs push `StatModifier` entries onto the battler via `IBattler::AddStatModifier(...)` and strip them by `sourceId` on revert. `StatResolver` folds base + flat + percent + multiply in a fixed order.
+
+A `StatModifier::condition` predicate `(IBattler&, BattleContext&) -> bool` lets a modifier be active only when its predicate holds — that is how "+30% ATK while HP < 50%"–style effects work without polling.
+
+## 5. Damage Pipeline (chain of responsibility)
+
+`DefaultDamageCalculator` is **not** a single formula function. It owns a `vector<unique_ptr<IDamageStep>>`:
+1. `BaseFormulaStep` — power*mult - resistance, via `StatResolver`
+2. `StatusBonusStep` — +20% if defender has any status effect
+3. `CritRollStep` — 10% chance, doubles effective damage
+4. `FinalClampStep` — floor at 1
+
+**The order IS the formula.** Adding a new term (elemental weakness, environment modifier, "extra vs Burning") = one new step inserted at the right index in `DefaultDamageCalculator`'s constructor. **Do not** edit existing steps to splice in new behavior.
+
+## 6. Action Queue — Turn-Based Combat
+
+All combat mutations happen inside `IAction::Execute(dt)`. Skills do not call `TakeDamage` directly — they construct an action list and return it.
 
 ```cpp
-// TransformComponent — position, rotation, scale in world space.
-// Public fields are intentional: Transform is a plain data bag, not a service.
-struct TransformComponent {
-    DirectX::XMFLOAT2 position = { 0.f, 0.f };  // world pixels
-    float             rotation = 0.f;             // radians, clockwise
-    float             scale    = 1.f;             // uniform
-};
-
-// AnimationComponent — sprite-sheet clip state machine.
-// Delegates rendering to WorldSpriteRenderer; does NOT know about HP or faction.
-class AnimationComponent {
-public:
-    void LoadSheet(ID3D11Device*, ID3D11DeviceContext*, const SpriteSheet&);
-    void PlayClip(std::string_view clipName);   // transitions to new clip
-    void Update(float dt);                       // advances frame timer
-    void Render(ID3D11DeviceContext* ctx,
-                const TransformComponent& xform,
-                const Camera2D& cam);
-};
-
-// StatsComponent — all numeric character attributes.
-// EVERY field is loaded from JSON via StatsComponent::LoadFromData().
-// Zero default values in source code are a build error equivalent.
-struct StatsComponent {
-    int maxHp = 0, hp = 0;
-    int maxMp = 0, mp = 0;
-    int atk = 0, def = 0, spd = 0;
-    // Populated by: StatsComponent::LoadFromData(const CharacterData&)
+// IAction — one discrete step in the combat timeline.
+struct IAction {
+    virtual ~IAction() = default;
+    virtual bool Execute(float dt) = 0;   // return true when complete
 };
 ```
 
-`Character` owns these components and delegates — it never re-implements their logic:
-```cpp
-void Character::Update(float dt) {
-    mAnimation.Update(dt);          // advance frame timer — not Character's concern HOW
-}
-void Character::Render(ID3D11DeviceContext* ctx) {
-    mAnimation.Render(ctx, mTransform, *mCamera);   // delegates completely
-}
+Existing concrete actions live in `src/Battle/`:
+- `DamageAction` / `AnimDamageAction` — apply damage (the latter waits for an animation frame)
+- `StatusEffectAction` — attach an `IStatusEffect`
+- `LogAction` — push a battle log line
+- `WaitAction` — pause for N seconds
+- `MoveAction` — lerp a combatant to a target slot / melee range / origin
+- `PlayAnimationAction` — play a clip and wait for it to finish
+- `ItemEffectAction` / `ItemConsumeAction` — item dispatch + inventory decrement
+
+`IActionDecorator` lets you wrap any `IAction` with `OnBefore` / `OnAfter` hooks (used by `DelayedAction` to enforce a minimum 1-second pause between actions so the player can read).
+
+**Never put combat state mutations outside an `IAction::Execute` body.** If a future feature needs a new mutation pattern, write a new `IAction` subclass.
+
+## 7. BattleContext — Live State Snapshot
+
+`BattleContext` is a per-frame read-only snapshot rebuilt at the top of `BattleManager::Update`. It carries:
+- alive players / alive enemies (vector of `IBattler*`)
+- `turnCount`
+- `battleElapsed` seconds
+
+`BattleManager` owns one `BattleContext mContext` member; its **address** is stable for the entire battle so actions queued any number of frames ago see live state when they execute. Skills, the damage calculator, predicates, and AI all take `const BattleContext&`.
+
+**Never store a `BattleContext` by value inside an action** — it would freeze at queue time and miss every later state change. Store a `const BattleContext*` pointing into `BattleManager::mContext`.
+
+## 8. Battle Phase FSM
+
+`BattleManager` is a finite state machine over `BattlePhase`:
+```
+INIT  ->  PLAYER_TURN  <->  RESOLVING  <->  ENEMY_TURN
+                                 |
+                                 +->  WIN  /  LOSE  (terminal; BattleState polls)
+```
+- `PLAYER_TURN` waits for `PlayerCombatant::HasPendingAction()` (set by `BattleInputController`).
+- `RESOLVING` drains the `ActionQueue`; broadcasts `verso_hp_changed` for UI listeners after each action.
+- `AdvanceTurn` rebuilds the AV (Action Value) timeline and selects the next combatant.
+
+`BattleState` holds the FSM, the input controller, the renderer, the iris transition, and the menu/HUD widgets. It is also the only class that talks to `PartyManager` for persistent HP and `Inventory` for item counts.
+
+## 9. Battle Input FSM
+
+`BattleInputController` runs a parallel FSM over `PlayerInputPhase`:
+```
+COMMAND_SELECT  ->  SKILL_SELECT       ->  TARGET_SELECT       -> commit
+COMMAND_SELECT  ->  ITEM_SELECT        ->  ITEM_TARGET_SELECT  -> commit
+                                       (skipped for self / AoE items)
+COMMAND_SELECT  ->  FleeCommand        -> iris close + pop state
 ```
 
-## 4. State Pattern — Stack-based State Machine
+Top-level menu commands (`Fight` / `Item` / `Flee`) are `IBattleCommand` subclasses. **Do not** add a switch statement in `BattleInputController` to handle a new command — write a new `IBattleCommand` and append it in `BuildCommandList()`.
+
+## 10. Items — Data, Not Classes
+
+Items are described by JSON in `data/items/*.json`. There is **one** `ItemData` POD and **one** dispatch function (`BuildItemActions::Build`). Do **not** create per-item C++ subclasses.
+
+The dispatch covers eight effect kinds (`heal_hp`, `heal_mp`, `full_heal`, `revive`, `restore_rage`, `deal_damage`, `stat_buff`, `cleanse`) and six targeting rules (`self`, `single_ally`, `single_ally_any`, `single_enemy`, `all_allies`, `all_enemies`). Adding a new item = writing a new `.json` file. Adding a new EFFECT KIND = enum entry + JSON token mapping in `ItemRegistry::ParseEffect` + `case` in `ItemEffectAction::Execute`.
+
+`Inventory` (singleton in `src/Systems/`) is the only authority for "how many of X does the player have right now". It survives between battles. Save/load is not yet wired but the singleton is the single hook point for it.
+
+## 11. State Pattern — Stack-based State Machine
 
 - All game screens are `IGameState` subclasses
 - `StateManager` holds `std::stack<std::unique_ptr<IGameState>>`
@@ -305,78 +402,26 @@ void Character::Render(ID3D11DeviceContext* ctx) {
 
 | Operation | Use case |
 |---|---|
-| `PushState(state)` | Overlay a new state while preserving the current (e.g., pause menu over battle) |
+| `PushState(state)` | Overlay a new state while preserving the current (e.g., battle on top of overworld) |
 | `PopState()` | Close current state, resume the one beneath |
-| `ChangeState(state)` | Full scene transition — no return (e.g., MainMenu → Gameplay) |
+| `ChangeState(state)` | Full scene transition — no return (e.g., MainMenu -> Overworld) |
 
 - States MUST NOT directly reference or call each other
 - All cross-state triggers go through `EventManager`
-- Every `Subscribe()` made in `OnEnter()` MUST have a matching `Unsubscribe()` in `OnExit()`
+- Every `Subscribe()` made in `OnEnter()` MUST have a matching `Unsubscribe()` in `OnExit()` — dangling lambda captures crash on next `Broadcast`
 
-## 5. Observer Pattern — Event System
+## 12. Observer Pattern — Event System
 
 - `EventManager` is the single global event bus (Meyers' Singleton)
-- `Subscribe(eventName, callback)` → returns a `ListenerID`
-- `Broadcast(eventName, data)` → fires all registered callbacks for that event
-- `Unsubscribe(eventName, id)` in `OnExit()` — **mandatory** to prevent crashes from dangling lambda captures
+- `Subscribe(eventName, callback)` returns a `ListenerID`
+- `Broadcast(eventName, data)` fires all registered callbacks
+- `Unsubscribe(eventName, id)` in `OnExit()` is **mandatory**
 
-## 6. Interface Segregation — Cross-cutting Systems
+Battle uses typed payload structs in `BattleEvents.h` for animation hand-off events (`battler_play_anim`, `battler_get_anim_progress`, `battler_is_anim_done`, etc.).
 
-For any cross-cutting system (e.g., `CutsceneSystem`, `QTESystem`), define a
-pure virtual interface that exposes only the methods states need. The concrete
-implementation is owned by `GameApp` and injected into states — states depend
-on the **interface**, not the implementation (Dependency Inversion Principle).
+## 13. Iris Transition — Deferred Exit Pattern
 
-```cpp
-struct ICutsceneSystem {
-    virtual void Play(std::string_view scriptId) = 0;
-    virtual bool IsPlaying() const = 0;
-    virtual void Stop() = 0;
-    virtual ~ICutsceneSystem() = default;
-};
-```
-
-Canonical cross-system flow:
-```
-BattleState: boss.hp < 50%
-  → EventManager::Broadcast("boss_half_health")
-    → CutsceneSystem listener fires
-    → StateManager::PushState(make_unique<CutsceneState>("boss_intro"))
-      → BattleState paused underneath on the stack
-        → Cutscene ends → PopState() → BattleState resumes
-```
-
-## 7. Action Queue — Turn-Based Combat
-
-All combat actions are discrete `IAction` objects. The queue processes one at a
-time, sequentially, each frame. Zero combat logic executes outside the queue.
-This makes the timeline deterministic, replayable, and serialisable.
-
-```cpp
-// IAction — one discrete step in the combat timeline.
-struct IAction {
-    virtual ~IAction() = default;
-    // Called each frame. Return true when the action is complete.
-    virtual bool Execute(float dt) = 0;
-};
-
-// Concrete examples — each encapsulates exactly one responsibility:
-class AttackAction       : public IAction { /* deal damage, play hit VFX    */ };
-class PlayAnimationAction: public IAction { /* wait for a clip to finish    */ };
-class BroadcastEventAction:public IAction { /* fire an EventManager event   */ };
-class WaitAction         : public IAction { /* pause for N seconds          */ };
-class SpawnVFXAction     : public IAction { /* add VFXSprite to SceneGraph  */ };
-```
-
-```cpp
-// ActionQueue::Update — only this method may mutate combat state each frame.
-void ActionQueue::Update(float dt) {
-    if (mQueue.empty()) return;
-    if (mQueue.front()->Execute(dt)) {
-        mQueue.pop_front();   // action complete; advance to next
-    }
-}
-```
+`BattleState` uses an iris-close overlay before popping itself off the stack. Direct `PopState()` is unsafe because it destroys the state mid-frame; instead, `BattleState` sets `mPendingSafeExit = true` from the iris-close callback, and the **end** of `Update()` checks the flag and only then calls `PopState()`. Any new state that needs a fade-out exit MUST use the same deferred pattern.
 
 ---
 
@@ -384,30 +429,32 @@ void ActionQueue::Update(float dt) {
 
 ## 1. No Hardcoding — Data-Driven by Default
 
-**Every value that could vary per character, enemy, skill, or level MUST come from a data file.**
+**Every value that could vary per character, enemy, skill, item, or level MUST come from a data file.**
 
 | Category | C++ struct | Load from |
 |---|---|---|
-| Character base stats | `CharacterData` | `data/characters/*.json` |
-| Skill definitions | `SkillData` | `data/skills/*.json` |
-| Enemy + encounters | `EnemyData` | `data/enemies/*.json` |
-| Cutscene scripts | `CutsceneScript` | `data/cutscenes/*.json` |
-| Item / equipment | `ItemData` | `data/items/*.json` |
+| Skill tuning (move/damage timings) | `JsonLoader::SkillData` | `data/skills/*.json` |
+| Enemy + encounter | `EnemyEncounterData` | `data/enemies/*.json` |
+| Item | `ItemData` | `data/items/*.json` |
+| Formation slot offsets | `FormationData` | `data/formations.json` |
+| Battle menu layout | `JsonLoader::BattleMenuLayout` | `data/battle_menu_layout.json` |
 | Animation clips + pivots | `SpriteSheet` | `assets/animations/*.json` |
 
 **Permitted hardcoded constants** — `constexpr` at file scope only:
-- Window title string in `main.cpp`
+- Window title in `main.cpp`
 - Default screen resolution in `GameApp.cpp`
-- Layer Z-order enum ranges in `IGameObject.h`
+- Layer Z-order ranges
+- `BattleManager::kActionGauge` (the AV constant)
+- `Inventory` starter bundle counts (pending real save/load)
+- `kVisibleItems` for menu windowing (3 — UI affordance, not a tuning value)
 
-Everything else is data. Any numeric literal in a `.cpp` file that represents a
-game tuning value is a defect.
+Everything else is data. **Magic numbers in `.cpp` files representing game tuning values are defects.**
 
 ## 2. Animation System
 
 - Sprites use **sprite sheets** with per-frame UV slicing — no individual image files per frame
 - **Root motion is script-driven and math-computed** — never bake movement offsets into the sprite sheet
-- `AnimationComponent` owns a clip state machine. Transitions fire on events, not on caller conditionals
+- `WorldSpriteRenderer` owns the clip state machine. Transitions fire on events / `MoveAction` calls.
 - All frame advancement uses `Update(deltaTime)` — never frame count
 
 **Mandatory jump formula (math-computed root motion):**
@@ -422,34 +469,31 @@ mTransform.position = { horizX, mGroundY - height };
 
 ## 3. SpriteBatch + Camera Transform Rule
 
-SpriteBatch's `PrepareForRendering()` internally computes:
+`SpriteBatch::PrepareForRendering()` internally computes:
 ```
-CB0 = mTransformMatrix * GetViewportTransform()   // always, because
-                                                   // mRotation = IDENTITY ≠ UNSPECIFIED
+CB0 = mTransformMatrix * GetViewportTransform()
 ```
-where `GetViewportTransform()` maps **pixel → NDC**.
+where `GetViewportTransform()` maps **pixel -> NDC**.
 
 | Use case | Matrix to pass as 7th arg | Why |
 |---|---|---|
-| World-space sprite | `camera.GetViewMatrix()` | world→pixel; SpriteBatch adds pixel→NDC ✓ |
-| Screen-space UI sprite | `MatrixIdentity` (default) | pixel→pixel; SpriteBatch adds pixel→NDC ✓ |
-| ❌ WRONG | `camera.GetViewProjectionMatrix()` | world→NDC; double-projected → sprite invisible |
+| World-space sprite | `camera.GetViewMatrix()` | world->pixel; SpriteBatch adds pixel->NDC |
+| Screen-space UI sprite | `MatrixIdentity` (default) | pixel->pixel; SpriteBatch adds pixel->NDC |
+| WRONG | `camera.GetViewProjectionMatrix()` | world->NDC; double-projected — sprite invisible |
 
-## 4. Quick Time Events (QTE)
+## 4. Quick Time Events (QTE) — planned
 
-- `QTEState` is a self-contained state — pushed onto the stack, not embedded in `BattleState`
-- On activation: all regular input processing stops; `QTEState` exclusively handles input
-- `QTEState` owns a countdown timer driven by `deltaTime`
-- Outcomes are events, not return values:
-  - `EventManager::Broadcast("qte_success")` → reduce damage, trigger parry animation
-  - `EventManager::Broadcast("qte_failure")` → apply full damage
+`QTEState` does not exist yet. The architectural intent stays:
+- It will be a self-contained `IGameState` pushed onto the stack, not embedded in `BattleState`
+- On activation: regular input processing stops; QTE state exclusively handles input
+- Outcome is broadcast via `EventManager`, not returned via a callback
 
-## 5. Resource Manager
+Until it lands, do not pre-add hooks for it inside `BattleState`.
 
-- Singleton `ResourceManager` caches every texture and audio asset keyed by file path
-- A resource is loaded into GPU/RAM **exactly once** — subsequent requests return the cached handle
-- All DirectX resources stored in `ComPtr<T>` inside the cache map
-- `ResourceManager::Shutdown()` releases all cached resources before the device is destroyed
+## 5. Resource Management
+
+- All DirectX resources are stored in `ComPtr<T>`. Releases are automatic.
+- Texture loading currently goes through `WICTextureLoader` (DirectXTK) per-renderer. There is no global `ResourceManager` singleton yet — when one is added it will live in `src/Systems/`.
 
 ---
 
@@ -460,10 +504,10 @@ where `GetViewportTransform()` maps **pixel → NDC**.
 Every non-trivial line requires a comment explaining **why** it exists, not just what it does.
 
 ```cpp
-// ❌ WRONG — states the obvious
+// WRONG — states the obvious
 device->Release(); // release device
 
-// ✅ CORRECT — explains consequence
+// CORRECT — explains consequence
 // Decrement the COM reference count on the D3D11 device.
 // If this is the last reference, the GPU object is destroyed and VRAM is freed.
 // Omitting this call is reported by ID3D11Debug::ReportLiveDeviceObjects() at shutdown.
@@ -473,13 +517,13 @@ device->Release();
 For every subsystem that touches DirectX (Device, SwapChain, SpriteBatch, AudioEngine), include a **Common Mistakes** block:
 ```cpp
 // Common mistakes:
-//   1. Calling Present() before OMSetRenderTargets()  → black screen.
-//   2. Omitting Release() on COM objects              → leak in DX debug layer.
-//   3. Resizing swap chain without releasing RTV first → DXGI_ERROR_INVALID_CALL.
+//   1. Calling Present() before OMSetRenderTargets()  -> black screen.
+//   2. Omitting Release() on COM objects              -> leak in DX debug layer.
+//   3. Resizing swap chain without releasing RTV first -> DXGI_ERROR_INVALID_CALL.
 ```
 
-UPDATING COMMENT RULE: If you change any logic, you MUST update the comments to reflect the new behavior. Never leave code uncommented or with outdated comments.
- 
+**UPDATING COMMENT RULE:** If you change any logic, you MUST update the comments to reflect the new behavior. Never leave outdated comments above modified code.
+
 ## 2. File Header Format (mandatory on every file)
 
 ```cpp
@@ -491,8 +535,8 @@ UPDATING COMMENT RULE: If you change any logic, you MUST update the comments to 
 //       ID3D11RenderTargetView, ID3D11DepthStencilView
 //
 // Lifetime:
-//   Created in  → GameApp::Initialize()
-//   Destroyed in → GameApp destructor (ComPtr members auto-release)
+//   Created in  -> GameApp::Initialize()
+//   Destroyed in -> GameApp destructor (ComPtr members auto-release)
 //
 // Important:
 //   - Must be initialized before StateManager::PushState() is called.
@@ -540,32 +584,20 @@ Before writing any non-trivial code block:
 
 # AGENT BEHAVIORAL CONSTRAINTS
 
-1. **Do NOT rewrite core architecture** unless explicitly instructed. Slot new features into the existing IGameObject / SceneGraph / Component / State / Event / Action Queue system.
-2. **Do NOT use raw `new` / `delete`** for game objects. Use `std::make_unique` / `std::make_shared`. At runtime, spawn entities via `SceneGraph::Spawn<T>(...)`.
+1. **Do NOT rewrite core architecture** unless explicitly instructed. New features slot into the existing IGameObject / SceneGraph / IBattler / Combatant / ISkill / IAction / StatModifier / DamageStep / IBattleCommand / Inventory systems.
+2. **Do NOT use raw `new` / `delete`** for game objects. Use `std::make_unique` / `std::make_shared`. Spawn overworld entities via `SceneGraph::Spawn<T>(...)`.
 3. **Do NOT call `->Release()` manually** on DirectX objects. Use `ComPtr<T>` exclusively.
-4. **Do NOT exceed 300 lines per `.cpp` file.** If a file approaches this limit, propose a split along responsibility boundaries (e.g., split render logic into a separate `*Renderer` helper).
-5. **Do NOT place business logic in `GameApp`.** `GameApp` owns the Win32 window, `D3DContext`, `GameTimer`, and `StateManager` — nothing else. Logic belongs in States, Components, or Systems.
-6. **Do NOT expose concrete entity types to callers that only need an interface.** `PlayState` works with `IGameObject*` (via SceneGraph). `BattleState` works with `Character*`. Downcasting must be exceptional, explicitly justified, and documented with a comment explaining why the interface is insufficient.
-7. **Do NOT hardcode any tunable game value.** All character stats, skill parameters, enemy compositions, animation data, and level layouts come from data files. Magic numbers in `.cpp` files are defects. DO NOT HARDCODE A CLASS, EVERYTHING IS ABSTRACTED INTERFACES AND DATA-DRIVEN.
-8. **Always update `build_src_static.bat`** when creating a new `.cpp` file.
-9. **Every new entity class MUST implement `IGameObject`.** Every new behaviour that crosses entity type boundaries MUST be a component or a system — not a copy-pasted method.
-10. **Silently correct language violations** in every file you touch — replace all non-English comments, strings, and identifiers with English equivalents.
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+4. **Do NOT exceed 300 lines per `.cpp` file.** If a file approaches this limit, propose a split along responsibility boundaries (e.g., move render logic to a `*Renderer` helper).
+5. **Do NOT place business logic in `GameApp`.** `GameApp` owns the Win32 window, `D3DContext`, `GameTimer`, and `StateManager` — nothing else. Logic belongs in States, Battle systems, or `Systems/`.
+6. **Do NOT expose concrete entity types to callers that only need an interface.** SceneGraph works with `IGameObject*`. BattleManager works with `IBattler*`. Downcasts must be exceptional, justified, and documented at the site with a comment explaining why the interface is insufficient.
+7. **Do NOT hardcode tunable game values.** All character stats, skill parameters, enemy compositions, item tunings, animation timings, and level layouts come from data files. The exceptions in **Permitted hardcoded constants** above are the complete allow-list.
+8. **Do NOT read raw stat fields from `BattlerStats` for combat math.** Always go through `StatResolver::Get(battler, ctx, StatId::X)` so buffs and conditional modifiers fold in.
+9. **Do NOT mutate combat state outside `IAction::Execute`.** Skills return action lists; effects push modifiers; everything else is a defect.
+10. **Do NOT mutate `BattlerStats.atk`/`def`/etc. directly from a status effect.** Push a `StatModifier` and store its `sourceId` so `Revert` can strip it cleanly.
+11. **Do NOT write a per-item C++ class.** Add one JSON file under `data/items/`. New behavior categories require an `ItemEffectKind` enum entry and a `case` in `ItemEffectAction::Execute`.
+12. **Do NOT add a switch statement to `BattleInputController` to handle a new top-level command.** Implement `IBattleCommand` and append in `BuildCommandList()`.
+13. **Always update `build_src_static.bat`** when creating a new `.cpp` file. The build will fail with "unresolved external" otherwise.
+14. **Always `#define NOMINMAX` BEFORE any project header** in any `.cpp` that uses `std::min` / `std::max`. `Log.h` pulls in `Windows.h`, which leaks the `min` / `max` macros.
+15. **Every new entity class MUST implement `IGameObject`** (overworld) or `IBattler` (battle). Every new behaviour that crosses entity-type boundaries MUST be a component or a system — not a copy-pasted method.
+16. **Silently correct language violations** in every file you touch — replace all non-English comments, strings, and identifiers with English equivalents.
+17. **Ask before destructive git operations.** Resets, force-pushes, and amends to published commits require explicit user confirmation.

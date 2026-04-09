@@ -4,6 +4,10 @@
 // ============================================================
 #include "BattleManager.h"
 #include "LogAction.h"
+#include "BuildItemActions.h"
+#include "ItemRegistry.h"
+#include "ItemData.h"
+#include "../Systems/Inventory.h"
 
 #include "EnemyEncounterData.h"
 #define NOMINMAX
@@ -27,9 +31,16 @@ BattleManager::BattleManager() = default;
 // ------------------------------------------------------------
 void BattleManager::Initialize(const EnemyEncounterData& encounter)
 {
-    // -- Spawn player party — Verso with persistent HP from PartyManager --
+    // -- Spawn player party — Verso seeded with EFFECTIVE stats --
+    // GetEffectiveVersoStats folds in every currently-equipped item's
+    // bonusAtk/bonusDef/bonusMaxHp/etc., so the PlayerCombatant the
+    // battle uses already reflects whatever the player has equipped
+    // in the overworld inventory.  Persistent HP/MP carry over from
+    // the previous battle (PartyManager::SetVersoStats saves only the
+    // resource fields, not equipment-derived bonuses).
     mPlayers.push_back(std::make_unique<PlayerCombatant>(
-        "Verso", L"assets/UI/turn-view-verso.png", PartyManager::Get().GetVersoStats()));
+        "Verso", L"assets/UI/turn-view-verso.png",
+        PartyManager::Get().GetEffectiveVersoStats()));
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
@@ -126,14 +137,36 @@ void BattleManager::Update(float dt)
     if (mPhase == BattlePhase::WIN || mPhase == BattlePhase::LOSE) return;
     if (mPhase == BattlePhase::INIT) return;  // should not happen; Initialize(encounter) called in OnEnter
 
+    // Refresh the live context FIRST so every subsequent read (skills,
+    // calculator predicates, AI scoring) sees the current roster and turn count.
+    RebuildContext(dt);
+
     if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
     else if (mPhase == BattlePhase::ENEMY_TURN)  HandleEnemyTurn(dt);
     else if (mPhase == BattlePhase::RESOLVING)   HandleResolving(dt);
 }
 
 // ------------------------------------------------------------
+// RebuildContext: assemble the per-frame snapshot used by every
+// context-aware combat system.  Called at the top of Update.
+//
+// - alivePlayers / aliveEnemies mirror the filtered team vectors.
+// - battleElapsed accumulates monotonically from frame deltas.
+// - turnCount is incremented in AdvanceTurn, not here, so that
+//   within a single turn every query returns the same value.
+// ------------------------------------------------------------
+void BattleManager::RebuildContext(float dt)
+{
+    mContext.alivePlayers = GetAlivePlayers();
+    mContext.aliveEnemies = GetAliveEnemies();
+    mContext.battleElapsed += dt;
+    // turnCount intentionally untouched here — see AdvanceTurn.
+}
+
+// ------------------------------------------------------------
 // HandlePlayerTurn: wait until the player has committed an action
-//   via SetPlayerAction().  UI is fully in charge of input here.
+//   via SetPlayerAction() or SetPlayerItem().  UI is fully in charge
+//   of input here.
 // ------------------------------------------------------------
 void BattleManager::HandlePlayerTurn(float /*dt*/)
 {
@@ -147,19 +180,41 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
     auto* player = static_cast<PlayerCombatant*>(current);
     if (!player->HasPendingAction()) return;  // waiting for UI input
 
-    // Collect the player's choice.
-    ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
-    IBattler* target = player->GetPendingTarget();
-    player->ClearPendingAction();
+    // Decide whether the queued action is an item or a skill.
+    // Item-use is signalled by a non-empty pending item id.
+    const bool isItem = !player->GetPendingItemId().empty();
+    IBattler*  target = player->GetPendingTarget();
 
-    if (skill && target && skill->CanUse(*player))
+    if (isItem)
     {
-        std::vector<IBattler*> targets = { target };
-        EnqueueSkillActions(*player, *skill, targets);
+        const std::string itemId = player->GetPendingItemId();
+        player->ClearPendingAction();
+
+        // Validate inventory still has the item — could have hit 0 if
+        // multiple items were used in the same turn (defensive check).
+        if (Inventory::Get().GetCount(itemId) <= 0)
+        {
+            Log(player->GetName() + " has no " + itemId + " left!");
+        }
+        else
+        {
+            EnqueueItemActions(*player, itemId, target);
+        }
     }
     else
     {
-        Log(player->GetName() + " cannot use that skill!");
+        ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
+        player->ClearPendingAction();
+
+        if (skill && target && skill->CanUse(*player, mContext))
+        {
+            std::vector<IBattler*> targets = { target };
+            EnqueueSkillActions(*player, *skill, targets);
+        }
+        else
+        {
+            Log(player->GetName() + " cannot use that skill!");
+        }
     }
 
     player->OnTurnEnd();
@@ -247,6 +302,12 @@ void BattleManager::HandleResolving(float dt)
 // ------------------------------------------------------------
 void BattleManager::AdvanceTurn()
 {
+    // Increment the battle-wide turn counter.  Triggers and UI elements
+    // that gate on "turn N" read mContext.turnCount, which is refreshed
+    // by RebuildContext on the next frame — for now, keep turnCount on
+    // BattleContext directly in sync with this increment.
+    ++mContext.turnCount;
+
     // 1. Remove dead combatants from the timeline
     mTimeline.erase(std::remove_if(mTimeline.begin(), mTimeline.end(),
         [](const TurnNode& n) { return !n.battler->IsAlive(); }), mTimeline.end());
@@ -304,7 +365,9 @@ void BattleManager::AdvanceTurn()
 void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
                                          std::vector<IBattler*> targets)
 {
-    auto actions = skill.Execute(caster, targets);
+    // Pass mContext to skill.Execute so DamageAction / AnimDamageAction
+    // constructors receive &mContext and see LIVE state when they fire.
+    auto actions = skill.Execute(caster, targets, mContext);
     for (auto& action : actions)
     {
         std::unique_ptr<IAction> finalAction;
@@ -316,6 +379,65 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
         {
             // Re-create with the correct log pointer so messages appear
             // in the BattleState scrolling log panel.
+            std::string msg = logAct->GetText();
+            finalAction = std::make_unique<LogAction>(&mBattleLog, std::move(msg));
+        }
+        else
+        {
+            finalAction = std::move(action);
+        }
+
+        mQueue.Enqueue(std::move(finalAction));
+    }
+}
+
+// ------------------------------------------------------------
+// EnqueueItemActions: build the action sequence for an item-use turn
+//   and inject the live log pointer into any LogAction the same way
+//   EnqueueSkillActions does.
+//
+// Validation order:
+//   1. Item id must exist in ItemRegistry  — typo in JSON otherwise
+//   2. Inventory count must be > 0          — anti-double-spend guard
+//   3. BuildItemActions must return non-empty — targeting must resolve
+//
+// Any failure produces a battle log entry and refunds the turn (no
+// inventory decrement runs because the action sequence is never queued).
+// ------------------------------------------------------------
+void BattleManager::EnqueueItemActions(IBattler& user,
+                                        const std::string& itemId,
+                                        IBattler* primaryTarget)
+{
+    const ItemData* item = ItemRegistry::Get().Find(itemId);
+    if (!item)
+    {
+        Log(user.GetName() + " has no such item: " + itemId);
+        return;
+    }
+
+    if (Inventory::Get().GetCount(itemId) <= 0)
+    {
+        Log(user.GetName() + " is out of " + item->name + ".");
+        return;
+    }
+
+    auto actions = BuildItemActions::Build(user, *item, primaryTarget, *this);
+    if (actions.empty())
+    {
+        // Targeting failed — log and let the player choose again next turn.
+        Log(user.GetName() + " could not aim " + item->name + ".");
+        return;
+    }
+
+    // Re-route LogActions onto the live battle log, identical to skill
+    // enqueue.  ItemEffectAction never produces LogAction itself; the
+    // upgrade only matters for the opening "X uses Y!" message.
+    for (auto& action : actions)
+    {
+        std::unique_ptr<IAction> finalAction;
+
+        if (auto* logAct = dynamic_cast<LogAction*>(action.get()))
+        {
             std::string msg = logAct->GetText();
             finalAction = std::make_unique<LogAction>(&mBattleLog, std::move(msg));
         }
@@ -365,6 +487,21 @@ void BattleManager::SetPlayerAction(int skillIndex, IBattler* target)
 
     auto* player = static_cast<PlayerCombatant*>(current);
     player->SetPendingAction(skillIndex, target);
+}
+
+// ------------------------------------------------------------
+// SetPlayerItem: queue an item-use action for the active player.
+// Bounces if the active turn is not a player slot — input is only
+// valid during PLAYER_TURN, but defensive checks here keep the API
+// safe to call from arbitrary UI paths.
+// ------------------------------------------------------------
+void BattleManager::SetPlayerItem(const std::string& itemId, IBattler* target)
+{
+    IBattler* current = CurrentCombatant();
+    if (!current || !current->IsPlayerControlled()) return;
+
+    auto* player = static_cast<PlayerCombatant*>(current);
+    player->SetPendingItem(itemId, target);
 }
 
 PlayerCombatant* BattleManager::GetActivePlayer() const

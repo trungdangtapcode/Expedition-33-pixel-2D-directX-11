@@ -41,10 +41,19 @@ public:
 
     // --------------------------------------------------------
     // Pending action — set by BattleState UI, consumed by BattleManager.
+    //
+    // Two flavors of pending action:
+    //   - Skill: SetPendingAction(skillIndex, target)
+    //   - Item:  SetPendingItem(itemId, target)
+    // Exactly one is queued per turn.  HasPendingAction() returns true
+    // for either; GetPendingItemId() is empty when the queued action
+    // is a skill, and non-empty when it is an item.
     // --------------------------------------------------------
     void    SetPendingAction(int skillIndex, IBattler* target);
+    void    SetPendingItem(const std::string& itemId, IBattler* target);
     bool    HasPendingAction()   const;
     int     GetPendingSkillIndex() const;
+    const std::string& GetPendingItemId() const;
     IBattler* GetPendingTarget()   const;
     void    ClearPendingAction();
 
@@ -52,7 +61,8 @@ private:
     std::vector<std::unique_ptr<ISkill>> mSkills;
 
     // Pending selection — only valid when mHasPendingAction == true.
-    bool      mHasPendingAction = false;
-    int       mPendingSkillIndex = -1;
-    IBattler* mPendingTarget     = nullptr;  // non-owning observer pointer
+    bool        mHasPendingAction  = false;
+    int         mPendingSkillIndex = -1;
+    std::string mPendingItemId;                  // empty == skill action, non-empty == item action
+    IBattler*   mPendingTarget     = nullptr;    // non-owning observer pointer
 };

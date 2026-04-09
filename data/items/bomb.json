@@ -1,0 +1,9 @@
+{
+  "id": "bomb",
+  "name": "Bomb",
+  "description": "Hurls a bomb dealing 60 damage to one enemy.",
+  "iconPath": "assets/items/bomb.png",
+  "targeting": "single_enemy",
+  "effect": "deal_damage",
+  "amount": 60
+}

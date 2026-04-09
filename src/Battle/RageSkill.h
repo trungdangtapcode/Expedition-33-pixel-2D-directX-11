@@ -15,10 +15,11 @@ public:
     const char* GetDescription() const override { return "Unleash full rage for massive damage."; }
 
     // Only usable when rage bar is completely full.
-    bool CanUse(const IBattler& caster) const override;
+    bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
     // Produces: LogAction + DamageAction + RageResetAction (inline lambda action)
     std::vector<std::unique_ptr<IAction>> Execute(
         IBattler& caster,
-        std::vector<IBattler*>& targets) const override;
+        std::vector<IBattler*>& targets,
+        const BattleContext& ctx) const override;
 };

@@ -28,6 +28,7 @@
 #include "EnemyCombatant.h"
 #include "ActionQueue.h"
 #include "IBattler.h"
+#include "BattleContext.h"
 #include "EnemyEncounterData.h"
 #include "../Systems/PartyManager.h"
 #include <vector>
@@ -89,6 +90,14 @@ public:
     // ------------------------------------------------------------
     void SetPlayerAction(int skillIndex, IBattler* target);
 
+    // ------------------------------------------------------------
+    // SetPlayerItem: called by BattleState when the player picks an
+    //   item to consume this turn.  Only valid during PLAYER_TURN.
+    //   itemId — id of the item in ItemRegistry / Inventory
+    //   target — primary target (may be nullptr for SelfOnly / AoE)
+    // ------------------------------------------------------------
+    void SetPlayerItem(const std::string& itemId, IBattler* target);
+
     // Active player (the one whose turn it currently is) — may be nullptr.
     PlayerCombatant* GetActivePlayer() const;
     IBattler*        GetActiveEnemy()  const;
@@ -101,9 +110,17 @@ public:
     };
 
     const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
-    
+
     // Simulate the future actions in the queue based on the current AV timeline
     std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;
+
+    // -- BattleContext access --
+    // Exposed so UI/helpers (e.g. BattleInputController skill greyout,
+    // BattleState skill list) can evaluate predicate-gated stat reads and
+    // CanUse checks against the SAME context the simulation is using.
+    // The reference is stable for the battle duration; contents refresh
+    // each frame via RebuildContext at the top of Update.
+    const BattleContext& GetContext() const { return mContext; }
 
 private:
     // -- Team storage --
@@ -119,13 +136,31 @@ private:
 
     std::vector<std::string> mBattleLog;
 
+    // Live battle context refreshed at the top of Update each frame.
+    // Systems that need to read live state (skills, damage calculator,
+    // UI predicates) hold pointers into this single member — the ADDRESS
+    // is stable for the entire battle, the CONTENTS change per frame.
+    BattleContext            mContext;
+
     // -- Internal helpers --
     void BuildTurnOrder();
     void AdvanceTurn();           // increment mCurrentTurnIndex, skip dead
     IBattler* CurrentCombatant(); // returns mTurnOrder[mCurrentTurnIndex]
 
+    // Rebuild mContext in place from current team / timeline state.
+    // Safe to call every frame — it only assigns plain-data members.
+    void RebuildContext(float dt);
+
     void EnqueueSkillActions(IBattler& caster, ISkill& skill,
                              std::vector<IBattler*> targets);
+
+    // Build the action sequence for one item use and enqueue it.
+    // Mirrors EnqueueSkillActions but takes an item id + primary target
+    // and delegates to BuildItemActions::Build internally.
+    void EnqueueItemActions(IBattler& user,
+                            const std::string& itemId,
+                            IBattler* primaryTarget);
+
     void Log(const std::string& msg);
 
     bool AllPlayersDefeated() const;

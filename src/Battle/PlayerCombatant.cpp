@@ -74,7 +74,21 @@ ISkill* PlayerCombatant::GetSkill(int index) const
 void PlayerCombatant::SetPendingAction(int skillIndex, IBattler* target)
 {
     mPendingSkillIndex  = skillIndex;
+    mPendingItemId.clear();          // clear any prior item selection
     mPendingTarget      = target;
+    mHasPendingAction   = true;
+}
+
+// ------------------------------------------------------------
+// SetPendingItem: queue an item-use as the player's turn action.
+// Mutually exclusive with SetPendingAction — calling either one
+// overwrites the other.
+// ------------------------------------------------------------
+void PlayerCombatant::SetPendingItem(const std::string& itemId, IBattler* target)
+{
+    mPendingItemId      = itemId;
+    mPendingSkillIndex  = -1;        // skill index not used for item turns
+    mPendingTarget      = target;    // may be nullptr for self / AoE items
     mHasPendingAction   = true;
 }
 
@@ -88,6 +102,11 @@ int PlayerCombatant::GetPendingSkillIndex() const
     return mPendingSkillIndex;
 }
 
+const std::string& PlayerCombatant::GetPendingItemId() const
+{
+    return mPendingItemId;
+}
+
 IBattler* PlayerCombatant::GetPendingTarget() const
 {
     return mPendingTarget;
@@ -97,5 +116,6 @@ void PlayerCombatant::ClearPendingAction()
 {
     mHasPendingAction   = false;
     mPendingSkillIndex  = -1;
+    mPendingItemId.clear();
     mPendingTarget      = nullptr;
 }

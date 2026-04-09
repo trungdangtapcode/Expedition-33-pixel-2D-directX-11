@@ -54,6 +54,14 @@ void EnvironmentRenderer::DrawTexture(ID3D11ShaderResourceView* srv, const Camer
 {
     if (!srv) return;
 
+    // Retrieve viewport from context or camera dimensions to ensure SpriteBatch projects correctly
+    D3D11_VIEWPORT vp;
+    UINT numVPs = 1;
+    mContext->RSGetViewports(&numVPs, &vp);
+    vp.Width = (float)camera.GetScreenW();
+    vp.Height = (float)camera.GetScreenH();
+    mContext->RSSetViewports(1, &vp);
+
     mSpriteBatch->Begin(
         DirectX::SpriteSortMode_Deferred,
         mStates->NonPremultiplied(),
@@ -61,17 +69,24 @@ void EnvironmentRenderer::DrawTexture(ID3D11ShaderResourceView* srv, const Camer
         camera.GetViewMatrix()
     );
 
-    // Dynamic sizing based on Target View 
-    // Example: The physical camera view expects 1080 units in height.
-    // We scale the asset (which might be 1536 tall) to fit the 1080 logical height constraint nicely.
-    float scale = mConfig.targetViewHeight > 0.0f ? (mConfig.targetViewHeight / mConfig.height) : 1.0f;
+    // Dynamic Scale Calculation (Relative/Adaptive Sizing)
+    // We first calculate the scale needed to exactly fit the current screen height.
+    // Then we multiply it by zoomLevel (e.g., 1.2 for 20% zoom or 1.0 for perfect fit).
+    float baseScale = static_cast<float>(camera.GetScreenH()) / static_cast<float>(mConfig.height);
+    float finalScale = baseScale * (mConfig.zoomLevel > 0.0f ? mConfig.zoomLevel : 1.0f);
 
-    // The asset origin is currently calculated as Center.
-    DirectX::XMFLOAT2 origin = { mConfig.width / 2.0f, mConfig.height / 2.0f };
+    // Make origin the center of the texture
+    DirectX::XMFLOAT2 origin = { static_cast<float>(mConfig.width) / 2.0f, static_cast<float>(mConfig.height) / 2.0f }; 
 
-    // Where do we draw it in the world space? 
-    // We position the background center so it sits at (0,0) of the world space + any offsets assigned.
-    DirectX::XMFLOAT2 position = { mConfig.offsetX, mConfig.offsetY };
+    // Where do we draw it in the world space?
+    // We position the background center so it sits at (0,0) of the world space + offsets.
+    // By multiplying offsetX and offsetY by finalScale, we transform absolute "world units" 
+    // into "relative texture units". This guarantees that if you offset the ground by 400px 
+    // on the original texture, it will stay exactly at that proportion no matter how the screen scales!
+    DirectX::XMFLOAT2 position = { 
+        mConfig.offsetX * finalScale, 
+        mConfig.offsetY * finalScale 
+    };
 
     mSpriteBatch->Draw(
         srv,
@@ -80,7 +95,7 @@ void EnvironmentRenderer::DrawTexture(ID3D11ShaderResourceView* srv, const Camer
         DirectX::Colors::White,
         0.f,                     // Rotation
         origin,                  // Origin (Center of texture)
-        scale,                   // Scale
+        finalScale,              // Scale
         DirectX::SpriteEffects_None,
         0.0f
     );

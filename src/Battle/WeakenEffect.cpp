@@ -1,9 +1,11 @@
 // ============================================================
 // File: WeakenEffect.cpp
-// Responsibility: Implement WeakenEffect — ATK/DEF debuff for N turns.
+// Responsibility: Implement WeakenEffect — pushes flat ATK/DEF
+//                 StatModifier entries on Apply and strips them on Revert.
 // ============================================================
 #include "WeakenEffect.h"
-#include "BattlerStats.h"
+#include "IBattler.h"
+#include "StatModifier.h"
 
 WeakenEffect::WeakenEffect(int duration, int atkReduction, int defReduction)
     : mDuration(duration)
@@ -12,44 +14,56 @@ WeakenEffect::WeakenEffect(int duration, int atkReduction, int defReduction)
 {}
 
 // ------------------------------------------------------------
-// Apply: subtract reductions immediately from the target's live stats.
-// The original values are NOT stored here — Revert adds them back.
-// If the reduction drives a stat below 0, it is clamped at 0 to prevent
-// negative ATK or DEF (which could heal instead of reduce damage).
+// Apply: push two flat-negative modifiers onto the target.
+// Both share the same sourceId so Revert can strip them atomically
+// via a single RemoveStatModifiersBySource call.
+//
+// No clamping here — StatResolver::Get floors resolved stats at 0,
+// so even if basAtk + modifier drops below zero the final value the
+// damage calculator sees is 0, never negative.
 // ------------------------------------------------------------
-void WeakenEffect::Apply(BattlerStats& target)
+void WeakenEffect::Apply(IBattler& target)
 {
-    target.atk -= mAtkReduction;
-    target.def -= mDefReduction;
+    // Allocate a fresh sourceId the first time Apply runs.  Guarding with
+    // zero-check makes a second (mistaken) Apply a no-op rather than
+    // leaving two uncorrelated modifier sets behind.
+    if (mSourceId != 0) return;
+    mSourceId = StatModifierIds::Next();
 
-    // Prevent negative stats — a stat floored at 0 means no contribution,
-    // but never inverts the formula (e.g. negative DEF adding damage).
-    if (target.atk < 0) target.atk = 0;
-    if (target.def < 0) target.def = 0;
+    StatModifier atkMod;
+    atkMod.op       = StatModifier::Op::AddFlat;
+    atkMod.target   = StatId::ATK;
+    atkMod.value    = -static_cast<float>(mAtkReduction);
+    atkMod.sourceId = mSourceId;
+    target.AddStatModifier(atkMod);
 
-    mApplied = true;
+    StatModifier defMod;
+    defMod.op       = StatModifier::Op::AddFlat;
+    defMod.target   = StatId::DEF;
+    defMod.value    = -static_cast<float>(mDefReduction);
+    defMod.sourceId = mSourceId;
+    target.AddStatModifier(defMod);
 }
 
 // ------------------------------------------------------------
 // OnTurnEnd: decrement the duration counter once per target turn.
-// No stat changes here — stat changes happen in Apply / Revert only.
+// No stat changes here — state modifications live in Apply / Revert only.
 // ------------------------------------------------------------
-void WeakenEffect::OnTurnEnd(BattlerStats& /*target*/)
+void WeakenEffect::OnTurnEnd(IBattler& /*target*/)
 {
     if (mDuration > 0) --mDuration;
 }
 
 // ------------------------------------------------------------
-// Revert: restore the stat reductions when the effect expires.
-// Called exactly once by Combatant::PurgeExpiredEffects().
-// Guard mApplied prevents double-revert if something goes wrong.
+// Revert: remove both modifiers from the target by sourceId.
+// Safe to call multiple times — RemoveStatModifiersBySource is a no-op
+// once the matching entries have already been erased.
 // ------------------------------------------------------------
-void WeakenEffect::Revert(BattlerStats& target)
+void WeakenEffect::Revert(IBattler& target)
 {
-    if (!mApplied) return;
-    target.atk += mAtkReduction;
-    target.def += mDefReduction;
-    mApplied = false;
+    if (mSourceId == 0) return;
+    target.RemoveStatModifiersBySource(mSourceId);
+    mSourceId = 0;
 }
 
 bool WeakenEffect::IsExpired() const

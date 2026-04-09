@@ -63,6 +63,7 @@
 #include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
+#include "../UI/ScrollArrowRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
@@ -112,6 +113,14 @@ private:
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
+
+    // Scroll-direction chevrons drawn above/below the item menu when
+    // there are off-screen items in that direction.  Both share the
+    // same texture (the existing pointer asset is reused as a placeholder
+    // until dedicated chevron art lands — see idea/asset-todo.md).
+    // mChevronUp draws with vertical flip + inverted bob direction.
+    ScrollArrowRenderer    mChevronUp;
+    ScrollArrowRenderer    mChevronDown;
     NineSliceRenderer      mDialogBox;
     BattleTextRenderer     mTextRenderer;      EnvironmentRenderer    mEnvRenderer;    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;

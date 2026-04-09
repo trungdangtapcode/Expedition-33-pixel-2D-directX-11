@@ -21,10 +21,11 @@ public:
     const char* GetDescription() const override { return "Strike the enemy."; }
 
     // Always available — basic attack has no resource cost.
-    bool CanUse(const IBattler& caster) const override;
+    bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
     // Produces: LogAction + DamageAction
     std::vector<std::unique_ptr<IAction>> Execute(
         IBattler& caster,
-        std::vector<IBattler*>& targets) const override;
+        std::vector<IBattler*>& targets,
+        const BattleContext& ctx) const override;
 };

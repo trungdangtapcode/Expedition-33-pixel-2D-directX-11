@@ -59,10 +59,63 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
 
 void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)
 {
-    // Apply the effect immediately to modify live stats, then store it.
-    effect->Apply(mStats);
+    // Apply the effect immediately — it may push stat modifiers via
+    // AddStatModifier or begin a countdown.  Then store it.
+    effect->Apply(*this);
     LOG("%s afflicted with: %s", mName.c_str(), effect->GetName());
     mEffects.push_back(std::move(effect));
+}
+
+// ------------------------------------------------------------
+// ClearAllStatusEffects: Revert() every active effect then drop them.
+// Used by Cleanse items and by any "reset combatant state" flow.
+//
+// Revert() MUST run before erasing so StatModifier entries pushed in
+// Apply() are stripped from the battler — otherwise a buff's bonus
+// would persist forever when an effect is removed mid-duration.
+// ------------------------------------------------------------
+void Combatant::ClearAllStatusEffects()
+{
+    if (mEffects.empty()) return;
+
+    for (auto& effect : mEffects)
+    {
+        LOG("%s cleansed of: %s", mName.c_str(), effect->GetName());
+        effect->Revert(*this);
+    }
+    mEffects.clear();
+}
+
+// ------------------------------------------------------------
+// AddStatModifier: append a fully-constructed modifier.
+// No deduplication — an effect that wants to replace an earlier
+// modifier must call RemoveStatModifiersBySource first.
+// ------------------------------------------------------------
+void Combatant::AddStatModifier(const StatModifier& mod)
+{
+    mStatModifiers.push_back(mod);
+}
+
+// ------------------------------------------------------------
+// RemoveStatModifiersBySource: strip every modifier that was pushed
+// by the effect instance identified by sourceId.  Called by effect
+// Revert() implementations; also safe to call on already-empty lists.
+// ------------------------------------------------------------
+void Combatant::RemoveStatModifiersBySource(int sourceId)
+{
+    // Skip the work when sourceId is 0 — that is the "unassigned" sentinel
+    // and would match every default-constructed modifier, which is wrong.
+    if (sourceId == 0) return;
+
+    mStatModifiers.erase(
+        std::remove_if(mStatModifiers.begin(), mStatModifiers.end(),
+            [sourceId](const StatModifier& m) { return m.sourceId == sourceId; }),
+        mStatModifiers.end());
+}
+
+const std::vector<StatModifier>& Combatant::GetStatModifiers() const
+{
+    return mStatModifiers;
 }
 
 void Combatant::OnTurnStart()
@@ -79,7 +132,7 @@ void Combatant::OnTurnEnd()
 {
     for (auto& effect : mEffects)
     {
-        effect->OnTurnEnd(mStats);
+        effect->OnTurnEnd(*this);
     }
     PurgeExpiredEffects();
 }
@@ -91,17 +144,16 @@ bool Combatant::IsAlive() const
 
 // ------------------------------------------------------------
 // PurgeExpiredEffects: revert expired effects and erase from the list.
-// Using erase-remove idiom to avoid iterator invalidation.
+// Walks backwards so indices stay valid after erase().
 // ------------------------------------------------------------
 void Combatant::PurgeExpiredEffects()
 {
-    // Walk backwards so we can erase safely without shifting valid indices.
     for (int i = static_cast<int>(mEffects.size()) - 1; i >= 0; --i)
     {
         if (mEffects[i]->IsExpired())
         {
             LOG("%s effect expired: %s", mName.c_str(), mEffects[i]->GetName());
-            mEffects[i]->Revert(mStats);
+            mEffects[i]->Revert(*this);
             mEffects.erase(mEffects.begin() + i);
         }
     }

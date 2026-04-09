@@ -1,0 +1,9 @@
+{
+  "id": "ether_medium",
+  "name": "Medium Ether",
+  "description": "Restores 50 MP to one ally.",
+  "iconPath": "assets/items/ether_medium.png",
+  "targeting": "single_ally",
+  "effect": "heal_mp",
+  "amount": 50
+}

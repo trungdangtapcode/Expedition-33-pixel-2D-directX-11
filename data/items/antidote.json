@@ -1,0 +1,8 @@
+{
+  "id": "antidote",
+  "name": "Antidote",
+  "description": "Removes all status effects from one ally.",
+  "iconPath": "assets/items/antidote.png",
+  "targeting": "single_ally",
+  "effect": "cleanse"
+}

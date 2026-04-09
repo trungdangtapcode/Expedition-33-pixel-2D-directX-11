@@ -3,12 +3,19 @@
 // ============================================================
 #include "AnimDamageAction.h"
 #include "BattleEvents.h"
+#include "BattleContext.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include "DefaultDamageCalculator.h"
 
-AnimDamageAction::AnimDamageAction(const DamageRequest& request, CombatantAnim animType, float damageMoment)
-    : mRequest(request), mAnimType(animType), mDamageMoment(damageMoment)
+AnimDamageAction::AnimDamageAction(const DamageRequest& request,
+                                    CombatantAnim animType,
+                                    float damageMoment,
+                                    const BattleContext* ctx)
+    : mRequest(request)
+    , mAnimType(animType)
+    , mDamageMoment(damageMoment)
+    , mCtx(ctx)
 {}
 
 bool AnimDamageAction::Execute(float /*dt*/)
@@ -30,8 +37,13 @@ bool AnimDamageAction::Execute(float /*dt*/)
     {
         if (mRequest.defender)
         {
+            // Fall back to an empty context if BattleManager never injected
+            // one; predicate modifiers will be skipped for this single hit.
+            BattleContext fallback;
+            const BattleContext& ctxRef = mCtx ? *mCtx : fallback;
+
             DefaultDamageCalculator calculator;
-            DamageResult result = calculator.Calculate(mRequest);
+            DamageResult result = calculator.Calculate(mRequest, ctxRef);
             mRequest.defender->TakeDamage(result, mRequest.attacker);
         }
         mDamageApplied = true;

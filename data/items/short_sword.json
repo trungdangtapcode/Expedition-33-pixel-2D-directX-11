@@ -1,0 +1,8 @@
+{
+  "id": "short_sword",
+  "name": "Short Sword",
+  "description": "A simple iron blade. Reliable and quick.",
+  "iconPath": "assets/items/short_sword.png",
+  "kind": "weapon",
+  "bonusAtk": 5
+}

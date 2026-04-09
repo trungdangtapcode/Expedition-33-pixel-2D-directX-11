@@ -133,6 +133,11 @@ private:
     // lifecycle management (reset to false in OnExit via destruction).
     bool mBWasDown = false;
 
+    // One-press I key tracking — opens the InventoryState overlay.
+    // Same pattern as mBWasDown so the key only fires on a fresh edge,
+    // not while held.
+    bool mIWasDown = false;
+
     // DEBUG: raw texture viewer — bypasses all sprite sheet / pivot math.
     DebugTextureViewer mDebugView;
 

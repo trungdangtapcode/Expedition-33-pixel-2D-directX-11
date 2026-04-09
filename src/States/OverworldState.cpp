@@ -40,6 +40,7 @@
 #include "StateManager.h"
 #include "MenuState.h"
 #include "BattleState.h"
+#include "InventoryState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Core/TimeSystem.h"
@@ -241,6 +242,7 @@ void OverworldState::OnExit()
 
     mCamera.reset();
     mBWasDown = false;
+    mIWasDown = false;
 }
 
 // ------------------------------------------------------------
@@ -281,6 +283,27 @@ void OverworldState::Update(float dt)
         TimeSystem::Get().SetSlowMotion(1.0f);
         StateManager::Get().ChangeState(std::make_unique<MenuState>());
         return;
+    }
+
+    // ---------------------------------------------------------------
+    // 'I' key — open the inventory.  One-press semantics via mIWasDown
+    // so the same press that opens InventoryState does not also
+    // immediately close it on the next frame (InventoryState's own
+    // OnEnter starts with mIWasDown=true to absorb the held key).
+    //
+    // PushState rather than ChangeState so the overworld is preserved
+    // beneath the stack and resumes unchanged on PopState.  Same
+    // pattern BattleState uses to overlay on top of overworld.
+    // ---------------------------------------------------------------
+    {
+        const bool iDown    = (GetAsyncKeyState('I') & 0x8000) != 0;
+        const bool iPressed = iDown && !mIWasDown;
+        mIWasDown = iDown;
+        if (iPressed)
+        {
+            StateManager::Get().PushState(std::make_unique<InventoryState>());
+            return;  // do NOT run the rest of Update — the new state owns this frame
+        }
     }
 
     // All entity logic (WASD, physics, animation, enemy idle) runs here.

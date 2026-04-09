@@ -17,3 +17,5 @@ vc140.pdb
 # log*.txt e.g. log2024-06-01.txt
 log*.txt
 *log.txt
+CLAUDE.md
+AGENTS.md

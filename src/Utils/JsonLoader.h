@@ -785,7 +785,7 @@ struct EnvironmentConfig {
     float height = 0.0f;
     std::wstring background;
     std::wstring foreground;
-    float targetViewHeight = 1080.0f;
+    float zoomLevel = 1.0f;
     float offsetX = 0.0f;
     float offsetY = 0.0f;
 };
@@ -820,7 +820,7 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
     std::string fg = detail::ValueOf(src, "foreground");
     if (!fg.empty() && fg != "null") out.foreground = toWide(stripQ(fg));
 
-    out.targetViewHeight = detail::ParseFloat(detail::ValueOf(src, "targetViewHeight"), 1080.0f);
+    out.zoomLevel = detail::ParseFloat(detail::ValueOf(src, "zoomLevel"), 1.0f);
     out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
     out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
 

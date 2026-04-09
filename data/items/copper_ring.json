@@ -1,0 +1,9 @@
+{
+  "id": "copper_ring",
+  "name": "Copper Ring",
+  "description": "A faintly humming ring. Sharpens reflexes and focus.",
+  "iconPath": "assets/items/copper_ring.png",
+  "kind": "accessory",
+  "bonusSpd": 2,
+  "bonusMaxMp": 5
+}

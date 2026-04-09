@@ -71,6 +71,10 @@ cl.exe ^
     src\States\StateManager.cpp ^
     src\States\MenuState.cpp ^
     src\States\OverworldState.cpp ^
+    src\States\InventoryState.cpp ^
+    src\States\InventoryStateDetailPanel.cpp ^
+    src\States\InventoryStateRender.cpp ^
+    src\Systems\PartyManager.cpp ^
     src\Renderer\CircleRenderer.cpp ^
     src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\PincushionDistortionFilter.cpp ^
@@ -88,6 +92,13 @@ cl.exe ^
     src\Systems\ZoomPincushionTransitionController.cpp ^
     src\Systems\CollisionSystem.cpp ^
     src\Battle\WeakenEffect.cpp ^
+    src\Battle\TimedStatBuffEffect.cpp ^
+    src\Battle\ItemRegistry.cpp ^
+    src\Battle\ItemEffectAction.cpp ^
+    src\Battle\ItemConsumeAction.cpp ^
+    src\Battle\BuildItemActions.cpp ^
+    src\Battle\ItemCommand.cpp ^
+    src\Systems\Inventory.cpp ^
     src\Battle\Combatant.cpp ^
     src\Battle\PlayerCombatant.cpp ^
     src\Battle\EnemyCombatant.cpp ^
@@ -104,6 +115,8 @@ cl.exe ^
     src\Battle\PlayAnimationAction.cpp ^
     src\Battle\AnimDamageAction.cpp ^
     src\Battle\DefaultDamageCalculator.cpp ^
+    src\Battle\DamageSteps.cpp ^
+    src\Battle\StatResolver.cpp ^
     src\Battle\BattleInputController.cpp ^
     src\Battle\FightCommand.cpp ^
     src\Battle\FleeCommand.cpp ^
@@ -117,6 +130,7 @@ cl.exe ^
     src\UI\BattleTextRenderer.cpp ^
     src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\PointerRenderer.cpp ^
+    src\UI\ScrollArrowRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
     src\UI\TurnQueueUI.cpp ^
     src\Audio\AudioManager.cpp ^

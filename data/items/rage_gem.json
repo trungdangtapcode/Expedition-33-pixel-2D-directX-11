@@ -1,0 +1,9 @@
+{
+  "id": "rage_gem",
+  "name": "Rage Gem",
+  "description": "Fills the user's rage gauge by 100.",
+  "iconPath": "assets/items/rage_gem.png",
+  "targeting": "self",
+  "effect": "restore_rage",
+  "amount": 100
+}

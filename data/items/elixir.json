@@ -1,0 +1,8 @@
+{
+  "id": "elixir",
+  "name": "Elixir",
+  "description": "Fully restores HP and MP of one ally.",
+  "iconPath": "assets/items/elixir.png",
+  "targeting": "single_ally",
+  "effect": "full_heal"
+}

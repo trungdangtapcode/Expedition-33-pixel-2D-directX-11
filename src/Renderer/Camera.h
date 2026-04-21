@@ -28,8 +28,8 @@
 //
 // SpriteBatch integration (no custom shader needed):
 //   SpriteBatch::Begin(SpriteSortMode_Deferred, nullptr, nullptr, nullptr,
-//                      nullptr, nullptr, camera.GetViewProjectionMatrix());
-//   Every sprite vertex is multiplied by ViewProj entirely on the GPU.
+//                      nullptr, nullptr, camera.GetViewMatrix());
+//   Every sprite vertex is multiplied by View entirely on the GPU.
 //   CPU submits positions in world units — no manual per-object subtraction.
 //
 // Dirty flag optimization:
@@ -180,7 +180,8 @@ public:
     // Function: GetViewProjectionMatrix
     // Purpose:
     //   Return the combined View x Projection matrix.
-    //   Pass this to SpriteBatch::Begin() or upload to a VS constant buffer.
+    //   Upload this to a Custom VS constant buffer if you write your own shader.
+    //   Do NOT pass this to SpriteBatch::Begin() - use GetViewMatrix() instead!
     //   Update() must have been called after any property change.
     // ------------------------------------------------------------
     DirectX::XMMATRIX GetViewProjectionMatrix() const { return mViewProj; }

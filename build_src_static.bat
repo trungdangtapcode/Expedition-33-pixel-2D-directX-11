@@ -83,6 +83,7 @@ cl.exe ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^
+    src\Renderer\TileMapRenderer.cpp ^
     src\Renderer\WorldSpriteRenderer.cpp ^
     src\Scene\SceneGraph.cpp ^
     src\Entities\ControllableCharacter.cpp ^

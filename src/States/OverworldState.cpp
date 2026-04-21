@@ -78,6 +78,11 @@ void OverworldState::OnEnter()
         LOG("[OverworldState] ERROR — CircleRenderer initialization failed.");
     }
 
+    // --- Tile Map ---
+    if (!mTileMap.Initialize(device, context, "assets/environments/overworld_map.json")) {
+        LOG("[OverworldState] WARNING — Tile map failed to load.");
+    }
+
     // --- Camera ---
     mCamera = std::make_unique<Camera2D>(W, H);
 
@@ -220,6 +225,7 @@ void OverworldState::OnExit()
     mPendingEnemySource = nullptr;
 
     mCircleRenderer.Shutdown();
+    mTileMap.Shutdown();
     mDebugView.Shutdown();
 
     // Release transition controller GPU resources.
@@ -451,6 +457,8 @@ void OverworldState::Render()
     const float zoomedBlueRadius = kBlueRadius * mCamera->GetZoom();
 
     mDebugView.Draw(ctx, W, H, { true });
+
+    mTileMap.Render(ctx, *mCamera);
 
     mCircleRenderer.Draw(ctx,
         blueScreen.x, blueScreen.y, zoomedBlueRadius,

@@ -10,6 +10,7 @@
 #include "../Debug/DebugTextureViewer.h"
 #include <memory>
 #include <vector>
+#include "../Renderer/TileMapRenderer.h"
 
 // ============================================================
 // File: OverworldState.h
@@ -70,6 +71,11 @@ private:
     // SDF circle renderer — still used for the static blue landmark.
     // ---------------------------------------------------------------
     CircleRenderer mCircleRenderer;
+
+    // ---------------------------------------------------------------
+    // TileMap renderer — draws the 2D background world grid.
+    // ---------------------------------------------------------------
+    TileMapRenderer mTileMap;
 
     // ---------------------------------------------------------------
     // Battle transition controller — encapsulates all visual effects

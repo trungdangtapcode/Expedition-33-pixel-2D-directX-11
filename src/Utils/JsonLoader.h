@@ -828,4 +828,102 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
     return true;
 }
 
+// ============================================================
+// Tile Map Data
+// ============================================================
+struct TileMapData {
+    std::wstring texturePath;
+    int tileWidth = 0;
+    int tileHeight = 0;
+    int cols = 0;
+    int rows = 0;
+    int firstGid = 1;
+    std::vector<int> tiles;
+};
+
+inline bool LoadTileMapData(const std::string& path, TileMapData& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open tile map config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    std::string src = buf.str();
+
+    auto stripQ = [](const std::string& s) -> std::string {
+        std::string t = detail::Trim(s);
+        if (t.size() >= 2 && t.front() == '"' && t.back() == '"')
+            return t.substr(1, t.size() - 2);
+        return t;
+    };
+
+    auto toWide = [](const std::string& s) -> std::wstring {
+        return std::wstring(s.begin(), s.end());
+    };
+
+    // Tiled map dimensions
+    out.cols = detail::ParseInt(detail::ValueOf(src, "width"), 0);
+    out.rows = detail::ParseInt(detail::ValueOf(src, "height"), 0);
+    out.tileWidth = detail::ParseInt(detail::ValueOf(src, "tilewidth"), 64);
+    out.tileHeight = detail::ParseInt(detail::ValueOf(src, "tileheight"), 64);
+
+    // Tilesets
+    std::vector<std::string> tilesets = detail::ExtractObjectsFromArray(src, "tilesets");
+    if (!tilesets.empty()) {
+        std::string ts = tilesets[0];
+        out.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
+        
+        std::string tp = detail::ValueOf(ts, "image");
+        if (!tp.empty() && tp != "null") {
+            tp = stripQ(tp);
+            // Replace backward slashes with forward slashes for unified parsing
+            for (char& c : tp) if (c == '\\') c = '/';
+            // Tiled paths are relative to the json file. We'll strip the path and assume it's in assets/environments.
+            size_t slash = tp.find_last_of('/');
+            if (slash != std::string::npos) tp = tp.substr(slash + 1);
+            out.texturePath = toWide("assets/environments/" + tp);
+        }
+    }
+
+    // Layers (find the first tilelayer)
+    std::vector<std::string> layers = detail::ExtractObjectsFromArray(src, "layers");
+    for (const auto& layer : layers) {
+        if (stripQ(detail::ValueOf(layer, "type")) == "tilelayer") {
+            size_t kpos = layer.find("\"data\"");
+            if (kpos != std::string::npos) {
+                size_t bracket = layer.find('[', kpos);
+                if (bracket != std::string::npos) {
+                    int depth = 1;
+                    size_t i = bracket + 1;
+                    while (i < layer.size() && depth > 0) {
+                        if (layer[i] == '[') ++depth;
+                        if (layer[i] == ']') --depth;
+                        ++i;
+                    }
+                    std::string inner = layer.substr(bracket + 1, i - bracket - 2);
+                    size_t start = 0;
+                    while (start < inner.size()) {
+                        size_t comma = inner.find(',', start);
+                        if (comma == std::string::npos) {
+                            std::string token = detail::Trim(inner.substr(start));
+                            if (!token.empty()) out.tiles.push_back(detail::ParseInt(token));
+                            break;
+                        }
+                        std::string token = detail::Trim(inner.substr(start, comma - start));
+                        if (!token.empty()) out.tiles.push_back(detail::ParseInt(token));
+                        start = comma + 1;
+                    }
+                }
+            }
+            break; // take first tilelayer
+        }
+    }
+
+    LOG("[JsonLoader] Loaded TileMapData from '%s'. width: %d, height: %d, firstGid: %d, tiles: %zu", 
+        path.c_str(), out.cols, out.rows, out.firstGid, out.tiles.size());
+    return true;
+}
+
 } // namespace JsonLoader

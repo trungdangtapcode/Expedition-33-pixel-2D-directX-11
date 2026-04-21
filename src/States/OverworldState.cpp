@@ -100,7 +100,8 @@ void OverworldState::OnEnter()
         sheet,
         std::string("idle"),
         0.0f, 0.0f,
-        mCamera.get()
+        mCamera.get(),
+        &mTileMap.GetData().colliders
     );
 
     // --- Spawn overworld enemies ---

@@ -42,6 +42,8 @@
 #include "../Renderer/SpriteSheet.h"
 #include <d3d11.h>
 #include <string>
+#include <vector>
+#include "../Systems/ICollisionSystem.h"
 
 // ============================================================
 // Class: ControllableCharacter
@@ -73,7 +75,8 @@ public:
                           const std::string&    startClip,
                           float                 startX,
                           float                 startY,
-                          Camera2D*             camera);
+                          Camera2D*             camera,
+                          const std::vector<AABBCollider>* obstacles = nullptr);
 
     // Destructor: releases GPU resources via WorldSpriteRenderer::Shutdown().
     ~ControllableCharacter() override;
@@ -130,6 +133,9 @@ private:
     // World-space position.  Exposed read-only via GetX()/GetY().
     float mPosX = 0.0f;
     float mPosY = 0.0f;
+
+    // Obstacles reference from TileMap for sliding collision physics
+    const std::vector<AABBCollider>* mObstacles = nullptr;
 
     // Velocity in world units per second.
     float mVelX = 0.0f;

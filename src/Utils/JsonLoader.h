@@ -29,9 +29,12 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
-#include "../Renderer/SpriteSheet.h"
-#include "../Battle/EnemyEncounterData.h"
 #include "Log.h"
+#include "../Renderer/SpriteSheet.h"
+#include "../Battle/StatModifier.h"
+#include "../Battle/EnemyEncounterData.h"
+#include "../Battle/ItemData.h"
+#include "../Systems/ICollisionSystem.h"
 
 namespace JsonLoader {
 
@@ -831,14 +834,23 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
 // ============================================================
 // Tile Map Data
 // ============================================================
-struct TileMapData {
+struct TilesetInfo {
+    int firstGid = 1;
     std::wstring texturePath;
+};
+
+struct TileLayer {
+    std::vector<int> tiles;
+};
+
+struct TileMapData {
     int tileWidth = 0;
     int tileHeight = 0;
     int cols = 0;
     int rows = 0;
-    int firstGid = 1;
-    std::vector<int> tiles;
+    std::vector<TilesetInfo> tilesets;
+    std::vector<TileLayer> layers;
+    std::vector<AABBCollider> colliders;
 };
 
 inline bool LoadTileMapData(const std::string& path, TileMapData& out)
@@ -871,9 +883,9 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
 
     // Tilesets
     std::vector<std::string> tilesets = detail::ExtractObjectsFromArray(src, "tilesets");
-    if (!tilesets.empty()) {
-        std::string ts = tilesets[0];
-        out.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
+    for (const auto& ts : tilesets) {
+        TilesetInfo info;
+        info.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
         
         std::string tp = detail::ValueOf(ts, "image");
         if (!tp.empty() && tp != "null") {
@@ -883,14 +895,22 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
             // Tiled paths are relative to the json file. We'll strip the path and assume it's in assets/environments.
             size_t slash = tp.find_last_of('/');
             if (slash != std::string::npos) tp = tp.substr(slash + 1);
-            out.texturePath = toWide("assets/environments/" + tp);
+            info.texturePath = toWide("assets/environments/" + tp);
         }
+        out.tilesets.push_back(info);
     }
 
-    // Layers (find the first tilelayer)
+    // Layers (find tilelayers and objectgroups)
     std::vector<std::string> layers = detail::ExtractObjectsFromArray(src, "layers");
+    
+    // Compute bounds offset based on map size so colliders match rendered tiles
+    float startX = -((out.cols * out.tileWidth) / 2.0f);
+    float startY = -((out.rows * out.tileHeight) / 2.0f);
+    
     for (const auto& layer : layers) {
-        if (stripQ(detail::ValueOf(layer, "type")) == "tilelayer") {
+        std::string type = stripQ(detail::ValueOf(layer, "type"));
+        if (type == "tilelayer") {
+            TileLayer tileLayer;
             size_t kpos = layer.find("\"data\"");
             if (kpos != std::string::npos) {
                 size_t bracket = layer.find('[', kpos);
@@ -908,21 +928,34 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
                         size_t comma = inner.find(',', start);
                         if (comma == std::string::npos) {
                             std::string token = detail::Trim(inner.substr(start));
-                            if (!token.empty()) out.tiles.push_back(detail::ParseInt(token));
+                            if (!token.empty()) tileLayer.tiles.push_back(detail::ParseInt(token));
                             break;
                         }
                         std::string token = detail::Trim(inner.substr(start, comma - start));
-                        if (!token.empty()) out.tiles.push_back(detail::ParseInt(token));
+                        if (!token.empty()) tileLayer.tiles.push_back(detail::ParseInt(token));
                         start = comma + 1;
                     }
                 }
             }
-            break; // take first tilelayer
+            out.layers.push_back(tileLayer);
+        } else if (type == "objectgroup") {
+            std::vector<std::string> objects = detail::ExtractObjectsFromArray(layer, "objects");
+            for (const auto& obj : objects) {
+                float x = detail::ParseFloat(detail::ValueOf(obj, "x"), 0.0f);
+                float y = detail::ParseFloat(detail::ValueOf(obj, "y"), 0.0f);
+                float w = detail::ParseFloat(detail::ValueOf(obj, "width"), 0.0f);
+                float h = detail::ParseFloat(detail::ValueOf(obj, "height"), 0.0f);
+                
+                AABBCollider aabb;
+                aabb.minPoint = { startX + x, startY + y };
+                aabb.maxPoint = { startX + x + w, startY + y + h };
+                out.colliders.push_back(aabb);
+            }
         }
     }
 
-    LOG("[JsonLoader] Loaded TileMapData from '%s'. width: %d, height: %d, firstGid: %d, tiles: %zu", 
-        path.c_str(), out.cols, out.rows, out.firstGid, out.tiles.size());
+    LOG("[JsonLoader] Loaded TileMapData from '%s'. width: %d, height: %d, layers: %zu, objects: %zu", 
+        path.c_str(), out.cols, out.rows, out.layers.size(), out.colliders.size());
     return true;
 }
 

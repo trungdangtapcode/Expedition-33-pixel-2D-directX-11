@@ -21,43 +21,47 @@ bool TileMapRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         return false;
     }
 
-    HRESULT hr = DirectX::CreateWICTextureFromFileEx(
-        device, context,
-        mData.texturePath.c_str(),
-        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0,
-        DirectX::WIC_LOADER_IGNORE_SRGB,
-        nullptr, mTextureSRV.GetAddressOf()
-    );
+    for (const auto& ts : mData.tilesets) {
+        TextureInfo info;
+        HRESULT hr = DirectX::CreateWICTextureFromFileEx(
+            device, context,
+            ts.texturePath.c_str(),
+            0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0, 0,
+            DirectX::WIC_LOADER_IGNORE_SRGB,
+            nullptr, info.srv.GetAddressOf()
+        );
 
-    if (FAILED(hr)) {
-        LOG("[TileMapRenderer] ERROR — Failed to load tile map texture '%ls' (HRESULT 0x%08X).", mData.texturePath.c_str(), hr);
-        return false;
-    }
+        if (FAILED(hr)) {
+            LOG("[TileMapRenderer] ERROR — Failed to load tileset texture '%ls' (HRESULT 0x%08X).", ts.texturePath.c_str(), hr);
+            return false;
+        }
 
-    // Determine how many tile columns are in the tilemap texture
-    Microsoft::WRL::ComPtr<ID3D11Resource> resource;
-    mTextureSRV->GetResource(resource.GetAddressOf());
-    Microsoft::WRL::ComPtr<ID3D11Texture2D> tex2D;
-    if (SUCCEEDED(resource.As(&tex2D))) {
-        D3D11_TEXTURE2D_DESC desc;
-        tex2D->GetDesc(&desc);
-        mTilesetCols = desc.Width / mData.tileWidth;
-    } else {
-        mTilesetCols = 1; 
+        Microsoft::WRL::ComPtr<ID3D11Resource> resource;
+        info.srv->GetResource(resource.GetAddressOf());
+        Microsoft::WRL::ComPtr<ID3D11Texture2D> tex2D;
+        if (SUCCEEDED(resource.As(&tex2D))) {
+            D3D11_TEXTURE2D_DESC desc;
+            tex2D->GetDesc(&desc);
+            info.cols = desc.Width / mData.tileWidth;
+        } else {
+            info.cols = 1; 
+        }
+        
+        mTextures.push_back(info);
     }
 
     mStates = std::make_unique<DirectX::CommonStates>(device);
     mSpriteBatch = std::make_unique<DirectX::SpriteBatch>(context);
 
-    LOG("[TileMapRenderer] Initialized '%s'. Map size: %dx%d, Tileset cols: %d.", 
-        jsonPath.c_str(), mData.cols, mData.rows, mTilesetCols);
+    LOG("[TileMapRenderer] Initialized '%s'. Map size: %dx%d, Layers: %zu, Tilesets: %zu.", 
+        jsonPath.c_str(), mData.cols, mData.rows, mData.layers.size(), mData.tilesets.size());
         
     return true;
 }
 
 void TileMapRenderer::Render(ID3D11DeviceContext* context, const Camera2D& camera)
 {
-    if (!mSpriteBatch || !mTextureSRV || mData.tiles.empty() || mTilesetCols <= 0) return;
+    if (!mSpriteBatch || mTextures.empty() || mData.layers.empty()) return;
 
     DirectX::XMMATRIX view = camera.GetViewMatrix();
 
@@ -75,36 +79,47 @@ void TileMapRenderer::Render(ID3D11DeviceContext* context, const Camera2D& camer
     float startX = -((mData.cols * mData.tileWidth) / 2.0f);
     float startY = -((mData.rows * mData.tileHeight) / 2.0f);
 
-    for (int y = 0; y < mData.rows; ++y) {
-        for (int x = 0; x < mData.cols; ++x) {
-            int gid = mData.tiles[y * mData.cols + x];
-            if (gid == 0) continue; // Tiled 0 is empty
+    for (const auto& layer : mData.layers) {
+        for (int y = 0; y < mData.rows; ++y) {
+            for (int x = 0; x < mData.cols; ++x) {
+                int gid = layer.tiles[y * mData.cols + x];
+                if (gid == 0) continue; // Tiled 0 is empty
 
-            int localId = gid - mData.firstGid;
-            if (localId < 0) continue;
+                // Find which tileset this GID belongs to
+                int tsIndex = 0;
+                for (size_t i = 1; i < mData.tilesets.size(); ++i) {
+                    if (gid >= mData.tilesets[i].firstGid) {
+                        tsIndex = static_cast<int>(i);
+                    }
+                }
+                
+                const auto& ts = mData.tilesets[tsIndex];
+                const auto& tex = mTextures[tsIndex];
 
-            int srcX = (localId % mTilesetCols) * mData.tileWidth;
-            int srcY = (localId / mTilesetCols) * mData.tileHeight;
+                int localId = gid - ts.firstGid;
+                int srcX = (localId % tex.cols) * mData.tileWidth;
+                int srcY = (localId / tex.cols) * mData.tileHeight;
 
-            RECT srcRect = { srcX, srcY, srcX + mData.tileWidth, srcY + mData.tileHeight };
-            
-            DirectX::XMFLOAT2 worldPos(
-                startX + x * mData.tileWidth,
-                startY + y * mData.tileHeight
-            );
+                RECT srcRect = { srcX, srcY, srcX + mData.tileWidth, srcY + mData.tileHeight };
+                
+                DirectX::XMFLOAT2 worldPos(
+                    startX + x * mData.tileWidth,
+                    startY + y * mData.tileHeight
+                );
 
-            // SpriteBatch::Draw expects a float2
-            mSpriteBatch->Draw(mTextureSRV.Get(), worldPos, &srcRect, DirectX::Colors::White);
+                // SpriteBatch::Draw expects a float2
+                mSpriteBatch->Draw(tex.srv.Get(), worldPos, &srcRect, DirectX::Colors::White);
+            }
         }
     }
 
     mSpriteBatch->End();
 }
-
 void TileMapRenderer::Shutdown()
 {
     mSpriteBatch.reset();
     mStates.reset();
-    mTextureSRV.Reset();
-    mData.tiles.clear();
+    mTextures.clear();
+    mData.layers.clear();
+    mData.colliders.clear();
 }

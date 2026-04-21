@@ -39,11 +39,17 @@ public:
 
     void Shutdown();
 
+    const JsonLoader::TileMapData& GetData() const { return mData; }
+
+
 private:
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mTextureSRV;
+    struct TextureInfo {
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+        int cols = 1;
+    };
+    std::vector<TextureInfo> mTextures;
     std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates> mStates;
 
     JsonLoader::TileMapData mData;
-    int mTilesetCols = 0;
 };

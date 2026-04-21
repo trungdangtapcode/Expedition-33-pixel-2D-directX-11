@@ -35,10 +35,12 @@ ControllableCharacter::ControllableCharacter(
     const std::string&   startClip,
     float                startX,
     float                startY,
-    Camera2D*            camera)
+    Camera2D*            camera,
+    const std::vector<AABBCollider>* obstacles)
     : mCamera(camera)
     , mPosX(startX)
     , mPosY(startY)
+    , mObstacles(obstacles)
 {
     // Initialize the rendering component — loads texture, builds SpriteBatch
     // and D3D states.  If this fails, mReady stays false and the character
@@ -109,9 +111,51 @@ void ControllableCharacter::Update(float dt)
         mVelY *= inv;
     }
 
-    // --- Integrate position ---
-    mPosX += mVelX * dt;
-    mPosY += mVelY * dt;
+    // --- Integrate position with 2-axis sliding collision ---
+    float nextX = mPosX + mVelX * dt;
+    float nextY = mPosY + mVelY * dt;
+
+    if (mObstacles && !mObstacles->empty()) {
+        const float w = 32.0f; // Character hitbox width
+        const float h = 32.0f; // Character hitbox height
+
+        // 1. Resolve Y axis first
+        AABBCollider nextAABB_Y;
+        nextAABB_Y.minPoint = { mPosX - w / 2.0f, nextY - h };
+        nextAABB_Y.maxPoint = { mPosX + w / 2.0f, nextY };
+
+        bool hitY = false;
+        for (const auto& obs : *mObstacles) {
+            bool overlapX = (nextAABB_Y.minPoint.x < obs.maxPoint.x) && (nextAABB_Y.maxPoint.x > obs.minPoint.x);
+            bool overlapY = (nextAABB_Y.minPoint.y < obs.maxPoint.y) && (nextAABB_Y.maxPoint.y > obs.minPoint.y);
+            if (overlapX && overlapY) { hitY = true; break; }
+        }
+
+        if (hitY) {
+            mVelY = 0.0f; // Cancel vertical velocity
+            nextY = mPosY; // Snap back to previous Y
+        }
+
+        // 2. Resolve X axis next, using the updated Y.
+        AABBCollider nextAABB_X;
+        nextAABB_X.minPoint = { nextX - w / 2.0f, nextY - h };
+        nextAABB_X.maxPoint = { nextX + w / 2.0f, nextY };
+
+        bool hitX = false;
+        for (const auto& obs : *mObstacles) {
+            bool overlapX = (nextAABB_X.minPoint.x < obs.maxPoint.x) && (nextAABB_X.maxPoint.x > obs.minPoint.x);
+            bool overlapY = (nextAABB_X.minPoint.y < obs.maxPoint.y) && (nextAABB_X.maxPoint.y > obs.minPoint.y);
+            if (overlapX && overlapY) { hitX = true; break; }
+        }
+
+        if (hitX) {
+            mVelX = 0.0f; // Cancel horizontal velocity
+            nextX = mPosX; // Snap back to previous X
+        }
+    }
+
+    mPosX = nextX;
+    mPosY = nextY;
 
     // --- Update facing direction from horizontal velocity ---
     // Only update facing when there is meaningful horizontal movement to avoid

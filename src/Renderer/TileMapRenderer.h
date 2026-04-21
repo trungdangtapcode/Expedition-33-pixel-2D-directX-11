@@ -33,7 +33,7 @@ public:
 
     // ------------------------------------------------------------
     // Function: Render
-    // Purpose: Draw the active tiles using the camera's view-projection matrix.
+    // Purpose: Draw the active tiles using the camera's view matrix.
     // ------------------------------------------------------------
     void Render(ID3D11DeviceContext* context, const Camera2D& camera);
 

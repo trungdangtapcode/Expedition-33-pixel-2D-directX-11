@@ -7,11 +7,11 @@
 //     then pass the resulting screen pixel to SpriteBatch::Draw().
 //     Cost: O(N) multiplications on the CPU, one per object per frame.
 //
-//   NEW approach: pass camera.GetViewProjectionMatrix() to SpriteBatch::Begin().
-//     SpriteBatch forwards it as the transform matrix to its internal VS.
-//     Every sprite vertex is multiplied by ViewProj on the GPU — in parallel.
+//   NEW approach: pass camera.GetViewMatrix() to SpriteBatch::Begin().
+//     SpriteBatch automatically handles the final projection (pixel→NDC) internally.
+//     Every sprite vertex is multiplied by View on the GPU — in parallel.
 //     CPU cost: one matrix multiplication per frame (Camera2D::Update()).
-//     GPU cost: the VS multiply was already happening; now it carries real data.
+//     Do NOT pass GetViewProjectionMatrix() or the geometry will be projected twice!
 //
 //   This scales to thousands of grass blades, enemies, and particles with
 //   zero additional CPU per-object work.
@@ -194,14 +194,12 @@ void WorldRenderer::Draw(ID3D11DeviceContext* context,
     // No CPU math is required here; WorldToScreen() is NOT called.
     DirectX::XMFLOAT2 worldPos(worldX, worldY);
 
-    // Retrieve the combined View x Projection matrix from the camera.
+    // Retrieve the Camera's View matrix.
     // SpriteBatch::Begin() accepts a custom transform matrix as its last
-    // parameter.  Every vertex position is multiplied by this matrix on
-    // the GPU, equivalent to:
-    //   clipPos = float4(worldPos, 0, 1) * ViewProjMatrix
-    // This replaces all per-object CPU WorldToScreen() calls with a
-    // single GPU matrix multiply — the standard approach for large scenes.
-    DirectX::XMMATRIX viewProj = camera.GetViewProjectionMatrix();
+    // parameter. SpriteBatch automatically multiplies this by a internally
+    //-computed viewport matrix to map pixel coordinates to NDC coordinates.
+    // Do NOT pass GetViewProjectionMatrix() here to avoid double-projection!
+    DirectX::XMMATRIX view = camera.GetViewMatrix();
 
     mSpriteBatch->Begin(
         DirectX::SpriteSortMode_Deferred, // batch and sort draw calls
@@ -210,7 +208,7 @@ void WorldRenderer::Draw(ID3D11DeviceContext* context,
         nullptr,  // depth state      — default
         nullptr,  // rasterizer state — default
         nullptr,  // custom shader callback — none (SpriteBatch's own VS/PS)
-        viewProj  // transform matrix — ViewProj baked in; GPU does the math
+        view      // transform matrix — maps world to screen pixels
     );
 
     mSpriteBatch->Draw(

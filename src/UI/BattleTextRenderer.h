@@ -130,7 +130,9 @@ public:
     void DrawStringCenteredRaw(const char*      text,
                                float            centerX,
                                float            y,
-                               DirectX::FXMVECTOR color = DirectX::Colors::White);
+                               DirectX::FXMVECTOR color = DirectX::Colors::White,
+                               float            scale = 1.0f,
+                               bool             drawOutline = false);
     void EndBatch();
 
     // Update stored screen dimensions after a window resize.

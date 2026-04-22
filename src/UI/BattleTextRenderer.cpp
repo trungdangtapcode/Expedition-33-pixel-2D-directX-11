@@ -154,15 +154,26 @@ void BattleTextRenderer::DrawStringRaw(const char*  text,
 void BattleTextRenderer::DrawStringCenteredRaw(const char* text,
                                                float       centerX,
                                                float       y,
-                                               FXMVECTOR   color)
+                                               FXMVECTOR   color,
+                                               float       scale,
+                                               bool        drawOutline)
 {
     if (!IsReady() || !text || !*text) return;
 
     const XMVECTOR size  = mFont->MeasureString(text);
-    const float    halfW = XMVectorGetX(size) * 0.5f;
+    XMFLOAT2 origin(XMVectorGetX(size) * 0.5f, 0.0f);
 
-    mFont->DrawString(mSpriteBatch.get(), text,
-                      XMFLOAT2(centerX - halfW, y), color);
+    if (drawOutline) {
+        XMVECTOR outlineColor = Colors::Black;
+        outlineColor.m128_f32[3] = color.m128_f32[3]; // match alpha
+        
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX - 2.0f, y), outlineColor, 0.0f, origin, scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX + 2.0f, y), outlineColor, 0.0f, origin, scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX, y - 2.0f), outlineColor, 0.0f, origin, scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX, y + 2.0f), outlineColor, 0.0f, origin, scale);
+    }
+
+    mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX, y), color, 0.0f, origin, scale);
 }
 
 void BattleTextRenderer::EndBatch()

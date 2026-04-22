@@ -601,3 +601,15 @@ Before writing any non-trivial code block:
 15. **Every new entity class MUST implement `IGameObject`** (overworld) or `IBattler` (battle). Every new behaviour that crosses entity-type boundaries MUST be a component or a system — not a copy-pasted method.
 16. **Silently correct language violations** in every file you touch — replace all non-English comments, strings, and identifiers with English equivalents.
 17. **Ask before destructive git operations.** Resets, force-pushes, and amends to published commits require explicit user confirmation.
+
+---
+
+# THINKING, PLANNING, AND DESIGN MINDSET (AI DIRECTIVES)
+
+To maintain highest-tier architectural flow during this specific project, you MUST operate with the following rigorous software engineering mindset before executing tool updates:
+
+1. **Investigate Systems, Not Symptoms:** When a bug is reported (e.g. "things are too fast" or "ghost graphics are sticking"), trace the entire linear pipeline backward from Graphics rendering (UI loop) through the payload Event Bus, and directly into the underlying mechanics logic. Formulate a mathematical/timeline understanding of *why* the glitch occurred algorithmically before touching code.
+2. **The "Data-Driven" Planning Phase:** If a new behavior, constraint, or gameplay tweak must be executed, the very first step in your mental workflow must be: *"Can this be extracted to `data/*.json` and parsed through `JsonLoader`?"* Do not hardcode scaling or temporal physics into C++ variables. 
+3. **Draft High-Fidelity Implementation Plans:** When proposing changes, draft comprehensive plans showing EXACTLY which files dictate what tier of the architecture. Communicate changes separated by `UI Pipeline`, `Action Dispatch`, and `Data Layer`. Present the plan clearly to the user before writing single lines of code natively. 
+4. **Decouple Game Logic from Visual Logic:** Viciously guard against graphic state dictating physical logic, and vice versa. Explode combined behaviors (e.g. "QTE Active Loop") into decoupled physical metrics (e.g. Action execution resolution timeout) vs visual metrics (e.g. Post-hit scaling flashes). Keep `BattleManager` blind to `SpriteBatch` rules. 
+5. **Math-Centric Robustness:** Actively identify mathematical failure paradigms (divide-by-zero on JSON variables out of bounds, clustering/overlap issues due to blind randomness, linear versus inverse scaling) and architect "bucket" segmentations or variable-bounds dynamically instead of trusting pure randomized math.

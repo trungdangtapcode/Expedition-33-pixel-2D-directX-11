@@ -7,6 +7,7 @@
 #include <algorithm>    // std::max
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
+#include "BattleEvents.h"
 
 // Convenience wrapper: LOG() only accepts printf-style args, so convert        
 // std::string messages to C-strings before passing to the macro.
@@ -55,6 +56,18 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
     data.name = eventName;
     data.value = static_cast<float>(mStats.hp);
     EventManager::Get().Broadcast(eventName, data);
+
+    // Broadcast generic damage taken for floating text
+    DamageTakenPayload dmgPayload;
+    dmgPayload.target = this;
+    dmgPayload.damage = result.effectiveDamage;
+    dmgPayload.isCrit = result.isCritical;
+    // We don't have perfect qte info here, but we can set it to false and rely on isCrit mostly
+    dmgPayload.isPerfectQte = false; 
+    
+    EventData dmgData;
+    dmgData.payload = &dmgPayload;
+    EventManager::Get().Broadcast("battler_damage_taken", dmgData);
 }
 
 void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)

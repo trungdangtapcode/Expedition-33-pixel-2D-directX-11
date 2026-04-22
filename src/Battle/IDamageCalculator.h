@@ -27,6 +27,9 @@ struct DamageRequest
     // The base power coming from the skill/attack (e.g. basic attack is 1.0f)
     float skillMultiplier = 1.0f;
     
+    // QTE result multiplier (1.5x Perfect, 1.2x Good, 0.8x Miss, 1.0x Default)
+    float qteMultiplier = 1.0f;
+    
     // Flat bonus damage added after multiplier but before defense
     int flatBonus = 0; 
 };

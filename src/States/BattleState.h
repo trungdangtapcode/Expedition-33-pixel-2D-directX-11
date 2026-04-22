@@ -64,6 +64,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
 #include "../UI/ScrollArrowRenderer.h"
+#include "../UI/BattleQTERenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
@@ -113,6 +114,7 @@ private:
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
+    BattleQTERenderer      mQTERenderer;
 
     // Scroll-direction chevrons drawn above/below the item menu when
     // there are off-screen items in that direction.  Both share the
@@ -193,6 +195,27 @@ private:
     void OnMoveOffset(const struct EventData& e);
     void OnGetWorldPos(const struct EventData& e);
     void OnGetOffset(const struct EventData& e);
+
+    // ----------------------------------------------------------------
+    // Floating Damage Text
+    // ----------------------------------------------------------------
+    struct FloatingDamageText {
+        std::string text;
+        float worldX = 0;
+        float worldY = 0;
+        float vx = 0;
+        float vy = 0;
+        float scale = 1.0f;
+        float lifeTimer = 0;
+        float maxLife = 1.0f;
+        DirectX::XMVECTOR color = DirectX::Colors::White;
+    };
+    std::vector<FloatingDamageText> mFloatingTexts;
+    int mDamageTakenListener = -1;
+    int mQteUpdateListener = -1;
+    
+    void OnDamageTaken(const struct EventData& e);
+    void OnQteFeedback(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // UI Animations

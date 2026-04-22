@@ -65,7 +65,7 @@ void BaseFormulaStep::Apply(const DamageRequest& request,
         break;
     }
 
-    const float scaled = static_cast<float>(power) * request.skillMultiplier;
+    const float scaled = static_cast<float>(power) * request.skillMultiplier * request.qteMultiplier;
 
     result.rawDamage       = static_cast<int>(scaled) + request.flatBonus;
     result.defenseUsed     = resistance;

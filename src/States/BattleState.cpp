@@ -129,6 +129,9 @@ void BattleState::InitBattleSlots()
     mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
     mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
     mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
+    
+    mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
+    mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
 
     mBattleRenderer.Initialize(
         mD3D.GetDevice(),
@@ -253,6 +256,8 @@ void BattleState::InitUIRenderers()
             mEnemyHpBar.SetEnemyName(i, enemies[i]->GetName());
         }
     }
+
+    mQTERenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext(), mD3D.GetWidth(), mD3D.GetHeight());
 }
 
 void BattleState::OnExit()
@@ -267,6 +272,8 @@ void BattleState::OnExit()
     EventManager::Get().Unsubscribe("battler_set_offset", mMoveOffsetListener);
     EventManager::Get().Unsubscribe("battler_get_world_pos", mGetWorldPosListener);
     EventManager::Get().Unsubscribe("battler_get_offset", mGetOffsetListener);
+    EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
+    EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
     mBattleRenderer.Shutdown();
     mHealthBar.Shutdown();
     mEnemyHpBar.Shutdown();
@@ -276,6 +283,7 @@ void BattleState::OnExit()
     mChevronDown.Shutdown();
     mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
+    mQTERenderer.Shutdown();
     mIris.Shutdown();
 }
 
@@ -302,6 +310,22 @@ void BattleState::Update(float dt)
 
 void BattleState::UpdateLogic(float dt)
 {
+    // Update floating damage texts
+    for (auto it = mFloatingTexts.begin(); it != mFloatingTexts.end(); ) {
+        it->lifeTimer -= dt;
+        
+        // Physics logic for 'thrown' effect (Gravity pulls down along +Y, so we start negative vy)
+        it->vy += 800.0f * dt; 
+        it->worldX += it->vx * dt;
+        it->worldY += it->vy * dt;
+        
+        if (it->lifeTimer <= 0.0f) {
+            it = mFloatingTexts.erase(it);
+        } else {
+            ++it;
+        }
+    }
+
     const BattlePhase phaseBefore = mBattle.GetPhase();
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
@@ -452,6 +476,8 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         );
     }
     mEnemyHpBar.Update(dt);
+    
+    mQTERenderer.Update(dt);
 }
 
 void BattleState::CheckBattleEnd()
@@ -503,6 +529,24 @@ void BattleState::Render()
     mHealthBar.Render(mD3D.GetContext());
     mEnemyHpBar.Render(mD3D.GetContext());
     mTurnQueueUI.Render(mD3D.GetContext());
+    
+    // Draw Floating Damage Texts
+    if (!mFloatingTexts.empty()) {
+        mTextRenderer.BeginBatch(mD3D.GetContext(), mBattleRenderer.GetCamera().GetViewMatrix());
+        for (const auto& ft : mFloatingTexts) {
+            float alpha = 1.0f;
+            if (ft.lifeTimer < 0.3f) {
+                alpha = ft.lifeTimer / 0.3f; // Fade out near the end
+            }
+            DirectX::XMVECTOR fadedColor = ft.color;
+            fadedColor.m128_f32[3] = alpha;
+
+            mTextRenderer.DrawStringCenteredRaw(ft.text.c_str(), ft.worldX, ft.worldY, fadedColor, ft.scale, true);
+        }
+        mTextRenderer.EndBatch();
+    }
+
+    mQTERenderer.Render(mD3D.GetContext());
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
         mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)
@@ -1287,6 +1331,65 @@ bool BattleState::GetBattlerSlot(IBattler* target, int& outSlot, bool& outIsPlay
         }
     }
     return false;
+}
+
+void BattleState::OnDamageTaken(const EventData& e)
+{
+    auto* payload = static_cast<DamageTakenPayload*>(e.payload);
+    if (!payload || !payload->target) return;
+
+    int slot;
+    bool isPlayer;
+    if (GetBattlerSlot(payload->target, slot, isPlayer))
+    {
+        float worldX, worldY;
+        if (isPlayer) {
+            mBattleRenderer.GetPlayerSlotPos(slot, worldX, worldY);
+        } else {
+            mBattleRenderer.GetEnemySlotPos(slot, worldX, worldY);
+        }
+        // Initial spawn positions
+        worldX += ((rand() % 20) - 10.0f); 
+        worldY -= 40.0f;
+
+        FloatingDamageText ft;
+        ft.text = std::to_string(payload->damage);
+        ft.worldX = worldX;
+        ft.worldY = worldY;
+        
+        // Toss numbers out and up
+        ft.vx = ((rand() % 160) - 80.0f); 
+        ft.vy = -((rand() % 200) + 300.0f); 
+        
+        ft.scale = 1.3f;
+        ft.lifeTimer = 1.0f;
+        ft.maxLife = 1.0f;
+        if (payload->isCrit) {
+            ft.color = DirectX::Colors::Orange;
+            ft.text += "!";
+            ft.scale = 1.7f;
+            // Minor bump for critical damage
+            mBattleRenderer.TriggerCameraShake(20.0f, 0.2f);
+        } else {
+            ft.color = DirectX::Colors::White;
+        }
+
+        mFloatingTexts.push_back(ft);
+    }
+}
+
+void BattleState::OnQteFeedback(const EventData& e)
+{
+    auto* payload = static_cast<QTEStatePayload*>(e.payload);
+    if (!payload) return;
+    
+    if (payload->result == QTEResult::Perfect) {
+        // High intensity shake for perfect 
+        mBattleRenderer.TriggerCameraShake(40.0f, 0.25f);
+    }
+    else if (payload->result == QTEResult::Good) {
+        mBattleRenderer.TriggerCameraShake(15.0f, 0.15f);
+    }
 }
 
 void BattleState::OnPlayAnim(const EventData& e)

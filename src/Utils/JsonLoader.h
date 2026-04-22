@@ -741,6 +741,22 @@ struct SkillData {
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
     float damageTakenOccurMoment = 0.8f;
+    
+    // QTE Configuration
+    bool qteSupported = false;
+    float qteStartMoment = 0.3f;
+    float qteSlowMoScale = 0.1f;
+    float qtePerfectMultiplier = 1.5f;
+    float qteGoodMultiplier = 1.2f;
+    float qteMissMultiplier = 0.8f;
+    float qtePerfectThreshold = 0.85f;
+    float qteGoodThreshold = 0.60f;
+    
+    int qteMinCount = 1;
+    int qteMaxCount = 1;
+    float qteSpacing = 0.15f;
+    float qteFadeInRatio = 0.15f;
+    float qteFadeOutDuration = 0.20f;
 };
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
@@ -774,6 +790,20 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.damageTakenOccurMoment = detail::ParseFloat(detail::ValueOf(src, "damageTakenOccurMoment"), 0.8f);
     if (out.damageTakenOccurMoment < 0.0f) out.damageTakenOccurMoment = 0.0f;
     if (out.damageTakenOccurMoment > 1.0f) out.damageTakenOccurMoment = 1.0f;
+
+    out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
+    out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
+    out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
+    out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
+    out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);
+    out.qteMissMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteMissMultiplier"), 0.8f);
+    out.qtePerfectThreshold = detail::ParseFloat(detail::ValueOf(src, "qtePerfectThreshold"), 0.85f);
+    out.qteGoodThreshold = detail::ParseFloat(detail::ValueOf(src, "qteGoodThreshold"), 0.60f);
+    out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
+    out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
+    out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
+    out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
+    out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
 
     LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
         path.c_str(),

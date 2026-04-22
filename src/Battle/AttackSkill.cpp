@@ -9,6 +9,7 @@
 #include "MoveAction.h"
 #include "PlayAnimationAction.h"
 #include "AnimDamageAction.h"
+#include "QteAnimDamageAction.h"
 #include "BattleContext.h"
 
 bool AttackSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
@@ -45,10 +46,21 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     // 2. Move to target's melee range (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
-    // 4. Play attack animation and apply damage simultaneously at normalized progress.
-    //    Pass &ctx so the damage calculator reads live stats (including buffs)
-    //    at the exact animation frame, not at queue time.
-    actions.push_back(std::make_unique<AnimDamageAction>(req, CombatantAnim::Attack, mData.damageTakenOccurMoment, &ctx));
+    // 4. Play attack animation and apply damage simultaneously.
+    if (mData.qteSupported) {
+        actions.push_back(std::make_unique<QteAnimDamageAction>(
+            req, CombatantAnim::Attack, mData.qteStartMoment, mData.damageTakenOccurMoment, mData.qteSlowMoScale,
+            mData.qtePerfectMultiplier, mData.qteGoodMultiplier, mData.qteMissMultiplier, 
+            mData.qtePerfectThreshold, mData.qteGoodThreshold, 
+            mData.qteMinCount, mData.qteMaxCount, mData.qteSpacing,
+            mData.qteFadeInRatio, mData.qteFadeOutDuration, 
+            &ctx
+        ));
+    } else {
+        actions.push_back(std::make_unique<AnimDamageAction>(
+            req, CombatantAnim::Attack, mData.damageTakenOccurMoment, &ctx
+        ));
+    }
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)
     actions.push_back(std::make_unique<MoveAction>(&caster, nullptr, MoveAction::TargetType::Origin, mData.returnDuration, mData.meleeOffset));

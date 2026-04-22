@@ -67,6 +67,7 @@ cl.exe ^
     src\Core\GameTimer.cpp ^
     src\Core\Clock.cpp ^
     src\Core\TimeSystem.cpp ^
+    src\Core\InputManager.cpp ^
     src\Renderer\D3DContext.cpp ^
     src\States\StateManager.cpp ^
     src\States\MenuState.cpp ^
@@ -115,6 +116,7 @@ cl.exe ^
     src\Battle\MoveAction.cpp ^
     src\Battle\PlayAnimationAction.cpp ^
     src\Battle\AnimDamageAction.cpp ^
+    src\Battle\QteAnimDamageAction.cpp ^
     src\Battle\DefaultDamageCalculator.cpp ^
     src\Battle\DamageSteps.cpp ^
     src\Battle\StatResolver.cpp ^
@@ -134,6 +136,7 @@ cl.exe ^
     src\UI\ScrollArrowRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
     src\UI\TurnQueueUI.cpp ^
+    src\UI\BattleQTERenderer.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^

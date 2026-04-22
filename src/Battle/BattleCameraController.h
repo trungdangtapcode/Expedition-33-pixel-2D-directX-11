@@ -94,6 +94,11 @@ public:
     void Update(float dt);
 
     // ------------------------------------------------------------
+    // TriggerShake: Start a camera rumble effect for game feel overlay.
+    // ------------------------------------------------------------
+    void TriggerShake(float intensity, float duration);
+
+    // ------------------------------------------------------------
     // GetCamera: return the Camera2D so BattleRenderer::Render() can pass
     //   it to WorldSpriteRenderer::Draw().
     // ------------------------------------------------------------
@@ -141,4 +146,9 @@ private:
     float mActorY  = 0.0f;
     float mTargetX = 0.0f;
     float mTargetY = 0.0f;
+    
+    // Screen shake state
+    float mShakeTimer = 0.0f;
+    float mShakeIntensity = 0.0f;
+    float mShakeDuration = 0.0f;
 };

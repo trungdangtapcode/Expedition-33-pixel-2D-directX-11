@@ -148,6 +148,8 @@ public:
     Camera2D& GetCamera() { return mCameraCtrl.GetCamera(); }
     const Camera2D& GetCamera() const { return const_cast<BattleCameraController&>(mCameraCtrl).GetCamera(); }
 
+    void TriggerCameraShake(float intensity, float duration) { mCameraCtrl.TriggerShake(intensity, duration); }
+
     // ------------------------------------------------------------
     // SetCameraPhase: drive the BattleCameraController from BattleState.
     //

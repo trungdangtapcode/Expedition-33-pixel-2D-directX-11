@@ -68,22 +68,33 @@ void BattleDebugHUD::BuildLines(const BattleHUDSnapshot& snap,
 {
     PushBorder(out, snap.title, kBoxWidth);
 
-    // ---- Phase banner -- the FIRST thing the player reads ----
-    // Show a bold, unambiguous line: what the engine is doing AND
-    // what the player is expected to do right now.
+    // ---- Phase banner / Menus temporarily hidden for debug focus ----
+    /*
     PushPhaseBanner(out, snap.simulationPhase, snap.inputPhase, kBoxWidth);
 
-    // ---- Command menu ----
     if (!snap.menuItems.empty())
         PushMenu(out, snap.menuItems);
 
-    // ---- Skill list ----
     if (!snap.skillRows.empty())
         PushSkills(out, snap.skillRows);
 
-    // ---- Info lines (target, hints, etc.) ----
     if (!snap.infoLines.empty())
         PushInfoLines(out, snap.infoLines);
+    */
+
+    // ---- Inventory list (only during ITEM_SELECT / ITEM_TARGET_SELECT) ----
+    if (!snap.itemRows.empty())
+    {
+        PushDivider(out, "Inventory", kBoxWidth);
+        PushItems(out, snap.itemRows);
+    }
+
+    // ---- Timeline Queue ----
+    if (!snap.timeline.empty())
+    {
+        PushDivider(out, "Action Value Timeline", kBoxWidth);
+        PushTimeline(out, snap.timeline, kBoxWidth);
+    }
 
     // ---- Combatant table ----
     if (!snap.combatants.empty())
@@ -283,6 +294,33 @@ void BattleDebugHUD::PushSkills(std::vector<std::string>& out,
 }
 
 // ------------------------------------------------------------
+// PushItems: inventory list with slot, name, count, and cursor.
+//   > [1] Small Potion   x5  Restore 30 HP to one ally.
+//     [2] Phoenix Down   x2  Revive a fallen ally at 50% HP.
+// ------------------------------------------------------------
+void BattleDebugHUD::PushItems(std::vector<std::string>& out,
+                                const std::vector<BattleHUDSnapshot::ItemRow>& rows)
+{
+    out.push_back("  Items   :");
+    if (rows.empty())
+    {
+        out.push_back("    (bag is empty)");
+        return;
+    }
+    for (const auto& row : rows)
+    {
+        char buf[256];
+        snprintf(buf, sizeof(buf), "    %s [%d] %-16s x%-2d  %s",
+            row.selected ? ">" : " ",
+            row.slot,
+            row.name.c_str(),
+            row.count,
+            row.description.c_str());
+        out.push_back(buf);
+    }
+}
+
+// ------------------------------------------------------------
 // PushInfoLines: "  Key        : value" -- generic info rows.
 // ------------------------------------------------------------
 void BattleDebugHUD::PushInfoLines(std::vector<std::string>& out,
@@ -334,6 +372,22 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
 
         out.push_back(buf);
     }
+}
+
+// ------------------------------------------------------------
+// PushTimeline: shows the upcoming action queue AVs
+// ------------------------------------------------------------
+void BattleDebugHUD::PushTimeline(std::vector<std::string>& out,
+                                  const std::vector<BattleHUDSnapshot::TimelineRow>& timeline, int w)
+{
+    std::string qstr = "  Turn Queue: [";
+    for (size_t i = 0; i < timeline.size(); ++i)
+    {
+        qstr += timeline[i].name;
+        if (i < timeline.size() - 1) qstr += ", ";
+    }
+    qstr += "]";
+    out.push_back(qstr);
 }
 
 // ------------------------------------------------------------

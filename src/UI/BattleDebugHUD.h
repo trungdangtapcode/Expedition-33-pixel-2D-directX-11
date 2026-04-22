@@ -55,6 +55,18 @@ struct BattleHUDSnapshot
     };
     std::vector<SkillRow> skillRows;
 
+    // ---- Item list (shown during ITEM_SELECT / ITEM_TARGET_SELECT) ----
+    // Same shape as SkillRow with an extra count column.  Drives the
+    // inventory display in the debug HUD; later replaced by a real UI.
+    struct ItemRow {
+        int         slot      = 0;      // 1-based index
+        std::string name;
+        std::string description;
+        int         count     = 0;      // remaining stack size
+        bool        selected  = false;  // cursor is on this row
+    };
+    std::vector<ItemRow> itemRows;
+
     // ---- Generic key/value info lines (target cursor, hints, …) ----
     struct InfoLine {
         std::string key;
@@ -73,6 +85,13 @@ struct BattleHUDSnapshot
         bool alive = true;
     };
     std::vector<CombatantRow> combatants;
+
+    // ---- Turn queue (timeline) ----
+    struct TimelineRow {
+        std::string name;
+        float currentAV = 0.0f;
+    };
+    std::vector<TimelineRow> timeline;
 
     // ---- Recent battle log (caller provides last N lines) ----
     std::vector<std::string> logLines;
@@ -104,10 +123,14 @@ private:
                                 const std::vector<BattleHUDSnapshot::MenuItem>& items);
     static void PushSkills    (std::vector<std::string>& out,
                                 const std::vector<BattleHUDSnapshot::SkillRow>& rows);
+    static void PushItems     (std::vector<std::string>& out,
+                                const std::vector<BattleHUDSnapshot::ItemRow>& rows);
     static void PushInfoLines (std::vector<std::string>& out,
                                 const std::vector<BattleHUDSnapshot::InfoLine>& lines);
     static void PushCombatants(std::vector<std::string>& out,
                                 const std::vector<BattleHUDSnapshot::CombatantRow>& rows);
+    static void PushTimeline  (std::vector<std::string>& out,
+                                const std::vector<BattleHUDSnapshot::TimelineRow>& timeline, int w);
     static void PushLog       (std::vector<std::string>& out,
                                 const std::vector<std::string>& lines);
 };

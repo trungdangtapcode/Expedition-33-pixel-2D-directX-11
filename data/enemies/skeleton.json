@@ -8,16 +8,19 @@
   "jsonPath": "assets/animations/skeleton.json",
   "idleClip": "idle",
   "contactRadius": 90.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
 
   "battleParty": [
     {
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
+      "turnViewPath": "assets/UI/turn-view-skeleton.png",
       "idleClip": "idle",
       "hp": 50,
       "atk": 10,
       "def": 5,
       "spd": 5,
+      "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     }
   ]

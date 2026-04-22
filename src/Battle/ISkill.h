@@ -25,6 +25,7 @@
 // Forward declarations — avoid header pulling
 class IBattler;
 class IAction;
+struct BattleContext;
 
 class ISkill
 {
@@ -38,16 +39,23 @@ public:
     // CanUse: return false to grey out the skill in UI.
     //   Examples: RageSkill returns false if caster rage < maxRage.
     //             WeakenSkill returns false if MP < cost.
+    //   ctx is provided so future availability rules can depend on
+    //   broader state ("only usable while any ally is below 50% HP").
     // ------------------------------------------------------------
-    virtual bool CanUse(const IBattler& caster) const = 0;
+    virtual bool CanUse(const IBattler& caster,
+                         const BattleContext& ctx) const = 0;
 
     // ------------------------------------------------------------
     // Execute: build and return the action sequence for this skill.
     //   caster  — the skill user (non-owning)
     //   targets — relevant targets (typically 1; AoE skills take all)
+    //   ctx     — live battle context; skills may pass a pointer to it
+    //             into any DamageAction / AnimDamageAction they construct
+    //             so the calculator sees current state at execution time.
     //   Returned actions are enqueued by BattleManager in order.
     // ------------------------------------------------------------
     virtual std::vector<std::unique_ptr<IAction>> Execute(
         IBattler& caster,
-        std::vector<IBattler*>& targets) const = 0;
+        std::vector<IBattler*>& targets,
+        const BattleContext& ctx) const = 0;
 };

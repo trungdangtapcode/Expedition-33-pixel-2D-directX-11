@@ -1,0 +1,9 @@
+{
+  "id": "ether_small",
+  "name": "Small Ether",
+  "description": "Restores 20 MP to one ally.",
+  "iconPath": "assets/items/ether_small.png",
+  "targeting": "single_ally",
+  "effect": "heal_mp",
+  "amount": 20
+}

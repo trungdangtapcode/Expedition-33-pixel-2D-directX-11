@@ -25,6 +25,7 @@
 #include "../Events/EventManager.h"
 #include "../Audio/AudioManager.h"
 #include "TimeSystem.h"
+#include "InputManager.h"
 #include "../Utils/Log.h"
 #include <sstream>
 
@@ -215,6 +216,8 @@ int GameApp::Run() {
 }
 
 void GameApp::Update(float dt) {
+    InputManager::Get().Update();
+    
     // The game loop knows nothing about which state is active.
     // Responsibility is fully delegated to StateManager.
     StateManager::Get().Update(dt);

@@ -14,10 +14,11 @@ public:
     const char* GetDescription() const override { return "Reduce target ATK and DEF for 2 turns."; }
 
     // Always available — no MP cost in MVP.
-    bool CanUse(const IBattler& caster) const override;
+    bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
     // Produces: LogAction + StatusEffectAction(WeakenEffect)
     std::vector<std::unique_ptr<IAction>> Execute(
         IBattler& caster,
-        std::vector<IBattler*>& targets) const override;
+        std::vector<IBattler*>& targets,
+        const BattleContext& ctx) const override;
 };

@@ -42,11 +42,12 @@ enum class CombatantAnim
     Hurt,    // Hit-reaction — optionally triggered when taking damage.
     Ready,   // Pre-combat transition from Idle to FightState.
     FightState, // Active combat stance while selecting skills or acting.
-    Unready,    // Post-combat transition from FightState back to Idle.
-    kCount   // Sentinel — array size; do NOT use as an anim request.
+    BattleMove, // Character advancing towards enemy target.
+    BattleUnmove, // Character returning to starting formation.
+    Unready, // Post-combat transition from FightState back to Idle.
+    kCount
 };
 
-// Number of roles — used as a compile-time array dimension.
 static constexpr int kCombatantAnimCount = static_cast<int>(CombatantAnim::kCount);
 
 // ------------------------------------------------------------
@@ -69,6 +70,8 @@ inline const char* DefaultClipName(CombatantAnim anim)
         case CombatantAnim::Hurt:   return "hurt";
         case CombatantAnim::Ready:       return "ready";
         case CombatantAnim::FightState:  return "fight-state";
+        case CombatantAnim::BattleMove:  return "battle-move";
+        case CombatantAnim::BattleUnmove:return "battle-unmove";
         case CombatantAnim::Unready:     return "unready";
         default:                    return "idle";
     }

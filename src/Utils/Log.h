@@ -26,6 +26,7 @@
 #pragma once
 #include <windows.h>  // OutputDebugStringA, GetLocalTime, SYSTEMTIME
 #include <cstdio>     // snprintf, printf
+// #define _CRT_SECURE_NO_WARNINGS
 
 #ifdef _DEBUG
 
@@ -53,6 +54,8 @@
 //   - Total buffer is 1024 chars (timestamp prefix + message).  Long messages
 //     are silently truncated.  Increase LOG_BUFFER_SIZE if needed.
 //   - Not thread-safe; do not call from multiple threads simultaneously.
+// 
+// New feature: write into log files 
 // ------------------------------------------------------------
 #define LOG_BUFFER_SIZE 1024
 
@@ -79,6 +82,11 @@
                                                                                    \
         /* Also print to stdout (AllocConsole window). */                         \
         printf("%s", _log_buf);                                                    \
+        FILE* _log_file = fopen("log_output.txt", "a");                        \
+        if (_log_file) {                                                       \
+            fputs(_log_buf, _log_file);                                        \
+            fclose(_log_file);                                                 \
+        }                                                                      \
     } while (0)
 
 #else

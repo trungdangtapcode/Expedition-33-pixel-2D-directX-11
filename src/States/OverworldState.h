@@ -10,6 +10,7 @@
 #include "../Debug/DebugTextureViewer.h"
 #include <memory>
 #include <vector>
+#include "../Renderer/TileMapRenderer.h"
 
 // ============================================================
 // File: OverworldState.h
@@ -72,6 +73,11 @@ private:
     CircleRenderer mCircleRenderer;
 
     // ---------------------------------------------------------------
+    // TileMap renderer — draws the 2D background world grid.
+    // ---------------------------------------------------------------
+    TileMapRenderer mTileMap;
+
+    // ---------------------------------------------------------------
     // Battle transition controller — encapsulates all visual effects
     // (pincushion, zoom, rotation) and timings used to transition 
     // from Overworld to BattleState.
@@ -132,6 +138,11 @@ private:
     // One-press B key tracking — member variable (no static local) for clean
     // lifecycle management (reset to false in OnExit via destruction).
     bool mBWasDown = false;
+
+    // One-press I key tracking — opens the InventoryState overlay.
+    // Same pattern as mBWasDown so the key only fires on a fresh edge,
+    // not while held.
+    bool mIWasDown = false;
 
     // DEBUG: raw texture viewer — bypasses all sprite sheet / pivot math.
     DebugTextureViewer mDebugView;

@@ -5,7 +5,7 @@
 // Key difference from UIRenderer / SpriteRenderer:
 //   UIRenderer anchors to SCREEN pixels (bottom-center of the viewport).
 //   WorldSpriteRenderer anchors to a WORLD coordinate (e.g. player feet).
-//   The camera's ViewProjection matrix is forwarded to SpriteBatch::Begin()
+//   The camera's View matrix is forwarded to SpriteBatch::Begin()
 //   as the 7th argument; the GPU then transforms every sprite vertex from
 //   world space → clip space.  The caller submits world-unit coordinates.
 //
@@ -33,7 +33,7 @@
 //   Destroyed in → WorldSpriteRenderer::Shutdown()   (PlayState::OnExit)
 //
 // Common mistakes:
-//   1. Forgetting to call camera.Update() before Draw() — stale ViewProj
+//   1. Forgetting to call camera.Update() before Draw() — stale View
 //      matrix causes the sprite to lag one frame behind.
 //   2. Passing a screen-pixel position to Draw() instead of a world position
 //      — the sprite will appear far outside the visible area.
@@ -177,6 +177,23 @@ public:
         if (mFrozen)               return true;  // forcibly paused — treat as done
         if (mActiveClip->loop)     return true;  // looping clips are never "done"
         return mClipFinished;                     // non-looping: finished flag
+    }
+
+    // ------------------------------------------------------------
+    // Function: GetClipProgress
+    // Purpose:  Returns the normalized progress [0.0, 1.0] of the current clip.
+    // ------------------------------------------------------------
+    float GetClipProgress() const
+    {
+        if (!mActiveClip || mActiveClip->numFrames <= 0) return 1.0f;
+        if (mClipFinished || mFrozen) return 1.0f;
+        
+        float frameDuration = 1.0f / mActiveClip->frameRate;
+        float totalDuration = frameDuration * mActiveClip->numFrames;
+        float elapsed = (mFrameIndex * frameDuration) + mFrameTimer;
+        
+        float progress = elapsed / totalDuration;
+        return (progress > 1.0f) ? 1.0f : progress;
     }
 
     // ------------------------------------------------------------

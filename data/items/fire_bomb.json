@@ -1,0 +1,9 @@
+{
+  "id": "fire_bomb",
+  "name": "Fire Bomb",
+  "description": "Engulfs every enemy in flames for 80 damage.",
+  "iconPath": "assets/items/fire_bomb.png",
+  "targeting": "all_enemies",
+  "effect": "deal_damage",
+  "amount": 80
+}

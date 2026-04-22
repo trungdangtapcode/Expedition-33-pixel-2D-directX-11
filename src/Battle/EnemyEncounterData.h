@@ -47,6 +47,7 @@ struct EnemySlotData
     std::wstring texturePath;           // L"assets/animations/skeleton.png"
     std::string  jsonPath;              // "assets/animations/skeleton.json"
     std::string  idleClip;             // "idle"
+    std::wstring turnViewPath;          // L"assets/UI/turn-view-skeleton.png"
 
     // ---- Per-role animation clip name overrides ----
     // These map to CombatantAnim roles.  Leave empty to use DefaultClipName().
@@ -59,11 +60,13 @@ struct EnemySlotData
     std::string hurtClip;    // CombatantAnim::Hurt   (default: "hurt")
 
     // ---- Battle stats ----
-    // MUST be set from JSON — zero-stat combatants are a data authoring error.
+    // ---- Validation ----
     int hp  = 0;
     int atk = 0;
     int def = 0;
     int spd = 0;
+
+    std::string attackJsonPath = "data/skills/skeleton_attack.json";
 
     // ---- Battle camera ----
     // Lifts ACTOR_FOCUS / TARGET_FOCUS from feet-anchor to chest.
@@ -99,6 +102,10 @@ struct EnemyEncounterData
     // Pixel radius around the enemy anchor that triggers the proximity prompt.
     // Typical value: 80–120 world pixels.
     float contactRadius = 80.0f;
+
+    // ---- Battle Environment ----
+    // Path to the environment JSON (e.g. "assets/environments/battle-paris-view.json")
+    std::string environmentPath;
 
     // ---- Battle party (1–3 slots) ----
     // Defines every enemy combatant that appears when this encounter starts.

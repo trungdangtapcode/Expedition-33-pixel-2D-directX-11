@@ -98,12 +98,12 @@ public:
     // ------------------------------------------------------------
     // Function: Draw
     // Purpose:
-    //   Pass the Camera2D's ViewProjection matrix to SpriteBatch::Begin()
+    //   Pass the Camera2D's View matrix to SpriteBatch::Begin()
     //   so the GPU Vertex Shader applies the full camera transform to every
     //   sprite vertex.  The CPU only needs to supply the world-space position.
     //
     //   GPU transform pipeline per vertex:
-    //     clipPos = float4(worldPos, 0, 1) * ViewProjMatrix
+    //     viewPos = float4(worldPos, 0, 1) * ViewMatrix
     //
     // Parameters:
     //   context        — immediate device context for this frame

@@ -1,0 +1,9 @@
+{
+  "id": "iron_sword",
+  "name": "Iron Sword",
+  "description": "A heavier blade. Hits harder but slows the wielder.",
+  "iconPath": "assets/items/iron_sword.png",
+  "kind": "weapon",
+  "bonusAtk": 12,
+  "bonusSpd": -1
+}

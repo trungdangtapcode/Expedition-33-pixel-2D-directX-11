@@ -1,0 +1,12 @@
+{
+  "id": "power_tonic",
+  "name": "Power Tonic",
+  "description": "Boosts an ally's ATK by 30% for 3 turns.",
+  "iconPath": "assets/items/power_tonic.png",
+  "targeting": "single_ally",
+  "effect": "stat_buff",
+  "durationTurns": 3,
+  "buffStat": "atk",
+  "buffOp": "add_percent",
+  "buffValue": 30
+}

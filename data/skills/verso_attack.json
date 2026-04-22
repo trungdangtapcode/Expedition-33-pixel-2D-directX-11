@@ -1,0 +1,17 @@
+{
+    "moveDuration": 0.4,
+    "returnDuration": 0.35,
+    "meleeOffset": 80.0,
+    "damageTakenOccurMoment": 0.8,
+    "qteSupported": true,
+    "qteStartMoment": 0.2,
+    "qteSlowMoScale": 0.3,
+    "qtePerfectMultiplier": 1.5,
+    "qteGoodMultiplier": 1,
+    "qteMissMultiplier": 0.6,
+    "qtePerfectThreshold": 0.9,
+    "qteGoodThreshold": 0.75,
+    "qteMinCount": 1,
+    "qteMaxCount": 3,
+    "qteSpacing": 0.15
+}

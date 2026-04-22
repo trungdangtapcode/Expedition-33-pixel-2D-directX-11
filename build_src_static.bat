@@ -59,7 +59,7 @@ cl.exe ^
     /W3 ^
     %CRT_FLAG% ^
     %OPT_FLAG% ^
-    /DUNICODE /D_UNICODE ^
+    /DUNICODE /D_UNICODE /D_CRT_SECURE_NO_WARNINGS /D__CRT_SECURE_NO_WARNINGS /D_CRT_SECURE_NO_WARNINGS ^
     /Fe:%OUT_DIR%\game.exe ^
     /Fo:%OBJ_DIR%\ ^
     src\main.cpp ^
@@ -67,17 +67,24 @@ cl.exe ^
     src\Core\GameTimer.cpp ^
     src\Core\Clock.cpp ^
     src\Core\TimeSystem.cpp ^
+    src\Core\InputManager.cpp ^
     src\Renderer\D3DContext.cpp ^
     src\States\StateManager.cpp ^
     src\States\MenuState.cpp ^
     src\States\OverworldState.cpp ^
+    src\States\InventoryState.cpp ^
+    src\States\InventoryStateDetailPanel.cpp ^
+    src\States\InventoryStateRender.cpp ^
+    src\Systems\PartyManager.cpp ^
     src\Renderer\CircleRenderer.cpp ^
     src\Renderer\IrisTransitionRenderer.cpp ^
     src\Renderer\PincushionDistortionFilter.cpp ^
     src\Renderer\NineSliceRenderer.cpp ^
+    src\Renderer\EnvironmentRenderer.cpp ^
     src\Renderer\SpriteRenderer.cpp ^
     src\Renderer\UIRenderer.cpp ^
     src\Renderer\WorldRenderer.cpp ^
+    src\Renderer\TileMapRenderer.cpp ^
     src\Renderer\WorldSpriteRenderer.cpp ^
     src\Scene\SceneGraph.cpp ^
     src\Entities\ControllableCharacter.cpp ^
@@ -85,7 +92,15 @@ cl.exe ^
     src\Events\EventManager.cpp ^
     src\Debug\DebugTextureViewer.cpp ^
     src\Systems\ZoomPincushionTransitionController.cpp ^
+    src\Systems\CollisionSystem.cpp ^
     src\Battle\WeakenEffect.cpp ^
+    src\Battle\TimedStatBuffEffect.cpp ^
+    src\Battle\ItemRegistry.cpp ^
+    src\Battle\ItemEffectAction.cpp ^
+    src\Battle\ItemConsumeAction.cpp ^
+    src\Battle\BuildItemActions.cpp ^
+    src\Battle\ItemCommand.cpp ^
+    src\Systems\Inventory.cpp ^
     src\Battle\Combatant.cpp ^
     src\Battle\PlayerCombatant.cpp ^
     src\Battle\EnemyCombatant.cpp ^
@@ -98,6 +113,13 @@ cl.exe ^
     src\Battle\WaitAction.cpp ^
     src\Battle\IActionDecorator.cpp ^
     src\Battle\DelayedAction.cpp ^
+    src\Battle\MoveAction.cpp ^
+    src\Battle\PlayAnimationAction.cpp ^
+    src\Battle\AnimDamageAction.cpp ^
+    src\Battle\QteAnimDamageAction.cpp ^
+    src\Battle\DefaultDamageCalculator.cpp ^
+    src\Battle\DamageSteps.cpp ^
+    src\Battle\StatResolver.cpp ^
     src\Battle\BattleInputController.cpp ^
     src\Battle\FightCommand.cpp ^
     src\Battle\FleeCommand.cpp ^
@@ -111,7 +133,10 @@ cl.exe ^
     src\UI\BattleTextRenderer.cpp ^
     src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\PointerRenderer.cpp ^
+    src\UI\ScrollArrowRenderer.cpp ^
     src\UI\BattleDebugHUD.cpp ^
+    src\UI\TurnQueueUI.cpp ^
+    src\UI\BattleQTERenderer.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^

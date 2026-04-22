@@ -1,0 +1,9 @@
+{
+    "moveDuration": 0.3,
+    "returnDuration": 0.3,
+    "meleeOffset": 80.0,
+    "damageTakenOccurMoment": 0.6,
+    "qteSupported": true,
+    "qteStartMoment": 0.3,
+    "qteSlowMoScale": 0.1
+}

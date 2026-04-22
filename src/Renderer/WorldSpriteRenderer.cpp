@@ -160,9 +160,9 @@ bool WorldSpriteRenderer::Initialize(ID3D11Device*        device,
 // ------------------------------------------------------------
 bool WorldSpriteRenderer::PlayClip(const std::string& clipName)
 {
-    // Guard: skip the reset if this clip is already playing.
+    // Guard: skip the reset if this clip is already playing AND NOT finished.
     // Return true — the requested clip IS active; caller's goal is satisfied.
-    if (mActiveClipName == clipName && mActiveClip != nullptr) return true;
+    if (mActiveClipName == clipName && mActiveClip != nullptr && !mClipFinished && !mFrozen) return true;
 
     const AnimationClip* clip = mSheet.FindClip(clipName);
     if (!clip)

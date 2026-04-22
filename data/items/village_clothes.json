@@ -1,0 +1,9 @@
+{
+  "id": "village_clothes",
+  "name": "Village Clothes",
+  "description": "Plain woven garments worn by villagers. Better than nothing.",
+  "iconPath": "assets/items/village_clothes.png",
+  "kind": "body_armor",
+  "bonusDef": 2,
+  "bonusMaxHp": 5
+}

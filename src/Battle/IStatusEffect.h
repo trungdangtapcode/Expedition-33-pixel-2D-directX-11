@@ -15,22 +15,28 @@
 //
 // Effect contract:
 //   Apply(target)     — called immediately when the effect is attached.
-//                       Modifies the target's stats (e.g. reduce atk/def).
-//                       For DOT effects, Apply() does nothing — damage
-//                       comes from OnTurnEnd().
+//                       Stat-buff/debuff effects push a StatModifier via
+//                       target.AddStatModifier(...) and remember the
+//                       sourceId they used so Revert can strip it.
+//                       DOT effects do nothing here — their damage
+//                       is applied from OnTurnEnd().
 //   OnTurnEnd(target) — called once at the end of the affected combatant's
-//                       turn.  Decrements the duration counter.
+//                       turn.  Decrement duration, apply DOT damage, etc.
 //   Revert(target)    — called exactly once when the effect expires.
-//                       Restores any stat changes made in Apply().
+//                       Removes any StatModifier entries added by Apply()
+//                       (typically via target.RemoveStatModifiersBySource).
 //   IsExpired()       — returns true when the effect has run its full duration.
 //   GetName()         — short description for UI and debug logging.
+//
+// Interface widening note:
+//   Apply/OnTurnEnd/Revert take IBattler& (not BattlerStats&) so effects
+//   can reach the stat modifier pipeline.  DOT damage still needs live
+//   HP via target.GetStats().
 // ============================================================
 #pragma once
 #include <string>
 
-// Forward declaration — IStatusEffect does not need the full BattlerStats header
-// here; only Apply/OnTurnEnd/Revert implementations need it.
-struct BattlerStats;
+class IBattler;
 
 // ============================================================
 // Interface: IStatusEffect
@@ -43,11 +49,11 @@ public:
     // ------------------------------------------------------------
     // Apply
     // Purpose:  Attach this effect to the target immediately.
-    //           Stat-debuff effects reduce atk/def here.
+    //           Stat-debuff effects push a StatModifier here.
     //           Duration-based effects start their countdown here.
     // Called:   Once, by Combatant::AddEffect().
     // ------------------------------------------------------------
-    virtual void Apply(BattlerStats& target) = 0;
+    virtual void Apply(IBattler& target) = 0;
 
     // ------------------------------------------------------------
     // OnTurnEnd
@@ -55,15 +61,16 @@ public:
     //           Stat-buff/debuff effects only decrement their duration here.
     // Called:   Once at the end of the affected combatant's turn.
     // ------------------------------------------------------------
-    virtual void OnTurnEnd(BattlerStats& target) = 0;
+    virtual void OnTurnEnd(IBattler& target) = 0;
 
     // ------------------------------------------------------------
     // Revert
-    // Purpose:  Undo any stat changes made during Apply().
+    // Purpose:  Undo any state changes made during Apply().
+    //           Typically removes StatModifier entries by sourceId.
     //           Called exactly once, just before the effect is destroyed.
     // Called:   By Combatant::PurgeExpiredEffects() when IsExpired()==true.
     // ------------------------------------------------------------
-    virtual void Revert(BattlerStats& target) = 0;
+    virtual void Revert(IBattler& target) = 0;
 
     // Returns true when this effect has run its full duration.
     virtual bool IsExpired() const = 0;

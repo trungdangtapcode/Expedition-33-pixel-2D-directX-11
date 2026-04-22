@@ -60,10 +60,14 @@
 #include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
+#include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
+#include "../UI/ScrollArrowRenderer.h"
+#include "../UI/BattleQTERenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
+#include "../Renderer/EnvironmentRenderer.h"
 #include <vector>
 #include <memory>
 #include <string>
@@ -108,10 +112,19 @@ private:
     BattleRenderer         mBattleRenderer;
     HealthBarRenderer      mHealthBar;
     EnemyHpBarRenderer     mEnemyHpBar;
+    TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
+    BattleQTERenderer      mQTERenderer;
+
+    // Scroll-direction chevrons drawn above/below the item menu when
+    // there are off-screen items in that direction.  Both share the
+    // same texture (the existing pointer asset is reused as a placeholder
+    // until dedicated chevron art lands — see idea/asset-todo.md).
+    // mChevronUp draws with vertical flip + inverted bob direction.
+    ScrollArrowRenderer    mChevronUp;
+    ScrollArrowRenderer    mChevronDown;
     NineSliceRenderer      mDialogBox;
-    BattleTextRenderer     mTextRenderer;
-    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
+    BattleTextRenderer     mTextRenderer;      EnvironmentRenderer    mEnvRenderer;    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
 
     JsonLoader::BattleMenuLayout mMenuLayout;
@@ -164,6 +177,45 @@ private:
     // ----------------------------------------------------------------
     bool mEnemyWasAlive [BattleRenderer::kMaxSlots] = { true, true, true };
     bool mPlayerWasAlive[BattleRenderer::kMaxSlots] = { true, true, true };
+
+    // ----------------------------------------------------------------
+    // Action Animation Listeners & Handlers
+    // ----------------------------------------------------------------
+    int mPlayAnimListener = -1;
+    int mIsAnimDoneListener = -1;
+    int mGetAnimProgressListener = -1;
+    int mMoveOffsetListener = -1;
+    int mGetWorldPosListener = -1;
+    int mGetOffsetListener = -1;
+
+    bool GetBattlerSlot(IBattler* target, int& outSlot, bool& outIsPlayer) const;
+    void OnPlayAnim(const struct EventData& e);
+    void OnIsAnimDone(const struct EventData& e);
+    void OnGetAnimProgress(const struct EventData& e);
+    void OnMoveOffset(const struct EventData& e);
+    void OnGetWorldPos(const struct EventData& e);
+    void OnGetOffset(const struct EventData& e);
+
+    // ----------------------------------------------------------------
+    // Floating Damage Text
+    // ----------------------------------------------------------------
+    struct FloatingDamageText {
+        std::string text;
+        float worldX = 0;
+        float worldY = 0;
+        float vx = 0;
+        float vy = 0;
+        float scale = 1.0f;
+        float lifeTimer = 0;
+        float maxLife = 1.0f;
+        DirectX::XMVECTOR color = DirectX::Colors::White;
+    };
+    std::vector<FloatingDamageText> mFloatingTexts;
+    int mDamageTakenListener = -1;
+    int mQteUpdateListener = -1;
+    
+    void OnDamageTaken(const struct EventData& e);
+    void OnQteFeedback(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // UI Animations

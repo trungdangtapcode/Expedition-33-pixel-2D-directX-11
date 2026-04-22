@@ -7,16 +7,18 @@
 #include "StatusEffectAction.h"
 #include "WeakenEffect.h"
 #include "LogAction.h"
+#include "BattleContext.h"
 #include <memory>
 
-bool WeakenSkill::CanUse(const IBattler& /*caster*/) const
+bool WeakenSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
 {
     return true;    // no MP cost in MVP
 }
 
 std::vector<std::unique_ptr<IAction>> WeakenSkill::Execute(
     IBattler& caster,
-    std::vector<IBattler*>& targets) const
+    std::vector<IBattler*>& targets,
+    const BattleContext& /*ctx*/) const
 {
     std::vector<std::unique_ptr<IAction>> actions;
 

@@ -6,41 +6,49 @@
   "name": "Skeleton",
   "texturePath": "assets/animations/skeleton.png",
   "jsonPath": "assets/animations/skeleton.json",
-  "idleClip": "idle",
+  "turnViewPath": "assets/UI/turn-view-skeleton.png",
+        "idleClip": "idle",
   "contactRadius": 90.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
 
   "battleParty": [
     {
       "comment": "Slot 0 — front-line skeleton: higher HP and ATK.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
-      "idleClip": "idle",
+      "turnViewPath": "assets/UI/turn-view-skeleton.png",
+            "idleClip": "idle",
       "hp": 60,
       "atk": 12,
       "def": 6,
       "spd": 4,
+      "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     },
     {
       "comment": "Slot 1 — fast scout: low HP but high SPD.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
-      "idleClip": "idle",
+      "turnViewPath": "assets/UI/turn-view-skeleton.png",
+            "idleClip": "idle",
       "hp": 30,
       "atk": 7,
       "def": 3,
       "spd": 8,
+      "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     },
     {
       "comment": "Slot 2 — archer skeleton: balanced stats.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
-      "idleClip": "idle",
+      "turnViewPath": "assets/UI/turn-view-skeleton.png",
+            "idleClip": "idle",
       "hp": 35,
       "atk": 8,
       "def": 4,
       "spd": 5,
+      "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     }
   ]

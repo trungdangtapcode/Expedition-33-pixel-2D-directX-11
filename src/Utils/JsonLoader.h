@@ -28,9 +28,13 @@
 #include <string>
 #include <fstream>
 #include <sstream>
-#include "../Renderer/SpriteSheet.h"
-#include "../Battle/EnemyEncounterData.h"
+#include <filesystem>
 #include "Log.h"
+#include "../Renderer/SpriteSheet.h"
+#include "../Battle/StatModifier.h"
+#include "../Battle/EnemyEncounterData.h"
+#include "../Battle/ItemData.h"
+#include "../Systems/ICollisionSystem.h"
 
 namespace JsonLoader {
 
@@ -38,6 +42,21 @@ namespace JsonLoader {
 // Internal helpers — not part of the public API
 // ============================================================
 namespace detail {
+
+// ------------------------------------------------------------
+// Warn if the file is UTF-16. std::ifstream fails to parse UTF-16
+// correctly because of interspersed null bytes.
+// ------------------------------------------------------------
+inline void WarnIfUTF16(const std::string& src, const std::string& path)
+{
+    if (src.size() >= 2) {
+        unsigned char b1 = static_cast<unsigned char>(src[0]);
+        unsigned char b2 = static_cast<unsigned char>(src[1]);
+        if ((b1 == 0xFF && b2 == 0xFE) || (b1 == 0xFE && b2 == 0xFF)) {
+            LOG("[JsonLoader] FATAL ERROR: File '%s' is saved as UTF-16! C++ parser requires UTF-8. Please re-save your file.", path.c_str());
+        }
+    }
+}
 
 // ------------------------------------------------------------
 // Trim leading and trailing whitespace (space, tab, CR, LF).
@@ -548,6 +567,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     out.jsonPath     = stripQ(detail::ValueOf(src, "jsonPath"));
     out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
     out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
+    out.environmentPath = stripQ(detail::ValueOf(src, "environmentPath"));
 
     if (out.name.empty() || out.texturePath.empty())
     {
@@ -566,16 +586,69 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.texturePath       = toWide(stripQ(detail::ValueOf(slotSrc, "texturePath")));
         slot.jsonPath          = stripQ(detail::ValueOf(slotSrc, "jsonPath"));
         slot.idleClip          = stripQ(detail::ValueOf(slotSrc, "idleClip"));
+        slot.turnViewPath      = toWide(stripQ(detail::ValueOf(slotSrc, "turnViewPath")));
         slot.hp                = detail::ParseInt  (detail::ValueOf(slotSrc, "hp"));
         slot.atk               = detail::ParseInt  (detail::ValueOf(slotSrc, "atk"));
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
+        
+        std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));
+        if (!attackJson.empty()) {
+            slot.attackJsonPath = attackJson;
+        }
+
         out.battleParty.push_back(std::move(slot));
     }
 
     LOG("[JsonLoader] Loaded enemy '%s' from '%s': %d battle slot(s).",
         out.name.c_str(), path.c_str(), static_cast<int>(out.battleParty.size()));
+    return true;
+}
+
+struct TurnViewConfig {
+    float width = 256.0f;
+    float height = 128.0f;
+    float topScale = 1.0f;
+    float normalScale = 0.7f;
+    float startX = 20.0f;
+    float startY = 20.0f;
+    float spacing = 15.0f;
+    float topSpacing = 25.0f;
+    float animSpeed = 12.0f;
+    float slideOffsetX = -80.0f;
+    float popOffX = -150.0f;
+    float popScale = 1.2f;
+    float fadeSpeed = 3.0f;
+    float spawnOffsetY = 150.0f;
+};
+
+inline bool LoadTurnViewConfig(const std::string& path, TurnViewConfig& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open turn view config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 256.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 128.0f);
+    out.topScale = detail::ParseFloat(detail::ValueOf(src, "topScale"), 1.0f);
+    out.normalScale = detail::ParseFloat(detail::ValueOf(src, "normalScale"), 0.7f);
+    out.startX = detail::ParseFloat(detail::ValueOf(src, "startX"), 20.0f);
+    out.startY = detail::ParseFloat(detail::ValueOf(src, "startY"), 20.0f);
+    out.spacing = detail::ParseFloat(detail::ValueOf(src, "spacing"), 15.0f);
+    out.topSpacing = detail::ParseFloat(detail::ValueOf(src, "topSpacing"), 25.0f);
+    out.animSpeed = detail::ParseFloat(detail::ValueOf(src, "animSpeed"), 12.0f);
+    out.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "slideOffsetX"), -80.0f);
+    out.popOffX = detail::ParseFloat(detail::ValueOf(src, "popOffX"), -150.0f);
+    out.popScale = detail::ParseFloat(detail::ValueOf(src, "popScale"), 1.2f);
+    out.fadeSpeed = detail::ParseFloat(detail::ValueOf(src, "fadeSpeed"), 3.0f);
+    out.spawnOffsetY = detail::ParseFloat(detail::ValueOf(src, "spawnOffsetY"), 150.0f);
+
     return true;
 }
 
@@ -659,6 +732,260 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.fadeStartAlpha = detail::ParseFloat(detail::ValueOf(src, "skill_fadeStartAlpha"), 0.0f);
 
     LOG("[JsonLoader] Loaded BattleMenuLayout from '%s'.", path.c_str());
+    return true;
+}
+
+
+struct SkillData {
+    float moveDuration = 0.5f;
+    float returnDuration = 0.5f;
+    float meleeOffset = 80.0f;
+    float damageTakenOccurMoment = 0.8f;
+    
+    // QTE Configuration
+    bool qteSupported = false;
+    float qteStartMoment = 0.3f;
+    float qteSlowMoScale = 0.1f;
+    float qtePerfectMultiplier = 1.5f;
+    float qteGoodMultiplier = 1.2f;
+    float qteMissMultiplier = 0.8f;
+    float qtePerfectThreshold = 0.85f;
+    float qteGoodThreshold = 0.60f;
+    
+    int qteMinCount = 1;
+    int qteMaxCount = 1;
+    float qteSpacing = 0.15f;
+    float qteFadeInRatio = 0.15f;
+    float qteFadeOutDuration = 0.20f;
+};
+
+inline bool LoadSkillData(const std::string& path, SkillData& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    // Support both workspace-root cwd and bin/ cwd at runtime.
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open skill data file: '%s'", path.c_str());
+        return false;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string src = buffer.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
+    out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
+    out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);
+    out.damageTakenOccurMoment = detail::ParseFloat(detail::ValueOf(src, "damageTakenOccurMoment"), 0.8f);
+    if (out.damageTakenOccurMoment < 0.0f) out.damageTakenOccurMoment = 0.0f;
+    if (out.damageTakenOccurMoment > 1.0f) out.damageTakenOccurMoment = 1.0f;
+
+    out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
+    out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
+    out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
+    out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
+    out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);
+    out.qteMissMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteMissMultiplier"), 0.8f);
+    out.qtePerfectThreshold = detail::ParseFloat(detail::ValueOf(src, "qtePerfectThreshold"), 0.85f);
+    out.qteGoodThreshold = detail::ParseFloat(detail::ValueOf(src, "qteGoodThreshold"), 0.60f);
+    out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
+    out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
+    out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
+    out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
+    out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
+
+    LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
+        path.c_str(),
+        resolvedPath.string().c_str(),
+        out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+struct EnvironmentConfig {
+    float width = 0.0f;
+    float height = 0.0f;
+    std::wstring background;
+    std::wstring foreground;
+    float zoomLevel = 1.0f;
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+};
+
+inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open environment config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 1920.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 1080.0f);
+
+    auto stripQ = [](const std::string& s) -> std::string {
+        if (s.size() >= 2 && s.front() == '"' && s.back() == '"')
+            return s.substr(1, s.size() - 2);
+        return s;
+    };
+
+    auto toWide = [](const std::string& s) -> std::wstring {
+        return std::wstring(s.begin(), s.end());
+    };
+
+    std::string bg = detail::ValueOf(src, "background");
+    if (!bg.empty() && bg != "null") out.background = toWide(stripQ(bg));
+    
+    std::string fg = detail::ValueOf(src, "foreground");
+    if (!fg.empty() && fg != "null") out.foreground = toWide(stripQ(fg));
+
+    out.zoomLevel = detail::ParseFloat(detail::ValueOf(src, "zoomLevel"), 1.0f);
+    out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
+    out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
+
+    LOG("[JsonLoader] Loaded EnvironmentConfig from '%s'.", path.c_str());
+    return true;
+}
+
+// ============================================================
+// Tile Map Data
+// ============================================================
+struct TilesetInfo {
+    int firstGid = 1;
+    std::wstring texturePath;
+};
+
+struct TileLayer {
+    std::vector<int> tiles;
+};
+
+struct TileMapData {
+    int tileWidth = 0;
+    int tileHeight = 0;
+    int cols = 0;
+    int rows = 0;
+    std::vector<TilesetInfo> tilesets;
+    std::vector<TileLayer> layers;
+    std::vector<AABBCollider> colliders;
+};
+
+inline bool LoadTileMapData(const std::string& path, TileMapData& out)
+{
+    std::ifstream file(path);
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open tile map config file: '%s'", path.c_str());
+        return false;
+    }
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    std::string src = buf.str();
+
+    auto stripQ = [](const std::string& s) -> std::string {
+        std::string t = detail::Trim(s);
+        if (t.size() >= 2 && t.front() == '"' && t.back() == '"')
+            return t.substr(1, t.size() - 2);
+        return t;
+    };
+
+    auto toWide = [](const std::string& s) -> std::wstring {
+        return std::wstring(s.begin(), s.end());
+    };
+
+    // Tiled map dimensions
+    out.cols = detail::ParseInt(detail::ValueOf(src, "width"), 0);
+    out.rows = detail::ParseInt(detail::ValueOf(src, "height"), 0);
+    out.tileWidth = detail::ParseInt(detail::ValueOf(src, "tilewidth"), 64);
+    out.tileHeight = detail::ParseInt(detail::ValueOf(src, "tileheight"), 64);
+
+    // Tilesets
+    std::vector<std::string> tilesets = detail::ExtractObjectsFromArray(src, "tilesets");
+    for (const auto& ts : tilesets) {
+        TilesetInfo info;
+        info.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
+        
+        std::string tp = detail::ValueOf(ts, "image");
+        if (!tp.empty() && tp != "null") {
+            tp = stripQ(tp);
+            // Replace backward slashes with forward slashes for unified parsing
+            for (char& c : tp) if (c == '\\') c = '/';
+            // Tiled paths are relative to the json file. We'll strip the path and assume it's in assets/environments.
+            size_t slash = tp.find_last_of('/');
+            if (slash != std::string::npos) tp = tp.substr(slash + 1);
+            info.texturePath = toWide("assets/environments/" + tp);
+        }
+        out.tilesets.push_back(info);
+    }
+
+    // Layers (find tilelayers and objectgroups)
+    std::vector<std::string> layers = detail::ExtractObjectsFromArray(src, "layers");
+    
+    // Compute bounds offset based on map size so colliders match rendered tiles
+    float startX = -((out.cols * out.tileWidth) / 2.0f);
+    float startY = -((out.rows * out.tileHeight) / 2.0f);
+    
+    for (const auto& layer : layers) {
+        std::string type = stripQ(detail::ValueOf(layer, "type"));
+        if (type == "tilelayer") {
+            TileLayer tileLayer;
+            size_t kpos = layer.find("\"data\"");
+            if (kpos != std::string::npos) {
+                size_t bracket = layer.find('[', kpos);
+                if (bracket != std::string::npos) {
+                    int depth = 1;
+                    size_t i = bracket + 1;
+                    while (i < layer.size() && depth > 0) {
+                        if (layer[i] == '[') ++depth;
+                        if (layer[i] == ']') --depth;
+                        ++i;
+                    }
+                    std::string inner = layer.substr(bracket + 1, i - bracket - 2);
+                    size_t start = 0;
+                    while (start < inner.size()) {
+                        size_t comma = inner.find(',', start);
+                        if (comma == std::string::npos) {
+                            std::string token = detail::Trim(inner.substr(start));
+                            if (!token.empty()) tileLayer.tiles.push_back(detail::ParseInt(token));
+                            break;
+                        }
+                        std::string token = detail::Trim(inner.substr(start, comma - start));
+                        if (!token.empty()) tileLayer.tiles.push_back(detail::ParseInt(token));
+                        start = comma + 1;
+                    }
+                }
+            }
+            out.layers.push_back(tileLayer);
+        } else if (type == "objectgroup") {
+            std::vector<std::string> objects = detail::ExtractObjectsFromArray(layer, "objects");
+            for (const auto& obj : objects) {
+                float x = detail::ParseFloat(detail::ValueOf(obj, "x"), 0.0f);
+                float y = detail::ParseFloat(detail::ValueOf(obj, "y"), 0.0f);
+                float w = detail::ParseFloat(detail::ValueOf(obj, "width"), 0.0f);
+                float h = detail::ParseFloat(detail::ValueOf(obj, "height"), 0.0f);
+                
+                AABBCollider aabb;
+                aabb.minPoint = { startX + x, startY + y };
+                aabb.maxPoint = { startX + x + w, startY + y + h };
+                out.colliders.push_back(aabb);
+            }
+        }
+    }
+
+    LOG("[JsonLoader] Loaded TileMapData from '%s'. width: %d, height: %d, layers: %zu, objects: %zu", 
+        path.c_str(), out.cols, out.rows, out.layers.size(), out.colliders.size());
     return true;
 }
 

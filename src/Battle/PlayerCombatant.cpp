@@ -1,3 +1,4 @@
+#include "../Utils/JsonLoader.h"
 // ============================================================
 // File: PlayerCombatant.cpp
 // ============================================================
@@ -5,6 +6,7 @@
 #include "AttackSkill.h"
 #include "RageSkill.h"
 #include "WeakenSkill.h"
+#include "../Utils/Log.h"
 
 // ------------------------------------------------------------
 // MVP stats — hardcoded constants only; in production these come from JSON.
@@ -16,8 +18,8 @@ static constexpr int kPlayerDef     = 10;
 static constexpr int kPlayerSpd     = 10;
 static constexpr int kPlayerMaxRage = 100;
 
-PlayerCombatant::PlayerCombatant(std::string name)
-    : Combatant(std::move(name), BattlerStats{
+PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), BattlerStats{
         kPlayerMaxHp, kPlayerMaxHp,       // hp, maxHp
         kPlayerMaxMp, kPlayerMaxMp,       // mp, maxMp
         kPlayerAtk, kPlayerDef, kPlayerSpd,
@@ -25,7 +27,14 @@ PlayerCombatant::PlayerCombatant(std::string name)
     })
 {
     // Register the three default player skills.
-    mSkills.push_back(std::make_unique<AttackSkill>());
+    mSkills.push_back([&]() {
+            JsonLoader::SkillData attackData;
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
+            return std::make_unique<AttackSkill>(attackData);
+        }());
     mSkills.push_back(std::make_unique<RageSkill>());
     mSkills.push_back(std::make_unique<WeakenSkill>());
 }
@@ -35,11 +44,18 @@ PlayerCombatant::PlayerCombatant(std::string name)
 // to restore persistent HP from PartyManager.
 // The skill list is always rebuilt fresh — skills are not persisted.
 // ------------------------------------------------------------
-PlayerCombatant::PlayerCombatant(std::string name, const BattlerStats& seedStats)
-    : Combatant(std::move(name), seedStats)
+PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& seedStats, std::string attackJsonPath)
+    : Combatant(std::move(name), std::move(turnViewPath), seedStats)
 {
     // Register the three default player skills.
-    mSkills.push_back(std::make_unique<AttackSkill>());
+    mSkills.push_back([&]() {
+            JsonLoader::SkillData attackData;
+            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
+                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
+            }
+            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
+            return std::make_unique<AttackSkill>(attackData);
+        }());
     mSkills.push_back(std::make_unique<RageSkill>());
     mSkills.push_back(std::make_unique<WeakenSkill>());
 }
@@ -58,7 +74,21 @@ ISkill* PlayerCombatant::GetSkill(int index) const
 void PlayerCombatant::SetPendingAction(int skillIndex, IBattler* target)
 {
     mPendingSkillIndex  = skillIndex;
+    mPendingItemId.clear();          // clear any prior item selection
     mPendingTarget      = target;
+    mHasPendingAction   = true;
+}
+
+// ------------------------------------------------------------
+// SetPendingItem: queue an item-use as the player's turn action.
+// Mutually exclusive with SetPendingAction — calling either one
+// overwrites the other.
+// ------------------------------------------------------------
+void PlayerCombatant::SetPendingItem(const std::string& itemId, IBattler* target)
+{
+    mPendingItemId      = itemId;
+    mPendingSkillIndex  = -1;        // skill index not used for item turns
+    mPendingTarget      = target;    // may be nullptr for self / AoE items
     mHasPendingAction   = true;
 }
 
@@ -72,6 +102,11 @@ int PlayerCombatant::GetPendingSkillIndex() const
     return mPendingSkillIndex;
 }
 
+const std::string& PlayerCombatant::GetPendingItemId() const
+{
+    return mPendingItemId;
+}
+
 IBattler* PlayerCombatant::GetPendingTarget() const
 {
     return mPendingTarget;
@@ -81,5 +116,6 @@ void PlayerCombatant::ClearPendingAction()
 {
     mHasPendingAction   = false;
     mPendingSkillIndex  = -1;
+    mPendingItemId.clear();
     mPendingTarget      = nullptr;
 }

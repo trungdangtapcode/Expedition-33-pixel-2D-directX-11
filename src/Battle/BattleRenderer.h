@@ -148,6 +148,8 @@ public:
     Camera2D& GetCamera() { return mCameraCtrl.GetCamera(); }
     const Camera2D& GetCamera() const { return const_cast<BattleCameraController&>(mCameraCtrl).GetCamera(); }
 
+    void TriggerCameraShake(float intensity, float duration) { mCameraCtrl.TriggerShake(intensity, duration); }
+
     // ------------------------------------------------------------
     // SetCameraPhase: drive the BattleCameraController from BattleState.
     //
@@ -196,6 +198,9 @@ public:
     bool AreAllDeathAnimsDone() const;
     bool IsEnemyClipDone(int slot) const;
     bool IsPlayerClipDone(int slot) const;
+    
+    float GetEnemyClipProgress(int slot) const;
+    float GetPlayerClipProgress(int slot) const;
 
     // ------------------------------------------------------------
     // GetPlayerSlotPos / GetEnemySlotPos:
@@ -204,6 +209,11 @@ public:
     // ------------------------------------------------------------
     void GetPlayerSlotPos(int slot, float& outWorldX, float& outWorldY) const;
     void GetEnemySlotPos (int slot, float& outWorldX, float& outWorldY) const;
+
+    void SetPlayerDrawOffset(int slot, float x, float y);
+    void SetEnemyDrawOffset(int slot, float x, float y);
+    void GetPlayerDrawOffset(int slot, float& x, float& y) const;
+    void GetEnemyDrawOffset(int slot, float& x, float& y) const;
 
     // ------------------------------------------------------------
     // Stance Machine API

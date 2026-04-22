@@ -17,7 +17,7 @@
 		{
 			"name": "attack-1",
 			"num_frames": 8,
-			"frame_rate": 6,
+			"frame_rate": 12,
 			"loop": false,
 			"pivot": [65, 122],
 			"align": "bottom-center"

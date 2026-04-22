@@ -28,11 +28,15 @@ struct BattlerStats
     int maxMp = 0;
 
     // ---- Offensive / defensive attributes ----
-    // atk: base damage dealt before target's def reduction is applied.
-    // def: flat damage reduction applied to every incoming hit.
+    // atk: physical base damage
+    // def: physical flat damage reduction
+    // matk: magical base damage
+    // mdef: magical flat damage reduction
     // spd: determines turn order; higher spd acts first in a round.
     int atk = 0;
     int def = 0;
+    int matk = 0;
+    int mdef = 0;
     int spd = 0;
 
     // ---- Rage (player-only passive resource) ----

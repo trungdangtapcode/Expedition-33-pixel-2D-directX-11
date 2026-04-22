@@ -1,0 +1,12 @@
+{
+  "id": "swift_feather",
+  "name": "Swift Feather",
+  "description": "Boosts an ally's SPD by 50% for 3 turns.",
+  "iconPath": "assets/items/swift_feather.png",
+  "targeting": "single_ally",
+  "effect": "stat_buff",
+  "durationTurns": 3,
+  "buffStat": "spd",
+  "buffOp": "add_percent",
+  "buffValue": 50
+}

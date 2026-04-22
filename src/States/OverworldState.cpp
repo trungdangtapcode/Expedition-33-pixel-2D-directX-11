@@ -40,6 +40,7 @@
 #include "StateManager.h"
 #include "MenuState.h"
 #include "BattleState.h"
+#include "InventoryState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Core/TimeSystem.h"
@@ -77,6 +78,11 @@ void OverworldState::OnEnter()
         LOG("[OverworldState] ERROR — CircleRenderer initialization failed.");
     }
 
+    // --- Tile Map ---
+    if (!mTileMap.Initialize(device, context, "assets/environments/overworld_map.json")) {
+        LOG("[OverworldState] WARNING — Tile map failed to load.");
+    }
+
     // --- Camera ---
     mCamera = std::make_unique<Camera2D>(W, H);
 
@@ -94,7 +100,8 @@ void OverworldState::OnEnter()
         sheet,
         std::string("idle"),
         0.0f, 0.0f,
-        mCamera.get()
+        mCamera.get(),
+        &mTileMap.GetData().colliders
     );
 
     // --- Spawn overworld enemies ---
@@ -219,6 +226,7 @@ void OverworldState::OnExit()
     mPendingEnemySource = nullptr;
 
     mCircleRenderer.Shutdown();
+    mTileMap.Shutdown();
     mDebugView.Shutdown();
 
     // Release transition controller GPU resources.
@@ -241,6 +249,7 @@ void OverworldState::OnExit()
 
     mCamera.reset();
     mBWasDown = false;
+    mIWasDown = false;
 }
 
 // ------------------------------------------------------------
@@ -281,6 +290,27 @@ void OverworldState::Update(float dt)
         TimeSystem::Get().SetSlowMotion(1.0f);
         StateManager::Get().ChangeState(std::make_unique<MenuState>());
         return;
+    }
+
+    // ---------------------------------------------------------------
+    // 'I' key — open the inventory.  One-press semantics via mIWasDown
+    // so the same press that opens InventoryState does not also
+    // immediately close it on the next frame (InventoryState's own
+    // OnEnter starts with mIWasDown=true to absorb the held key).
+    //
+    // PushState rather than ChangeState so the overworld is preserved
+    // beneath the stack and resumes unchanged on PopState.  Same
+    // pattern BattleState uses to overlay on top of overworld.
+    // ---------------------------------------------------------------
+    {
+        const bool iDown    = (GetAsyncKeyState('I') & 0x8000) != 0;
+        const bool iPressed = iDown && !mIWasDown;
+        mIWasDown = iDown;
+        if (iPressed)
+        {
+            StateManager::Get().PushState(std::make_unique<InventoryState>());
+            return;  // do NOT run the rest of Update — the new state owns this frame
+        }
     }
 
     // All entity logic (WASD, physics, animation, enemy idle) runs here.
@@ -428,6 +458,8 @@ void OverworldState::Render()
     const float zoomedBlueRadius = kBlueRadius * mCamera->GetZoom();
 
     mDebugView.Draw(ctx, W, H, { true });
+
+    mTileMap.Render(ctx, *mCamera);
 
     mCircleRenderer.Draw(ctx,
         blueScreen.x, blueScreen.y, zoomedBlueRadius,

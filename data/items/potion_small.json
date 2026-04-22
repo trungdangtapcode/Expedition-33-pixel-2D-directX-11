@@ -1,0 +1,9 @@
+{
+  "id": "potion_small",
+  "name": "Small Potion",
+  "description": "Restores 30 HP to one ally.",
+  "iconPath": "assets/items/potion_small.png",
+  "targeting": "single_ally",
+  "effect": "heal_hp",
+  "amount": 30
+}

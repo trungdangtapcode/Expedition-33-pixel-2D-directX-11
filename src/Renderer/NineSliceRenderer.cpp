@@ -91,6 +91,7 @@ void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float de
                              DirectX::XMVECTOR color)
 {
     if (!mSpriteBatch || !mTextureSRV) return;
+    if (targetWidth <= 0.0f || targetHeight <= 0.0f || scale <= 0.0f) return;
 
     // Source rects logic
     float cx = mData.cropRegion.left;
@@ -112,6 +113,52 @@ void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float de
     float dt = mt * scale;
     float db = mb * scale;
 
+    // ------------------------------------------------------------
+    // Tiny-target safety:
+    //   The original implementation assumed the destination box was
+    //   always larger than the combined border sizes (dl + dr and
+    //   dt + db). That is true for full dialog panels, but false for
+    //   narrow UI widgets such as scrollbars or miniature icon frames.
+    //
+    //   When targetWidth < dl + dr, the center rect becomes negative
+    //   width and the left/right slices overlap, producing the
+    //   "smeared" and distorted look visible on the inventory scroll
+    //   bar. The same issue exists vertically when targetHeight is
+    //   smaller than dt + db.
+    //
+    //   Fix:
+    //     Scale the opposing border pair proportionally so their sum
+    //     fits exactly inside the requested destination size. The
+    //     center rect then collapses to zero instead of going
+    //     negative, which preserves the 9-slice shape without
+    //     inverted rectangles or overdraw artifacts.
+    // ------------------------------------------------------------
+    auto FitBorderPair = [](float available, float& a, float& b)
+    {
+        if (available <= 0.0f)
+        {
+            a = 0.0f;
+            b = 0.0f;
+            return;
+        }
+
+        const float sum = a + b;
+        if (sum <= available || sum <= 0.0f)
+            return;
+
+        const float scaleToFit = available / sum;
+        a *= scaleToFit;
+        b *= scaleToFit;
+    };
+
+    FitBorderPair(targetWidth,  dl, dr);
+    FitBorderPair(targetHeight, dt, db);
+
+    float centerDestW = targetWidth  - dl - dr;
+    float centerDestH = targetHeight - dt - db;
+    if (centerDestW < 0.0f) centerDestW = 0.0f;
+    if (centerDestH < 0.0f) centerDestH = 0.0f;
+
     // 9 Source Rects
     RECT srcLeftTop     = { (LONG)cx,              (LONG)cy,              (LONG)(cx + ml),        (LONG)(cy + mt) };
     RECT srcCenterTop   = { (LONG)(cx + ml),       (LONG)cy,              (LONG)(cx + ml + centerW),(LONG)(cy + mt) };
@@ -127,16 +174,16 @@ void NineSliceRenderer::Draw(ID3D11DeviceContext* context, float destX, float de
 
     // 9 Dest Rects
     RECT dstLeftTop     = { (LONG)destX,                      (LONG)destY,                      (LONG)(destX + dl),               (LONG)(destY + dt) };
-    RECT dstCenterTop   = { (LONG)(destX + dl),               (LONG)destY,                      (LONG)(destX + targetWidth - dr), (LONG)(destY + dt) };
-    RECT dstRightTop    = { (LONG)(destX + targetWidth - dr), (LONG)destY,                      (LONG)(destX + targetWidth),      (LONG)(destY + dt) };
+    RECT dstCenterTop   = { (LONG)(destX + dl),               (LONG)destY,                      (LONG)(destX + dl + centerDestW), (LONG)(destY + dt) };
+    RECT dstRightTop    = { (LONG)(destX + dl + centerDestW), (LONG)destY,                      (LONG)(destX + targetWidth),      (LONG)(destY + dt) };
 
-    RECT dstLeftMid     = { (LONG)destX,                      (LONG)(destY + dt),               (LONG)(destX + dl),               (LONG)(destY + targetHeight - db) };
-    RECT dstCenterMid   = { (LONG)(destX + dl),               (LONG)(destY + dt),               (LONG)(destX + targetWidth - dr), (LONG)(destY + targetHeight - db) };
-    RECT dstRightMid    = { (LONG)(destX + targetWidth - dr), (LONG)(destY + dt),               (LONG)(destX + targetWidth),      (LONG)(destY + targetHeight - db) };
+    RECT dstLeftMid     = { (LONG)destX,                      (LONG)(destY + dt),               (LONG)(destX + dl),               (LONG)(destY + dt + centerDestH) };
+    RECT dstCenterMid   = { (LONG)(destX + dl),               (LONG)(destY + dt),               (LONG)(destX + dl + centerDestW), (LONG)(destY + dt + centerDestH) };
+    RECT dstRightMid    = { (LONG)(destX + dl + centerDestW), (LONG)(destY + dt),               (LONG)(destX + targetWidth),      (LONG)(destY + dt + centerDestH) };
 
-    RECT dstLeftBot     = { (LONG)destX,                      (LONG)(destY + targetHeight - db),(LONG)(destX + dl),               (LONG)(destY + targetHeight) };
-    RECT dstCenterBot   = { (LONG)(destX + dl),               (LONG)(destY + targetHeight - db),(LONG)(destX + targetWidth - dr), (LONG)(destY + targetHeight) };
-    RECT dstRightBot    = { (LONG)(destX + targetWidth - dr), (LONG)(destY + targetHeight - db),(LONG)(destX + targetWidth),      (LONG)(destY + targetHeight) };
+    RECT dstLeftBot     = { (LONG)destX,                      (LONG)(destY + dt + centerDestH), (LONG)(destX + dl),               (LONG)(destY + targetHeight) };
+    RECT dstCenterBot   = { (LONG)(destX + dl),               (LONG)(destY + dt + centerDestH), (LONG)(destX + dl + centerDestW), (LONG)(destY + targetHeight) };
+    RECT dstRightBot    = { (LONG)(destX + dl + centerDestW), (LONG)(destY + dt + centerDestH), (LONG)(destX + targetWidth),      (LONG)(destY + targetHeight) };
 
     BindViewport(context);
     mSpriteBatch->Begin(DirectX::SpriteSortMode_Deferred, mStates->AlphaBlend(), mStates->PointClamp(), mStates->DepthNone(), nullptr, nullptr, transform);

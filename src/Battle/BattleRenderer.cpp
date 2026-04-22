@@ -250,11 +250,25 @@ bool BattleRenderer::IsEnemyClipDone(int slot) const
     return mEnemySprites[slot]->IsClipDone();
 }
 
+float BattleRenderer::GetEnemyClipProgress(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return 1.0f;
+    if (!mEnemyActive[slot]) return 1.0f;
+    return mEnemySprites[slot]->GetClipProgress();
+}
+
 bool BattleRenderer::IsPlayerClipDone(int slot) const
 {
     if (slot < 0 || slot >= kMaxSlots) return true;
     if (!mPlayerActive[slot]) return true;
     return mPlayerSprites[slot]->IsClipDone();
+}
+
+float BattleRenderer::GetPlayerClipProgress(int slot) const
+{
+    if (slot < 0 || slot >= kMaxSlots) return 1.0f;
+    if (!mPlayerActive[slot]) return 1.0f;
+    return mPlayerSprites[slot]->GetClipProgress();
 }
 
 // ------------------------------------------------------------
@@ -423,3 +437,25 @@ void BattleRenderer::GetEnemySlotPos(int slot, float& outWorldX, float& outWorld
     outWorldY = mEnemyWorldY[slot];
 }
 
+
+
+void BattleRenderer::SetPlayerDrawOffset(int slot, float x, float y) {
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot]) {
+        mPlayerSprites[slot]->SetDrawOffset(x, y);
+    }
+}
+void BattleRenderer::SetEnemyDrawOffset(int slot, float x, float y) {
+    if (slot >= 0 && slot < kMaxSlots && mEnemyActive[slot]) {
+        mEnemySprites[slot]->SetDrawOffset(x, y);
+    }
+}
+void BattleRenderer::GetPlayerDrawOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot]) {
+        mPlayerSprites[slot]->GetDrawOffset(x, y);
+    } else { x = 0; y = 0; }
+}
+void BattleRenderer::GetEnemyDrawOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mEnemyActive[slot]) {
+        mEnemySprites[slot]->GetDrawOffset(x, y);
+    } else { x = 0; y = 0; }
+}

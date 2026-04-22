@@ -1,0 +1,9 @@
+{
+  "id": "potion_large",
+  "name": "Large Potion",
+  "description": "Restores 200 HP to one ally.",
+  "iconPath": "assets/items/potion_large.png",
+  "targeting": "single_ally",
+  "effect": "heal_hp",
+  "amount": 200
+}

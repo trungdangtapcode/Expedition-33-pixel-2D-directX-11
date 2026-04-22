@@ -1,0 +1,9 @@
+{
+  "id": "phoenix_down",
+  "name": "Phoenix Down",
+  "description": "Revives a fallen ally with 50 HP.",
+  "iconPath": "assets/items/phoenix_down.png",
+  "targeting": "single_ally_any",
+  "effect": "revive",
+  "amount": 50
+}

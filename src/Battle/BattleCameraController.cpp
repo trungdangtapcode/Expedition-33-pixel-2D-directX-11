@@ -62,6 +62,13 @@ void BattleCameraController::SetTargetPos(float worldX, float worldY)
     mTargetY = worldY;
 }
 
+void BattleCameraController::TriggerShake(float intensity, float duration)
+{
+    mShakeIntensity = intensity;
+    mShakeDuration = duration;
+    mShakeTimer = duration;
+}
+
 // ------------------------------------------------------------
 // SetPhase: transition to a new camera state.
 //   The lerp in Update() will smoothly move from the current
@@ -150,8 +157,26 @@ void BattleCameraController::Update(float dt)
     mCurrentZoom     += (desiredZoom     - mCurrentZoom)     * k;
     mCurrentRotation += (desiredRotation - mCurrentRotation) * k;
 
+    // Apply Camera Shake
+    float finalX = mCurrentX;
+    float finalY = mCurrentY;
+    if (mShakeTimer > 0.0f) {
+        mShakeTimer -= dt;
+        if (mShakeTimer < 0.0f) mShakeTimer = 0.0f;
+        
+        float dropoff = mShakeTimer / mShakeDuration; // 1.0 down to 0.0
+        float currentIntensity = mShakeIntensity * dropoff;
+        
+        // Pseudo-random noise injected per frame
+        float noiseX = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f;
+        float noiseY = (static_cast<float>(rand() % 100) / 100.0f - 0.5f) * 2.0f;
+        
+        finalX += noiseX * currentIntensity;
+        finalY += noiseY * currentIntensity;
+    }
+
     // Push the interpolated values into Camera2D.
-    mCamera->SetPosition(mCurrentX, mCurrentY);
+    mCamera->SetPosition(finalX, finalY);
     mCamera->SetZoom(mCurrentZoom);
     mCamera->SetRotation(mCurrentRotation);
     mCamera->Update();  // rebuild view matrix with the new pos/zoom/rot

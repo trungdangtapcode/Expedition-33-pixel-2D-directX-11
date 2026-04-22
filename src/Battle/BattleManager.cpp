@@ -4,7 +4,11 @@
 // ============================================================
 #include "BattleManager.h"
 #include "LogAction.h"
-#include "DelayedAction.h"
+#include "BuildItemActions.h"
+#include "ItemRegistry.h"
+#include "ItemData.h"
+#include "../Systems/Inventory.h"
+
 #include "EnemyEncounterData.h"
 #define NOMINMAX
 #include <algorithm>
@@ -27,9 +31,16 @@ BattleManager::BattleManager() = default;
 // ------------------------------------------------------------
 void BattleManager::Initialize(const EnemyEncounterData& encounter)
 {
-    // -- Spawn player party — Verso with persistent HP from PartyManager --
+    // -- Spawn player party — Verso seeded with EFFECTIVE stats --
+    // GetEffectiveVersoStats folds in every currently-equipped item's
+    // bonusAtk/bonusDef/bonusMaxHp/etc., so the PlayerCombatant the
+    // battle uses already reflects whatever the player has equipped
+    // in the overworld inventory.  Persistent HP/MP carry over from
+    // the previous battle (PartyManager::SetVersoStats saves only the
+    // resource fields, not equipment-derived bonuses).
     mPlayers.push_back(std::make_unique<PlayerCombatant>(
-        "Verso", PartyManager::Get().GetVersoStats()));
+        "Verso", L"assets/UI/turn-view-verso.png",
+        PartyManager::Get().GetEffectiveVersoStats()));
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
@@ -53,39 +64,64 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         stats.maxMp  = 0;
         stats.atk    = sd.atk;
         stats.def    = sd.def;
+        stats.matk   = 0; // Defaulting matk, optionally pull from sd.matk if added later
+        stats.mdef   = 0; // Defaulting mdef
         stats.spd    = sd.spd;
         stats.rage   = 0;
         stats.maxRage= 0;
 
-        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, stats));
+        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, sd.turnViewPath, stats, sd.attackJsonPath));
     }
-
-    BuildTurnOrder();
 
     Log("--- BATTLE START ---");
     for (auto& p : mPlayers) Log(p->GetName() + " HP:" + std::to_string(p->GetStats().hp));
     for (auto& e : mEnemies) Log(e->GetName() + " HP:" + std::to_string(e->GetStats().hp));
 
-    mPhase = BattlePhase::PLAYER_TURN;
+    BuildTurnOrder();
 }
 
 // ------------------------------------------------------------
-// BuildTurnOrder: sort all living combatants by SPD descending.
-// This snapshot is taken at battle start; combatants that die mid-battle
-// are skipped by AdvanceTurn() via the IsAlive() check.
+// BuildTurnOrder: Initialize tick-based timeline sorted by AV descending (so smallest AV is first).
 // ------------------------------------------------------------
 void BattleManager::BuildTurnOrder()
 {
-    mTurnOrder.clear();
-    for (auto& p : mPlayers) mTurnOrder.push_back(p.get());
-    for (auto& e : mEnemies) mTurnOrder.push_back(e.get());
+    mTimeline.clear();
 
-    std::sort(mTurnOrder.begin(), mTurnOrder.end(),
-        [](const IBattler* a, const IBattler* b) {
-            return a->GetStats().spd > b->GetStats().spd;  // higher SPD acts first
+    auto addBattler = [this](IBattler* b) {
+        if (b && b->IsAlive()) {
+            float spd = static_cast<float>(b->GetStats().spd);
+            if (spd <= 0.0f) spd = 1.0f; // Prevent division by zero
+            
+            TurnNode node;
+            node.battler = b;
+            node.baseAgility = spd;
+            node.currentAV = kActionGauge / spd;
+            mTimeline.push_back(node);
+        }
+    };
+
+    for (auto& p : mPlayers) addBattler(p.get());
+    for (auto& e : mEnemies) addBattler(e.get());
+
+    std::sort(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& a, const TurnNode& b) {
+            return a.currentAV < b.currentAV;
         });
 
-    mCurrentTurnIndex = 0;
+    if (mTimeline.empty()) return;
+
+    // Advance time for the very first turn so the first combatant reaches 0 AV
+    float elapsedAV = mTimeline[0].currentAV;
+    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
+
+    IBattler* next = mTimeline[0].battler;
+    next->OnTurnStart();
+    Log("--- " + next->GetName() + "'s turn ---");
+
+    if (next->IsPlayerControlled())
+        mPhase = BattlePhase::PLAYER_TURN;
+    else
+        mPhase = BattlePhase::ENEMY_TURN;
 }
 
 // ------------------------------------------------------------
@@ -101,14 +137,36 @@ void BattleManager::Update(float dt)
     if (mPhase == BattlePhase::WIN || mPhase == BattlePhase::LOSE) return;
     if (mPhase == BattlePhase::INIT) return;  // should not happen; Initialize(encounter) called in OnEnter
 
+    // Refresh the live context FIRST so every subsequent read (skills,
+    // calculator predicates, AI scoring) sees the current roster and turn count.
+    RebuildContext(dt);
+
     if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
     else if (mPhase == BattlePhase::ENEMY_TURN)  HandleEnemyTurn(dt);
     else if (mPhase == BattlePhase::RESOLVING)   HandleResolving(dt);
 }
 
 // ------------------------------------------------------------
+// RebuildContext: assemble the per-frame snapshot used by every
+// context-aware combat system.  Called at the top of Update.
+//
+// - alivePlayers / aliveEnemies mirror the filtered team vectors.
+// - battleElapsed accumulates monotonically from frame deltas.
+// - turnCount is incremented in AdvanceTurn, not here, so that
+//   within a single turn every query returns the same value.
+// ------------------------------------------------------------
+void BattleManager::RebuildContext(float dt)
+{
+    mContext.alivePlayers = GetAlivePlayers();
+    mContext.aliveEnemies = GetAliveEnemies();
+    mContext.battleElapsed += dt;
+    // turnCount intentionally untouched here — see AdvanceTurn.
+}
+
+// ------------------------------------------------------------
 // HandlePlayerTurn: wait until the player has committed an action
-//   via SetPlayerAction().  UI is fully in charge of input here.
+//   via SetPlayerAction() or SetPlayerItem().  UI is fully in charge
+//   of input here.
 // ------------------------------------------------------------
 void BattleManager::HandlePlayerTurn(float /*dt*/)
 {
@@ -122,19 +180,41 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
     auto* player = static_cast<PlayerCombatant*>(current);
     if (!player->HasPendingAction()) return;  // waiting for UI input
 
-    // Collect the player's choice.
-    ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
-    IBattler* target = player->GetPendingTarget();
-    player->ClearPendingAction();
+    // Decide whether the queued action is an item or a skill.
+    // Item-use is signalled by a non-empty pending item id.
+    const bool isItem = !player->GetPendingItemId().empty();
+    IBattler*  target = player->GetPendingTarget();
 
-    if (skill && target && skill->CanUse(*player))
+    if (isItem)
     {
-        std::vector<IBattler*> targets = { target };
-        EnqueueSkillActions(*player, *skill, targets);
+        const std::string itemId = player->GetPendingItemId();
+        player->ClearPendingAction();
+
+        // Validate inventory still has the item — could have hit 0 if
+        // multiple items were used in the same turn (defensive check).
+        if (Inventory::Get().GetCount(itemId) <= 0)
+        {
+            Log(player->GetName() + " has no " + itemId + " left!");
+        }
+        else
+        {
+            EnqueueItemActions(*player, itemId, target);
+        }
     }
     else
     {
-        Log(player->GetName() + " cannot use that skill!");
+        ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
+        player->ClearPendingAction();
+
+        if (skill && target && skill->CanUse(*player, mContext))
+        {
+            std::vector<IBattler*> targets = { target };
+            EnqueueSkillActions(*player, *skill, targets);
+        }
+        else
+        {
+            Log(player->GetName() + " cannot use that skill!");
+        }
     }
 
     player->OnTurnEnd();
@@ -218,21 +298,42 @@ void BattleManager::HandleResolving(float dt)
 }
 
 // ------------------------------------------------------------
-// AdvanceTurn: move to the next living combatant in turn order.
+// AdvanceTurn: push the current combatant back and advance time.
 // ------------------------------------------------------------
 void BattleManager::AdvanceTurn()
 {
-    if (mTurnOrder.empty()) return;
+    // Increment the battle-wide turn counter.  Triggers and UI elements
+    // that gate on "turn N" read mContext.turnCount, which is refreshed
+    // by RebuildContext on the next frame — for now, keep turnCount on
+    // BattleContext directly in sync with this increment.
+    ++mContext.turnCount;
 
-    // Cycle to next living combatant; guard against infinite loop if all dead.
-    const int total = static_cast<int>(mTurnOrder.size());
-    for (int attempts = 0; attempts < total; ++attempts)
+    // 1. Remove dead combatants from the timeline
+    mTimeline.erase(std::remove_if(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& n) { return !n.battler->IsAlive(); }), mTimeline.end());
+
+    if (mTimeline.empty()) return;
+
+    // 2. Reset AV for the combatant who just acted (should be at timeline index 0 with AV near 0)
+    if (mTimeline[0].currentAV <= 0.001f)
     {
-        mCurrentTurnIndex = (mCurrentTurnIndex + 1) % total;
-        if (mTurnOrder[mCurrentTurnIndex]->IsAlive()) break;
+        float spd = static_cast<float>(mTimeline[0].battler->GetStats().spd);
+        if (spd <= 0.0f) spd = 1.0f;
+        mTimeline[0].currentAV = kActionGauge / spd;
     }
 
-    IBattler* next = CurrentCombatant();
+    // 3. Sort timeline by AV (smallest first)
+    std::sort(mTimeline.begin(), mTimeline.end(),
+        [](const TurnNode& a, const TurnNode& b) {
+            return a.currentAV < b.currentAV;
+        });
+
+    // 4. Advance time globally so the next combatant reaches 0 AV
+    float elapsedAV = mTimeline[0].currentAV;
+    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
+
+    // 5. Start their turn
+    IBattler* next = mTimeline[0].battler;
     if (!next) return;
 
     next->OnTurnStart();
@@ -264,7 +365,9 @@ void BattleManager::AdvanceTurn()
 void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
                                          std::vector<IBattler*> targets)
 {
-    auto actions = skill.Execute(caster, targets);
+    // Pass mContext to skill.Execute so DamageAction / AnimDamageAction
+    // constructors receive &mContext and see LIVE state when they fire.
+    auto actions = skill.Execute(caster, targets, mContext);
     for (auto& action : actions)
     {
         std::unique_ptr<IAction> finalAction;
@@ -284,10 +387,66 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
             finalAction = std::move(action);
         }
 
-        // Wrap the concrete action in a DelayedAction so the queue pauses
-        // for kDefaultDelay seconds after each step.
-        // Pass ownership into DelayedAction; it takes sole responsibility.
-        mQueue.Enqueue(std::make_unique<DelayedAction>(std::move(finalAction)));
+        mQueue.Enqueue(std::move(finalAction));
+    }
+}
+
+// ------------------------------------------------------------
+// EnqueueItemActions: build the action sequence for an item-use turn
+//   and inject the live log pointer into any LogAction the same way
+//   EnqueueSkillActions does.
+//
+// Validation order:
+//   1. Item id must exist in ItemRegistry  — typo in JSON otherwise
+//   2. Inventory count must be > 0          — anti-double-spend guard
+//   3. BuildItemActions must return non-empty — targeting must resolve
+//
+// Any failure produces a battle log entry and refunds the turn (no
+// inventory decrement runs because the action sequence is never queued).
+// ------------------------------------------------------------
+void BattleManager::EnqueueItemActions(IBattler& user,
+                                        const std::string& itemId,
+                                        IBattler* primaryTarget)
+{
+    const ItemData* item = ItemRegistry::Get().Find(itemId);
+    if (!item)
+    {
+        Log(user.GetName() + " has no such item: " + itemId);
+        return;
+    }
+
+    if (Inventory::Get().GetCount(itemId) <= 0)
+    {
+        Log(user.GetName() + " is out of " + item->name + ".");
+        return;
+    }
+
+    auto actions = BuildItemActions::Build(user, *item, primaryTarget, *this);
+    if (actions.empty())
+    {
+        // Targeting failed — log and let the player choose again next turn.
+        Log(user.GetName() + " could not aim " + item->name + ".");
+        return;
+    }
+
+    // Re-route LogActions onto the live battle log, identical to skill
+    // enqueue.  ItemEffectAction never produces LogAction itself; the
+    // upgrade only matters for the opening "X uses Y!" message.
+    for (auto& action : actions)
+    {
+        std::unique_ptr<IAction> finalAction;
+
+        if (auto* logAct = dynamic_cast<LogAction*>(action.get()))
+        {
+            std::string msg = logAct->GetText();
+            finalAction = std::make_unique<LogAction>(&mBattleLog, std::move(msg));
+        }
+        else
+        {
+            finalAction = std::move(action);
+        }
+
+        mQueue.Enqueue(std::move(finalAction));
     }
 }
 
@@ -330,24 +489,88 @@ void BattleManager::SetPlayerAction(int skillIndex, IBattler* target)
     player->SetPendingAction(skillIndex, target);
 }
 
+// ------------------------------------------------------------
+// SetPlayerItem: queue an item-use action for the active player.
+// Bounces if the active turn is not a player slot — input is only
+// valid during PLAYER_TURN, but defensive checks here keep the API
+// safe to call from arbitrary UI paths.
+// ------------------------------------------------------------
+void BattleManager::SetPlayerItem(const std::string& itemId, IBattler* target)
+{
+    IBattler* current = CurrentCombatant();
+    if (!current || !current->IsPlayerControlled()) return;
+
+    auto* player = static_cast<PlayerCombatant*>(current);
+    player->SetPendingItem(itemId, target);
+}
+
 PlayerCombatant* BattleManager::GetActivePlayer() const
 {
-    IBattler* c = mTurnOrder.empty() ? nullptr : mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    IBattler* c = mTimeline[0].battler;
     if (c && c->IsPlayerControlled()) return static_cast<PlayerCombatant*>(c);
     return nullptr;
 }
 
 IBattler* BattleManager::GetActiveEnemy() const
 {
-    IBattler* c = mTurnOrder.empty() ? nullptr : mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    IBattler* c = mTimeline[0].battler;
     if (c && !c->IsPlayerControlled()) return c;
     return nullptr;
 }
 
 IBattler* BattleManager::CurrentCombatant()
 {
-    if (mTurnOrder.empty()) return nullptr;
-    return mTurnOrder[mCurrentTurnIndex];
+    if (mTimeline.empty()) return nullptr;
+    return mTimeline[0].battler;
+}
+
+std::vector<IBattler*> BattleManager::GetFutureTurnQueue(int queueSize) const
+{
+    std::vector<IBattler*> queueOut;
+    if (mTimeline.empty()) return queueOut;
+
+    // We clone the timeline to safely advance and predict turns
+    std::vector<TurnNode> simTimeline;
+    for (const auto& node : mTimeline)
+    {
+        if (node.battler->IsAlive())
+        {
+            simTimeline.push_back(node);
+        }
+    }
+
+    if (simTimeline.empty()) return queueOut;
+
+    // Simulate to retrieve the next `queueSize` valid active turns.
+    for (int i = 0; i < queueSize; ++i)
+    {
+        if (simTimeline.empty()) break;
+        
+        // Push the character presently holding AV 0 
+        TurnNode& activeNode = simTimeline[0];
+        queueOut.push_back(activeNode.battler);
+        
+        // Give them a new AV simulating they just took a turn
+        float spd = static_cast<float>(activeNode.battler->GetStats().spd);
+        if (spd <= 0.0f) spd = 1.0f;
+        activeNode.currentAV += (kActionGauge / spd);
+        
+        // Re-sort the timeline
+        std::sort(simTimeline.begin(), simTimeline.end(),
+            [](const TurnNode& a, const TurnNode& b) {
+                return a.currentAV < b.currentAV;
+            });
+            
+        // Advance time forward so the new earliest node hits 0 AV
+        float elapsedAV = simTimeline[0].currentAV;
+        for (auto& n : simTimeline) {
+            n.currentAV -= elapsedAV;
+        }
+    }
+    
+    return queueOut;
 }
 
 void BattleManager::Log(const std::string& msg)

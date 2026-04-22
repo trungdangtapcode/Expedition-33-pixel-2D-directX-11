@@ -1,0 +1,9 @@
+{
+  "id": "ice_shard",
+  "name": "Ice Shard",
+  "description": "Pierces one enemy for 45 damage.",
+  "iconPath": "assets/items/ice_shard.png",
+  "targeting": "single_enemy",
+  "effect": "deal_damage",
+  "amount": 45
+}

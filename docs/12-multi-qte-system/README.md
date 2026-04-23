@@ -60,3 +60,26 @@ During damage resolution (`DamageSteps::StatusBonusStep`), the engine strictly *
 totalDamageMultiplier = (Node[0].mult + Node[1].mult + Node[2].mult) / 3.0f;
 ```
 This guarantees scaling stability: an attack's absolute maximum output ceiling relies exclusively on the skill's absolute max parameters regardless of physical quantity variables.
+
+---
+
+## 5. Parameter Distribution (Global vs. Local)
+
+To enforce DRY (Don't Repeat Yourself) principles and guarantee structural scaling, combat tuning parameters are strictly decoupled based on whether they dictate **Game Cinematic Feel** vs **Combat Mechanical Pacing**.
+
+### Global UI / Engine Parameters (`BattleSystemConfig`)
+Stored centrally in `data/battle_system_config.json` and piped synchronously into `BattleContext` each frame, these parameters govern universal engine presentation layers:
+- `qteCameraZoom`: The universal scalar for real-time `DYNAMIC_FOLLOW` graphical tracking during attacks.
+- `qteFadeInRatio` / `qteFadeOutDuration`: The UI cross-fade explosion and collapse durations.
+- `qteSlowMoScale`: The intensity of the global battle simulation slowdown scalar when inputs trigger.
+
+Modifying these instantly changes the presentation feel of the entire engine generically.
+
+### Local Mechanical Parameters (`SkillData`)
+Stored individually inside each attack (e.g. `data/skills/verso_attack.json`), these scale exactly how the move functionally resolves math:
+- `qteStartMoment`, `qteMinCount`, `qteMaxCount`, `qteSpacing`: Defining exactly the physical timing traits and limits of the specific weapon swing.
+- `qtePerfectMultiplier`, `qteGoodMultiplier`, `qteMissMultiplier`: Unique damage scaling scalars.
+- `qtePerfectThreshold`, `qteGoodThreshold`: Strict mechanical difficulty requirements.
+- `bonusQteCount`: Flat bonus addition modifiers depending on successful chain executions.
+
+This strict topological separation guarantees that you can make an individual 'Dagger execution' wildly harder with strict `.95` thresholds without bleeding universal configuration requirements into every other skill.

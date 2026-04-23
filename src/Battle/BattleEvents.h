@@ -6,6 +6,7 @@
 #pragma once
 #include "IBattler.h"
 #include "CombatantAnim.h"
+#include "BattleCameraController.h"
 
 struct PlayAnimPayload
 {
@@ -68,4 +69,14 @@ struct DamageTakenPayload
     int damage = 0;
     bool isCrit = false;
     bool isPerfectQte = false;
+};
+
+// Must forward declare enum wrapper since we can't cleanly drag camera into events
+enum class BattleCameraPhase;
+
+struct CameraPhasePayload
+{
+    BattleCameraPhase phase;
+    IBattler* targetToFollow = nullptr;
+    float dynamicZoom = 1.4f;
 };

@@ -29,8 +29,10 @@ BattleManager::BattleManager() = default;
 // Player team: Verso with persistent HP from PartyManager so wounds
 //   carry over from previous battles.
 // ------------------------------------------------------------
-void BattleManager::Initialize(const EnemyEncounterData& encounter)
+void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config)
 {
+    mContext.config = config;
+
     // -- Spawn player party — Verso seeded with EFFECTIVE stats --
     // GetEffectiveVersoStats folds in every currently-equipped item's
     // bonusAtk/bonusDef/bonusMaxHp/etc., so the PlayerCombatant the

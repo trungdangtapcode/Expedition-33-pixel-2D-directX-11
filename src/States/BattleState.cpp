@@ -36,7 +36,11 @@ void BattleState::OnEnter()
 
     InitAudio();
 
-    mBattle.Initialize(mEncounter);
+    if (!JsonLoader::LoadBattleSystemConfig("data/battle_system_config.json", mSystemConfig)) {
+        LOG("%s", "[BattleState] WARNING — failed to load data/battle_system_config.json");
+    }
+
+    mBattle.Initialize(mEncounter, mSystemConfig);
     mInputController.Initialize();
 
     InitBattleSlots();
@@ -129,6 +133,7 @@ void BattleState::InitBattleSlots()
     mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
     mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
     mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
+    mCameraPhaseListener = EventManager::Get().Subscribe("battler_set_camera_phase", [this](const EventData& e){ OnCameraSetPhase(e); });
     
     mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
     mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
@@ -272,6 +277,7 @@ void BattleState::OnExit()
     EventManager::Get().Unsubscribe("battler_set_offset", mMoveOffsetListener);
     EventManager::Get().Unsubscribe("battler_get_world_pos", mGetWorldPosListener);
     EventManager::Get().Unsubscribe("battler_get_offset", mGetOffsetListener);
+    EventManager::Get().Unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
     EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
     EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
     mBattleRenderer.Shutdown();
@@ -478,6 +484,31 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
     mEnemyHpBar.Update(dt);
     
     mQTERenderer.Update(dt);
+}
+
+void BattleState::OnCameraSetPhase(const EventData& d)
+{
+    const CameraPhasePayload* payload = static_cast<const CameraPhasePayload*>(d.payload);
+    if (!payload) return;
+
+    int actorSlot = -1;
+    if (payload->targetToFollow)
+    {
+        bool isPlayer = false;
+        if (GetBattlerSlot(payload->targetToFollow, actorSlot, isPlayer)) {
+            // We successfully resolved the slot! 
+            // Note: BattleRenderer::SetCameraPhase natively assumes that 
+            // if we pass actorSlot = X, it checks mPlayerActive[X] FIRST.
+            // If the target is an enemy, but the player is active at the SAME slot index,
+            // BattleRenderer assigns the player. This is a known limitation of the 
+            // current SetCameraPhase API format.
+        } else {
+            actorSlot = -1;
+        }
+    }
+
+    mBattleRenderer.SetDynamicFollowZoom(payload->dynamicZoom);
+    mBattleRenderer.SetCameraPhase(payload->phase, actorSlot, -1);
 }
 
 void BattleState::CheckBattleEnd()

@@ -5,13 +5,13 @@
     "damageTakenOccurMoment": 0.8,
     "qteSupported": true,
     "qteStartMoment": 0.2,
-    "qteSlowMoScale": 0.3,
-    "qtePerfectMultiplier": 1.5,
+    "qtePerfectMultiplier": 1.2,
     "qteGoodMultiplier": 1,
-    "qteMissMultiplier": 0.6,
+    "qteMissMultiplier": 0.3,
     "qtePerfectThreshold": 0.9,
     "qteGoodThreshold": 0.75,
     "qteMinCount": 1,
-    "qteMaxCount": 3,
+    "qteMaxCount": 4,
+    "bonusQteCount": 0.2,
     "qteSpacing": 0.15
 }

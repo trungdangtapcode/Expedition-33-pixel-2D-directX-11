@@ -117,6 +117,7 @@ cl.exe ^
     src\Battle\PlayAnimationAction.cpp ^
     src\Battle\AnimDamageAction.cpp ^
     src\Battle\QteAnimDamageAction.cpp ^
+    src\Battle\CameraPhaseAction.cpp ^
     src\Battle\DefaultDamageCalculator.cpp ^
     src\Battle\DamageSteps.cpp ^
     src\Battle\StatResolver.cpp ^

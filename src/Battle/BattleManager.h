@@ -31,6 +31,7 @@
 #include "BattleContext.h"
 #include "EnemyEncounterData.h"
 #include "../Systems/PartyManager.h"
+#include "../Utils/JsonLoader.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -63,7 +64,7 @@ public:
     // Called by BattleState::OnEnter — spawn combatants from encounter data,
     // sort turn order.  Enemy count and stats come from encounter.battleParty
     // (data-driven); no values are hardcoded inside Initialize.
-    void Initialize(const EnemyEncounterData& encounter);
+    void Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config);
 
     // Main update — drives FSM + ActionQueue each frame.
     void Update(float dt);

@@ -319,6 +319,24 @@ void BattleRenderer::Update(float dt)
         }
     }
 
+    if (mCameraCtrl.GetPhase() == BattleCameraPhase::DYNAMIC_FOLLOW && mDynamicFollowActorSlot >= 0)
+    {
+        float dynamicOffX, dynamicOffY;
+        if (mDynamicFollowIsPlayer) {
+            GetPlayerDrawOffset(mDynamicFollowActorSlot, dynamicOffX, dynamicOffY);
+            mCameraCtrl.SetActorPos(
+                mPlayerWorldX[mDynamicFollowActorSlot] + mPlayerCamOffX[mDynamicFollowActorSlot] + dynamicOffX,
+                mPlayerWorldY[mDynamicFollowActorSlot] + mPlayerCamOffY[mDynamicFollowActorSlot] + dynamicOffY
+            );
+        } else {
+            GetEnemyDrawOffset(mDynamicFollowActorSlot, dynamicOffX, dynamicOffY);
+            mCameraCtrl.SetActorPos(
+                mEnemyWorldX[mDynamicFollowActorSlot] + mEnemyCamOffX[mDynamicFollowActorSlot] + dynamicOffX,
+                mEnemyWorldY[mDynamicFollowActorSlot] + mEnemyCamOffY[mDynamicFollowActorSlot] + dynamicOffY
+            );
+        }
+    }
+
     // Advance the battle camera lerp toward the desired phase target.
     // This also calls Camera2D::Update() internally to rebuild the matrix.
     mCameraCtrl.Update(dt);
@@ -410,6 +428,17 @@ void BattleRenderer::SetCameraPhase(BattleCameraPhase phase,
             mEnemyWorldX[targetSlot] + mEnemyCamOffX[targetSlot],
             mEnemyWorldY[targetSlot] + mEnemyCamOffY[targetSlot]
         );
+    }
+
+    mDynamicFollowActorSlot = -1;
+    if (actorSlot >= 0 && actorSlot < kMaxSlots) {
+        if (mPlayerActive[actorSlot]) {
+            mDynamicFollowActorSlot = actorSlot;
+            mDynamicFollowIsPlayer = true;
+        } else if (mEnemyActive[actorSlot]) {
+            mDynamicFollowActorSlot = actorSlot;
+            mDynamicFollowIsPlayer = false;
+        }
     }
 
     mCameraCtrl.SetPhase(phase);

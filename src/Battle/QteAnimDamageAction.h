@@ -21,7 +21,7 @@ public:
                         float slowMoScale,
                         float perfectMult, float goodMult, float missMult,
                         float perfectThreshold, float goodThreshold,
-                        int minCount, int maxCount, float qteSpacing,
+                        int minCount, int maxCount, float bonusQteCount, float qteSpacing,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
 
@@ -40,6 +40,7 @@ private:
     
     float mPerfectThreshold = 0.85f;
     float mGoodThreshold = 0.6f;
+    float mBonusQteCount = 0.0f;
     float mFadeInRatio = 0.15f;
     float mFadeOutDuration = 0.20f;
     

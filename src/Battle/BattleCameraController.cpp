@@ -111,6 +111,13 @@ void BattleCameraController::ComputeDesired(float& outX, float& outY,
         outRotation = kRotationFocus;
         break;
 
+    case BattleCameraPhase::DYNAMIC_FOLLOW:
+        outX        = mActorX;
+        outY        = mActorY;
+        outZoom     = mDynamicFollowZoom;
+        outRotation = 0.0f;
+        break;
+
     case BattleCameraPhase::TARGET_FOCUS:
         // Weighted blend: 80% target + 20% actor.
         // This puts the target clearly in frame while hinting at the attacker.

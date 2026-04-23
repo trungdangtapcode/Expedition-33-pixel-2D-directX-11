@@ -128,6 +128,7 @@ private:
     BattleInputController  mInputController;
 
     JsonLoader::BattleMenuLayout mMenuLayout;
+    JsonLoader::BattleSystemConfig mSystemConfig;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.
@@ -187,6 +188,7 @@ private:
     int mMoveOffsetListener = -1;
     int mGetWorldPosListener = -1;
     int mGetOffsetListener = -1;
+    int mCameraPhaseListener = -1;
 
     bool GetBattlerSlot(IBattler* target, int& outSlot, bool& outIsPlayer) const;
     void OnPlayAnim(const struct EventData& e);
@@ -195,6 +197,7 @@ private:
     void OnMoveOffset(const struct EventData& e);
     void OnGetWorldPos(const struct EventData& e);
     void OnGetOffset(const struct EventData& e);
+    void OnCameraSetPhase(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // Floating Damage Text

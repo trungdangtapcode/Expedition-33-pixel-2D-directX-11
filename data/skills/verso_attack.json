@@ -10,8 +10,8 @@
     "qteMissMultiplier": 0.3,
     "qtePerfectThreshold": 0.9,
     "qteGoodThreshold": 0.75,
-    "qteMinCount": 1,
-    "qteMaxCount": 4,
+    "qteMinCount": 2,
+    "qteMaxCount": 5,
     "bonusQteCount": 0.2,
     "qteSpacing": 0.15
 }

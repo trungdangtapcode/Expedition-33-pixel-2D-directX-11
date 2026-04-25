@@ -139,7 +139,7 @@ public:
 
 private:
     // Private constructor — only Get() may create the instance.
-    PartyManager() = default;
+    PartyManager();
 
     // Non-copyable / non-movable — singleton must not be duplicated.
     PartyManager(const PartyManager&)            = delete;
@@ -155,19 +155,7 @@ private:
     //   HP=100  ATK=25  DEF=10  SPD=10  maxRage=100
     // In the full game these will be loaded from data/characters/verso.json.
     // ------------------------------------------------------------
-    BattlerStats mVersoStats {
-        100, // hp
-        100, // maxHp
-        50,  // mp
-        50,  // maxMp
-        25,  // atk
-        10,  // def
-        25,  // matk
-        10,  // mdef
-        10,  // spd
-        0,   // rage
-        100  // maxRage
-    };
+    BattlerStats mVersoStats{};
 
     // Equipment slots — one item id per slot, "" = empty.
     // Indexed by SlotIndex(EquipSlot).  Size is kEquipSlotCount.

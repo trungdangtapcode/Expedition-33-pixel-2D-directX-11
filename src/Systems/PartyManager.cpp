@@ -6,11 +6,21 @@
 #include "Inventory.h"
 #include "../Battle/ItemRegistry.h"
 #include "../Utils/Log.h"
+#include "../Utils/JsonLoader.h"
 
 PartyManager& PartyManager::Get()
 {
     static PartyManager instance;
     return instance;
+}
+
+PartyManager::PartyManager()
+{
+    // Initialize base stats directly from JSON file on singleton spin-up
+    if (!JsonLoader::LoadCharacterData("data/characters/verso.json", mVersoStats))
+    {
+        LOG("%s", "[PartyManager] WARNING: Failed to load Verso stat configuration! Defaulting memory struct.");
+    }
 }
 
 // ------------------------------------------------------------

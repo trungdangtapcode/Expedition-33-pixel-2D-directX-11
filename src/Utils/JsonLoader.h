@@ -33,6 +33,7 @@
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/StatModifier.h"
 #include "../Battle/EnemyEncounterData.h"
+#include "../Battle/BattlerStats.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/ICollisionSystem.h"
 
@@ -509,6 +510,52 @@ inline bool LoadFormations(const std::string& path, FormationData& out)
     parseSlots(extractArray("enemy_offsets"),  out.enemy);
 
     LOG("[JsonLoader] Loaded formations from '%s'.", path.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadCharacterData
+// Purpose:
+//   Parse a data/characters/*.json file directly into BattlerStats.
+// ------------------------------------------------------------
+inline bool LoadCharacterData(const std::string& path, BattlerStats& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open character file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.hp      = detail::ParseInt(detail::ValueOf(src, "hp"), 100);
+    out.maxHp   = detail::ParseInt(detail::ValueOf(src, "maxHp"), 100);
+    out.mp      = detail::ParseInt(detail::ValueOf(src, "mp"), 50);
+    out.maxMp   = detail::ParseInt(detail::ValueOf(src, "maxMp"), 50);
+    out.atk     = detail::ParseInt(detail::ValueOf(src, "atk"), 25);
+    out.def     = detail::ParseInt(detail::ValueOf(src, "def"), 10);
+    out.matk    = detail::ParseInt(detail::ValueOf(src, "matk"), 25);
+    out.mdef    = detail::ParseInt(detail::ValueOf(src, "mdef"), 10);
+    out.spd     = detail::ParseInt(detail::ValueOf(src, "spd"), 10);
+    out.rage    = detail::ParseInt(detail::ValueOf(src, "rage"), 0);
+    out.maxRage = detail::ParseInt(detail::ValueOf(src, "maxRage"), 100);
+
+    LOG("[JsonLoader] Loaded CharacterData from '%s'.", path.c_str());
     return true;
 }
 

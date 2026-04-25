@@ -1,0 +1,14 @@
+{
+  "name": "Verso",
+  "hp": 100,
+  "maxHp": 100,
+  "mp": 50,
+  "maxMp": 50,
+  "atk": 10,
+  "def": 4,
+  "matk": 25,
+  "mdef": 10,
+  "spd": 10,
+  "rage": 0,
+  "maxRage": 100
+}

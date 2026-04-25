@@ -145,6 +145,16 @@ inline bool ParseBool(const std::string& raw, bool defaultVal = false)
 }
 
 // ------------------------------------------------------------
+// Parse string dynamically cleanly removing internal bounding quotes
+// ------------------------------------------------------------
+inline std::string CleanString(const std::string& raw)
+{
+    std::string s = raw;
+    if (s.size() >= 2 && s.front() == '"') s = s.substr(1, s.size() - 2);
+    return s;
+}
+
+// ------------------------------------------------------------
 // Parse the "align" string from a JSON clip object into a SpriteAlign enum.
 // Supported values match the nine standard anchor points:
 //   "top-left"      "top-center"      "top-right"
@@ -832,6 +842,13 @@ struct SkillData {
     
     // QTE Configuration
     bool qteSupported = false;
+    bool bulletHellSupported = false;
+    std::string bulletTexturePath = "";
+    float bulletRadius = 6.0f;
+    float bulletSpeed = 150.0f;
+    float bulletSpawnRate = 4.0f;
+    float bulletInvincibilityDuration = 1.0f;
+    float bulletDamageScaling = 0.15f;
     float qteStartMoment = 0.3f;
     float qtePerfectMultiplier = 1.5f;
     float qteGoodMultiplier = 1.2f;
@@ -877,6 +894,13 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     if (out.damageTakenOccurMoment > 1.0f) out.damageTakenOccurMoment = 1.0f;
 
     out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
+    out.bulletHellSupported = detail::ParseBool(detail::ValueOf(src, "bulletHellSupported"), false);
+    out.bulletTexturePath = detail::CleanString(detail::ValueOf(src, "bulletTexturePath"));
+    out.bulletRadius = detail::ParseFloat(detail::ValueOf(src, "bulletRadius"), 6.0f);
+    out.bulletSpeed = detail::ParseFloat(detail::ValueOf(src, "bulletSpeed"), 150.0f);
+    out.bulletSpawnRate = detail::ParseFloat(detail::ValueOf(src, "bulletSpawnRate"), 4.0f);
+    out.bulletInvincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "bulletInvincibilityDuration"), 1.0f);
+    out.bulletDamageScaling = detail::ParseFloat(detail::ValueOf(src, "bulletDamageScaling"), 0.15f);
     out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
     out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
     out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);

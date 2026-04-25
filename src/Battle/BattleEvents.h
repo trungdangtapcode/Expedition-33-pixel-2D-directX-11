@@ -71,6 +71,27 @@ struct DamageTakenPayload
     bool isPerfectQte = false;
 };
 
+// ------------------------------------------------------------
+// BulletHellPayload: Natively mimics QTE overlay, but drives an action dodge phase
+// Broadcasts globally across UI listeners
+// ------------------------------------------------------------
+struct BulletHellPayload {
+    bool isActive = false;
+    float boxCenterX = 0.0f;
+    float boxCenterY = 0.0f;
+    float boxWidth = 0.0f;
+    float boxHeight = 0.0f;
+    
+    float heartX = 0.0f;
+    float heartY = 0.0f;
+    float heartRadius = 6.0f;
+    
+    struct Bullet { float x, y, radius, angle; };
+    std::vector<Bullet> bullets;
+    std::string bulletTexturePath = "";
+    float invincibilityTimer = 0.0f;
+};
+
 // Must forward declare enum wrapper since we can't cleanly drag camera into events
 enum class BattleCameraPhase;
 

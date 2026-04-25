@@ -137,6 +137,7 @@ void BattleState::InitBattleSlots()
     
     mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
     mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
+    mBulletHellStateListener = EventManager::Get().Subscribe("verso_bullet_hell_state", [this](const EventData& e){ OnBulletHellState(e); });
 
     mBattleRenderer.Initialize(
         mD3D.GetDevice(),
@@ -263,6 +264,7 @@ void BattleState::InitUIRenderers()
     }
 
     mQTERenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext(), mD3D.GetWidth(), mD3D.GetHeight());
+    mBulletHellRenderer = std::make_unique<BattleBulletHellRenderer>(mD3D.GetDevice(), mD3D.GetContext());
 }
 
 void BattleState::OnExit()
@@ -578,8 +580,9 @@ void BattleState::Render()
     }
 
     mQTERenderer.Render(mD3D.GetContext());
+    if (mBulletHellRenderer) mBulletHellRenderer->Render(mD3D.GetContext(), mD3D.GetWidth(), mD3D.GetHeight());
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&  
         mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)
     {
         const auto& commands = mInputController.GetCommands();
@@ -1485,5 +1488,13 @@ void BattleState::OnGetOffset(const EventData& e)
         } else {
             mBattleRenderer.GetEnemyDrawOffset(slot, p->offsetX, p->offsetY);
         }
+    }
+}
+
+void BattleState::OnBulletHellState(const EventData& e)
+{
+    if (e.payload && mBulletHellRenderer) {
+        const BulletHellPayload* payload = static_cast<const BulletHellPayload*>(e.payload);
+        mBulletHellRenderer->UpdateState(*payload);
     }
 }

@@ -117,6 +117,7 @@ cl.exe ^
     src\Battle\PlayAnimationAction.cpp ^
     src\Battle\AnimDamageAction.cpp ^
     src\Battle\QteAnimDamageAction.cpp ^
+    src\Battle\BulletHellAction.cpp ^
     src\Battle\CameraPhaseAction.cpp ^
     src\Battle\DefaultDamageCalculator.cpp ^
     src\Battle\DamageSteps.cpp ^
@@ -138,6 +139,7 @@ cl.exe ^
     src\UI\BattleDebugHUD.cpp ^
     src\UI\TurnQueueUI.cpp ^
     src\UI\BattleQTERenderer.cpp ^
+    src\UI\BattleBulletHellRenderer.cpp ^
     src\Audio\AudioManager.cpp ^
     /I "%MSVC_DIR%\include" ^
     /I "%WINSDK_DIR%\Include\%WINSDK_VER%\um" ^

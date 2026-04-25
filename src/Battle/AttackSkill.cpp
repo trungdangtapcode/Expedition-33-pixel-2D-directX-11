@@ -11,6 +11,7 @@
 #include "AnimDamageAction.h"
 #include "QteAnimDamageAction.h"
 #include "CameraPhaseAction.h"
+#include "BulletHellAction.h"
 #include "BattleContext.h"
 
 bool AttackSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
@@ -51,7 +52,9 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     actions.push_back(std::make_unique<MoveAction>(&caster, target, MoveAction::TargetType::MeleeRange, mData.moveDuration, mData.meleeOffset));
 
     // 4. Play attack animation and apply damage simultaneously.
-    if (mData.qteSupported) {
+    if (mData.bulletHellSupported) {
+        actions.push_back(std::make_unique<BulletHellAction>(&caster, target, 5.0f, mData.bulletTexturePath, mData.bulletRadius, mData.bulletSpeed, mData.bulletSpawnRate, mData.bulletInvincibilityDuration, mData.bulletDamageScaling)); // 5 second dodge sequence!
+    } else if (mData.qteSupported) {
         actions.push_back(std::make_unique<QteAnimDamageAction>(
             req, CombatantAnim::Attack, mData.qteStartMoment, mData.damageTakenOccurMoment, ctx.config.qteSlowMoScale,
             mData.qtePerfectMultiplier, mData.qteGoodMultiplier, mData.qteMissMultiplier, 

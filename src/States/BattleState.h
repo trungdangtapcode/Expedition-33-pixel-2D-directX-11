@@ -65,6 +65,7 @@
 #include "../UI/PointerRenderer.h"
 #include "../UI/ScrollArrowRenderer.h"
 #include "../UI/BattleQTERenderer.h"
+#include "../UI/BattleBulletHellRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
@@ -115,6 +116,7 @@ private:
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
     BattleQTERenderer      mQTERenderer;
+    std::unique_ptr<BattleBulletHellRenderer> mBulletHellRenderer;
 
     // Scroll-direction chevrons drawn above/below the item menu when
     // there are off-screen items in that direction.  Both share the
@@ -216,9 +218,11 @@ private:
     std::vector<FloatingDamageText> mFloatingTexts;
     int mDamageTakenListener = -1;
     int mQteUpdateListener = -1;
+    int mBulletHellStateListener = -1;
     
     void OnDamageTaken(const struct EventData& e);
     void OnQteFeedback(const struct EventData& e);
+    void OnBulletHellState(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // UI Animations

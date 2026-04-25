@@ -16,23 +16,17 @@
 //        Hardcoded seeds — atk/def/maxHp/etc are character-intrinsic
 //        values that only change via leveling (not implemented yet).
 //        hp/mp/rage are CURRENT resources that change every battle.
-//   2. EFFECTIVE stats     (GetEffectiveVersoStats()):
+//   2. EFFECTIVE stats     (GetEffectiveStats(index)):
 //        Base stats with all currently-equipped item bonuses folded
 //        in.  This is what BattleManager seeds the PlayerCombatant
 //        with at battle start.
 //
-// SetVersoStats semantics — IMPORTANT:
-//   The legacy version assigned the entire BattlerStats struct.  That
-//   does not work with equipment because the input struct contains
-//   effective values (base + equipment bonuses).  Assigning would
-//   silently corrupt the base.  The new SetVersoStats saves ONLY
-//   hp/mp/rage from the input — all other fields are ignored.
-//
-//   Result: equipment bonuses survive across battles automatically
-//   because they live on PartyManager (slots), not on the saved stats.
+// SetMemberStats semantics — IMPORTANT:
+//   The new SetMemberStats saves ONLY hp/mp/rage from the input — 
+//   all other fields are ignored to prevent base mutation.
 //
 // Equipment ownership:
-//   Each equipped item is moved OUT of Inventory into the slot.
+//   Each equipped item is moved OUT of Inventory into a member's slot.
 //   Unequip moves it back.  This prevents the player from "duping"
 //   an item by equipping it and then using the inventory copy.
 //
@@ -45,6 +39,19 @@
 #include "../Battle/ItemData.h"   // ItemKind, EquipSlot, kEquipSlotCount, SlotIndex
 #include <array>
 #include <string>
+#include <vector>
+
+struct PartyMember
+{
+    std::string id;
+    std::string name;
+    std::wstring animationPath;
+    std::string animJsonPath;
+    std::wstring hpFramePath;
+    std::wstring turnViewPath;
+    BattlerStats baseStats;
+    std::array<std::string, kEquipSlotCount> equipped;
+};
 
 class PartyManager
 {
@@ -56,42 +63,31 @@ public:
     static PartyManager& Get();
 
     // ------------------------------------------------------------
-    // GetVersoStats: return the BASE stats for Verso.  These do NOT
-    // include equipment bonuses.
-    //
-    // Most callers want GetEffectiveVersoStats() instead.  GetVersoStats
-    // is preserved for code paths that need the underlying base values
-    // (e.g. inventory UI showing "ATK: 25 (base) → 30 (with sword)").
+    // GetActiveParty: return the entire party vector securely.
     // ------------------------------------------------------------
-    const BattlerStats& GetVersoStats() const { return mVersoStats; }
+    const std::vector<PartyMember>& GetActiveParty() const { return mActiveParty; }
+    std::vector<PartyMember>& GetActiveParty() { return mActiveParty; }
 
     // ------------------------------------------------------------
-    // GetEffectiveVersoStats: BASE + every equipped item's bonuses.
-    // This is what BattleManager seeds the PlayerCombatant with on
-    // battle start, so equipment bonuses are visible in combat.
+    // GetMemberStats: return BASE stats for an index.
     // ------------------------------------------------------------
-    BattlerStats GetEffectiveVersoStats() const;
+    const BattlerStats& GetMemberStats(size_t index) const { return mActiveParty[index].baseStats; }
 
     // ------------------------------------------------------------
-    // PreviewEffectiveStats: hypothetical effective stats if the slot
-    // were replaced with `itemId`.  Used by inventory UI to show
-    // "ATK 25 → 37" before/after preview rows.
-    //
-    // Pass an empty itemId to preview unequipping the slot.
+    // GetEffectiveStats: BASE + every equipped item's bonuses for member.
     // ------------------------------------------------------------
-    BattlerStats PreviewEffectiveStats(EquipSlot slot, const std::string& itemId) const;
+    BattlerStats GetEffectiveStats(size_t index) const;
 
     // ------------------------------------------------------------
-    // SetVersoStats: persist Verso's CURRENT resources at battle end.
-    //
-    // Only hp / mp are saved — atk/def/maxHp/etc are intentionally
-    // ignored because the input struct may have equipment bonuses
-    // baked in (BattleManager passes the effective stats).  Saving
-    // them would mutate the base, which is wrong.
-    //
-    // Rage is reset to 0 — it is a per-battle resource by design.
+    // PreviewEffectiveStats: layout hypothetical effective stats.
     // ------------------------------------------------------------
-    void SetVersoStats(const BattlerStats& stats);
+    BattlerStats PreviewEffectiveStats(size_t index, EquipSlot slot, const std::string& itemId) const;
+
+    // ------------------------------------------------------------
+    // SetMemberStats: persist member's CURRENT resources at battle end.
+    // Only hp / mp are saved (base stats remain untouched).
+    // ------------------------------------------------------------
+    void SetMemberStats(size_t index, const BattlerStats& stats);
 
     // ------------------------------------------------------------
     // RestoreFullHP: heal Verso to full and reset rage.
@@ -104,38 +100,16 @@ public:
     // ============================================================
 
     // ------------------------------------------------------------
-    // GetEquipped: id of the item in `slot`, empty string if none.
-    // ------------------------------------------------------------
-    std::string GetEquipped(EquipSlot slot) const;
+    bool EquipItem(size_t index, EquipSlot slot, const std::string& itemId);
 
     // ------------------------------------------------------------
-    // IsEquipped: convenience predicate for UI gating.
-    // ------------------------------------------------------------
-    bool IsEquipped(EquipSlot slot) const { return !GetEquipped(slot).empty(); }
-
-    // ------------------------------------------------------------
-    // Equip: install `itemId` into `slot`.
-    //
-    // Validates:
-    //   - itemId exists in ItemRegistry
-    //   - item.equipSlot matches `slot`
-    //   - item is currently in Inventory (count > 0)
-    //
-    // On success:
-    //   - any previous item in the slot returns to Inventory (+1)
-    //   - the new item leaves Inventory (-1)
-    //   - mEquipped[SlotIndex(slot)] = itemId
-    //
-    // Returns false on any validation failure (logs and leaves state
-    // unchanged).
-    // ------------------------------------------------------------
-    bool Equip(EquipSlot slot, const std::string& itemId);
-
-    // ------------------------------------------------------------
-    // Unequip: remove the item in `slot` and return it to Inventory.
+    // UnequipItem: remove the item in `slot` and return it to Inventory.
     // No-op if the slot is empty.
     // ------------------------------------------------------------
-    void Unequip(EquipSlot slot);
+    bool UnequipItem(size_t index, EquipSlot slot);
+    
+    // ------------------------------------------------------------
+    std::string GetEquippedItem(size_t index, EquipSlot slot) const;
 
 private:
     // Private constructor — only Get() may create the instance.
@@ -145,19 +119,5 @@ private:
     PartyManager(const PartyManager&)            = delete;
     PartyManager& operator=(const PartyManager&) = delete;
 
-    // ------------------------------------------------------------
-    // mVersoStats: Verso's BASE stats.
-    //
-    // hp/mp/rage change every battle (current resources).
-    // atk/def/maxHp/etc are intrinsic and only change via leveling.
-    //
-    // Default values match the legacy PlayerCombatant MVP constants:
-    //   HP=100  ATK=25  DEF=10  SPD=10  maxRage=100
-    // In the full game these will be loaded from data/characters/verso.json.
-    // ------------------------------------------------------------
-    BattlerStats mVersoStats{};
-
-    // Equipment slots — one item id per slot, "" = empty.
-    // Indexed by SlotIndex(EquipSlot).  Size is kEquipSlotCount.
-    std::array<std::string, kEquipSlotCount> mEquipped{};
+    std::vector<PartyMember> mActiveParty;
 };

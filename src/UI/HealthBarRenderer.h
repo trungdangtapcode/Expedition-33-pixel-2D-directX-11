@@ -78,7 +78,10 @@ public:
                     const std::wstring&  bgTexturePath,
                     const std::wstring&  frameTexPath,
                     const std::string&   configJsonPath,
-                    int screenW, int screenH);
+                    int screenW, int screenH,
+                    const std::string& hpEventTopic = "verso_hp_changed",
+                    float renderX = 0.0f,
+                    float renderY = 0.0f);
 
     // ----------------------------------------------------------------
     // SetHP / SetMaxHP
@@ -183,7 +186,12 @@ private:
     UIEffectState mEffectState;
 
     // -- Event subscription --
+    std::string mHpEventTopic = "verso_hp_changed";
     ListenerID mHpListenerID = -1;  // used to unsubscribe in Shutdown()
+
+    // -- Rendering layout overrides --
+    float mRenderX = 0.0f;
+    float mRenderY = 0.0f;
 
     // -- Helpers --
     // Bind the viewport and set mSpriteBatch's internal viewport (bypasses

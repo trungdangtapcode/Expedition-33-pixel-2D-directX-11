@@ -80,14 +80,18 @@ void BattleState::InitBattleSlots()
     const float battleCenterY = 0.0f;
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
-    playerSlots[0].occupied    = true;
-    playerSlots[0].texturePath = L"assets/animations/verso.png";
-    playerSlots[0].jsonPath    = "assets/animations/verso.json";
-    playerSlots[0].startClip   = "idle";
-    playerSlots[0].worldX             = battleCenterX + formation.player[0].offsetX;
-    playerSlots[0].worldY             = battleCenterY + formation.player[0].offsetY;
-    playerSlots[0].cameraFocusOffsetY = -128.0f;
-    playerSlots[0].cameraFocusOffsetX = 100.0f;
+    
+    const auto& activeParty = PartyManager::Get().GetActiveParty();
+    for (size_t i = 0; i < activeParty.size(); ++i) {
+        playerSlots[i].occupied    = true;
+        playerSlots[i].texturePath = activeParty[i].animationPath;
+        playerSlots[i].jsonPath    = activeParty[i].animJsonPath;
+        playerSlots[i].startClip   = "idle";
+        playerSlots[i].worldX      = battleCenterX + formation.player[i].offsetX;
+        playerSlots[i].worldY      = battleCenterY + formation.player[i].offsetY;
+        playerSlots[i].cameraFocusOffsetY = -128.0f;
+        playerSlots[i].cameraFocusOffsetX = 100.0f;
+    }
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
 
@@ -157,21 +161,37 @@ void BattleState::InitUIRenderers()
         LOG("[BattleState] WARNING — failed to load data/battle_menu_layout.json");
     }
 
-    mHealthBar.Initialize(
-        mD3D.GetDevice(),
-        mD3D.GetContext(),
-        L"assets/UI/UI_hp_background.png",
-        L"assets/UI/UI_verso_hp.png",
-        "assets/UI/HP_description.json",
-        mD3D.GetWidth(),
-        mD3D.GetHeight()
-    );
-
+    const auto& party = PartyManager::Get().GetActiveParty();
     const auto& players = mBattle.GetAllPlayers();
-    if (!players.empty())
-    {
-        mHealthBar.SetMaxHP(static_cast<float>(players[0]->GetStats().maxHp));
-        mHealthBar.SetHP   (static_cast<float>(players[0]->GetStats().hp));
+    
+    // Stack health bars visually mapping descending configurations vertically
+    for (size_t i = 0; i < players.size(); ++i) {
+        auto bar = std::make_unique<HealthBarRenderer>();
+        // Using "membername_hp_changed" explicitly!
+        std::string hpTopic = (party[i].name == "Verso") ? "verso_hp_changed" : party[i].name + "_hp_changed";
+        
+        if (bar->Initialize(
+            mD3D.GetDevice(),
+            mD3D.GetContext(),
+            L"assets/UI/UI_hp_background.png",
+            party[i].hpFramePath,
+            "assets/UI/HP_description.json",
+            mD3D.GetWidth(), mD3D.GetHeight(),
+            hpTopic,
+            mMenuLayout.partyHud.align == "bottom-right" ? 
+                (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) :
+                (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)),
+            mMenuLayout.partyHud.align == "bottom-right" ?
+                (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) :
+                (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY))
+        )) {
+            const BattlerStats& s = players[i]->GetStats();
+            bar->SetMaxHP(static_cast<float>(s.maxHp));
+            bar->SetHP(static_cast<float>(s.hp));
+            mHealthBars.push_back(std::move(bar));
+        } else {
+            LOG("[BattleState] WARNING — HealthBar initialization failed for %s.", party[i].name.c_str());
+        }
     }
 
     mEnemyHpBar.Initialize(
@@ -283,7 +303,7 @@ void BattleState::OnExit()
     EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
     EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
     mBattleRenderer.Shutdown();
-    mHealthBar.Shutdown();
+    for (auto& bar : mHealthBars) bar->Shutdown();
     mEnemyHpBar.Shutdown();
     mTurnQueueUI.Shutdown();
     mTargetPointer.Shutdown();
@@ -454,8 +474,9 @@ void BattleState::CheckDeathAnimations()
 
 void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected)
 {
-    mHealthBar.SetTargetScale(playerSelected ? 1.25f : 1.0f);
-    mHealthBar.Update(dt);
+    for (auto& bar : mHealthBars) {
+        if (bar->IsInitialized()) bar->Update(dt);
+    }
     mTurnQueueUI.Update(dt);
     mTurnQueueUI.UpdateQueue(mBattle.GetFutureTurnQueue(6));
     mTargetPointer.Update(dt);
@@ -519,11 +540,10 @@ void BattleState::CheckBattleEnd()
     if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
     {
         const auto& players = mBattle.GetAllPlayers();
-        if (!players.empty())
-        {
-            PartyManager::Get().SetVersoStats(players[0]->GetStats());
-            LOG("[BattleState] Saved Verso HP: %d/%d",
-                players[0]->GetStats().hp, players[0]->GetStats().maxHp);
+        for (size_t i = 0; i < players.size(); ++i) {
+            PartyManager::Get().SetMemberStats(i, players[i]->GetStats());
+            LOG("[BattleState] Saved %s HP: %d/%d",
+                players[i]->GetName().c_str(), players[i]->GetStats().hp, players[i]->GetStats().maxHp);
         }
 
         mExitEventName = (outcome == BattleOutcome::VICTORY) ? "battle_end_victory" : "battle_end_defeat";
@@ -559,7 +579,10 @@ void BattleState::Render()
     mBattleRenderer.Render(mD3D.GetContext());
     mEnvRenderer.RenderForeground(mBattleRenderer.GetCamera());
 
-    mHealthBar.Render(mD3D.GetContext());
+    // UI Render
+    for (auto& bar : mHealthBars) {
+        if (bar->IsInitialized()) bar->Render(mD3D.GetContext());
+    }
     mEnemyHpBar.Render(mD3D.GetContext());
     mTurnQueueUI.Render(mD3D.GetContext());
     

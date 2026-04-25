@@ -111,7 +111,7 @@ private:
     EnemyEncounterData     mEncounter;       // overworld encounter data (may be default/empty)
     BattleManager          mBattle;
     BattleRenderer         mBattleRenderer;
-    HealthBarRenderer      mHealthBar;
+    std::vector<std::unique_ptr<HealthBarRenderer>> mHealthBars;
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;

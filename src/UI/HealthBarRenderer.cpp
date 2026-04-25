@@ -63,15 +63,20 @@ void HealthBarRenderer::BindViewport(ID3D11DeviceContext* context)
 // ============================================================
 // Initialize
 // ============================================================
-bool HealthBarRenderer::Initialize(ID3D11Device*        device,
-                                    ID3D11DeviceContext*  context,
-                                    const std::wstring&  bgTexturePath,
-                                    const std::wstring&  frameTexPath,
-                                    const std::string&   configJsonPath,
-                                    int screenW, int screenH)
+bool HealthBarRenderer::Initialize(ID3D11Device* device,
+                                   ID3D11DeviceContext* context,
+                                   const std::wstring& bgTexturePath,
+                                   const std::wstring& frameTexPath,
+                                   const std::string& configJsonPath,
+                                   int screenW, int screenH,
+                                   const std::string& hpEventTopic,
+                                   float renderX, float renderY)
 {
     mScreenW = screenW;
     mScreenH = screenH;
+    mHpEventTopic = hpEventTopic;
+    mRenderX = renderX;
+    mRenderY = renderY;
 
     // -- 1. Load JSON config --
     if (!mConfig.LoadFromJson(configJsonPath))
@@ -181,10 +186,10 @@ bool HealthBarRenderer::Initialize(ID3D11Device*        device,
     // The lambda captures `this` — it is safe as long as HealthBarRenderer
     // outlives any broadcast.  Shutdown() calls Unsubscribe to enforce this.
     mHpListenerID = EventManager::Get().Subscribe(
-        "verso_hp_changed",
-        [this](const EventData& data)
-        {
-            if (data.value < mTargetHP)
+        mHpEventTopic,
+        [this](const EventData& data) {
+            float hp = data.value;
+            if (hp < mTargetHP)
             {
                 // Reset delay timer heavily when fresh damage is taken
                 mDelayTimer = 0.0f;
@@ -192,7 +197,7 @@ bool HealthBarRenderer::Initialize(ID3D11Device*        device,
                 mEffectState.TriggerShake();
             }
             // data.value = new HP as float (cast from int by BattleManager).
-            mTargetHP = data.value;
+            mTargetHP = hp;
             LOG("[HealthBarRenderer] HP event received: target HP = %.0f / %.0f",
                 mTargetHP, mMaxHP);
         }
@@ -287,8 +292,9 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     const float offsetX = mEffectState.GetOffsetX();
     const float offsetY = mEffectState.GetOffsetY();
 
-    const float originX = static_cast<float>(mScreenW) - static_cast<float>(mConfig.textureWidth) * scale + offsetX;
-    const float originY = static_cast<float>(mScreenH) - static_cast<float>(mConfig.textureHeight) * scale + offsetY;
+    // Use dynamic coordinates supplied via Initialization
+    const float originX = mRenderX + offsetX;
+    const float originY = mRenderY + offsetY;
 
     // Bind viewport — must happen before Begin() so SpriteBatch's internal
     // GetViewportTransform() uses our stored dimensions instead of querying
@@ -400,7 +406,7 @@ void HealthBarRenderer::Shutdown()
     // after mTargetHP/mDisplayedHP go out of scope.
     if (mHpListenerID >= 0)
     {
-        EventManager::Get().Unsubscribe("verso_hp_changed", mHpListenerID);
+        EventManager::Get().Unsubscribe(mHpEventTopic, mHpListenerID);
         mHpListenerID = -1;
     }
 

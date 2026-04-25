@@ -168,33 +168,32 @@ bool InventoryState::TryUseItem(const std::string& id)
 {
     const ItemData* item = ItemRegistry::Get().Find(id);
     if (!item) { Flash("Unknown item: " + id); return false; }
-
-    BattlerStats stats = PartyManager::Get().GetVersoStats();
-    const int hpBefore = stats.hp;
-    const int mpBefore = stats.mp;
+    BattlerStats copy = PartyManager::Get().GetMemberStats(0);
+    const int hpBefore = copy.hp;
+    const int mpBefore = copy.mp;
     char buf[128]{};
 
     switch (item->effect)
     {
     case ItemEffectKind::HealHp:
-        if (stats.hp >= stats.maxHp) { Flash("HP is already full."); return false; }
-        stats.hp += item->amount;
-        stats.ClampHp();
+        if (copy.hp >= copy.maxHp) { Flash("HP is already full."); return false; }
+        copy.hp += item->amount;
+        copy.ClampHp();
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d HP)",
-                    item->name.c_str(), stats.hp - hpBefore);
+                    item->name.c_str(), copy.hp - hpBefore);
         break;
     case ItemEffectKind::HealMp:
-        if (stats.mp >= stats.maxMp) { Flash("MP is already full."); return false; }
-        stats.mp += item->amount;
-        if (stats.mp > stats.maxMp) stats.mp = stats.maxMp;
+        if (copy.mp >= copy.maxMp) { Flash("MP is already full."); return false; }
+        copy.mp += item->amount;
+        if (copy.mp > copy.maxMp) copy.mp = copy.maxMp;
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d MP)",
-                    item->name.c_str(), stats.mp - mpBefore);
+                    item->name.c_str(), copy.mp - mpBefore);
         break;
     case ItemEffectKind::FullHeal:
-        if (stats.hp >= stats.maxHp && stats.mp >= stats.maxMp)
+        if (copy.hp >= copy.maxHp && copy.mp >= copy.maxMp)
         { Flash("HP and MP are already full."); return false; }
-        stats.hp = stats.maxHp;
-        stats.mp = stats.maxMp;
+        copy.hp = copy.maxHp;
+        copy.mp = copy.maxMp;
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (full restore)", item->name.c_str());
         break;
     case ItemEffectKind::RestoreRage:
@@ -210,7 +209,7 @@ bool InventoryState::TryUseItem(const std::string& id)
 
     // Persist + consume.  Stats first so a hypothetical crash leaves
     // the player healed but with the item intact (favors the player).
-    PartyManager::Get().SetVersoStats(stats);
+    PartyManager::Get().SetMemberStats(0, copy);
     Inventory::Get().Remove(id, 1);
     Flash(buf);
     RefreshConsumables();
@@ -219,7 +218,7 @@ bool InventoryState::TryUseItem(const std::string& id)
 
 bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 {
-    if (PartyManager::Get().Equip(slot, itemId))
+    if (PartyManager::Get().EquipItem(0, slot, itemId))
     {
         const ItemData* item = ItemRegistry::Get().Find(itemId);
         Flash(std::string("Equipped ") + (item ? item->name : itemId));
@@ -231,11 +230,11 @@ bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 
 void InventoryState::TryUnequip(EquipSlot slot)
 {
-    const std::string prev = PartyManager::Get().GetEquipped(slot);
-    if (prev.empty()) { Flash("Nothing to unequip."); return; }
-    PartyManager::Get().Unequip(slot);
-    const ItemData* item = ItemRegistry::Get().Find(prev);
-    Flash(std::string("Unequipped ") + (item ? item->name : prev));
+    std::string equippedId = PartyManager::Get().GetEquippedItem(0, slot);
+    if (equippedId.empty()) { Flash("Nothing to unequip."); return; }
+    PartyManager::Get().UnequipItem(0, slot);
+    const ItemData* item = ItemRegistry::Get().Find(equippedId);
+    Flash(std::string("Unequipped ") + (item ? item->name : equippedId));
 }
 
 // ============================================================

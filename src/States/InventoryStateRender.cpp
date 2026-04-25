@@ -396,7 +396,7 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
         mDialogBox.Draw(ctx, leftX, rowY, leftW, rowH,
                         0.45f, DirectX::XMMatrixIdentity(), rowColor);
 
-        const std::string equippedId = PartyManager::Get().GetEquipped(order[i]);
+        std::string equippedId = PartyManager::Get().GetEquippedItem(0, order[i]);
         const ItemData* item = equippedId.empty() ? nullptr : ItemRegistry::Get().Find(equippedId);
 
         // Slot label
@@ -436,7 +436,7 @@ void InventoryState::RenderStatsFooter(float panelX, float footerY,
                                          float panelW, float footerH)
 {
     auto* ctx = D3DContext::Get().GetContext();
-    const BattlerStats s = PartyManager::Get().GetEffectiveVersoStats();
+    const BattlerStats s = PartyManager::Get().GetEffectiveStats(0);
 
     char line[256];
     _snprintf_s(line, sizeof(line), _TRUNCATE,

@@ -741,8 +741,17 @@ struct BattleMenuLayout
         float offsetY = -100.0f;
     };
 
+    struct PartyHudConfig {
+        std::string align = "bottom-right";
+        float originX = -30.0f;
+        float originY = -30.0f;
+        float spacingX = -260.0f;
+        float spacingY = 0.0f;
+    };
+
     CommandMenuConfig command;
     SkillMenuConfig skill;
+    PartyHudConfig partyHud;
 };
 
 // ------------------------------------------------------------
@@ -787,6 +796,18 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.entryDuration = detail::ParseFloat(detail::ValueOf(src, "skill_entryDuration"), 0.25f);
     out.skill.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_slideOffsetX"), -40.0f);
     out.skill.fadeStartAlpha = detail::ParseFloat(detail::ValueOf(src, "skill_fadeStartAlpha"), 0.0f);
+
+    out.partyHud.align = detail::ValueOf(src, "party_hud_align");
+    // ValueOf returns quoted strings if found, strip them
+    if (out.partyHud.align.size() >= 2 && out.partyHud.align.front() == '"') 
+        out.partyHud.align = out.partyHud.align.substr(1, out.partyHud.align.size() - 2);
+    if (out.partyHud.align.empty()) out.partyHud.align = "bottom-right";
+
+    out.partyHud.originX = detail::ParseFloat(detail::ValueOf(src, "party_hud_origin_x"), -30.0f);
+    out.partyHud.originY = detail::ParseFloat(detail::ValueOf(src, "party_hud_origin_y"), -30.0f);
+    out.partyHud.spacingX = detail::ParseFloat(detail::ValueOf(src, "party_hud_spacing_x"), -260.0f);
+    out.partyHud.spacingY = detail::ParseFloat(detail::ValueOf(src, "party_hud_spacing_y"), 0.0f);
+
 
     LOG("[JsonLoader] Loaded BattleMenuLayout from '%s'.", path.c_str());
     return true;

@@ -1,0 +1,14 @@
+{
+  "name": "Maelle",
+  "hp": 50,
+  "maxHp": 50,
+  "mp": 50,
+  "maxMp": 50,
+  "atk": 10,
+  "def": 1,
+  "matk": 25,
+  "mdef": 1,
+  "spd": 10,
+  "rage": 0,
+  "maxRage": 100
+}

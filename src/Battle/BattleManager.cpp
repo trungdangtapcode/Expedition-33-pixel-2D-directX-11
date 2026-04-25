@@ -33,16 +33,13 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
 {
     mContext.config = config;
 
-    // -- Spawn player party — Verso seeded with EFFECTIVE stats --
-    // GetEffectiveVersoStats folds in every currently-equipped item's
-    // bonusAtk/bonusDef/bonusMaxHp/etc., so the PlayerCombatant the
-    // battle uses already reflects whatever the player has equipped
-    // in the overworld inventory.  Persistent HP/MP carry over from
-    // the previous battle (PartyManager::SetVersoStats saves only the
-    // resource fields, not equipment-derived bonuses).
-    mPlayers.push_back(std::make_unique<PlayerCombatant>(
-        "Verso", L"assets/UI/turn-view-verso.png",
-        PartyManager::Get().GetEffectiveVersoStats()));
+    // -- Spawn player party natively pulling from PartyManager arrays! --
+    auto& activeParty = PartyManager::Get().GetActiveParty();
+    for (size_t i = 0; i < activeParty.size(); ++i) {
+        mPlayers.push_back(std::make_unique<PlayerCombatant>(
+            activeParty[i].name, activeParty[i].turnViewPath,
+            PartyManager::Get().GetEffectiveStats(i)));
+    }
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies

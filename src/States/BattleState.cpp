@@ -192,6 +192,27 @@ void BattleState::InitUIRenderers()
         } else {
             LOG("[BattleState] WARNING — HealthBar initialization failed for %s.", party[i].name.c_str());
         }
+
+        auto expBar = std::make_unique<ExpBarRenderer>();
+        if (expBar->Initialize(
+            mD3D.GetDevice(),
+            mD3D.GetContext(),
+            mD3D.GetWidth(), mD3D.GetHeight(),
+            mMenuLayout.partyHud.align == "bottom-right" ? 
+                (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f :
+                (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f,
+            mMenuLayout.partyHud.align == "bottom-right" ?
+                (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f :
+                (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f
+        )) {
+            const BattlerStats& s = players[i]->GetStats();
+            // Get correct NextLevel map evaluating exact thresholds seamlessly!
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            expBar->SetExp(s.exp, nextThreshold);
+            mExpBars.push_back(std::move(expBar));
+        } else {
+            LOG("[BattleState] WARNING — ExpBar initialization failed for %s.", party[i].name.c_str());
+        }
     }
 
     mEnemyHpBar.Initialize(
@@ -304,6 +325,7 @@ void BattleState::OnExit()
     EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
     mBattleRenderer.Shutdown();
     for (auto& bar : mHealthBars) bar->Shutdown();
+    for (auto& ebar : mExpBars) ebar->Shutdown();
     mEnemyHpBar.Shutdown();
     mTurnQueueUI.Shutdown();
     mTargetPointer.Shutdown();
@@ -582,6 +604,35 @@ void BattleState::Render()
     // UI Render
     for (auto& bar : mHealthBars) {
         if (bar->IsInitialized()) bar->Render(mD3D.GetContext());
+    }
+    if (mBattle.GetOutcome() == BattleOutcome::VICTORY)
+    {
+        for (auto& ebar : mExpBars) {
+            if (ebar->IsInitialized()) ebar->Render(mD3D.GetContext());
+        }
+
+        // EXP and Level Text
+        mTextRenderer.BeginBatch(mD3D.GetContext());
+        const auto& players = mBattle.GetAllPlayers();
+        for (size_t i = 0; i < players.size(); ++i) {
+            float baseX = mMenuLayout.partyHud.align == "bottom-right" ? 
+                (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f :
+                (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f;
+            float baseY = mMenuLayout.partyHud.align == "bottom-right" ?
+                (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f :
+                (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f;
+            
+            char bufL[32];
+            snprintf(bufL, sizeof(bufL), "Lv. %d", players[i]->GetStats().level);
+            mTextRenderer.DrawStringCenteredRaw(bufL, baseX - 20.0f, baseY - 4.0f, DirectX::Colors::DarkOrange, 0.45f, true);
+
+            char bufE[32];
+            const BattlerStats& s = players[i]->GetStats();
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            snprintf(bufE, sizeof(bufE), "%d / %d", s.exp, nextThreshold);
+            mTextRenderer.DrawStringCenteredRaw(bufE, baseX + 70.0f, baseY - 1.0f, DirectX::Colors::White, 0.35f, true);
+        }
+        mTextRenderer.EndBatch();
     }
     mEnemyHpBar.Render(mD3D.GetContext());
     mTurnQueueUI.Render(mD3D.GetContext());
@@ -1339,7 +1390,9 @@ void BattleState::DumpStateToDebugOutput() const
         row.hp      = s.hp;      row.maxHp   = s.maxHp;
         row.rage    = s.rage;    row.maxRage = s.maxRage;
         row.atk     = s.atk;     row.def     = s.def;
-        row.spd     = s.spd;     row.alive   = p->IsAlive();
+        row.spd     = s.spd;     
+        row.level   = s.level;   row.exp     = s.exp; 
+        row.alive   = p->IsAlive();
         snap.combatants.push_back(row);
     }
     for (IBattler* e : mBattle.GetAllEnemies())
@@ -1351,7 +1404,9 @@ void BattleState::DumpStateToDebugOutput() const
         row.isCurrentTurn = (e == activeCombatant);
         row.hp      = s.hp;   row.maxHp = s.maxHp;
         row.atk     = s.atk;  row.def   = s.def;
-        row.spd     = s.spd;  row.alive = e->IsAlive();
+        row.spd     = s.spd;  
+        row.level   = s.level; row.exp  = s.exp;
+        row.alive = e->IsAlive();
         snap.combatants.push_back(row);
     }
 

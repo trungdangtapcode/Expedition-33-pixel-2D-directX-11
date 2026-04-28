@@ -8,7 +8,16 @@
   "def": 1,
   "matk": 25,
   "mdef": 1,
-  "spd": 10,
+  "spd": 5,
   "rage": 0,
-  "maxRage": 100
+  "maxRage": 100,
+  "level": 1,
+  "exp": 0,
+  "growth_maxHp": 15,
+  "growth_maxMp": 12,
+  "growth_atk": 1,
+  "growth_def": 1,
+  "growth_matk": 5,
+  "growth_mdef": 4,
+  "growth_spd": 3
 }

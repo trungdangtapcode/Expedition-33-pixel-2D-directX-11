@@ -32,6 +32,7 @@ BattleManager::BattleManager() = default;
 void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config)
 {
     mContext.config = config;
+    mTotalExpPool   = 0;
 
     // -- Spawn player party natively pulling from PartyManager arrays! --
     auto& activeParty = PartyManager::Get().GetActiveParty();
@@ -56,6 +57,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         // Build BattlerStats from JSON-sourced values.
         // mp=0 and maxMp=0: enemies do not use MP in the current design.
         // rage=0 and maxRage=0: rage resource is player-only.
+        mTotalExpPool += sd.expReward;
         BattlerStats stats{};
         stats.hp     = sd.hp;
         stats.maxHp  = sd.hp;
@@ -281,6 +283,9 @@ void BattleManager::HandleResolving(float dt)
     if (AllEnemiesDefeated())
     {
         Log("--- VICTORY! ---");
+        Log("Earned " + std::to_string(mTotalExpPool) + " EXP!");
+        PartyManager::Get().AddExp(mTotalExpPool);
+
         mOutcome = BattleOutcome::VICTORY;
         mPhase   = BattlePhase::WIN;
         return;

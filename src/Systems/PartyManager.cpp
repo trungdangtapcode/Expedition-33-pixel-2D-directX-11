@@ -187,3 +187,39 @@ bool PartyManager::UnequipItem(size_t index, EquipSlot slot)
     return true;
 }
 
+void PartyManager::AddExp(int amount)
+{
+    if (amount <= 0) return;
+
+    for (size_t i = 0; i < mActiveParty.size(); ++i)
+    {
+        auto& member = mActiveParty[i];
+        
+        member.baseStats.exp += amount;
+
+        // Recursively evaluate if curve bounds exceeded safely
+        while (member.baseStats.exp >= GetExpCurve(member.baseStats.level))
+        {
+            // Level Up logic
+            member.baseStats.exp -= GetExpCurve(member.baseStats.level);
+            member.baseStats.level++;
+
+            // Inject structural definitions mapping Growth stats cleanly
+            member.baseStats.maxHp += member.baseStats.growth.maxHp;
+            member.baseStats.maxMp += member.baseStats.growth.maxMp;
+            member.baseStats.atk   += member.baseStats.growth.atk;
+            member.baseStats.def   += member.baseStats.growth.def;
+            member.baseStats.matk  += member.baseStats.growth.matk;
+            member.baseStats.mdef  += member.baseStats.growth.mdef;
+            member.baseStats.spd   += member.baseStats.growth.spd;
+
+            // Heal member completely mapping Level Up bonus mechanics Native AAA structure!
+            member.baseStats.hp = member.baseStats.maxHp;
+            member.baseStats.mp = member.baseStats.maxMp;
+            
+            LOG("[PartyManager] LEVEL UP! %s reached Level %d! (Max HP: %d, Atk: %d)", 
+                member.name.c_str(), member.baseStats.level, member.baseStats.maxHp, member.baseStats.atk);
+        }
+    }
+}
+

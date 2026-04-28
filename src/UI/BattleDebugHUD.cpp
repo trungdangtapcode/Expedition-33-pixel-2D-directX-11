@@ -352,9 +352,9 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
         {
             // Player -- show rage column.
             snprintf(buf, sizeof(buf),
-                "  %s %s %-*s  HP:%3d/%-3d  Rage:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
+                "  %s %s %-*s  LVL:%2d EXP:%3d  HP:%3d/%-3d  Rage:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
                 turn, row.tag.c_str(), kNameWidth, row.name.c_str(),
-                row.hp, row.maxHp,
+                row.level, row.exp, row.hp, row.maxHp,
                 row.rage, row.maxRage,
                 row.atk, row.def, row.spd,
                 row.alive ? "ALIVE" : "DEAD");
@@ -363,9 +363,9 @@ void BattleDebugHUD::PushCombatants(std::vector<std::string>& out,
         {
             // Enemy -- omit rage column.
             snprintf(buf, sizeof(buf),
-                "  %s %s %-*s  HP:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
+                "  %s %s %-*s  LVL:%2d EXP:%3d  HP:%3d/%-3d  ATK:%2d  DEF:%2d  SPD:%2d  %s",
                 turn, row.tag.c_str(), kNameWidth, row.name.c_str(),
-                row.hp, row.maxHp,
+                row.level, row.exp, row.hp, row.maxHp,
                 row.atk, row.def, row.spd,
                 row.alive ? "ALIVE" : "DEAD");
         }

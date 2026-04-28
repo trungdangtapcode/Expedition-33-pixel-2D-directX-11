@@ -95,6 +95,11 @@ public:
     // ------------------------------------------------------------
     void RestoreFullHP();
 
+    // ------------------------------------------------------------
+    // AddExp: Grants cumulative EXP to active party members triggering level ups.
+    // ------------------------------------------------------------
+    void AddExp(int amount);
+
     // ============================================================
     //  Equipment API
     // ============================================================
@@ -112,6 +117,11 @@ public:
     std::string GetEquippedItem(size_t index, EquipSlot slot) const;
 
 private:
+    static int GetExpCurve(int level) {
+        // Curve mapping: 100 * (Level ^ 1.5). Level 2 = 282, 3 = 519, 4 = 800
+        return static_cast<int>(100.0f * std::pow(level, 1.5f));
+    }
+
     // Private constructor — only Get() may create the instance.
     PartyManager();
 

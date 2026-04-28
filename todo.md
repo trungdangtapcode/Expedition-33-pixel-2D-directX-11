@@ -1,13 +1,16 @@
 
 
 Todo:
-- QTE
 - Enhance walking anim
 - Develop statical formula and system for battle
 
 - Refactor structure of code, make it more modular and easier to maintain: FOLDER STRUCTURE
 - PlayerInputPhase::CHARACTER_ACTION_SELECT -> PlayerInputPhase::SKILL_SELECT
-
+- parry in bullethell
+- vicstory
+- noi tai
+- level
+- save & checkpoint
 
 - Queue randomize system
 - Add background assets
@@ -41,6 +44,8 @@ Todo:
 
 
 Done:
+
+- QTE
 - Enhance hp bar
 - Render order in battle state
 - UI when in turn based battle

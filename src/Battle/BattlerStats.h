@@ -18,6 +18,17 @@
 // ============================================================
 #pragma once
 
+struct BattlerGrowth
+{
+    int maxHp = 0;
+    int maxMp = 0;
+    int atk = 0;
+    int def = 0;
+    int matk = 0;
+    int mdef = 0;
+    int spd = 0;
+};
+
 struct BattlerStats
 {
     // ---- Vital resources ----
@@ -45,6 +56,11 @@ struct BattlerStats
     // Enemies leave maxRage = 0 (rage system never triggers for them).
     int rage    = 0;
     int maxRage = 0;
+
+    // ---- Leveling System ----
+    int level = 1;
+    int exp   = 0;
+    BattlerGrowth growth; // Flat numeric additions applied on each level up!
 
     // ---- Computed helpers ----
 

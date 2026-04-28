@@ -565,9 +565,69 @@ inline bool LoadCharacterData(const std::string& path, BattlerStats& out)
     out.rage    = detail::ParseInt(detail::ValueOf(src, "rage"), 0);
     out.maxRage = detail::ParseInt(detail::ValueOf(src, "maxRage"), 100);
 
+    out.level   = detail::ParseInt(detail::ValueOf(src, "level"), 1);
+    out.exp     = detail::ParseInt(detail::ValueOf(src, "exp"), 0);
+
+    out.growth.maxHp = detail::ParseInt(detail::ValueOf(src, "growth_maxHp"), 0);
+    out.growth.maxMp = detail::ParseInt(detail::ValueOf(src, "growth_maxMp"), 0);
+    out.growth.atk   = detail::ParseInt(detail::ValueOf(src, "growth_atk"), 0);
+    out.growth.def   = detail::ParseInt(detail::ValueOf(src, "growth_def"), 0);
+    out.growth.matk  = detail::ParseInt(detail::ValueOf(src, "growth_matk"), 0);
+    out.growth.mdef  = detail::ParseInt(detail::ValueOf(src, "growth_mdef"), 0);
+    out.growth.spd   = detail::ParseInt(detail::ValueOf(src, "growth_spd"), 0);
+
     LOG("[JsonLoader] Loaded CharacterData from '%s'.", path.c_str());
     return true;
 }
+
+// ------------------------------------------------------------
+// Function: LoadDeadOverlayConfig
+// ------------------------------------------------------------
+struct DeadOverlayConfig {
+    float width = 1254.0f;
+    float height = 1254.0f;
+    float scaleTarget = 256.0f; // natively map to your frame bounds or tweak individually
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float pivotX = 627.0f; // Native texture center
+    float pivotY = 627.0f; // Native texture center
+};
+
+inline bool LoadDeadOverlayConfig(const std::string& path, DeadOverlayConfig& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    // Support both workspace-root cwd and bin/ cwd at runtime.
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear(); // Important: must clear fail bit before open
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open dead overlay config file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf; buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 1254.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 1254.0f);
+    out.scaleTarget = detail::ParseFloat(detail::ValueOf(src, "scaleTarget"), 256.0f);
+    out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
+    out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
+    out.pivotX = detail::ParseFloat(detail::ValueOf(src, "pivotX"), out.width / 2.0f);
+    out.pivotY = detail::ParseFloat(detail::ValueOf(src, "pivotY"), out.height / 2.0f);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadSpriteSheet
+// Purpose: Parse custom metadata + frame array
+// ------------------------------------------------------------
 
 // ------------------------------------------------------------
 // Function: LoadEnemyEncounterData
@@ -648,6 +708,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.atk               = detail::ParseInt  (detail::ValueOf(slotSrc, "atk"));
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
+        slot.expReward         = detail::ParseInt  (detail::ValueOf(slotSrc, "expReward"), 0);
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
         
         std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));

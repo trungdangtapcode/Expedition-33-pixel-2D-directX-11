@@ -126,6 +126,27 @@ bool HealthBarRenderer::Initialize(ID3D11Device* device,
     }
     LOG("[HealthBarRenderer] Frame + portrait texture loaded.");
 
+    // -- 3.5. Load dead overlay texture --
+    hr = CreateWICTextureFromFileEx(
+        device, context,
+        L"assets/UI/dead-overlay.png",
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0, 0,
+        WIC_LOADER_IGNORE_SRGB,
+        nullptr,
+        mDeadOverlaySRV.GetAddressOf()
+    );
+    if (FAILED(hr))
+    {
+        LOG("[HealthBarRenderer] WARNING: Failed to load dead overlay asset (0x%08X)", (unsigned)hr);
+        // Do not return false; it's just an overlay, skip gracefully.
+    }
+    
+    // Parse mapping scalars natively inside JSON
+    JsonLoader::LoadDeadOverlayConfig("assets/UI/dead-overlay.json", mDeadOverlayConfig);
+
     // -- 4. Create 1x1 white fill texture --
     // The BG PNG has no fill color — it is only a dark semi-transparent overlay.
     // We generate a 1x1 white D3D11 texture at runtime and tint it to the
@@ -240,6 +261,14 @@ void HealthBarRenderer::SetScreenSize(int w, int h)
 void HealthBarRenderer::Update(float dt)
 {
     if (!IsInitialized()) return;
+    
+    // AAA Layout Hot-Reloading mapping cleanly (Poll JSON every 1 second explicitly)
+    mHotReloadTimer += dt;
+    if (mHotReloadTimer > 1.0f)
+    {
+        JsonLoader::LoadDeadOverlayConfig("assets/UI/dead-overlay.json", mDeadOverlayConfig);
+        mHotReloadTimer = 0.0f;
+    }
 
     // Fast approach for the red front bar
     const float redGap = mTargetHP - mRedHP;
@@ -260,10 +289,29 @@ void HealthBarRenderer::Update(float dt)
     }
     else
     {
-        // We healed or HP is full, white bar catches up instantly
+        // Healing or reset, align immediately securely
         mWhiteHP = mTargetHP;
-        mDelayTimer = 0.0f;
     }
+
+    // Evaluate AAA sink state mathematically evaluating death cleanly
+    if (mTargetHP <= 0.0f)
+    {
+        // Lerp tint alpha natively dynamically reaching exactly 0.4 opacity over time
+        mSinkAlpha = std::max(0.4f, mSinkAlpha - 1.5f * dt);
+        // Lerp towards DarkGray tint for immersive blending structurally
+        mTintColor.f[0] = std::max(DirectX::Colors::DarkGray.f[0], mTintColor.f[0] - 1.5f * dt);
+        mTintColor.f[1] = std::max(DirectX::Colors::DarkGray.f[1], mTintColor.f[1] - 1.5f * dt);
+        mTintColor.f[2] = std::max(DirectX::Colors::DarkGray.f[2], mTintColor.f[2] - 1.5f * dt);
+    }
+    else
+    {
+        mSinkAlpha = std::min(1.0f, mSinkAlpha + 3.0f * dt);
+        mTintColor.f[0] = std::min(DirectX::Colors::White.f[0], mTintColor.f[0] + 3.0f * dt);
+        mTintColor.f[1] = std::min(DirectX::Colors::White.f[1], mTintColor.f[1] + 3.0f * dt);
+        mTintColor.f[2] = std::min(DirectX::Colors::White.f[2], mTintColor.f[2] + 3.0f * dt);
+    }
+
+
 
     mEffectState.Update(dt);
 }
@@ -307,6 +355,12 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     //   The BG PNG contains NO fill color — it is only a dark overlay.
     //   Fill color comes from the 1x1 tinted quad in Layer 2.
     // ----------------------------------------------------------------
+    // ----------------------------------------------------------------
+    // Evaluate Tint Scale globally incorporating Sink states efficiently
+    // ----------------------------------------------------------------
+    DirectX::XMVECTORF32 dynamicColor = mTintColor;
+    dynamicColor.f[3] = mSinkAlpha; // overwrite alpha strictly 
+
     mSpriteBatch->Begin(
         SpriteSortMode_Deferred,
         mStates->NonPremultiplied(),  // BG has alpha=107 (42%) — needs alpha blend
@@ -318,7 +372,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mBgSRV.Get(), pos, &srcFull,
-                           Colors::White, 0.0f, pivot, scale);
+                           dynamicColor, 0.0f, pivot, scale);
     }
     mSpriteBatch->End();
 
@@ -348,27 +402,32 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         );
         const XMFLOAT2 pivot(0.0f, 0.0f);
         
-        // Draw the white bar beneath
+        // Draw the white bar beneath cleanly scaled with sink Alpha
         if (whiteFillWidth > 0)
         {
             const XMFLOAT2 whiteScale(
                 static_cast<float>(whiteFillWidth) * scale,
                 static_cast<float>(mConfig.HpBarHeight()) * scale
             );
-            const XMVECTORF32 whiteColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+            DirectX::XMVECTORF32 whiteColor = { 1.0f, 1.0f, 1.0f, mSinkAlpha };
             mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
                                whiteColor, 0.0f, pivot, whiteScale);
         }
 
-        // Draw the red bar on top
+        // Draw the red bar on top strictly aligned mapping sink
         if (redFillWidth > 0)
         {
             const XMFLOAT2 redScale(
                 static_cast<float>(redFillWidth) * scale,
                 static_cast<float>(mConfig.HpBarHeight()) * scale
             );
-            // HP-bar red — adjust RGB here to change the fill color.
-            const XMVECTORF32 redColor = { 200.f/255.f, 50.f/255.f, 50.f/255.f, 1.0f };
+            // Apply generic Tint math maintaining Red proportion accurately!
+            DirectX::XMVECTORF32 redColor = { 
+                200.f/255.f * mTintColor.f[0], 
+                50.f/255.f * mTintColor.f[1], 
+                50.f/255.f * mTintColor.f[2], 
+                mSinkAlpha 
+            };
             mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
                                redColor, 0.0f, pivot, redScale);
         }
@@ -392,7 +451,32 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         const XMFLOAT2 pos(originX, originY);
         const XMFLOAT2 pivot(0.0f, 0.0f);
         mSpriteBatch->Draw(mFrameSRV.Get(), pos, &srcFull,
-                           Colors::White, 0.0f, pivot, scale);
+                           dynamicColor, 0.0f, pivot, scale);
+                           
+        // ----------------------------------------------------------------
+        // Layer 4: Dead Overlay natively rendered on top if target passed structurally away
+        // ----------------------------------------------------------------
+        if (mTargetHP <= 0.0f && mDeadOverlaySRV)
+        {
+            // Dynamically scaled bounding mapping JSON natively securely inside
+            const float overlayScale = (mDeadOverlayConfig.scaleTarget / mDeadOverlayConfig.width) * scale;
+            
+            // Fading alpha logic strictly mapping visually inwards
+            DirectX::XMVECTORF32 overlayTint = DirectX::Colors::White;
+            overlayTint.f[3] = 1.0f - ((mSinkAlpha - 0.4f) / 0.6f); // 0.0f to 1.0f inversely mapped relative to sink
+            
+            // Centralize Pivot natively aligning scaling math perfectly onto the absolute middle!
+            const DirectX::XMFLOAT2 centerPos(
+                pos.x + (mConfig.textureWidth / 2.0f) * scale + (mDeadOverlayConfig.offsetX * scale),
+                pos.y + (mConfig.textureHeight / 2.0f) * scale + (mDeadOverlayConfig.offsetY * scale)
+            );
+            const DirectX::XMFLOAT2 customPivot(
+                mDeadOverlayConfig.pivotX,
+                mDeadOverlayConfig.pivotY
+            );
+            
+            mSpriteBatch->Draw(mDeadOverlaySRV.Get(), centerPos, nullptr, overlayTint, 0.0f, customPivot, overlayScale);
+        }
     }
     mSpriteBatch->End();
 }
@@ -415,6 +499,7 @@ void HealthBarRenderer::Shutdown()
     mBgSRV.Reset();          // decrement GPU texture ref count
     mFillSRV.Reset();        // 1x1 white fill texture
     mFrameSRV.Reset();
+    mDeadOverlaySRV.Reset(); // free overlay asset cleanly
 
     LOG("[HealthBarRenderer] Shutdown complete.");
 }

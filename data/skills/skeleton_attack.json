@@ -8,6 +8,6 @@
     "bulletSpeed": 140.0,
     "bulletSpawnRate": 8.0,
     "bulletInvincibilityDuration": 1.0,
-    "bulletDamageScaling": 0.5,
+    "bulletDamageScaling": 10.0,
     "damageTakenOccurMoment": 0.4
 }

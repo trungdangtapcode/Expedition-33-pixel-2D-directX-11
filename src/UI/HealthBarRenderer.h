@@ -54,6 +54,7 @@
 #include "../UI/HealthBarConfig.h"
 #include "../Events/EventManager.h"
 #include "UIEffectState.h"
+#include "../Utils/JsonLoader.h"
 
 class HealthBarRenderer
 {
@@ -161,6 +162,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mBgSRV;     // background overlay (semi-transparent dark shadow)
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFrameSRV;  // frame + portrait texture
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFillSRV;   // 1x1 white texture — tinted to HP-bar color at draw time
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDeadOverlaySRV; // 1254x1254 death indicator overlay
     std::unique_ptr<DirectX::SpriteBatch>            mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates>           mStates;
 
@@ -177,6 +179,13 @@ private:
     float mRedHP       = 100.0f;   // front bar: drops quickly
     float mWhiteHP     = 100.0f;   // back bar: delayed and slow drop
     float mDelayTimer  = 0.0f;     // timer for white bar delay
+    
+    // -- Visual sink state variables --
+    float mSinkAlpha = 1.0f;       // Transparency fade when dying
+    DirectX::XMVECTORF32 mTintColor = DirectX::Colors::White; // Tint map dynamically approaching DarkGray
+    JsonLoader::DeadOverlayConfig mDeadOverlayConfig; // Struct containing scaling scalars
+    float mHotReloadTimer = 0.0f;  // Polling tracker allowing live JSON Layout tweaks!
+
 
     static constexpr float kRedLerpSpeed   = 15.0f; // fast drain for the red bar
     static constexpr float kWhiteLerpSpeed = 3.0f;  // slow drain for the white background bar

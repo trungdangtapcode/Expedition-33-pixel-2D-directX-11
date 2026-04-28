@@ -132,6 +132,7 @@ cl.exe ^
     src\Battle\BattleRenderer.cpp ^
     src\States\BattleState.cpp ^
     src\UI\HealthBarRenderer.cpp ^
+    src\UI\ExpBarRenderer.cpp ^
     src\UI\BattleTextRenderer.cpp ^
     src\UI\EnemyHpBarRenderer.cpp ^
     src\UI\PointerRenderer.cpp ^

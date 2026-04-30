@@ -41,6 +41,7 @@
 #include "MenuState.h"
 #include "BattleState.h"
 #include "InventoryState.h"
+#include "LineupState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Core/TimeSystem.h"
@@ -310,6 +311,21 @@ void OverworldState::Update(float dt)
         {
             StateManager::Get().PushState(std::make_unique<InventoryState>());
             return;  // do NOT run the rest of Update — the new state owns this frame
+        }
+    }
+
+    // ---------------------------------------------------------------
+    // 'L' key — open the party lineup / equipment management screen.
+    // Same push-state pattern as the 'I' key above.
+    // ---------------------------------------------------------------
+    {
+        const bool lDown    = (GetAsyncKeyState('L') & 0x8000) != 0;
+        const bool lPressed = lDown && !mLWasDown;
+        mLWasDown = lDown;
+        if (lPressed)
+        {
+            StateManager::Get().PushState(std::make_unique<LineupState>());
+            return;
         }
     }
 

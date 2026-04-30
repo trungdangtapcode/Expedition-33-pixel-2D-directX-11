@@ -379,7 +379,12 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
     }
 
     // ---- Slot list ----
-    mTextRenderer.DrawString(ctx, "VERSO  - Equipment", leftX, leftY,
+    const auto& party = PartyManager::Get().GetActiveParty();
+    const char* memberName = (mMemberIndex < static_cast<int>(party.size()))
+        ? party[mMemberIndex].name.c_str() : "???";
+    char eqHeader[64];
+    _snprintf_s(eqHeader, sizeof(eqHeader), _TRUNCATE, "%s  - Equipment", memberName);
+    mTextRenderer.DrawString(ctx, eqHeader, leftX, leftY,
                               DirectX::Colors::Yellow);
 
     const float rowH = 56.0f;
@@ -396,7 +401,7 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
         mDialogBox.Draw(ctx, leftX, rowY, leftW, rowH,
                         0.45f, DirectX::XMMatrixIdentity(), rowColor);
 
-        std::string equippedId = PartyManager::Get().GetEquippedItem(0, order[i]);
+        std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, order[i]);
         const ItemData* item = equippedId.empty() ? nullptr : ItemRegistry::Get().Find(equippedId);
 
         // Slot label
@@ -436,12 +441,15 @@ void InventoryState::RenderStatsFooter(float panelX, float footerY,
                                          float panelW, float footerH)
 {
     auto* ctx = D3DContext::Get().GetContext();
-    const BattlerStats s = PartyManager::Get().GetEffectiveStats(0);
+    const BattlerStats s = PartyManager::Get().GetEffectiveStats(mMemberIndex);
+    const auto& party = PartyManager::Get().GetActiveParty();
+    const char* name = (mMemberIndex < static_cast<int>(party.size()))
+        ? party[mMemberIndex].name.c_str() : "???";
 
     char line[256];
     _snprintf_s(line, sizeof(line), _TRUNCATE,
-                "VERSO   HP %d/%d   MP %d/%d   ATK %d   DEF %d   MATK %d   MDEF %d   SPD %d",
-                s.hp, s.maxHp, s.mp, s.maxMp,
+                "%s   HP %d/%d   MP %d/%d   ATK %d   DEF %d   MATK %d   MDEF %d   SPD %d",
+                name, s.hp, s.maxHp, s.mp, s.maxMp,
                 s.atk, s.def, s.matk, s.mdef, s.spd);
     mTextRenderer.DrawString(ctx, line,
                               panelX + 24.0f, footerY + footerH * 0.30f,
@@ -469,10 +477,10 @@ void InventoryState::RenderHintFooter(float panelX, float footerY,
     switch (mPhase)
     {
     case Phase::ItemsGrid:
-        hint = "Arrows: navigate   Enter: use   Tab: switch tab   Esc/I: close";
+        hint = "Arrows: navigate   Enter: use   Q/E: member   Tab: tab   Esc: close";
         break;
     case Phase::EquipmentSlots:
-        hint = "Up/Down: select slot   Enter: change item   Tab: switch tab   Esc/I: close";
+        hint = "Up/Down: slot   Left/Right: member   Enter: change   Tab: tab   Esc: close";
         break;
     case Phase::EquipmentPicker:
         hint = "Up/Down: pick item   Enter: equip   Esc/Backspace: cancel";

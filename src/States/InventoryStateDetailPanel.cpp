@@ -99,7 +99,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
 
         // Current effective stats (base + currently-equipped bonuses).
         // Used as the LEFT side of every "current -> preview" row.
-        BattlerStats current = PartyManager::Get().GetEffectiveStats(0);
+        BattlerStats current = PartyManager::Get().GetEffectiveStats(mMemberIndex);
 
         // Resolve the hypothetical id under the picker cursor.  Empty
         // string means "(unequip)" pseudo-row OR an empty list — both
@@ -110,7 +110,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
 
         // PreviewEffectiveStats runs the SAME fold the real Equip path
         // would run — there is no chance of preview vs simulation drift.
-        const BattlerStats preview = PartyManager::Get().PreviewEffectiveStats(0, mPickerSlot, previewId);
+        const BattlerStats preview = PartyManager::Get().PreviewEffectiveStats(mMemberIndex, mPickerSlot, previewId);
 
         // Helper: draw "label  current -> preview (delta)" with a color
         // hint.  No-change rows print in white without arrows so the
@@ -169,7 +169,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         EquipSlot::Weapon, EquipSlot::Body, EquipSlot::Head, EquipSlot::Accessory
     };
     const EquipSlot   slot = order[mSlotCursor];
-    const std::string equippedId = PartyManager::Get().GetEquippedItem(0, slot);
+    const std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, slot);
     const ItemData*   item = equippedId.empty() ? nullptr : ItemRegistry::Get().Find(equippedId);
 
     char slotHeader[64];

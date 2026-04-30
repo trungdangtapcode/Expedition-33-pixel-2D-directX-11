@@ -144,6 +144,9 @@ private:
     // not while held.
     bool mIWasDown = false;
 
+    // One-press L key tracking — opens the LineupState overlay.
+    bool mLWasDown = false;
+
     // DEBUG: raw texture viewer — bypasses all sprite sheet / pivot math.
     DebugTextureViewer mDebugView;
 

@@ -11,6 +11,11 @@ Todo:
 - noi tai
 - level
 - save & checkpoint
+- effect
+- anim nhan sat thuong
+- phong to hp bar
+- sound effect
+- upgrade tile 
 
 - Queue randomize system
 - Add background assets

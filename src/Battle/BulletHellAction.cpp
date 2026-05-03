@@ -5,6 +5,10 @@
 #include "../Core/InputManager.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
+#include "../Utils/JsonLoader.h"
+#include "RandomEdgeSpawner.h"
+#include "SpiralSpawner.h"
+#include "SineSpawner.h"
 #include <cmath>
 #include <random>
 
@@ -13,65 +17,60 @@ static constexpr int VK_A_KEY = 0x41;
 static constexpr int VK_S_KEY = 0x53;
 static constexpr int VK_D_KEY = 0x44;
 
-BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, float durationSec, std::string bulletTexture, float bRadius, float bSpeed, float bSpawnRate, float bInvincTimer, float bDmgScale)
-    : mAttacker(attacker), mDefender(defender), mBulletTexturePath(bulletTexture), mBulletRadius(bRadius), mBulletSpeed(bSpeed), mBulletSpawnRate(bSpawnRate), mBulletInvincibilityDuration(bInvincTimer), mBulletDamageScaling(bDmgScale), mDuration(durationSec), mElapsed(0.0f), mHitsTaken(0)
+BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath)
+    : mAttacker(attacker), mDefender(defender), mElapsed(0.0f), mHitsTaken(0)
 {
+    JsonLoader::BulletHellPatternData patternData;
+    if (!JsonLoader::LoadBulletHellPatternData(patternPath, patternData)) {
+        LOG("[BulletHellAction] Warning: Failed to load pattern '%s'. Using defaults.", patternPath.c_str());
+    }
+
+    mDuration = patternData.durationSec;
+    mBoxW = patternData.boxWidth;
+    mBoxH = patternData.boxHeight;
+    mInvincibilityDuration = patternData.invincibilityDuration;
+
     // Configure standard rendering boundaries
     mBoxCx = 640.0f; // Screen width 1280 (Center layout)
     mBoxCy = 480.0f; // Middle-lower section
-    mBoxW = 550.0f;
-    mBoxH = 250.0f;
 
     mHeartX = mBoxCx;
     mHeartY = mBoxCy;
     mHeartRadius = 6.0f;
-    
-    mSpawnTimer = 0.0f;
     mInvincibilityTimer = 0.0f;
-    LOG("[BulletHellAction] Dodge phase begun for %.2f seconds", durationSec);
-}
 
-void BulletHellAction::SpawnBullet()
-{
-    PhysicsBullet b;
-    b.radius = mBulletRadius;
-    
-    int side = rand() % 4;
-    float speed = mBulletSpeed * (0.8f + (rand() % 40) / 100.0f); // 80% to 120% speed
-    
-    if (side == 0) { // Top edge
-        b.x = mBoxCx - (mBoxW / 2.0f) + (rand() % (int)mBoxW);
-        b.y = mBoxCy - (mBoxH / 2.0f);
-    } else if (side == 1) { // Bottom edge
-        b.x = mBoxCx - (mBoxW / 2.0f) + (rand() % (int)mBoxW);
-        b.y = mBoxCy + (mBoxH / 2.0f);
-    } else if (side == 2) { // Left
-        b.x = mBoxCx - (mBoxW / 2.0f);
-        b.y = mBoxCy - (mBoxH / 2.0f) + (rand() % (int)mBoxH);
-    } else { // Right
-        b.x = mBoxCx + (mBoxW / 2.0f);
-        b.y = mBoxCy - (mBoxH / 2.0f) + (rand() % (int)mBoxH);
+    LOG("[BulletHellAction] Dodge phase begun for %.2f seconds", mDuration);
+
+    // Initialize Texture mapping and Spawners
+    for (const auto& spawnerConfig : patternData.spawners) {
+        int texIndex = -1;
+        // Check if we already registered this texture
+        for (int i = 0; i < (int)mTexturePaths.size(); ++i) {
+            if (mTexturePaths[i] == spawnerConfig.texturePath) {
+                texIndex = i;
+                break;
+            }
+        }
+        // Not found, register it
+        if (texIndex == -1) {
+            mTexturePaths.push_back(spawnerConfig.texturePath);
+            texIndex = (int)mTexturePaths.size() - 1;
+        }
+
+        // Instantiate specific spawner
+        if (spawnerConfig.type == "spiral") {
+            mSpawners.push_back(std::make_unique<SpiralSpawner>(spawnerConfig, texIndex));
+        } else if (spawnerConfig.type == "sine") {
+            mSpawners.push_back(std::make_unique<SineSpawner>(spawnerConfig, texIndex));
+        } else {
+            // Default to random edge
+            mSpawners.push_back(std::make_unique<RandomEdgeSpawner>(spawnerConfig, texIndex));
+        }
     }
-    
-    // Instead of shooting strictly perpendicularly, aim roughly towards the heart
-    float targetX = mHeartX + ((rand() % 100) - 50.0f); // Add jitter to aim
-    float targetY = mHeartY + ((rand() % 100) - 50.0f);
-    
-    float dx = targetX - b.x;
-    float dy = targetY - b.y;
-    float dist = std::sqrt(dx*dx + dy*dy);
-    if (dist == 0) dist = 1.0f;
-    
-    b.vx = (dx / dist) * speed;
-    b.vy = (dy / dist) * speed;
-    b.angle = std::atan2(b.vy, b.vx);
-    
-    mBullets.push_back(b);
 }
 
-void BulletHellAction::ApplyDamage(const BattleContext& ctx)
+void BulletHellAction::ApplyDamage(const BattleContext& ctx, float overrideScaling)
 {
-    // Damage scaling fractional!
     DefaultDamageCalculator calc;
     DamageRequest req;
     req.attacker = mAttacker;
@@ -82,7 +81,7 @@ void BulletHellAction::ApplyDamage(const BattleContext& ctx)
     DamageResult res = calc.Calculate(req, ctx);
 
     // Apply reduced proportional UI damage since this is a barrage
-    res.effectiveDamage = (int)(res.effectiveDamage * mBulletDamageScaling);
+    res.effectiveDamage = (int)(res.effectiveDamage * overrideScaling);
     if (res.effectiveDamage < 1) res.effectiveDamage = 1;
 
     mDefender->TakeDamage(res, mAttacker);
@@ -130,26 +129,37 @@ bool BulletHellAction::Execute(float dt)
     if (mHeartY < minY) mHeartY = minY;
     if (mHeartY > maxY) mHeartY = maxY;
 
-    // Bullet physics & Spawn
-    mSpawnTimer += dt;
-    float interval = 1.0f / mBulletSpawnRate;
-    if (mSpawnTimer > interval) {
-        SpawnBullet();
-        mSpawnTimer = 0.0f;
+    // Bullet Spawning
+    for (auto& spawner : mSpawners) {
+        spawner->Update(dt, mBoxCx, mBoxCy, mBoxW, mBoxH, mHeartX, mHeartY, mBullets);
     }
 
     if (mInvincibilityTimer > 0.0f) {
         mInvincibilityTimer -= dt;
     }
 
-    // Assume standard context from generic static singleton scope conceptually
-    // Here we need mock BattleContext since we don't have it natively inside IAction, wait DefaultDamageCal doesn't strictly need it unless stat bonus relies on it. 
     BattleContext dummyCtx; 
 
     // Update bullets intersecting loops
     for (auto it = mBullets.begin(); it != mBullets.end(); ) {
-        it->x += it->vx * dt;
-        it->y += it->vy * dt;
+        it->timeAlive += dt;
+        if (it->behavior == BulletBehavior::Sine) {
+            float perpX = -it->vy;
+            float perpY = it->vx;
+            float len = std::sqrt(perpX*perpX + perpY*perpY);
+            if (len > 0) { perpX /= len; perpY /= len; }
+            
+            float baseDist = std::sqrt(it->vx*it->vx + it->vy*it->vy) * it->timeAlive;
+            float baseX = it->startX + (it->vx / len) * baseDist;
+            float baseY = it->startY + (it->vy / len) * baseDist;
+            
+            float offset = std::sin(it->timeAlive * it->frequency) * it->amplitude;
+            it->x = baseX + perpX * offset;
+            it->y = baseY + perpY * offset;
+        } else {
+            it->x += it->vx * dt;
+            it->y += it->vy * dt;
+        }
 
         float distSq = (it->x - mHeartX)*(it->x - mHeartX) + (it->y - mHeartY)*(it->y - mHeartY);
         float rSum = it->radius + mHeartRadius;
@@ -157,9 +167,9 @@ bool BulletHellAction::Execute(float dt)
         if (distSq <= rSum * rSum) {
             // Hit detected
             if (mInvincibilityTimer <= 0.0f) {
-                mInvincibilityTimer = mBulletInvincibilityDuration; 
+                mInvincibilityTimer = mInvincibilityDuration; 
                 mHitsTaken++;
-                ApplyDamage(dummyCtx);
+                ApplyDamage(dummyCtx, it->damageScaling / 100.0f);
             }
             it = mBullets.erase(it);
         } else {
@@ -183,9 +193,9 @@ bool BulletHellAction::Execute(float dt)
     outPayload.heartY = mHeartY;
     outPayload.heartRadius = mHeartRadius;
     for (const auto& b : mBullets) {
-        outPayload.bullets.push_back({b.x, b.y, b.radius, b.angle});
+        outPayload.bullets.push_back({b.x, b.y, b.radius, b.angle, b.textureIndex});
     }
-    outPayload.bulletTexturePath = mBulletTexturePath;
+    outPayload.texturePaths = mTexturePaths;
     outPayload.invincibilityTimer = mInvincibilityTimer;
 
     EventData ed;

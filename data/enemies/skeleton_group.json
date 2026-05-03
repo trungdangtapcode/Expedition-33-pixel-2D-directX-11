@@ -37,7 +37,7 @@
       "def": 3,
       "spd": 8,
       "expReward": 35,
-      "attackJsonPath": "data/skills/skeleton_attack.json",
+      "attackJsonPath": "data/skills/skeleton_scout_attack.json",
       "cameraFocusOffsetY": -128.0
     },
     {
@@ -51,7 +51,7 @@
       "def": 4,
       "spd": 5,
       "expReward": 40,
-      "attackJsonPath": "data/skills/skeleton_attack.json",
+      "attackJsonPath": "data/skills/skeleton_archer_attack.json",
       "cameraFocusOffsetY": -128.0
     }
   ]

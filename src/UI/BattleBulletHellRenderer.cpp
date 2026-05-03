@@ -22,29 +22,30 @@ void BattleBulletHellRenderer::UpdateState(const BulletHellPayload& payload)
 {
     mLastPayload = payload;
 
-    // Dynamically check and load replacement texture without blocking rendering logic!
-    if (payload.bulletTexturePath != mLoadedBulletTexturePath) {
-        mLoadedBulletTexturePath = payload.bulletTexturePath;
-        mDynamicBulletTex.Reset();
-        mDynamicBulletRadiusNorm = 1.0f; // Reset scalar
+    // Dynamically check and load replacement textures without blocking rendering logic!
+    for (const std::string& path : payload.texturePaths) {
+        if (path.empty()) continue;
 
-        if (!mLoadedBulletTexturePath.empty()) {
-            std::wstring wpath(mLoadedBulletTexturePath.begin(), mLoadedBulletTexturePath.end());
-            HRESULT hr = DirectX::CreateWICTextureFromFile(mDevice.Get(), mContext.Get(), wpath.c_str(), nullptr, mDynamicBulletTex.ReleaseAndGetAddressOf());
+        // Only load if not cached this frame
+        if (mTextureCache.find(path) == mTextureCache.end()) {
+            LoadedTex lt;
+            std::wstring wpath(path.begin(), path.end());
+            HRESULT hr = DirectX::CreateWICTextureFromFile(mDevice.Get(), mContext.Get(), wpath.c_str(), nullptr, lt.srv.ReleaseAndGetAddressOf());
             
-            if (SUCCEEDED(hr) && mDynamicBulletTex) {
+            if (SUCCEEDED(hr) && lt.srv) {
                 // Calculate scaling normalization metadata strictly once!
                 Microsoft::WRL::ComPtr<ID3D11Resource> res;
-                mDynamicBulletTex->GetResource(&res);
+                lt.srv->GetResource(&res);
                 Microsoft::WRL::ComPtr<ID3D11Texture2D> tex2d;
                 res.As(&tex2d);
                 if (tex2d) {
                     D3D11_TEXTURE2D_DESC desc;
                     tex2d->GetDesc(&desc);
-                    mDynamicBulletRadiusNorm = (float)desc.Width / 2.0f; 
+                    lt.radiusNorm = (float)desc.Width / 2.0f; 
                 }
+                mTextureCache[path] = lt;
             } else {
-                LOG("[BattleBulletHellRenderer] FAILED to securely load custom Bullet texture: %s", mLoadedBulletTexturePath.c_str());
+                LOG("[BattleBulletHellRenderer] FAILED to securely load custom Bullet texture: %s", path.c_str());
             }
         }
     }
@@ -83,23 +84,32 @@ void BattleBulletHellRenderer::Render(ID3D11DeviceContext* context, int screenW,
             mSpriteBatch->Begin(DirectX::SpriteSortMode_Deferred, mStates->NonPremultiplied());
         }
 
+        // Keep track of bullets that need pure circle renderer
+        std::vector<BulletHellPayload::Bullet> fallbackBullets;
+
         // Draw Dynamic Bullets
-        if (mDynamicBulletTex) {
-            for (const auto& b : mLastPayload.bullets) {
-                 DirectX::XMFLOAT2 bPos(b.x, b.y);
-                 DirectX::XMFLOAT2 pivot(mDynamicBulletRadiusNorm, mDynamicBulletRadiusNorm);
-                 float scale = b.radius / mDynamicBulletRadiusNorm;
-                 mSpriteBatch->Draw(mDynamicBulletTex.Get(), bPos, nullptr, DirectX::Colors::White, b.angle, pivot, scale); 
+        for (const auto& b : mLastPayload.bullets) {
+            if (b.textureIndex >= 0 && b.textureIndex < (int)mLastPayload.texturePaths.size()) {
+                const std::string& path = mLastPayload.texturePaths[b.textureIndex];
+                if (mTextureCache.find(path) != mTextureCache.end()) {
+                    auto& tex = mTextureCache[path];
+                    DirectX::XMFLOAT2 bPos(b.x, b.y);
+                    DirectX::XMFLOAT2 pivot(tex.radiusNorm, tex.radiusNorm);
+                    float scale = b.radius / tex.radiusNorm;
+                    mSpriteBatch->Draw(tex.srv.Get(), bPos, nullptr, DirectX::Colors::White, b.angle, pivot, scale); 
+                } else {
+                    fallbackBullets.push_back(b);
+                }
+            } else {
+                fallbackBullets.push_back(b);
             }
         }
         
         mSpriteBatch->End();
         
-        // Final fallback bullet catch
-        if (!mDynamicBulletTex) {
-            for (const auto& b : mLastPayload.bullets) {
-                 mCircleRenderer.Draw(context, b.x, b.y, b.radius, 1.0f, 1.0f, 1.0f, screenW, screenH);
-            }
+        // Final fallback bullet catch for ones without valid textures
+        for (const auto& b : fallbackBullets) {
+            mCircleRenderer.Draw(context, b.x, b.y, b.radius, 1.0f, 1.0f, 1.0f, screenW, screenH);
         }
     }
 }

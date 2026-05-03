@@ -109,6 +109,7 @@ public:
     //   Used to highlight the active character during their turn.
     // ----------------------------------------------------------------
     void SetTargetScale(float scale) { mEffectState.SetTargetScale(scale); }
+    void SetTargetLift(float lift)   { mEffectState.SetTargetLift(lift); }
 
     // ----------------------------------------------------------------
     // Update

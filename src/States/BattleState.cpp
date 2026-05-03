@@ -496,8 +496,28 @@ void BattleState::CheckDeathAnimations()
 
 void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected)
 {
-    for (auto& bar : mHealthBars) {
-        if (bar->IsInitialized()) bar->Update(dt);
+    // Determine which player slot (if any) is the active combatant so
+    // we can scale their HP bar up to visually indicate "it's your turn".
+    const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
+    const auto allPlayers = mBattle.GetAllPlayers();
+    const bool isPlayerTurn = (mBattle.GetPhase() == BattlePhase::PLAYER_TURN);
+
+    for (int i = 0; i < static_cast<int>(mHealthBars.size()); ++i)
+    {
+        if (!mHealthBars[i]->IsInitialized()) continue;
+
+        // Highlight the active player's HP bar:
+        //   No scale change — bars are packed tightly (only 4px gap) and
+        //   even 1.05× overflows into the neighbor.
+        //   Vertical lift (-20px) raises the bar above its neighbors,
+        //   clearly marking whose turn it is without any collision.
+        const bool isActive = isPlayerTurn &&
+                              activePlayer != nullptr &&
+                              i < static_cast<int>(allPlayers.size()) &&
+                              allPlayers[i] == activePlayer;
+        mHealthBars[i]->SetTargetScale(1.0f);
+        mHealthBars[i]->SetTargetLift(isActive ? -20.0f : 0.0f);
+        mHealthBars[i]->Update(dt);
     }
     mTurnQueueUI.Update(dt);
     mTurnQueueUI.UpdateQueue(mBattle.GetFutureTurnQueue(6));

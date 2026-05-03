@@ -8,6 +8,7 @@
 #include <SpriteBatch.h>
 #include <CommonStates.h>
 #include <string>
+#include <unordered_map>
 #include "../Battle/BattleEvents.h"
 
 class BattleBulletHellRenderer
@@ -32,10 +33,13 @@ private:
     std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates> mStates;
 
-    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDynamicBulletTex;
+    struct LoadedTex {
+        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> srv;
+        float radiusNorm = 1.0f;
+    };
+    std::unordered_map<std::string, LoadedTex> mTextureCache;
+    
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mHeartTex;
-    std::string mLoadedBulletTexturePath;
-    float mDynamicBulletRadiusNorm = 1.0f;
 
     // Local snapshot synced over from Publisher
     BulletHellPayload mLastPayload;

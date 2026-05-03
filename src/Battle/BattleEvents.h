@@ -86,9 +86,9 @@ struct BulletHellPayload {
     float heartY = 0.0f;
     float heartRadius = 6.0f;
     
-    struct Bullet { float x, y, radius, angle; };
+    struct Bullet { float x, y, radius, angle; int textureIndex; };
     std::vector<Bullet> bullets;
-    std::string bulletTexturePath = "";
+    std::vector<std::string> texturePaths;
     float invincibilityTimer = 0.0f;
 };
 

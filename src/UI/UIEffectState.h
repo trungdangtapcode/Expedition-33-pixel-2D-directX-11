@@ -1,8 +1,8 @@
 // ============================================================
 // File: UIEffectState.h
-// Responsibility: Encapsulate common UI animations like scaling 
-//                 and screen-shake to prevent code duplication 
-//                 across different UI renderers.
+// Responsibility: Encapsulate common UI animations like scaling,
+//                 vertical lift, and screen-shake to prevent code
+//                 duplication across different UI renderers.
 // ============================================================
 #pragma once
 #include <cstdlib>
@@ -15,6 +15,9 @@ public:
     {
         // Scale lerping
         mCurrentScale += (mTargetScale - mCurrentScale) * mScaleLerpSpeed * dt;
+
+        // Lift lerping (smooth Y offset for active-character highlight)
+        mCurrentLift += (mTargetLift - mCurrentLift) * mLiftLerpSpeed * dt;
 
         // Shake logic
         if (mShakeTimer > 0.0f)
@@ -43,6 +46,11 @@ public:
 
     void SetTargetScale(float scale) { mTargetScale = scale; }
     float GetScale() const { return mCurrentScale; }
+
+    // Vertical lift: negative = upward.  Used to make the active party
+    // member's HP bar "pop out" from the lineup without colliding sideways.
+    void SetTargetLift(float lift) { mTargetLift = lift; }
+    float GetLift() const { return mCurrentLift; }
     
     void TriggerShake(float duration = 0.3f, float intensity = 8.0f)
     {
@@ -58,6 +66,10 @@ private:
     float mTargetScale = 1.0f;
     float mCurrentScale = 1.0f;
     float mScaleLerpSpeed = 15.0f;
+
+    float mTargetLift = 0.0f;
+    float mCurrentLift = 0.0f;
+    float mLiftLerpSpeed = 10.0f;
 
     float mShakeTimer = 0.0f;
     float mShakeDuration = 0.3f;

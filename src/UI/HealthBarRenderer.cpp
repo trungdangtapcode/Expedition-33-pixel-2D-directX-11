@@ -334,15 +334,25 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     const int redFillWidth   = static_cast<int>(mConfig.HpBarWidth() * redRatio);
     const int whiteFillWidth = static_cast<int>(mConfig.HpBarWidth() * whiteRatio);
 
-    // Anchor the widget to the bottom-right corner of the screen.
-    // Ensure anchor takes current scaling into account. Let's pivot around the bottom right corner.
-    const float scale = mEffectState.GetScale();
+    // Active-character highlight uses scale + vertical lift.
+    //
+    // Pivot strategy to avoid colliding with neighboring bars:
+    //   X axis: center-pivot — the bar widens equally left AND right.
+    //           With a small scale (1.05) the extra ~6px per side is within
+    //           the inter-bar gap and never overlaps.
+    //   Y axis: bottom-pivot — the bar grows UPWARD from its bottom edge
+    //           so it never pushes into the bar below.
+    //           Lift (negative = upward) raises the entire bar to visually
+    //           separate the active member from the rest of the lineup.
+    const float scale   = mEffectState.GetScale();
+    const float lift    = mEffectState.GetLift();
     const float offsetX = mEffectState.GetOffsetX();
     const float offsetY = mEffectState.GetOffsetY();
 
-    // Use dynamic coordinates supplied via Initialization
-    const float originX = mRenderX + offsetX;
-    const float originY = mRenderY + offsetY;
+    const float halfW   = static_cast<float>(mConfig.textureWidth) * 0.5f;
+    const float fullH   = static_cast<float>(mConfig.textureHeight);
+    const float originX = mRenderX + offsetX - halfW * (scale - 1.0f);
+    const float originY = mRenderY + offsetY - fullH * (scale - 1.0f) + lift;
 
     // Bind viewport — must happen before Begin() so SpriteBatch's internal
     // GetViewportTransform() uses our stored dimensions instead of querying

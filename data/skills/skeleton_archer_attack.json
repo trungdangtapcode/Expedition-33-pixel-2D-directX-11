@@ -1,8 +1,8 @@
 {
     "moveDuration": 0.4,
-    "returnDuration": 0.35,
+    "returnDuration": 0.4,
     "meleeOffset": 80.0,
     "bulletHellSupported": true,
-    "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
+    "bulletHellPatternPath": "data/bullet_patterns/archer_pattern.json",
     "damageTakenOccurMoment": 0.4
 }

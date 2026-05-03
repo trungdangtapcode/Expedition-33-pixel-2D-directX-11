@@ -3,26 +3,23 @@
 #include "IBattler.h"
 #include "BattleContext.h"
 #include "BattleEvents.h"
+#include "IBulletSpawner.h"
 #include <vector>
+#include <string>
+#include <memory>
 
 class BulletHellAction : public IAction
 {
 public:
-    BulletHellAction(IBattler* attacker, IBattler* defender, float durationSec = 5.0f, std::string bulletTexture = "", float bRadius = 6.0f, float bSpeed = 150.0f, float bSpawnRate = 4.0f, float bInvincTimer = 1.0f, float bDmgScale = 0.15f);
+    BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath);
 
     bool Execute(float dt) override;
 
 private:
     IBattler* mAttacker;
     IBattler* mDefender;
-    std::string mBulletTexturePath;
-    float mBulletRadius;
-    float mBulletSpeed;
-    float mBulletSpawnRate;
-    float mBulletInvincibilityDuration;
-    float mBulletDamageScaling;
 
-    // Time scaling 
+    // Phase management
     float mDuration;
     float mElapsed;
 
@@ -30,17 +27,14 @@ private:
     float mBoxCx, mBoxCy, mBoxW, mBoxH;
     float mHeartX, mHeartY, mHeartRadius;
 
-    // Bullet Spawning
-    struct PhysicsBullet {
-        float x, y, vx, vy, radius, angle;
-    };
     std::vector<PhysicsBullet> mBullets;
-    float mSpawnTimer;
+    std::vector<std::unique_ptr<IBulletSpawner>> mSpawners;
+    std::vector<std::string> mTexturePaths;
 
     // Damage metrics
     float mInvincibilityTimer;
+    float mInvincibilityDuration;
     int mHitsTaken;
 
-    void SpawnBullet();
-    void ApplyDamage(const BattleContext& ctx);
+    void ApplyDamage(const BattleContext& ctx, float overrideScaling);
 };

@@ -53,7 +53,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
 
     // 4. Play attack animation and apply damage simultaneously.
     if (mData.bulletHellSupported) {
-        actions.push_back(std::make_unique<BulletHellAction>(&caster, target, 5.0f, mData.bulletTexturePath, mData.bulletRadius, mData.bulletSpeed, mData.bulletSpawnRate, mData.bulletInvincibilityDuration, mData.bulletDamageScaling)); // 5 second dodge sequence!
+        actions.push_back(std::make_unique<BulletHellAction>(&caster, target, mData.bulletHellPatternPath));
     } else if (mData.qteSupported) {
         actions.push_back(std::make_unique<QteAnimDamageAction>(
             req, CombatantAnim::Attack, mData.qteStartMoment, mData.damageTakenOccurMoment, ctx.config.qteSlowMoScale,

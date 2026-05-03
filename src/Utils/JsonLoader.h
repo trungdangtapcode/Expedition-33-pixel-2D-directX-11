@@ -925,12 +925,7 @@ struct SkillData {
     // QTE Configuration
     bool qteSupported = false;
     bool bulletHellSupported = false;
-    std::string bulletTexturePath = "";
-    float bulletRadius = 6.0f;
-    float bulletSpeed = 150.0f;
-    float bulletSpawnRate = 4.0f;
-    float bulletInvincibilityDuration = 1.0f;
-    float bulletDamageScaling = 0.15f;
+    std::string bulletHellPatternPath = "";
     float qteStartMoment = 0.3f;
     float qtePerfectMultiplier = 1.5f;
     float qteGoodMultiplier = 1.2f;
@@ -977,12 +972,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 
     out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
     out.bulletHellSupported = detail::ParseBool(detail::ValueOf(src, "bulletHellSupported"), false);
-    out.bulletTexturePath = detail::CleanString(detail::ValueOf(src, "bulletTexturePath"));
-    out.bulletRadius = detail::ParseFloat(detail::ValueOf(src, "bulletRadius"), 6.0f);
-    out.bulletSpeed = detail::ParseFloat(detail::ValueOf(src, "bulletSpeed"), 150.0f);
-    out.bulletSpawnRate = detail::ParseFloat(detail::ValueOf(src, "bulletSpawnRate"), 4.0f);
-    out.bulletInvincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "bulletInvincibilityDuration"), 1.0f);
-    out.bulletDamageScaling = detail::ParseFloat(detail::ValueOf(src, "bulletDamageScaling"), 0.15f);
+    out.bulletHellPatternPath = detail::CleanString(detail::ValueOf(src, "bulletHellPatternPath"));
     out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
     out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
     out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);
@@ -998,6 +988,81 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
         path.c_str(),
         resolvedPath.string().c_str(),
         out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadBulletHellPatternData
+// Purpose:
+//   Parse a data/bullet_patterns/*.json file to configure multi-spawner logic.
+// ------------------------------------------------------------
+struct BulletSpawnerData {
+    std::string type = "random_edge"; // "random_edge", "spiral", "targeted", "sine"
+    std::string texturePath = "";
+    float spawnRate = 4.0f;
+    float bulletSpeed = 150.0f;
+    float bulletRadius = 6.0f;
+    float bulletDamageScaling = 0.15f;
+    
+    // Sine spawner specifics
+    float sineAmplitude = 50.0f;
+    float sineFrequency = 5.0f;
+};
+
+struct BulletHellPatternData {
+    float durationSec = 5.0f;
+    float boxWidth = 550.0f;
+    float boxHeight = 250.0f;
+    float invincibilityDuration = 1.0f;
+    std::vector<BulletSpawnerData> spawners;
+};
+
+inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPatternData& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open pattern file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf; buf << file.rdbuf();
+    std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    out.durationSec = detail::ParseFloat(detail::ValueOf(src, "durationSec"), 5.0f);
+    out.boxWidth = detail::ParseFloat(detail::ValueOf(src, "boxWidth"), 550.0f);
+    out.boxHeight = detail::ParseFloat(detail::ValueOf(src, "boxHeight"), 250.0f);
+    out.invincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "invincibilityDuration"), 1.0f);
+
+    auto objects = detail::ExtractObjectsFromArray(src, "spawners");
+    for (const auto& obj : objects) {
+        BulletSpawnerData sd;
+        sd.type = detail::CleanString(detail::ValueOf(obj, "type"));
+        if(sd.type.empty()) sd.type = "random_edge";
+        
+        sd.texturePath = detail::CleanString(detail::ValueOf(obj, "texturePath"));
+        // If empty, will use fallback circle rendering via BattleBulletHellRenderer natively
+        
+        sd.spawnRate = detail::ParseFloat(detail::ValueOf(obj, "spawnRate"), 4.0f);
+        sd.bulletSpeed = detail::ParseFloat(detail::ValueOf(obj, "bulletSpeed"), 150.0f);
+        sd.bulletRadius = detail::ParseFloat(detail::ValueOf(obj, "bulletRadius"), 6.0f);
+        sd.bulletDamageScaling = detail::ParseFloat(detail::ValueOf(obj, "bulletDamageScaling"), 0.15f);
+        
+        sd.sineAmplitude = detail::ParseFloat(detail::ValueOf(obj, "sineAmplitude"), 50.0f);
+        sd.sineFrequency = detail::ParseFloat(detail::ValueOf(obj, "sineFrequency"), 5.0f);
+        
+        out.spawners.push_back(sd);
+    }
+
+    LOG("[JsonLoader] Loaded BulletHellPatternData from '%s' with %zu spawners.", path.c_str(), out.spawners.size());
     return true;
 }
 

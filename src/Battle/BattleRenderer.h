@@ -164,8 +164,8 @@ public:
     // — no conversion is done here.
     // ------------------------------------------------------------
     void SetCameraPhase(BattleCameraPhase phase,
-                        int actorSlot  = -1,
-                        int targetSlot = -1);
+                        int actorSlot = -1, bool isActorPlayer = false,
+                        int targetSlot = -1, bool isTargetPlayer = false);
 
     // ------------------------------------------------------------
     // PlayEnemyClip / PlayPlayerClip:

@@ -112,6 +112,8 @@ public:
 
     const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
 
+    void QueueAction(std::unique_ptr<IAction> action) { mQueue.Enqueue(std::move(action)); }
+
     // Simulate the future actions in the queue based on the current AV timeline
     std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;
 

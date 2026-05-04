@@ -407,35 +407,47 @@ void BattleRenderer::Shutdown()
 //   targetSlot — enemy  slot index for the selected target  (-1 = unknown)
 // ------------------------------------------------------------
 void BattleRenderer::SetCameraPhase(BattleCameraPhase phase,
-                                     int actorSlot, int targetSlot)
+                                     int actorSlot, bool isActorPlayer,
+                                     int targetSlot, bool isTargetPlayer)
 {
-    // Update actor world position if a valid player slot was provided.
-    // Apply cameraFocusOffsetX/Y so the camera centers on the sprite's visual
-    // midpoint rather than its feet (the raw slot anchor).
-    if (actorSlot >= 0 && actorSlot < kMaxSlots && mPlayerActive[actorSlot])
+    // Update actor world position
+    if (actorSlot >= 0 && actorSlot < kMaxSlots)
     {
-        mCameraCtrl.SetActorPos(
-            mPlayerWorldX[actorSlot] + mPlayerCamOffX[actorSlot],
-            mPlayerWorldY[actorSlot] + mPlayerCamOffY[actorSlot]
-        );
+        if (isActorPlayer && mPlayerActive[actorSlot]) {
+            mCameraCtrl.SetActorPos(
+                mPlayerWorldX[actorSlot] + mPlayerCamOffX[actorSlot],
+                mPlayerWorldY[actorSlot] + mPlayerCamOffY[actorSlot]
+            );
+        } else if (!isActorPlayer && mEnemyActive[actorSlot]) {
+            mCameraCtrl.SetActorPos(
+                mEnemyWorldX[actorSlot] + mEnemyCamOffX[actorSlot],
+                mEnemyWorldY[actorSlot] + mEnemyCamOffY[actorSlot]
+            );
+        }
     }
 
-    // Update target world position if a valid enemy slot was provided.
-    // Same offset logic: enemies are also anchored at their feet.
-    if (targetSlot >= 0 && targetSlot < kMaxSlots && mEnemyActive[targetSlot])
+    // Update target world position
+    if (targetSlot >= 0 && targetSlot < kMaxSlots)
     {
-        mCameraCtrl.SetTargetPos(
-            mEnemyWorldX[targetSlot] + mEnemyCamOffX[targetSlot],
-            mEnemyWorldY[targetSlot] + mEnemyCamOffY[targetSlot]
-        );
+        if (isTargetPlayer && mPlayerActive[targetSlot]) {
+            mCameraCtrl.SetTargetPos(
+                mPlayerWorldX[targetSlot] + mPlayerCamOffX[targetSlot],
+                mPlayerWorldY[targetSlot] + mPlayerCamOffY[targetSlot]
+            );
+        } else if (!isTargetPlayer && mEnemyActive[targetSlot]) {
+            mCameraCtrl.SetTargetPos(
+                mEnemyWorldX[targetSlot] + mEnemyCamOffX[targetSlot],
+                mEnemyWorldY[targetSlot] + mEnemyCamOffY[targetSlot]
+            );
+        }
     }
 
     mDynamicFollowActorSlot = -1;
     if (actorSlot >= 0 && actorSlot < kMaxSlots) {
-        if (mPlayerActive[actorSlot]) {
+        if (isActorPlayer && mPlayerActive[actorSlot]) {
             mDynamicFollowActorSlot = actorSlot;
             mDynamicFollowIsPlayer = true;
-        } else if (mEnemyActive[actorSlot]) {
+        } else if (!isActorPlayer && mEnemyActive[actorSlot]) {
             mDynamicFollowActorSlot = actorSlot;
             mDynamicFollowIsPlayer = false;
         }

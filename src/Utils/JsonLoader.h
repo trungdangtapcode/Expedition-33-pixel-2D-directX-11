@@ -879,6 +879,9 @@ struct BattleSystemConfig {
     float qteFadeInRatio = 0.15f;
     float qteFadeOutDuration = 0.20f;
     float qteCameraZoom = 1.4f;
+    float introWalkDuration = 1.2f;
+    float introWalkDistance = 600.0f;
+    std::string introWalkAnim = "walk";
 };
 
 inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& out)
@@ -910,6 +913,13 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
     out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+    out.introWalkDuration = detail::ParseFloat(detail::ValueOf(src, "introWalkDuration"), 1.2f);
+    out.introWalkDistance = detail::ParseFloat(detail::ValueOf(src, "introWalkDistance"), 600.0f);
+
+    std::string walkVal = detail::ValueOf(src, "introWalkAnim");
+    if (!walkVal.empty()) {
+        out.introWalkAnim = detail::ParseString(walkVal, 0);
+    }
 
     LOG("[JsonLoader] Loaded BattleSystemConfig from '%s'.", path.c_str());
     return true;

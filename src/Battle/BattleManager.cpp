@@ -14,6 +14,9 @@
 #include <algorithm>
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
+#include "MoveAction.h"
+#include "WaitAction.h"
+#include "ParallelAction.h"
 
 BattleManager::BattleManager() = default;
 
@@ -111,18 +114,22 @@ void BattleManager::BuildTurnOrder()
 
     if (mTimeline.empty()) return;
 
-    // Advance time for the very first turn so the first combatant reaches 0 AV
-    float elapsedAV = mTimeline[0].currentAV;
-    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
-
-    IBattler* next = mTimeline[0].battler;
-    next->OnTurnStart();
-    Log("--- " + next->GetName() + "'s turn ---");
-
-    if (next->IsPlayerControlled())
-        mPhase = BattlePhase::PLAYER_TURN;
-    else
-        mPhase = BattlePhase::ENEMY_TURN;
+    // -- INTRO SEQUENCE LOGIC --
+    auto parallelWalk = std::make_unique<ParallelAction>();
+    for (auto& p : mPlayers) {
+        parallelWalk->AddAction(std::make_unique<MoveAction>(
+            p.get(), nullptr, MoveAction::TargetType::Origin, 
+            mContext.config.introWalkDuration, 0.0f, CombatantAnim::Walk, CombatantAnim::Idle
+        ));
+    }
+    mQueue.Enqueue(std::move(parallelWalk));
+    
+    // Once the MoveActions settle, artificially pause for half a second before UI triggers
+    mQueue.Enqueue(std::make_unique<WaitAction>(0.5f));
+    
+    // Fall into RESOLVING. When resolving completes, it will safely trigger AdvanceTurn()
+    // which flawlessly advances the first combatant to AV=0 and assigns PLAYER_TURN or ENEMY_TURN.
+    mPhase = BattlePhase::RESOLVING;
 }
 
 // ------------------------------------------------------------

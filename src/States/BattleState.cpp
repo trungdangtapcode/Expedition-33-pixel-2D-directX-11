@@ -61,6 +61,13 @@ void BattleState::OnEnter()
     {
         LOG("%s", "[BattleState] WARNING — IrisTransitionRenderer init failed.");
     }
+
+    // Broadcast initial visual offsets for the walk-in sequence
+    for (IBattler* player : mBattle.GetAllPlayers()) {
+        MoveOffsetPayload p = { player, -mSystemConfig.introWalkDistance, 0.f };
+        EventData e; e.payload = &p;
+        EventManager::Get().Broadcast("battler_set_offset", e);
+    }
 }
 
 void BattleState::InitAudio()
@@ -91,6 +98,7 @@ void BattleState::InitBattleSlots()
         playerSlots[i].worldY      = battleCenterY + formation.player[i].offsetY;
         playerSlots[i].cameraFocusOffsetY = -128.0f;
         playerSlots[i].cameraFocusOffsetX = 100.0f;
+        playerSlots[i].clipOverrides[static_cast<int>(CombatantAnim::Walk)] = mSystemConfig.introWalkAnim;
     }
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> enemySlots{};
@@ -397,7 +405,7 @@ void BattleState::UpdateLogic(float dt)
     }
     else if (phaseBefore != phaseAfter)
     {
-        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
+        mBattleRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, false, -1, false);
         DumpStateToDebugOutput();
     }
 
@@ -557,23 +565,16 @@ void BattleState::OnCameraSetPhase(const EventData& d)
     if (!payload) return;
 
     int actorSlot = -1;
+    bool isPlayer = false;
     if (payload->targetToFollow)
     {
-        bool isPlayer = false;
-        if (GetBattlerSlot(payload->targetToFollow, actorSlot, isPlayer)) {
-            // We successfully resolved the slot! 
-            // Note: BattleRenderer::SetCameraPhase natively assumes that 
-            // if we pass actorSlot = X, it checks mPlayerActive[X] FIRST.
-            // If the target is an enemy, but the player is active at the SAME slot index,
-            // BattleRenderer assigns the player. This is a known limitation of the 
-            // current SetCameraPhase API format.
-        } else {
+        if (!GetBattlerSlot(payload->targetToFollow, actorSlot, isPlayer)) {
             actorSlot = -1;
         }
     }
 
     mBattleRenderer.SetDynamicFollowZoom(payload->dynamicZoom);
-    mBattleRenderer.SetCameraPhase(payload->phase, actorSlot, -1);
+    mBattleRenderer.SetCameraPhase(payload->phase, actorSlot, isPlayer, -1, false);
 }
 
 void BattleState::CheckBattleEnd()

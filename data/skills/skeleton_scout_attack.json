@@ -1,0 +1,8 @@
+{
+    "moveDuration": 0.4,
+    "returnDuration": 0.35,
+    "meleeOffset": 80.0,
+    "bulletHellSupported": true,
+    "bulletHellPatternPath": "data/bullet_patterns/scout_pattern.json",
+    "damageTakenOccurMoment": 0.4
+}

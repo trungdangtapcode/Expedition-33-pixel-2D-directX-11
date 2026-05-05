@@ -68,6 +68,9 @@ struct EnemySlotData
 
     std::string attackJsonPath = "data/skills/skeleton_attack.json";
 
+    // ---- Leveling Rewards ----
+    int expReward = 0;
+
     // ---- Battle camera ----
     // Lifts ACTOR_FOCUS / TARGET_FOCUS from feet-anchor to chest.
     // Formula: -(frameHeight × renderScale) / 2.

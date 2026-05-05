@@ -82,6 +82,7 @@ struct BattleHUDSnapshot
         int hp = 0,    maxHp = 0;
         int rage = 0,  maxRage = 0;        // maxRage==0 → enemy, omit rage column
         int atk = 0,   def = 0,   spd = 0;
+        int level = 1, exp = 0;
         bool alive = true;
     };
     std::vector<CombatantRow> combatants;

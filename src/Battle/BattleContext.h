@@ -37,6 +37,8 @@
 #pragma once
 #include <vector>
 
+#include "../Utils/JsonLoader.h"
+
 class IBattler;
 
 // Plain-data snapshot.  No behaviour, no virtual methods.
@@ -57,4 +59,7 @@ struct BattleContext
     // Seconds since BattleState::OnEnter.  Accumulated in BattleManager::Update.
     // Useful for "enrage after 60 seconds" style triggers.
     float battleElapsed = 0.0f;
+
+    // -- Global Battle Configuration --
+    JsonLoader::BattleSystemConfig config;
 };

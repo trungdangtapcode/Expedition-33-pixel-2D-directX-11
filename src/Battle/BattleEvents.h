@@ -6,6 +6,7 @@
 #pragma once
 #include "IBattler.h"
 #include "CombatantAnim.h"
+#include "BattleCameraController.h"
 
 struct PlayAnimPayload
 {
@@ -68,4 +69,35 @@ struct DamageTakenPayload
     int damage = 0;
     bool isCrit = false;
     bool isPerfectQte = false;
+};
+
+// ------------------------------------------------------------
+// BulletHellPayload: Natively mimics QTE overlay, but drives an action dodge phase
+// Broadcasts globally across UI listeners
+// ------------------------------------------------------------
+struct BulletHellPayload {
+    bool isActive = false;
+    float boxCenterX = 0.0f;
+    float boxCenterY = 0.0f;
+    float boxWidth = 0.0f;
+    float boxHeight = 0.0f;
+    
+    float heartX = 0.0f;
+    float heartY = 0.0f;
+    float heartRadius = 6.0f;
+    
+    struct Bullet { float x, y, radius, angle; int textureIndex; };
+    std::vector<Bullet> bullets;
+    std::vector<std::string> texturePaths;
+    float invincibilityTimer = 0.0f;
+};
+
+// Must forward declare enum wrapper since we can't cleanly drag camera into events
+enum class BattleCameraPhase;
+
+struct CameraPhasePayload
+{
+    BattleCameraPhase phase;
+    IBattler* targetToFollow = nullptr;
+    float dynamicZoom = 1.4f;
 };

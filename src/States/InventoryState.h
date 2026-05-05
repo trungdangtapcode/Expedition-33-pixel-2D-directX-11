@@ -158,6 +158,10 @@ private:
     Tab    mTab    = Tab::Items;
     Phase  mPhase  = Phase::ItemsGrid;
 
+    // Which party member the item/equip actions target.
+    // Cycles via Left/Right in Items tab. Defaults to 0 (first member).
+    int mMemberIndex = 0;
+
     // -- Items tab state --
     std::vector<std::string> mConsumables;
     int                      mItemCursor = 0;
@@ -196,4 +200,6 @@ private:
     bool mTabWasDown   = false;
     bool mIWasDown     = false;
     bool mBackWasDown  = false;
+    bool mQWasDown     = false;
+    bool mEWasDown     = false;
 };

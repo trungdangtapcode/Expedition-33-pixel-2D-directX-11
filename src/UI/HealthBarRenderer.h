@@ -54,6 +54,7 @@
 #include "../UI/HealthBarConfig.h"
 #include "../Events/EventManager.h"
 #include "UIEffectState.h"
+#include "../Utils/JsonLoader.h"
 
 class HealthBarRenderer
 {
@@ -78,7 +79,10 @@ public:
                     const std::wstring&  bgTexturePath,
                     const std::wstring&  frameTexPath,
                     const std::string&   configJsonPath,
-                    int screenW, int screenH);
+                    int screenW, int screenH,
+                    const std::string& hpEventTopic = "verso_hp_changed",
+                    float renderX = 0.0f,
+                    float renderY = 0.0f);
 
     // ----------------------------------------------------------------
     // SetHP / SetMaxHP
@@ -105,6 +109,7 @@ public:
     //   Used to highlight the active character during their turn.
     // ----------------------------------------------------------------
     void SetTargetScale(float scale) { mEffectState.SetTargetScale(scale); }
+    void SetTargetLift(float lift)   { mEffectState.SetTargetLift(lift); }
 
     // ----------------------------------------------------------------
     // Update
@@ -158,6 +163,7 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mBgSRV;     // background overlay (semi-transparent dark shadow)
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFrameSRV;  // frame + portrait texture
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFillSRV;   // 1x1 white texture — tinted to HP-bar color at draw time
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDeadOverlaySRV; // 1254x1254 death indicator overlay
     std::unique_ptr<DirectX::SpriteBatch>            mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates>           mStates;
 
@@ -174,6 +180,13 @@ private:
     float mRedHP       = 100.0f;   // front bar: drops quickly
     float mWhiteHP     = 100.0f;   // back bar: delayed and slow drop
     float mDelayTimer  = 0.0f;     // timer for white bar delay
+    
+    // -- Visual sink state variables --
+    float mSinkAlpha = 1.0f;       // Transparency fade when dying
+    DirectX::XMVECTORF32 mTintColor = DirectX::Colors::White; // Tint map dynamically approaching DarkGray
+    JsonLoader::DeadOverlayConfig mDeadOverlayConfig; // Struct containing scaling scalars
+    float mHotReloadTimer = 0.0f;  // Polling tracker allowing live JSON Layout tweaks!
+
 
     static constexpr float kRedLerpSpeed   = 15.0f; // fast drain for the red bar
     static constexpr float kWhiteLerpSpeed = 3.0f;  // slow drain for the white background bar
@@ -183,7 +196,12 @@ private:
     UIEffectState mEffectState;
 
     // -- Event subscription --
+    std::string mHpEventTopic = "verso_hp_changed";
     ListenerID mHpListenerID = -1;  // used to unsubscribe in Shutdown()
+
+    // -- Rendering layout overrides --
+    float mRenderX = 0.0f;
+    float mRenderY = 0.0f;
 
     // -- Helpers --
     // Bind the viewport and set mSpriteBatch's internal viewport (bypasses

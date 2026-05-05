@@ -31,6 +31,7 @@
 #include "BattleContext.h"
 #include "EnemyEncounterData.h"
 #include "../Systems/PartyManager.h"
+#include "../Utils/JsonLoader.h"
 #include <vector>
 #include <string>
 #include <memory>
@@ -39,8 +40,9 @@
 enum class BattlePhase
 {
     INIT,
+    INTRO,        // walk-in sequence before the first turn
     PLAYER_TURN,
-    RESOLVING,
+    RESOLVING,    // draining the action queue after a player or enemy turn
     ENEMY_TURN,
     WIN,
     LOSE
@@ -63,7 +65,7 @@ public:
     // Called by BattleState::OnEnter — spawn combatants from encounter data,
     // sort turn order.  Enemy count and stats come from encounter.battleParty
     // (data-driven); no values are hardcoded inside Initialize.
-    void Initialize(const EnemyEncounterData& encounter);
+    void Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config);
 
     // Main update — drives FSM + ActionQueue each frame.
     void Update(float dt);
@@ -111,6 +113,8 @@ public:
 
     const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
 
+    void QueueAction(std::unique_ptr<IAction> action) { mQueue.Enqueue(std::move(action)); }
+
     // Simulate the future actions in the queue based on the current AV timeline
     std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;
 
@@ -135,6 +139,7 @@ private:
     BattleOutcome          mOutcome = BattleOutcome::NONE;
 
     std::vector<std::string> mBattleLog;
+    int mTotalExpPool = 0;
 
     // Live battle context refreshed at the top of Update each frame.
     // Systems that need to read live state (skills, damage calculator,
@@ -166,6 +171,7 @@ private:
     bool AllPlayersDefeated() const;
     bool AllEnemiesDefeated()  const;
 
+    void HandleIntro(float dt);      // drain walk-in queue, then advance to first turn
     void HandlePlayerTurn(float dt);
     void HandleEnemyTurn(float dt);
     void HandleResolving(float dt);

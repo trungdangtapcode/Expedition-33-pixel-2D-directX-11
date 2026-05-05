@@ -1,0 +1,9 @@
+{
+  "qteSlowMoScale": 0.2,
+  "qteFadeInRatio": 0.1,
+  "qteFadeOutDuration": 0.3,
+  "qteCameraZoom": 1.2,
+  "introWalkDuration": 2.5,
+  "introWalkDistance": 100.0,
+  "introWalkAnim": "walk"
+}

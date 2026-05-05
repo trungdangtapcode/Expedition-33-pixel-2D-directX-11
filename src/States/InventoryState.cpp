@@ -168,33 +168,32 @@ bool InventoryState::TryUseItem(const std::string& id)
 {
     const ItemData* item = ItemRegistry::Get().Find(id);
     if (!item) { Flash("Unknown item: " + id); return false; }
-
-    BattlerStats stats = PartyManager::Get().GetVersoStats();
-    const int hpBefore = stats.hp;
-    const int mpBefore = stats.mp;
+    BattlerStats copy = PartyManager::Get().GetMemberStats(mMemberIndex);
+    const int hpBefore = copy.hp;
+    const int mpBefore = copy.mp;
     char buf[128]{};
 
     switch (item->effect)
     {
     case ItemEffectKind::HealHp:
-        if (stats.hp >= stats.maxHp) { Flash("HP is already full."); return false; }
-        stats.hp += item->amount;
-        stats.ClampHp();
+        if (copy.hp >= copy.maxHp) { Flash("HP is already full."); return false; }
+        copy.hp += item->amount;
+        copy.ClampHp();
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d HP)",
-                    item->name.c_str(), stats.hp - hpBefore);
+                    item->name.c_str(), copy.hp - hpBefore);
         break;
     case ItemEffectKind::HealMp:
-        if (stats.mp >= stats.maxMp) { Flash("MP is already full."); return false; }
-        stats.mp += item->amount;
-        if (stats.mp > stats.maxMp) stats.mp = stats.maxMp;
+        if (copy.mp >= copy.maxMp) { Flash("MP is already full."); return false; }
+        copy.mp += item->amount;
+        if (copy.mp > copy.maxMp) copy.mp = copy.maxMp;
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d MP)",
-                    item->name.c_str(), stats.mp - mpBefore);
+                    item->name.c_str(), copy.mp - mpBefore);
         break;
     case ItemEffectKind::FullHeal:
-        if (stats.hp >= stats.maxHp && stats.mp >= stats.maxMp)
+        if (copy.hp >= copy.maxHp && copy.mp >= copy.maxMp)
         { Flash("HP and MP are already full."); return false; }
-        stats.hp = stats.maxHp;
-        stats.mp = stats.maxMp;
+        copy.hp = copy.maxHp;
+        copy.mp = copy.maxMp;
         _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (full restore)", item->name.c_str());
         break;
     case ItemEffectKind::RestoreRage:
@@ -210,7 +209,7 @@ bool InventoryState::TryUseItem(const std::string& id)
 
     // Persist + consume.  Stats first so a hypothetical crash leaves
     // the player healed but with the item intact (favors the player).
-    PartyManager::Get().SetVersoStats(stats);
+    PartyManager::Get().SetMemberStats(mMemberIndex, copy);
     Inventory::Get().Remove(id, 1);
     Flash(buf);
     RefreshConsumables();
@@ -219,7 +218,7 @@ bool InventoryState::TryUseItem(const std::string& id)
 
 bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 {
-    if (PartyManager::Get().Equip(slot, itemId))
+    if (PartyManager::Get().EquipItem(mMemberIndex, slot, itemId))
     {
         const ItemData* item = ItemRegistry::Get().Find(itemId);
         Flash(std::string("Equipped ") + (item ? item->name : itemId));
@@ -231,11 +230,11 @@ bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 
 void InventoryState::TryUnequip(EquipSlot slot)
 {
-    const std::string prev = PartyManager::Get().GetEquipped(slot);
-    if (prev.empty()) { Flash("Nothing to unequip."); return; }
-    PartyManager::Get().Unequip(slot);
-    const ItemData* item = ItemRegistry::Get().Find(prev);
-    Flash(std::string("Unequipped ") + (item ? item->name : prev));
+    std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, slot);
+    if (equippedId.empty()) { Flash("Nothing to unequip."); return; }
+    PartyManager::Get().UnequipItem(mMemberIndex, slot);
+    const ItemData* item = ItemRegistry::Get().Find(equippedId);
+    Flash(std::string("Unequipped ") + (item ? item->name : equippedId));
 }
 
 // ============================================================
@@ -287,6 +286,36 @@ void InventoryState::Update(float dt)
         mPhase = (mTab == Tab::Items) ? Phase::ItemsGrid : Phase::EquipmentSlots;
         if (mTab == Tab::Items) RefreshConsumables();
         return;
+    }
+
+    // Q / E cycle the target party member (across all phases).
+    // Not available inside the picker — the picker is for a specific member's slot.
+    if (mPhase != Phase::EquipmentPicker)
+    {
+        const bool qPressed = pressed('Q', mQWasDown);
+        const bool ePressed = pressed('E', mEWasDown);
+        const int partySize = static_cast<int>(PartyManager::Get().GetActiveParty().size());
+        if (partySize > 1)
+        {
+            if (qPressed)
+            {
+                mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
+                const auto& party = PartyManager::Get().GetActiveParty();
+                Flash(std::string("Target: ") + party[mMemberIndex].name);
+            }
+            if (ePressed)
+            {
+                mMemberIndex = (mMemberIndex + 1) % partySize;
+                const auto& party = PartyManager::Get().GetActiveParty();
+                Flash(std::string("Target: ") + party[mMemberIndex].name);
+            }
+        }
+    }
+    else
+    {
+        // Consume Q/E to prevent stale edges.
+        pressed('Q', mQWasDown);
+        pressed('E', mEWasDown);
     }
 
     switch (mPhase)
@@ -347,6 +376,26 @@ void InventoryState::HandleSlotsInput()
         mSlotCursor = (mSlotCursor - 1 + kEquipSlotCount) % kEquipSlotCount;
     if (pressed(VK_DOWN, mDownWasDown))
         mSlotCursor = (mSlotCursor + 1) % kEquipSlotCount;
+
+    // Left/Right cycle party member (same as Q/E but more discoverable)
+    {
+        const int partySize = static_cast<int>(PartyManager::Get().GetActiveParty().size());
+        if (partySize > 1)
+        {
+            if (pressed(VK_LEFT,  mLeftWasDown))
+            {
+                mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
+                const auto& party = PartyManager::Get().GetActiveParty();
+                Flash(std::string("Target: ") + party[mMemberIndex].name);
+            }
+            if (pressed(VK_RIGHT, mRightWasDown))
+            {
+                mMemberIndex = (mMemberIndex + 1) % partySize;
+                const auto& party = PartyManager::Get().GetActiveParty();
+                Flash(std::string("Target: ") + party[mMemberIndex].name);
+            }
+        }
+    }
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {

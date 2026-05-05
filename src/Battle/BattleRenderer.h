@@ -148,6 +148,8 @@ public:
     Camera2D& GetCamera() { return mCameraCtrl.GetCamera(); }
     const Camera2D& GetCamera() const { return const_cast<BattleCameraController&>(mCameraCtrl).GetCamera(); }
 
+    void SetDynamicFollowZoom(float zoom) { mCameraCtrl.SetDynamicFollowZoom(zoom); }
+
     void TriggerCameraShake(float intensity, float duration) { mCameraCtrl.TriggerShake(intensity, duration); }
 
     // ------------------------------------------------------------
@@ -162,8 +164,8 @@ public:
     // — no conversion is done here.
     // ------------------------------------------------------------
     void SetCameraPhase(BattleCameraPhase phase,
-                        int actorSlot  = -1,
-                        int targetSlot = -1);
+                        int actorSlot = -1, bool isActorPlayer = false,
+                        int targetSlot = -1, bool isTargetPlayer = false);
 
     // ------------------------------------------------------------
     // PlayEnemyClip / PlayPlayerClip:
@@ -278,4 +280,7 @@ private:
 
     int mScreenW = 1280;
     int mScreenH = 720;
+
+    int mDynamicFollowActorSlot = -1;
+    bool mDynamicFollowIsPlayer = false;
 };

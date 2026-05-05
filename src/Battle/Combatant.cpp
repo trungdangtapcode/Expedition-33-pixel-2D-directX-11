@@ -8,6 +8,7 @@
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
 #include "BattleEvents.h"
+#include "CombatantAnim.h"
 
 // Convenience wrapper: LOG() only accepts printf-style args, so convert        
 // std::string messages to C-strings before passing to the macro.
@@ -56,6 +57,15 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
     data.name = eventName;
     data.value = static_cast<float>(mStats.hp);
     EventManager::Get().Broadcast(eventName, data);
+
+    // Broadcast death animation globally triggering fallback contracts organically
+    if (mStats.hp <= 0)
+    {
+        PlayAnimPayload animPayload{ this, CombatantAnim::Die };
+        EventData edAnim;
+        edAnim.payload = &animPayload;
+        EventManager::Get().Broadcast("battler_play_anim", edAnim);
+    }
 
     // Broadcast generic damage taken for floating text
     DamageTakenPayload dmgPayload;

@@ -63,11 +63,9 @@ bool MoveAction::Execute(float dt)
 
         mHasStarted = true;
 
-        if (mMovingAnim != CombatantAnim::Idle) {
-            PlayAnimPayload pAnim = { mMover, mMovingAnim };
-            EventData eAnim; eAnim.payload = &pAnim;
-            EventManager::Get().Broadcast("battler_play_anim", eAnim);
-        }
+        PlayAnimPayload pAnim = { mMover, mMovingAnim };
+        EventData eAnim; eAnim.payload = &pAnim;
+        EventManager::Get().Broadcast("battler_play_anim", eAnim);
     }
 
     mTimer += dt;
@@ -85,11 +83,9 @@ bool MoveAction::Execute(float dt)
     EventManager::Get().Broadcast("battler_set_offset", eMove);
 
     if (t >= 1.0f) {
-        if (mStopAnim != CombatantAnim::Idle) {
-            PlayAnimPayload pStop = { mMover, mStopAnim };
-            EventData eStop; eStop.payload = &pStop;
-            EventManager::Get().Broadcast("battler_play_anim", eStop);
-        }
+        PlayAnimPayload pStop = { mMover, mStopAnim };
+        EventData eStop; eStop.payload = &pStop;
+        EventManager::Get().Broadcast("battler_play_anim", eStop);
         return true;
     }
     return false;

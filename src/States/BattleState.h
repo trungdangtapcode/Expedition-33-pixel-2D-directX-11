@@ -59,12 +59,14 @@
 #include "../Battle/EnemyEncounterData.h"
 #include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
+#include "../UI/ExpBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
 #include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
 #include "../UI/ScrollArrowRenderer.h"
 #include "../UI/BattleQTERenderer.h"
+#include "../UI/BattleBulletHellRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
@@ -110,11 +112,13 @@ private:
     EnemyEncounterData     mEncounter;       // overworld encounter data (may be default/empty)
     BattleManager          mBattle;
     BattleRenderer         mBattleRenderer;
-    HealthBarRenderer      mHealthBar;
+    std::vector<std::unique_ptr<HealthBarRenderer>> mHealthBars;
+    std::vector<std::unique_ptr<ExpBarRenderer>>    mExpBars;
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
     BattleQTERenderer      mQTERenderer;
+    std::unique_ptr<BattleBulletHellRenderer> mBulletHellRenderer;
 
     // Scroll-direction chevrons drawn above/below the item menu when
     // there are off-screen items in that direction.  Both share the
@@ -128,6 +132,7 @@ private:
     BattleInputController  mInputController;
 
     JsonLoader::BattleMenuLayout mMenuLayout;
+    JsonLoader::BattleSystemConfig mSystemConfig;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.
@@ -187,6 +192,7 @@ private:
     int mMoveOffsetListener = -1;
     int mGetWorldPosListener = -1;
     int mGetOffsetListener = -1;
+    int mCameraPhaseListener = -1;
 
     bool GetBattlerSlot(IBattler* target, int& outSlot, bool& outIsPlayer) const;
     void OnPlayAnim(const struct EventData& e);
@@ -195,6 +201,7 @@ private:
     void OnMoveOffset(const struct EventData& e);
     void OnGetWorldPos(const struct EventData& e);
     void OnGetOffset(const struct EventData& e);
+    void OnCameraSetPhase(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // Floating Damage Text
@@ -213,9 +220,11 @@ private:
     std::vector<FloatingDamageText> mFloatingTexts;
     int mDamageTakenListener = -1;
     int mQteUpdateListener = -1;
+    int mBulletHellStateListener = -1;
     
     void OnDamageTaken(const struct EventData& e);
     void OnQteFeedback(const struct EventData& e);
+    void OnBulletHellState(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // UI Animations

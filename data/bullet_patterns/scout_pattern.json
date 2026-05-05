@@ -1,0 +1,16 @@
+{
+    "durationSec": 4.0,
+    "boxWidth": 550.0,
+    "boxHeight": 250.0,
+    "invincibilityDuration": 1.0,
+    "spawners": [
+        {
+            "type": "random_edge",
+            "texturePath": "assets/UI/crystal_bullet.png",
+            "bulletRadius": 14.0,
+            "bulletSpeed": 160.0,
+            "spawnRate": 12.0,
+            "bulletDamageScaling": 0.8
+        }
+    ]
+}

@@ -33,6 +33,7 @@
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/StatModifier.h"
 #include "../Battle/EnemyEncounterData.h"
+#include "../Battle/BattlerStats.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/ICollisionSystem.h"
 
@@ -141,6 +142,16 @@ inline bool ParseBool(const std::string& raw, bool defaultVal = false)
     if (raw == "true")  return true;
     if (raw == "false") return false;
     return defaultVal;
+}
+
+// ------------------------------------------------------------
+// Parse string dynamically cleanly removing internal bounding quotes
+// ------------------------------------------------------------
+inline std::string CleanString(const std::string& raw)
+{
+    std::string s = raw;
+    if (s.size() >= 2 && s.front() == '"') s = s.substr(1, s.size() - 2);
+    return s;
 }
 
 // ------------------------------------------------------------
@@ -513,6 +524,112 @@ inline bool LoadFormations(const std::string& path, FormationData& out)
 }
 
 // ------------------------------------------------------------
+// Function: LoadCharacterData
+// Purpose:
+//   Parse a data/characters/*.json file directly into BattlerStats.
+// ------------------------------------------------------------
+inline bool LoadCharacterData(const std::string& path, BattlerStats& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open character file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.hp      = detail::ParseInt(detail::ValueOf(src, "hp"), 100);
+    out.maxHp   = detail::ParseInt(detail::ValueOf(src, "maxHp"), 100);
+    out.mp      = detail::ParseInt(detail::ValueOf(src, "mp"), 50);
+    out.maxMp   = detail::ParseInt(detail::ValueOf(src, "maxMp"), 50);
+    out.atk     = detail::ParseInt(detail::ValueOf(src, "atk"), 25);
+    out.def     = detail::ParseInt(detail::ValueOf(src, "def"), 10);
+    out.matk    = detail::ParseInt(detail::ValueOf(src, "matk"), 25);
+    out.mdef    = detail::ParseInt(detail::ValueOf(src, "mdef"), 10);
+    out.spd     = detail::ParseInt(detail::ValueOf(src, "spd"), 10);
+    out.rage    = detail::ParseInt(detail::ValueOf(src, "rage"), 0);
+    out.maxRage = detail::ParseInt(detail::ValueOf(src, "maxRage"), 100);
+
+    out.level   = detail::ParseInt(detail::ValueOf(src, "level"), 1);
+    out.exp     = detail::ParseInt(detail::ValueOf(src, "exp"), 0);
+
+    out.growth.maxHp = detail::ParseInt(detail::ValueOf(src, "growth_maxHp"), 0);
+    out.growth.maxMp = detail::ParseInt(detail::ValueOf(src, "growth_maxMp"), 0);
+    out.growth.atk   = detail::ParseInt(detail::ValueOf(src, "growth_atk"), 0);
+    out.growth.def   = detail::ParseInt(detail::ValueOf(src, "growth_def"), 0);
+    out.growth.matk  = detail::ParseInt(detail::ValueOf(src, "growth_matk"), 0);
+    out.growth.mdef  = detail::ParseInt(detail::ValueOf(src, "growth_mdef"), 0);
+    out.growth.spd   = detail::ParseInt(detail::ValueOf(src, "growth_spd"), 0);
+
+    LOG("[JsonLoader] Loaded CharacterData from '%s'.", path.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadDeadOverlayConfig
+// ------------------------------------------------------------
+struct DeadOverlayConfig {
+    float width = 1254.0f;
+    float height = 1254.0f;
+    float scaleTarget = 256.0f; // natively map to your frame bounds or tweak individually
+    float offsetX = 0.0f;
+    float offsetY = 0.0f;
+    float pivotX = 627.0f; // Native texture center
+    float pivotY = 627.0f; // Native texture center
+};
+
+inline bool LoadDeadOverlayConfig(const std::string& path, DeadOverlayConfig& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    // Support both workspace-root cwd and bin/ cwd at runtime.
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear(); // Important: must clear fail bit before open
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open dead overlay config file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf; buf << file.rdbuf();
+    const std::string src = buf.str();
+
+    out.width = detail::ParseFloat(detail::ValueOf(src, "width"), 1254.0f);
+    out.height = detail::ParseFloat(detail::ValueOf(src, "height"), 1254.0f);
+    out.scaleTarget = detail::ParseFloat(detail::ValueOf(src, "scaleTarget"), 256.0f);
+    out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
+    out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
+    out.pivotX = detail::ParseFloat(detail::ValueOf(src, "pivotX"), out.width / 2.0f);
+    out.pivotY = detail::ParseFloat(detail::ValueOf(src, "pivotY"), out.height / 2.0f);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadSpriteSheet
+// Purpose: Parse custom metadata + frame array
+// ------------------------------------------------------------
+
+// ------------------------------------------------------------
 // Function: LoadEnemyEncounterData
 // Purpose:
 //   Parse a data/enemies/*.json file into an EnemyEncounterData struct.
@@ -591,6 +708,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.atk               = detail::ParseInt  (detail::ValueOf(slotSrc, "atk"));
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
+        slot.expReward         = detail::ParseInt  (detail::ValueOf(slotSrc, "expReward"), 0);
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
         
         std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));
@@ -684,8 +802,17 @@ struct BattleMenuLayout
         float offsetY = -100.0f;
     };
 
+    struct PartyHudConfig {
+        std::string align = "bottom-right";
+        float originX = -30.0f;
+        float originY = -30.0f;
+        float spacingX = -260.0f;
+        float spacingY = 0.0f;
+    };
+
     CommandMenuConfig command;
     SkillMenuConfig skill;
+    PartyHudConfig partyHud;
 };
 
 // ------------------------------------------------------------
@@ -731,7 +858,70 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_slideOffsetX"), -40.0f);
     out.skill.fadeStartAlpha = detail::ParseFloat(detail::ValueOf(src, "skill_fadeStartAlpha"), 0.0f);
 
+    out.partyHud.align = detail::ValueOf(src, "party_hud_align");
+    // ValueOf returns quoted strings if found, strip them
+    if (out.partyHud.align.size() >= 2 && out.partyHud.align.front() == '"') 
+        out.partyHud.align = out.partyHud.align.substr(1, out.partyHud.align.size() - 2);
+    if (out.partyHud.align.empty()) out.partyHud.align = "bottom-right";
+
+    out.partyHud.originX = detail::ParseFloat(detail::ValueOf(src, "party_hud_origin_x"), -30.0f);
+    out.partyHud.originY = detail::ParseFloat(detail::ValueOf(src, "party_hud_origin_y"), -30.0f);
+    out.partyHud.spacingX = detail::ParseFloat(detail::ValueOf(src, "party_hud_spacing_x"), -260.0f);
+    out.partyHud.spacingY = detail::ParseFloat(detail::ValueOf(src, "party_hud_spacing_y"), 0.0f);
+
+
     LOG("[JsonLoader] Loaded BattleMenuLayout from '%s'.", path.c_str());
+    return true;
+}
+
+struct BattleSystemConfig {
+    float qteSlowMoScale = 0.1f;
+    float qteFadeInRatio = 0.15f;
+    float qteFadeOutDuration = 0.20f;
+    float qteCameraZoom = 1.4f;
+    float introWalkDuration = 1.2f;
+    float introWalkDistance = 600.0f;
+    std::string introWalkAnim = "walk";
+};
+
+inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    // Support both workspace-root cwd and bin/ cwd at runtime.
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open system config file: '%s'", path.c_str());
+        return false;
+    }
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    std::string src = buffer.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
+    out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
+    out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
+    out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+    out.introWalkDuration = detail::ParseFloat(detail::ValueOf(src, "introWalkDuration"), 1.2f);
+    out.introWalkDistance = detail::ParseFloat(detail::ValueOf(src, "introWalkDistance"), 600.0f);
+
+    std::string walkVal = detail::ValueOf(src, "introWalkAnim");
+    if (!walkVal.empty()) {
+        out.introWalkAnim = detail::ParseString(walkVal, 0);
+    }
+
+    LOG("[JsonLoader] Loaded BattleSystemConfig from '%s'.", path.c_str());
     return true;
 }
 
@@ -744,19 +934,18 @@ struct SkillData {
     
     // QTE Configuration
     bool qteSupported = false;
+    bool bulletHellSupported = false;
+    std::string bulletHellPatternPath = "";
     float qteStartMoment = 0.3f;
-    float qteSlowMoScale = 0.1f;
     float qtePerfectMultiplier = 1.5f;
     float qteGoodMultiplier = 1.2f;
     float qteMissMultiplier = 0.8f;
     float qtePerfectThreshold = 0.85f;
     float qteGoodThreshold = 0.60f;
-    
+    float bonusQteCount = 0.0f;
     int qteMinCount = 1;
     int qteMaxCount = 1;
     float qteSpacing = 0.15f;
-    float qteFadeInRatio = 0.15f;
-    float qteFadeOutDuration = 0.20f;
 };
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
@@ -792,23 +981,98 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     if (out.damageTakenOccurMoment > 1.0f) out.damageTakenOccurMoment = 1.0f;
 
     out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
+    out.bulletHellSupported = detail::ParseBool(detail::ValueOf(src, "bulletHellSupported"), false);
+    out.bulletHellPatternPath = detail::CleanString(detail::ValueOf(src, "bulletHellPatternPath"));
     out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
-    out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
     out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
     out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);
     out.qteMissMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteMissMultiplier"), 0.8f);
     out.qtePerfectThreshold = detail::ParseFloat(detail::ValueOf(src, "qtePerfectThreshold"), 0.85f);
     out.qteGoodThreshold = detail::ParseFloat(detail::ValueOf(src, "qteGoodThreshold"), 0.60f);
+    out.bonusQteCount = detail::ParseFloat(detail::ValueOf(src, "bonusQteCount"), 0.0f);
     out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
     out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
     out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
-    out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
-    out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
 
     LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
         path.c_str(),
         resolvedPath.string().c_str(),
         out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadBulletHellPatternData
+// Purpose:
+//   Parse a data/bullet_patterns/*.json file to configure multi-spawner logic.
+// ------------------------------------------------------------
+struct BulletSpawnerData {
+    std::string type = "random_edge"; // "random_edge", "spiral", "targeted", "sine"
+    std::string texturePath = "";
+    float spawnRate = 4.0f;
+    float bulletSpeed = 150.0f;
+    float bulletRadius = 6.0f;
+    float bulletDamageScaling = 0.15f;
+    
+    // Sine spawner specifics
+    float sineAmplitude = 50.0f;
+    float sineFrequency = 5.0f;
+};
+
+struct BulletHellPatternData {
+    float durationSec = 5.0f;
+    float boxWidth = 550.0f;
+    float boxHeight = 250.0f;
+    float invincibilityDuration = 1.0f;
+    std::vector<BulletSpawnerData> spawners;
+};
+
+inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPatternData& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open pattern file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf; buf << file.rdbuf();
+    std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    out.durationSec = detail::ParseFloat(detail::ValueOf(src, "durationSec"), 5.0f);
+    out.boxWidth = detail::ParseFloat(detail::ValueOf(src, "boxWidth"), 550.0f);
+    out.boxHeight = detail::ParseFloat(detail::ValueOf(src, "boxHeight"), 250.0f);
+    out.invincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "invincibilityDuration"), 1.0f);
+
+    auto objects = detail::ExtractObjectsFromArray(src, "spawners");
+    for (const auto& obj : objects) {
+        BulletSpawnerData sd;
+        sd.type = detail::CleanString(detail::ValueOf(obj, "type"));
+        if(sd.type.empty()) sd.type = "random_edge";
+        
+        sd.texturePath = detail::CleanString(detail::ValueOf(obj, "texturePath"));
+        // If empty, will use fallback circle rendering via BattleBulletHellRenderer natively
+        
+        sd.spawnRate = detail::ParseFloat(detail::ValueOf(obj, "spawnRate"), 4.0f);
+        sd.bulletSpeed = detail::ParseFloat(detail::ValueOf(obj, "bulletSpeed"), 150.0f);
+        sd.bulletRadius = detail::ParseFloat(detail::ValueOf(obj, "bulletRadius"), 6.0f);
+        sd.bulletDamageScaling = detail::ParseFloat(detail::ValueOf(obj, "bulletDamageScaling"), 0.15f);
+        
+        sd.sineAmplitude = detail::ParseFloat(detail::ValueOf(obj, "sineAmplitude"), 50.0f);
+        sd.sineFrequency = detail::ParseFloat(detail::ValueOf(obj, "sineFrequency"), 5.0f);
+        
+        out.spawners.push_back(sd);
+    }
+
+    LOG("[JsonLoader] Loaded BulletHellPatternData from '%s' with %zu spawners.", path.c_str(), out.spawners.size());
     return true;
 }
 

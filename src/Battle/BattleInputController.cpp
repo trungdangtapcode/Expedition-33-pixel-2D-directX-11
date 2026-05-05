@@ -177,7 +177,7 @@ void BattleInputController::HandleTargetSelect()
 
         constexpr int kActivePlayerSlot = 0;
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, mTargetIndex);
+                                 kActivePlayerSlot, true, mTargetIndex, false);
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_UP, mKeyUpWasDown))
@@ -187,7 +187,7 @@ void BattleInputController::HandleTargetSelect()
 
         constexpr int kActivePlayerSlot = 0;
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, mTargetIndex);
+                                 kActivePlayerSlot, true, mTargetIndex, false);
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))  ConfirmSkillAndTarget();
@@ -453,28 +453,38 @@ void BattleInputController::SetInputPhase(PlayerInputPhase phase)
 
     constexpr int kActivePlayerSlot = 0;
 
+    bool isTargetPlayer = false;
+    if (phase == PlayerInputPhase::ITEM_TARGET_SELECT && mItemIndex >= 0 && mItemIndex < static_cast<int>(mItemIds.size()))
+    {
+        const ItemData* item = ItemRegistry::Get().Find(mItemIds[mItemIndex]);
+        if (item && (item->targeting == ItemTargeting::SingleAlly || item->targeting == ItemTargeting::SingleAllyAny)) {
+            isTargetPlayer = true;
+        }
+    }
+
     switch (phase)
     {
     case PlayerInputPhase::SKILL_SELECT:
     case PlayerInputPhase::ITEM_SELECT:
         // Both skill and item menus focus the camera on the active hero.
         mRenderer.SetCameraPhase(BattleCameraPhase::ACTOR_FOCUS,
-                                 kActivePlayerSlot, -1);
+                                 kActivePlayerSlot, true, -1, false);
         break;
 
     case PlayerInputPhase::TARGET_SELECT:
-    case PlayerInputPhase::ITEM_TARGET_SELECT:
-        // Target focus works the same way for both: pan to the picked
-        // candidate.  Item targets may resolve to allies, in which case
-        // SetCameraPhase still pans correctly because slot indices are
-        // shared between teams in BattleRenderer's coordinate system.
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, mTargetIndex);
+                                 kActivePlayerSlot, true, mTargetIndex, false);
+        break;
+
+    case PlayerInputPhase::ITEM_TARGET_SELECT:
+        // Item targets may resolve to allies, in which case we pass isTargetPlayer correctly.
+        mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
+                                 kActivePlayerSlot, true, mTargetIndex, isTargetPlayer);
         break;
 
     case PlayerInputPhase::COMMAND_SELECT:
     default:
-        mRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, -1);
+        mRenderer.SetCameraPhase(BattleCameraPhase::OVERVIEW, -1, false, -1, false);
         break;
     }
 

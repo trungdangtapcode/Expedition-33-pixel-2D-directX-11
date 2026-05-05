@@ -52,6 +52,7 @@ enum class BattleCameraPhase
     OVERVIEW,       // wide: pos=(0,0) zoom=1.0 — whole field visible
     ACTOR_FOCUS,    // close-up on the acting combatant
     TARGET_FOCUS,   // blend toward the target while keeping the actor visible
+    DYNAMIC_FOLLOW, // continuously updates focal point to track an actively moving combatant
 };
 
 class BattleCameraController
@@ -106,6 +107,8 @@ public:
 
     BattleCameraPhase GetPhase() const { return mPhase; }
 
+    void SetDynamicFollowZoom(float zoom) { mDynamicFollowZoom = zoom; }
+
 private:
     // Smooth approach speed — 5.0f closes ~95% of the gap in ~0.6 s.
     static constexpr float kSmoothSpeed   = 5.0f;
@@ -146,6 +149,7 @@ private:
     float mActorY  = 0.0f;
     float mTargetX = 0.0f;
     float mTargetY = 0.0f;
+    float mDynamicFollowZoom = 1.6f;
     
     // Screen shake state
     float mShakeTimer = 0.0f;

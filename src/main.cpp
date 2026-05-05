@@ -6,6 +6,7 @@
 // UNICODE defined via /DUNICODE in build script,
 // No need to redefine it here to avoid warning C4005
 #include <windows.h>
+// Test incremental build modification
 #include "Core/GameApp.h"
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {

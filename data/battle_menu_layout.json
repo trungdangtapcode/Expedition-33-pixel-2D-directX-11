@@ -25,5 +25,11 @@
   "skill_entryDelay": 0.05,
   "skill_entryDuration": 0.35,
   "skill_slideOffsetX": 80.0,
-  "skill_fadeStartAlpha": 0.0
+  "skill_fadeStartAlpha": 0.0,
+
+  "party_hud_align": "bottom-right",
+  "party_hud_origin_x": -286.0,
+  "party_hud_origin_y": -286.0,
+  "party_hud_spacing_x": -150.0,
+  "party_hud_spacing_y": 0.0
 }

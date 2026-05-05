@@ -88,7 +88,9 @@ void GameTimer::Tick() {
 
     // Bảo vệ khỏi deltaTime âm (có thể xảy ra do CPU power-saving
     // hoặc khi chạy trên multi-processor bất đồng bộ)
-    if (mDeltaTime < 0.0) {
-        mDeltaTime = 0.0;
+    if (mDeltaTime < 0.0) { 
+        mDeltaTime = 0.0; 
+    } else if (mDeltaTime > 0.1) {
+        mDeltaTime = 0.1;
     }
 }

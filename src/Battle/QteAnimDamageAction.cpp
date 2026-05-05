@@ -25,6 +25,7 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
                                          float goodThreshold,
                                          int minCount,
                                          int maxCount,
+                                         float bonusQteCount,
                                          float qteSpacing,
                                          float fadeInRatio,
                                          float fadeOutDuration,
@@ -39,6 +40,7 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
     , mMissMult(missMult)
     , mPerfectThreshold(perfectThreshold)
     , mGoodThreshold(goodThreshold)
+    , mBonusQteCount(bonusQteCount)
     , mFadeInRatio(fadeInRatio)
     , mFadeOutDuration(fadeOutDuration)
     , mCtx(ctx)
@@ -188,13 +190,19 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
             
             // Average Multiplier logic (to prevent 3x damage scaling)
             float sum = 0.0f;
+            int perfectCount = 0;
+            int goodCount = 0;
             for (const auto& n : mNodes) {
-                if (n.result == QTEResult::Perfect) sum += mPerfectMult;
-                else if (n.result == QTEResult::Good) sum += mGoodMult;
+                if (n.result == QTEResult::Perfect) { sum += mPerfectMult; perfectCount++; }
+                else if (n.result == QTEResult::Good) { sum += mGoodMult; goodCount++; }
                 else sum += mMissMult;
             }
             // Strict averaging based on user performance across all randomly spawned nodes
             mRequest.qteMultiplier = sum / static_cast<float>(mNodes.size());
+            
+            // Safely push explicitly earned raw count bonuses onto the average!
+            mRequest.qteMultiplier += (perfectCount * mBonusQteCount);
+            mRequest.qteMultiplier += (goodCount * (mBonusQteCount * 0.5f));
         }
     }
 

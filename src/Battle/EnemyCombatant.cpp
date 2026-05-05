@@ -5,6 +5,8 @@
 #include "EnemyCombatant.h"
 #include "IBattler.h"
 #include "../Utils/Log.h"
+#include <cstdlib>
+
 
 static constexpr int kEnemyMaxHp  = 50;
 static constexpr int kEnemyMaxMp  = 0;
@@ -53,9 +55,17 @@ EnemyCombatant::EnemyCombatant(std::string name, std::wstring turnViewPath, cons
 // ------------------------------------------------------------
 IBattler* EnemyCombatant::ChooseTarget(const std::vector<IBattler*>& players) const
 {
+    std::vector<IBattler*> validTargets;
     for (IBattler* p : players)
     {
-        if (p && p->IsAlive()) return p;
+        if (p && p->IsAlive()) {
+            validTargets.push_back(p);
+        }
     }
-    return nullptr;
+    
+    if (validTargets.empty()) return nullptr;
+    
+    // Pick randomly from alive members natively
+    int randIdx = std::rand() % validTargets.size();
+    return validTargets[randIdx];
 }

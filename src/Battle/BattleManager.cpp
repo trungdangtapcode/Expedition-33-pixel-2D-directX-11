@@ -14,6 +14,9 @@
 #include <algorithm>
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
+#include "MoveAction.h"
+#include "WaitAction.h"
+#include "ParallelAction.h"
 
 BattleManager::BattleManager() = default;
 
@@ -29,18 +32,18 @@ BattleManager::BattleManager() = default;
 // Player team: Verso with persistent HP from PartyManager so wounds
 //   carry over from previous battles.
 // ------------------------------------------------------------
-void BattleManager::Initialize(const EnemyEncounterData& encounter)
+void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config)
 {
-    // -- Spawn player party — Verso seeded with EFFECTIVE stats --
-    // GetEffectiveVersoStats folds in every currently-equipped item's
-    // bonusAtk/bonusDef/bonusMaxHp/etc., so the PlayerCombatant the
-    // battle uses already reflects whatever the player has equipped
-    // in the overworld inventory.  Persistent HP/MP carry over from
-    // the previous battle (PartyManager::SetVersoStats saves only the
-    // resource fields, not equipment-derived bonuses).
-    mPlayers.push_back(std::make_unique<PlayerCombatant>(
-        "Verso", L"assets/UI/turn-view-verso.png",
-        PartyManager::Get().GetEffectiveVersoStats()));
+    mContext.config = config;
+    mTotalExpPool   = 0;
+
+    // -- Spawn player party natively pulling from PartyManager arrays! --
+    auto& activeParty = PartyManager::Get().GetActiveParty();
+    for (size_t i = 0; i < activeParty.size(); ++i) {
+        mPlayers.push_back(std::make_unique<PlayerCombatant>(
+            activeParty[i].name, activeParty[i].turnViewPath,
+            PartyManager::Get().GetEffectiveStats(i)));
+    }
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
@@ -57,6 +60,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter)
         // Build BattlerStats from JSON-sourced values.
         // mp=0 and maxMp=0: enemies do not use MP in the current design.
         // rage=0 and maxRage=0: rage resource is player-only.
+        mTotalExpPool += sd.expReward;
         BattlerStats stats{};
         stats.hp     = sd.hp;
         stats.maxHp  = sd.hp;
@@ -110,18 +114,24 @@ void BattleManager::BuildTurnOrder()
 
     if (mTimeline.empty()) return;
 
-    // Advance time for the very first turn so the first combatant reaches 0 AV
-    float elapsedAV = mTimeline[0].currentAV;
-    for (auto& node : mTimeline) node.currentAV -= elapsedAV;
-
-    IBattler* next = mTimeline[0].battler;
-    next->OnTurnStart();
-    Log("--- " + next->GetName() + "'s turn ---");
-
-    if (next->IsPlayerControlled())
-        mPhase = BattlePhase::PLAYER_TURN;
-    else
-        mPhase = BattlePhase::ENEMY_TURN;
+    // -- INTRO SEQUENCE LOGIC --
+    auto parallelWalk = std::make_unique<ParallelAction>();
+    for (auto& p : mPlayers) {
+        parallelWalk->AddAction(std::make_unique<MoveAction>(
+            p.get(), nullptr, MoveAction::TargetType::Origin, 
+            mContext.config.introWalkDuration, 0.0f, CombatantAnim::Walk, CombatantAnim::Idle
+        ));
+    }
+    mQueue.Enqueue(std::move(parallelWalk));
+    
+    // Once the MoveActions settle, artificially pause for half a second before UI triggers
+    mQueue.Enqueue(std::make_unique<WaitAction>(0.5f));
+    
+    // Enter the dedicated intro phase.  INTRO drains only the walk-in queue;
+    // it never checks win/lose or broadcasts HP events — no damage occurs here.
+    // When the queue empties, HandleIntro() calls AdvanceTurn() to enter the
+    // first real turn (PLAYER_TURN or ENEMY_TURN).
+    mPhase = BattlePhase::INTRO;
 }
 
 // ------------------------------------------------------------
@@ -141,7 +151,8 @@ void BattleManager::Update(float dt)
     // calculator predicates, AI scoring) sees the current roster and turn count.
     RebuildContext(dt);
 
-    if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
+    if      (mPhase == BattlePhase::INTRO)       HandleIntro(dt);
+    else if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
     else if (mPhase == BattlePhase::ENEMY_TURN)  HandleEnemyTurn(dt);
     else if (mPhase == BattlePhase::RESOLVING)   HandleResolving(dt);
 }
@@ -161,6 +172,23 @@ void BattleManager::RebuildContext(float dt)
     mContext.aliveEnemies = GetAliveEnemies();
     mContext.battleElapsed += dt;
     // turnCount intentionally untouched here — see AdvanceTurn.
+}
+
+// ------------------------------------------------------------
+// HandleIntro: drain the walk-in action queue, then enter the first real turn.
+//
+// Intentionally simpler than HandleResolving — no HP broadcasts and no
+// win/lose checks because no damage is dealt during the walk-in sequence.
+// Separating this from RESOLVING keeps RESOLVING's semantics unambiguous:
+// it only ever executes a combat action queued by a player or enemy turn.
+// ------------------------------------------------------------
+void BattleManager::HandleIntro(float dt)
+{
+    mQueue.Update(dt);
+    if (!mQueue.IsEmpty()) return;
+
+    // Walk-in complete — advance to the first combatant's turn.
+    AdvanceTurn();
 }
 
 // ------------------------------------------------------------
@@ -282,6 +310,9 @@ void BattleManager::HandleResolving(float dt)
     if (AllEnemiesDefeated())
     {
         Log("--- VICTORY! ---");
+        Log("Earned " + std::to_string(mTotalExpPool) + " EXP!");
+        PartyManager::Get().AddExp(mTotalExpPool);
+
         mOutcome = BattleOutcome::VICTORY;
         mPhase   = BattlePhase::WIN;
         return;

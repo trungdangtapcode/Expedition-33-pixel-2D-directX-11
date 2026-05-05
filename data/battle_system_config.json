@@ -4,6 +4,6 @@
   "qteFadeOutDuration": 0.3,
   "qteCameraZoom": 1.2,
   "introWalkDuration": 2.5,
-  "introWalkDistance": 500.0,
+  "introWalkDistance": 100.0,
   "introWalkAnim": "walk"
 }

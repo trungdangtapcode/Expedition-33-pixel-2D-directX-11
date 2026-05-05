@@ -40,8 +40,9 @@
 enum class BattlePhase
 {
     INIT,
+    INTRO,        // walk-in sequence before the first turn
     PLAYER_TURN,
-    RESOLVING,
+    RESOLVING,    // draining the action queue after a player or enemy turn
     ENEMY_TURN,
     WIN,
     LOSE
@@ -170,6 +171,7 @@ private:
     bool AllPlayersDefeated() const;
     bool AllEnemiesDefeated()  const;
 
+    void HandleIntro(float dt);      // drain walk-in queue, then advance to first turn
     void HandlePlayerTurn(float dt);
     void HandleEnemyTurn(float dt);
     void HandleResolving(float dt);

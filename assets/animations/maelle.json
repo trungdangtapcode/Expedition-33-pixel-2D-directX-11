@@ -1,8 +1,8 @@
 {
-	"sprite_name": "verso",
-	"character": "verso",
+	"sprite_name": "maelle",
+	"character": "maelle",
 	"width": 1792,
-	"height": 256,
+	"height": 1024,
 	"frame_width": 128,
 	"frame_height": 128,
 	"animations":[

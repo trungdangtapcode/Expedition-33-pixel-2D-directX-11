@@ -331,6 +331,7 @@ void BattleState::OnExit()
     EventManager::Get().Unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
     EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
     EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
+    EventManager::Get().Unsubscribe("verso_bullet_hell_state", mBulletHellStateListener);
     mBattleRenderer.Shutdown();
     for (auto& bar : mHealthBars) bar->Shutdown();
     for (auto& ebar : mExpBars) ebar->Shutdown();
@@ -462,7 +463,9 @@ void BattleState::UpdateLogic(float dt)
             }
             else if (phaseAfter == BattlePhase::RESOLVING)
             {
-                // Action is playing out
+                // A combat action is playing out — keep the active player in stance.
+                // INTRO is now a separate phase so RESOLVING exclusively means
+                // "a player or enemy action is executing" — no guard needed here.
                 inStance = true;
             }
         }
@@ -1277,6 +1280,7 @@ void BattleState::DumpStateToDebugOutput() const
     switch (mBattle.GetPhase())
     {
     case BattlePhase::INIT:        snap.simulationPhase = "INIT";        break;
+    case BattlePhase::INTRO:       snap.simulationPhase = "INTRO";       break;
     case BattlePhase::PLAYER_TURN: snap.simulationPhase = "PLAYER_TURN"; break;
     case BattlePhase::RESOLVING:   snap.simulationPhase = "RESOLVING";   break;
     case BattlePhase::ENEMY_TURN:  snap.simulationPhase = "ENEMY_TURN";  break;

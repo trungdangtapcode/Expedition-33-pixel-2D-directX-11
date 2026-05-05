@@ -127,9 +127,11 @@ void BattleManager::BuildTurnOrder()
     // Once the MoveActions settle, artificially pause for half a second before UI triggers
     mQueue.Enqueue(std::make_unique<WaitAction>(0.5f));
     
-    // Fall into RESOLVING. When resolving completes, it will safely trigger AdvanceTurn()
-    // which flawlessly advances the first combatant to AV=0 and assigns PLAYER_TURN or ENEMY_TURN.
-    mPhase = BattlePhase::RESOLVING;
+    // Enter the dedicated intro phase.  INTRO drains only the walk-in queue;
+    // it never checks win/lose or broadcasts HP events — no damage occurs here.
+    // When the queue empties, HandleIntro() calls AdvanceTurn() to enter the
+    // first real turn (PLAYER_TURN or ENEMY_TURN).
+    mPhase = BattlePhase::INTRO;
 }
 
 // ------------------------------------------------------------
@@ -149,7 +151,8 @@ void BattleManager::Update(float dt)
     // calculator predicates, AI scoring) sees the current roster and turn count.
     RebuildContext(dt);
 
-    if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
+    if      (mPhase == BattlePhase::INTRO)       HandleIntro(dt);
+    else if (mPhase == BattlePhase::PLAYER_TURN) HandlePlayerTurn(dt);
     else if (mPhase == BattlePhase::ENEMY_TURN)  HandleEnemyTurn(dt);
     else if (mPhase == BattlePhase::RESOLVING)   HandleResolving(dt);
 }
@@ -169,6 +172,23 @@ void BattleManager::RebuildContext(float dt)
     mContext.aliveEnemies = GetAliveEnemies();
     mContext.battleElapsed += dt;
     // turnCount intentionally untouched here — see AdvanceTurn.
+}
+
+// ------------------------------------------------------------
+// HandleIntro: drain the walk-in action queue, then enter the first real turn.
+//
+// Intentionally simpler than HandleResolving — no HP broadcasts and no
+// win/lose checks because no damage is dealt during the walk-in sequence.
+// Separating this from RESOLVING keeps RESOLVING's semantics unambiguous:
+// it only ever executes a combat action queued by a player or enemy turn.
+// ------------------------------------------------------------
+void BattleManager::HandleIntro(float dt)
+{
+    mQueue.Update(dt);
+    if (!mQueue.IsEmpty()) return;
+
+    // Walk-in complete — advance to the first combatant's turn.
+    AdvanceTurn();
 }
 
 // ------------------------------------------------------------

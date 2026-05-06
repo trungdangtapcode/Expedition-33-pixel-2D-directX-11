@@ -47,6 +47,7 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
+#include "SfxPlayer.h"
 
 using Microsoft::WRL::ComPtr;
 
@@ -79,6 +80,20 @@ public:
     // Convenience query — used by states (optional) to skip broadcasts
     // when audio is unavailable (e.g., headless test environment).
     bool IsInitialized() const { return mInitialized; }
+
+    // ------------------------------------------------------------
+    // SFX façade.
+    //
+    // Direct API: AudioManager::Get().PlaySfx("ui_navigate").
+    // Event API:  EventManager::Get().Broadcast("sfx_play",
+    //               { .payload = (void*)"ui_navigate" });
+    // The event path is provided so systems-level code (action queue,
+    // Combatant) can fire SFX without taking an AudioManager.h dependency.
+    // Both routes funnel through SfxPlayer::PlaySfx.
+    // ------------------------------------------------------------
+    void  PlaySfx(const std::string& groupId, float volumeMul = 1.0f);
+    void  SetSfxMasterVolume(float v);
+    float GetSfxMasterVolume() const;
 
 private:
     AudioManager()  = default;
@@ -150,6 +165,19 @@ private:
     int mListenerPlayOverworld = -1;
     int mListenerPlayBattle    = -1;
     int mListenerStop          = -1;
+
+    // SFX subsystem.  Owned by value -- destruction order: AudioManager
+    // dtor -> mSfx dtor.  Shutdown() also calls mSfx.Shutdown() explicitly
+    // so the source voices and submix go away BEFORE mMasterVoice and
+    // mXAudio2 are released.
+    SfxPlayer mSfx;
+
+    // Generic BGM event subscription — plays any track id via payload.
+    int mListenerBgmPlay     = -1;
+
+    // SFX event-bus subscriptions.
+    int mListenerSfxPlay     = -1;
+    int mListenerDamageTaken = -1;   // -> battle_first_strike
 
     bool mInitialized   = false;
 

@@ -7,12 +7,14 @@
 #include "BattleState.h"
 #include "../Battle/BattleEvents.h"
 #include "../Battle/ItemRegistry.h"
+#include "../Battle/ItemIconCache.h"
 #include "../Battle/ItemData.h"
 #include "../States/StateManager.h"
 #include "../Events/EventManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/Inventory.h"
 #include "../UI/BattleDebugHUD.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
 #include <string>
@@ -72,7 +74,24 @@ void BattleState::OnEnter()
 
 void BattleState::InitAudio()
 {
-    EventManager::Get().Broadcast("bgm_play_battle", {});
+    // Per-encounter BGM: if the encounter JSON specifies a bgmTrackId,
+    // play that track instead of the default "battle" theme.  The generic
+    // "bgm_play" event passes the track id via payload so AudioManager
+    // can look it up in bgm.json without a dedicated per-track event.
+    if (!mEncounter.bgmTrackId.empty())
+    {
+        EventData e;
+        e.payload = const_cast<char*>(mEncounter.bgmTrackId.c_str());
+        EventManager::Get().Broadcast("bgm_play", e);
+    }
+    else
+    {
+        EventManager::Get().Broadcast("bgm_play_battle", {});
+    }
+
+    // One-shot encounter sting layered over the BGM transition.
+    // XAudio2 mixes both voices naturally — no ducking needed.
+    AudioManager::Get().PlaySfx("battle_start");
 }
 
 void BattleState::InitBattleSlots()
@@ -288,6 +307,14 @@ void BattleState::InitUIRenderers()
         mD3D.GetHeight()
     );
 
+    // Per-item icon plumbing.  The renderer is per-State (owns one
+    // SpriteBatch); the cache is a global singleton shared with
+    // InventoryState.  Initialize() on the cache is idempotent.
+    mItemIconRenderer.Initialize(
+        mD3D.GetDevice(), mD3D.GetContext(),
+        mD3D.GetWidth(),  mD3D.GetHeight());
+    ItemIconCache::Get().Initialize(mD3D.GetDevice(), mD3D.GetContext());
+
     mTextRenderer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -340,6 +367,7 @@ void BattleState::OnExit()
     mTargetPointer.Shutdown();
     mChevronUp.Shutdown();
     mChevronDown.Shutdown();
+    mItemIconRenderer.Shutdown();
     mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
     mQTERenderer.Shutdown();
@@ -913,14 +941,13 @@ void BattleState::Render()
             DirectX::XMVECTOR dboxColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
 
             // ------------------------------------------------------------
-            // Per-effect-kind icon tint.  Until per-item PNGs are authored
-            // (see idea/asset-todo.md), each row's icon is a tiny tinted
-            // dialog-box quad whose color encodes the effect category.
+            // Per-effect-kind icon tint.  Now serves a dual role:
+            //   1. Always-drawn colored frame so the effect-kind color
+            //      reads at a glance even when art is present.
+            //   2. Standalone visual when no PNG art exists yet for the
+            //      item -- ItemIconCache::GetIcon() returned nullptr.
             // The tint is applied to the standard mDialogBox 9-slice so
-            // we don't need a new texture.
-            //
-            // When real icons land, replace this color helper with a
-            // texture lookup keyed by ItemData::iconPath.
+            // we don't need a new texture for the frame.
             // ------------------------------------------------------------
             auto IconTint = [currentAlpha](const ItemData* item) -> DirectX::XMVECTOR
             {
@@ -1007,9 +1034,11 @@ void BattleState::Render()
                     dboxColor
                 );
 
-                // 2. Icon placeholder.  Square positioned at the left of
-                //    the row.  Tinted color encodes the effect kind so the
-                //    player can scan the menu by color even before real art.
+                // 2. Icon — colored frame always, real PNG on top when
+                //    ItemIconCache has art for this item.  The frame's
+                //    tint encodes effect kind so the player can scan the
+                //    menu by color even when art is unauthored or
+                //    overlaid by a small icon.
                 float iconScaledSize = iconSize * scaleMultiplier;
                 float iconScaledPad  = iconPad  * scaleMultiplier;
                 float iconX = dialogX + iconScaledPad;
@@ -1022,6 +1051,24 @@ void BattleState::Render()
                     cameraMatrix,
                     IconTint(item)
                 );
+                if (auto* iconSrv = ItemIconCache::Get().GetIcon(item))
+                {
+                    // 10% inset on each side so the colored frame stays
+                    // visible as a thin halo around the PNG.  Same
+                    // visual treatment as InventoryState's grid cells.
+                    const float inset = iconScaledSize * 0.10f;
+                    DirectX::XMVECTOR overlayTint =
+                        DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
+                    mItemIconRenderer.Draw(
+                        mD3D.GetContext(),
+                        iconSrv,
+                        iconX + inset, iconY + inset,
+                        iconScaledSize - inset * 2.0f,
+                        iconScaledSize - inset * 2.0f,
+                        cameraMatrix,
+                        overlayTint
+                    );
+                }
 
                 // 3. Label text — shifted right to clear the icon column.
                 float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier

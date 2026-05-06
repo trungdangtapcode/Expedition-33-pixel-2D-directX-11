@@ -31,6 +31,7 @@
 #include "../Battle/ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/PartyManager.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
 
@@ -339,6 +340,7 @@ void LineupState::Update(float dt)
 
         if (escPressed || lPressed || backPressed)
         {
+            AudioManager::Get().PlaySfx("ui_back");
             if (mPhase == Phase::EquipPicker)
             {
                 mPhase = Phase::SlotSelect;
@@ -409,17 +411,21 @@ void LineupState::HandleMemberSelectInput()
     {
         int oldCursor = mMemberCursor;
         mMemberCursor = (mMemberCursor - 1 + mPartySize) % mPartySize;
+        AudioManager::Get().PlaySfx("ui_navigate");
         OnCursorChanged(oldCursor, mMemberCursor);
     }
     if (pressed(VK_RIGHT, mRightWasDown))
     {
         int oldCursor = mMemberCursor;
         mMemberCursor = (mMemberCursor + 1) % mPartySize;
+        AudioManager::Get().PlaySfx("ui_navigate");
         OnCursorChanged(oldCursor, mMemberCursor);
     }
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_confirm");
+
         // Compute world-space focus position for the camera zoom-in.
         auto& d3d = D3DContext::Get();
         const float fW = static_cast<float>(d3d.GetWidth());
@@ -445,25 +451,34 @@ void LineupState::HandleSlotSelectInput()
     };
 
     if (pressed(VK_UP,   mUpWasDown))
+    {
         mSlotCursor = (mSlotCursor - 1 + kEquipSlotCount) % kEquipSlotCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
     if (pressed(VK_DOWN, mDownWasDown))
+    {
         mSlotCursor = (mSlotCursor + 1) % kEquipSlotCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
 
     if (pressed(VK_LEFT,  mLeftWasDown))
     {
         int oldCursor = mMemberCursor;
         mMemberCursor = (mMemberCursor - 1 + mPartySize) % mPartySize;
+        AudioManager::Get().PlaySfx("ui_navigate");
         OnCursorChanged(oldCursor, mMemberCursor);
     }
     if (pressed(VK_RIGHT, mRightWasDown))
     {
         int oldCursor = mMemberCursor;
         mMemberCursor = (mMemberCursor + 1) % mPartySize;
+        AudioManager::Get().PlaySfx("ui_navigate");
         OnCursorChanged(oldCursor, mMemberCursor);
     }
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_confirm");
         constexpr EquipSlot order[kEquipSlotCount] = {
             EquipSlot::Weapon, EquipSlot::Body, EquipSlot::Head, EquipSlot::Accessory
         };
@@ -487,9 +502,15 @@ void LineupState::HandlePickerInput()
     const int total = static_cast<int>(mPickerItems.size()) + 1;
 
     if (pressed(VK_UP,   mUpWasDown))
+    {
         mPickerCursor = (mPickerCursor - 1 + total) % total;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
     if (pressed(VK_DOWN, mDownWasDown))
+    {
         mPickerCursor = (mPickerCursor + 1) % total;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
 
     const int maxVisible = mCharLayout.pickerMaxVisible;
     if (mPickerCursor < mPickerScroll)

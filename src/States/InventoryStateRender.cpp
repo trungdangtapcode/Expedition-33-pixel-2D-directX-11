@@ -17,6 +17,7 @@
 #include "InventoryState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Battle/ItemRegistry.h"
+#include "../Battle/ItemIconCache.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/PartyManager.h"
 
@@ -30,8 +31,15 @@
 // effect-kind palette (green=heal, red=damage, etc.) shared with the
 // battle item menu so the same item looks the same everywhere.
 //
-// Goes away when real per-item icon PNGs land — both render files
-// will then call SpriteBatch::Draw on item->iconSRV directly.
+// Now serves a dual purpose:
+//   1. ALWAYS-drawn colored frame underneath the real icon (so the
+//      effect-kind color reads at a glance even when art is present).
+//   2. Standalone visual when no PNG art exists yet for the item --
+//      i.e. ItemIconCache::GetIcon(item) returned nullptr.
+//
+// The colored quad is drawn first; if a SRV is available, the PNG
+// is overlaid on top with a small inset so the frame stays visible
+// around the edges.
 // ------------------------------------------------------------
 DirectX::XMVECTOR InventoryState::IconTintFor(const ItemData* item, float alpha)
 {
@@ -175,13 +183,32 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
             mDialogBox.Draw(ctx, cellX, cellY, cellSize, cellSize,
                             0.4f, DirectX::XMMatrixIdentity(), cellColor);
 
-            // Icon placeholder — small inset square tinted by effect kind.
+            // Colored frame — always drawn.  Doubles as the icon's
+            // "frame" when real art is overlaid below, and as the
+            // standalone visual when art is missing.  See IconTintFor
+            // doc-comment for the dual-purpose rationale.
             const float iconPad  = cellSize * 0.18f;
             const float iconSize = cellSize - iconPad * 2.0f - 14.0f;
-            mDialogBox.Draw(ctx, cellX + iconPad, cellY + iconPad,
+            const float iconX    = cellX + iconPad;
+            const float iconY    = cellY + iconPad;
+            mDialogBox.Draw(ctx, iconX, iconY,
                             iconSize, iconSize, 0.3f,
                             DirectX::XMMatrixIdentity(),
                             IconTintFor(item, kAlpha));
+
+            // Real PNG (if loaded) — overlaid with a 10% inset so the
+            // colored frame remains visible as a 1-2 px halo.
+            if (auto* srv = ItemIconCache::Get().GetIcon(item))
+            {
+                const float inset    = iconSize * 0.10f;
+                const float innerSz  = iconSize - inset * 2.0f;
+                const DirectX::XMVECTOR tint =
+                    DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, kAlpha);
+                mIconRenderer.Draw(ctx, srv,
+                                   iconX + inset, iconY + inset,
+                                   innerSz, innerSz,
+                                   DirectX::XMMatrixIdentity(), tint);
+            }
 
             char countStr[16];
             _snprintf_s(countStr, sizeof(countStr), _TRUNCATE, "x%d", count);
@@ -317,10 +344,22 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
 
             if (!isUnequipRow)
             {
-                mDialogBox.Draw(ctx, leftX + 6.0f, rowY + 6.0f,
-                                rowH - 12.0f, rowH - 12.0f, 0.3f,
+                // Colored frame first (always), real icon over it.
+                const float fx = leftX + 6.0f;
+                const float fy = rowY  + 6.0f;
+                const float fs = rowH  - 12.0f;
+                mDialogBox.Draw(ctx, fx, fy, fs, fs, 0.3f,
                                 DirectX::XMMatrixIdentity(),
                                 IconTintFor(item, 0.95f));
+                if (auto* srv = ItemIconCache::Get().GetIcon(item))
+                {
+                    const float inset = fs * 0.10f;
+                    mIconRenderer.Draw(ctx, srv,
+                                       fx + inset, fy + inset,
+                                       fs - inset * 2.0f, fs - inset * 2.0f,
+                                       DirectX::XMMatrixIdentity(),
+                                       DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, 0.95f));
+                }
 
                 const std::string label = item ? item->name : mPickerItems[row];
                 mTextRenderer.DrawString(ctx, label.c_str(),
@@ -417,13 +456,26 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
                                   leftX + 130.0f, rowY + 8.0f,
                                   hovered ? DirectX::Colors::Black : DirectX::Colors::Gray);
 
-        // Inline icon swatch on the right edge
+        // Inline icon swatch on the right edge — colored frame always
+        // (so an empty slot would be invisible; this only runs when item
+        // is non-null), real PNG overlaid when available.
         if (item)
         {
-            mDialogBox.Draw(ctx, leftX + leftW - rowH, rowY + 6.0f,
-                            rowH - 12.0f, rowH - 12.0f, 0.3f,
+            const float fx = leftX + leftW - rowH;
+            const float fy = rowY  + 6.0f;
+            const float fs = rowH  - 12.0f;
+            mDialogBox.Draw(ctx, fx, fy, fs, fs, 0.3f,
                             DirectX::XMMatrixIdentity(),
                             IconTintFor(item, 0.95f));
+            if (auto* srv = ItemIconCache::Get().GetIcon(item))
+            {
+                const float inset = fs * 0.10f;
+                mIconRenderer.Draw(ctx, srv,
+                                   fx + inset, fy + inset,
+                                   fs - inset * 2.0f, fs - inset * 2.0f,
+                                   DirectX::XMMatrixIdentity(),
+                                   DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, 0.95f));
+            }
         }
     }
 }

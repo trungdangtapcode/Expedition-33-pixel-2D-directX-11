@@ -110,6 +110,12 @@ struct EnemyEncounterData
     // Path to the environment JSON (e.g. "assets/environments/battle-paris-view.json")
     std::string environmentPath;
 
+    // ---- Battle BGM (optional) ----
+    // Track id from data/audio/bgm.json.  If non-empty, BattleState plays
+    // this track instead of the default "battle" BGM on encounter start.
+    // Example: "verso_cloned_battle" for a boss with its own theme.
+    std::string bgmTrackId;
+
     // ---- Battle party (1–3 slots) ----
     // Defines every enemy combatant that appears when this encounter starts.
     // battleParty[0] = front slot, [1] = back-top, [2] = back-bottom.

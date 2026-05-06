@@ -1,0 +1,29 @@
+{
+  "comment":  "Verso Cloned -- a dark mirror of the protagonist.",
+  "comment2": "Solo encounter.  Uses Verso's sprite sheet and animations.",
+  "comment3": "Stat budget is roughly 2x base Verso to feel like a mid-game boss.",
+
+  "name": "Verso Cloned",
+  "texturePath": "assets/animations/verso.png",
+  "jsonPath": "assets/animations/verso.json",
+  "idleClip": "idle",
+  "contactRadius": 100.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
+  "bgmTrackId": "verso_cloned_battle",
+
+  "battleParty": [
+    {
+      "texturePath": "assets/animations/verso.png",
+      "jsonPath": "assets/animations/verso.json",
+      "turnViewPath": "assets/UI/turn-view-verso-cloned.png",
+      "idleClip": "fight-state",
+      "hp": 180,
+      "atk": 22,
+      "def": 8,
+      "spd": 10,
+      "expReward": 200,
+      "attackJsonPath": "data/skills/verso_cloned_attack.json",
+      "cameraFocusOffsetY": -128.0
+    }
+  ]
+}

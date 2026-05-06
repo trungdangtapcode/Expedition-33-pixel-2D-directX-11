@@ -14,6 +14,9 @@
 #include "TimedStatBuffEffect.h"
 #include "BattlerStats.h"
 #include "IDamageCalculator.h"
+#include "BattleEvents.h"
+#include "CombatantAnim.h"
+#include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 
 ItemEffectAction::ItemEffectAction(IBattler* target, ItemData effect)
@@ -95,6 +98,15 @@ bool ItemEffectAction::Execute(float /*dt*/)
         s.ClampHp();
         LOG("[Item] %s revives %s at %d HP.",
             mEffect.name.c_str(), mTarget->GetName().c_str(), s.hp);
+
+        // Broadcast idle animation through the SAME event interface that
+        // Combatant::TakeDamage uses for CombatantAnim::Die.  The renderer
+        // subscribes to "battler_play_anim" and transitions the sprite
+        // from the frozen death frame back to the idle loop.
+        PlayAnimPayload animPayload{ mTarget, CombatantAnim::Idle };
+        EventData animEvent;
+        animEvent.payload = &animPayload;
+        EventManager::Get().Broadcast("battler_play_anim", animEvent);
         break;
     }
 

@@ -14,6 +14,7 @@
 #include "OverworldState.h"
 // #include "BattleState.h"
 #include "../Events/EventManager.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include <windows.h>  // GetAsyncKeyState
 
@@ -31,6 +32,7 @@ void MenuState::Update(float dt) {
     // Press ENTER to transition to OverworldState.
     // TODO: Replace GetAsyncKeyState with a proper InputManager later.
     if (GetAsyncKeyState(VK_RETURN) & 0x8000) {
+        AudioManager::Get().PlaySfx("ui_confirm");
         StateManager::Get().ChangeState(std::make_unique<OverworldState>());
         // StateManager::Get().ChangeState(std::make_unique<BattleState>(D3DContext::Get()));
     }

@@ -1,0 +1,116 @@
+{
+  "_comment_top":         "SFX group manifest -- maps group ids to randomised WAV variant lists.",
+  "_comment_format":      "Every WAV must be 16-bit PCM 48kHz; mono and stereo are supported.",
+  "_comment_pickrule":    "PlaySfx picks a random variant per call, avoiding back-to-back repeats.",
+  "_comment_volume":      "Per-group volume in [0..1] is multiplied by the per-call volumeMul argument.",
+  "_comment_pool_sizes":  "stereoVoiceCount = 16 supports rapid menu navigation; monoVoiceCount = 4 covers occasional mono assets.",
+
+  "stereoVoiceCount": 16,
+  "monoVoiceCount":   4,
+  "masterSfxVolume":  1.0,
+
+  "groups": [
+    {
+      "id":     "ui_navigate",
+      "volume": 0.6,
+      "paths": [
+        "assets/sound/SFX/UI/navigate_01.wav",
+        "assets/sound/SFX/UI/navigate_02.wav",
+        "assets/sound/SFX/UI/navigate_03.wav",
+        "assets/sound/SFX/UI/navigate_04.wav",
+        "assets/sound/SFX/UI/navigate_05.wav",
+        "assets/sound/SFX/UI/navigate_06.wav",
+        "assets/sound/SFX/UI/navigate_07.wav",
+        "assets/sound/SFX/UI/navigate_08.wav",
+        "assets/sound/SFX/UI/navigate_09.wav",
+        "assets/sound/SFX/UI/navigate_10.wav"
+      ]
+    },
+    {
+      "id":     "ui_back",
+      "volume": 0.6,
+      "paths": [
+        "assets/sound/SFX/UI/back_01.wav",
+        "assets/sound/SFX/UI/back_02.wav",
+        "assets/sound/SFX/UI/back_03.wav",
+        "assets/sound/SFX/UI/back_04.wav",
+        "assets/sound/SFX/UI/back_05.wav",
+        "assets/sound/SFX/UI/back_06.wav",
+        "assets/sound/SFX/UI/back_07.wav",
+        "assets/sound/SFX/UI/back_08.wav",
+        "assets/sound/SFX/UI/back_09.wav",
+        "assets/sound/SFX/UI/back_10.wav"
+      ]
+    },
+    {
+      "id":     "ui_confirm",
+      "volume": 0.7,
+      "paths": [
+        "assets/sound/SFX/UI/confirm_01.wav",
+        "assets/sound/SFX/UI/confirm_02.wav",
+        "assets/sound/SFX/UI/confirm_03.wav",
+        "assets/sound/SFX/UI/confirm_04.wav",
+        "assets/sound/SFX/UI/confirm_05.wav",
+        "assets/sound/SFX/UI/confirm_06.wav",
+        "assets/sound/SFX/UI/confirm_07.wav",
+        "assets/sound/SFX/UI/confirm_08.wav",
+        "assets/sound/SFX/UI/confirm_09.wav",
+        "assets/sound/SFX/UI/confirm_10.wav"
+      ]
+    },
+
+    {
+      "id":     "battle_first_strike",
+      "volume": 0.85,
+      "paths": [
+        "assets/sound/SFX/Battle/first_strike_01.wav",
+        "assets/sound/SFX/Battle/first_strike_02.wav",
+        "assets/sound/SFX/Battle/first_strike_03.wav"
+      ]
+    },
+    {
+      "id":     "battle_select_ally",
+      "volume": 0.7,
+      "paths": [
+        "assets/sound/SFX/Battle/select_ally_01.wav",
+        "assets/sound/SFX/Battle/select_ally_02.wav",
+        "assets/sound/SFX/Battle/select_ally_03.wav"
+      ]
+    },
+    {
+      "id":     "battle_select_enemy",
+      "volume": 0.7,
+      "paths": [
+        "assets/sound/SFX/Battle/select_enemy_01.wav",
+        "assets/sound/SFX/Battle/select_enemy_02.wav",
+        "assets/sound/SFX/Battle/select_enemy_03.wav"
+      ]
+    },
+
+    {
+      "id":     "battle_start",
+      "volume": 0.9,
+      "paths": [ "assets/sound/SFX/Battle/start.wav" ]
+    },
+    {
+      "id":     "battle_item_open",
+      "volume": 0.8,
+      "paths": [ "assets/sound/SFX/Battle/item_open.wav" ]
+    },
+    {
+      "id":     "battle_skill_open",
+      "volume": 0.8,
+      "paths": [ "assets/sound/SFX/Battle/skill_open.wav" ]
+    },
+    {
+      "id":     "battle_no_ap",
+      "volume": 0.8,
+      "paths": [ "assets/sound/SFX/Battle/no_ap.wav" ]
+    },
+    {
+      "id":     "battle_flee",
+      "volume": 0.85,
+      "paths": [ "assets/sound/SFX/Battle/flee.wav" ]
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 {
-  "comment": "BGM track configuration — maps track IDs to WAV file paths.",
+  "comment": "BGM track configuration — maps track IDs to audio file paths.",
   "comment2": "AudioManager loads this at Initialize() and preloads all voices.",
-  "comment3": "To change a BGM file, edit 'path' here — no recompile needed.",
+  "comment3": "Supports .wav (WavLoader) and .mp3/.wma/.aac/.flac (MediaLoader).",
+  "comment4": "To change a BGM file, edit 'path' here — no recompile needed.",
   "tracks": [
     {
       "id":   "overworld",
@@ -10,6 +11,10 @@
     {
       "id":   "battle",
       "path": "assets/sound/OST/the_end_in_me.wav"
+    },
+    {
+      "id":   "verso_cloned_battle",
+      "path": "assets/sound/OST/verso-cloned-fight.mp3"
     }
   ]
 }

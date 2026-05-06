@@ -126,6 +126,23 @@ void PlayState::OnEnter()
         }
     }
 
+    // Spawn "Verso Cloned" — a dark mirror-match boss using the player's
+    // own sprite.  Positioned away from the skeletons so the player has to
+    // explore to find it.  Strong solo encounter (220 HP / 22 ATK / 14 SPD).
+    {
+        EnemyEncounterData cloneData{};
+        if (JsonLoader::LoadEnemyEncounterData("data/enemies/verso_cloned.json", cloneData))
+        {
+            OverworldEnemy* e = mScene.Spawn<OverworldEnemy>(
+                device, context, cloneData, 500.0f, -200.0f, mCamera.get());
+            if (e) mOverworldEnemies.push_back(e);
+        }
+        else
+        {
+            LOG("[PlayState] WARNING — Could not load verso_cloned.json; clone enemy not spawned.");
+        }
+    }
+
     // --- Iris transition: start fully closed, open to reveal the overworld ---
     // Initialize uses the current screen dimensions to set mMaxRadius and mCenterX/Y.
     if (mIris.Initialize(device, W, H))

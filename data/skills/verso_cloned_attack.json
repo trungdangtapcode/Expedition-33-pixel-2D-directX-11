@@ -1,0 +1,9 @@
+{
+  "comment": "Verso Cloned attack -- aggressive melee with bullet hell dodge phase.",
+  "moveDuration": 0.35,
+  "returnDuration": 0.3,
+  "meleeOffset": 80.0,
+  "damageTakenOccurMoment": 0.5,
+  "bulletHellSupported": true,
+  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json"
+}

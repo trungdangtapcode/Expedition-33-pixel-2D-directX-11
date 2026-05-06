@@ -22,3 +22,6 @@ AGENTS.md
 
 __pycache__/**
 __pycache__/
+
+# do not ignore banner, assets\e33_pixel_banner.png
+!assets\e33_pixel_banner.png

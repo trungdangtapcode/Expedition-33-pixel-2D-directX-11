@@ -23,9 +23,11 @@
 #include "StateManager.h"
 #include "../Renderer/D3DContext.h"
 #include "../Battle/ItemRegistry.h"
+#include "../Battle/ItemIconCache.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/PartyManager.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 
 #include <Windows.h>
@@ -67,6 +69,14 @@ void InventoryState::OnEnter()
         L"assets/UI/enemy-pointer-ui.png",
         d3d.GetWidth(), d3d.GetHeight(), 4.0f, 4.0f);
 
+    // Per-item icon plumbing.  The cache singleton is shared with
+    // BattleState; Initialize() is idempotent so it is safe to call
+    // here even if the player came from a battle that already wired it.
+    mIconRenderer.Initialize(
+        d3d.GetDevice(), d3d.GetContext(),
+        d3d.GetWidth(), d3d.GetHeight());
+    ItemIconCache::Get().Initialize(d3d.GetDevice(), d3d.GetContext());
+
     RefreshConsumables();
     mTab          = Tab::Items;
     mPhase        = Phase::ItemsGrid;
@@ -97,8 +107,12 @@ void InventoryState::OnExit()
     LOG("[InventoryState] OnExit");
     mChevronUp.Shutdown();
     mChevronDown.Shutdown();
+    mIconRenderer.Shutdown();
     mTextRenderer.Shutdown();
     mDialogBox.Shutdown();
+    // ItemIconCache is intentionally NOT shut down here: BattleState
+    // and InventoryState share it, and the cache is cheap to keep
+    // resident (~6 small PNGs).  COM cleanup runs at program exit.
 }
 
 // ============================================================
@@ -268,6 +282,7 @@ void InventoryState::Update(float dt)
     {
         // From the picker, Esc/Backspace returns to the slot list.
         // From any other phase, it closes the inventory entirely.
+        AudioManager::Get().PlaySfx("ui_back");
         if (mPhase == Phase::EquipmentPicker)
         {
             mPhase = Phase::EquipmentSlots;
@@ -282,6 +297,7 @@ void InventoryState::Update(float dt)
     const bool tabPressed = pressed(VK_TAB, mTabWasDown);
     if (tabPressed && mPhase != Phase::EquipmentPicker)
     {
+        AudioManager::Get().PlaySfx("ui_navigate");
         mTab   = (mTab == Tab::Items) ? Tab::Equipment : Tab::Items;
         mPhase = (mTab == Tab::Items) ? Phase::ItemsGrid : Phase::EquipmentSlots;
         if (mTab == Tab::Items) RefreshConsumables();
@@ -300,12 +316,14 @@ void InventoryState::Update(float dt)
             if (qPressed)
             {
                 mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
+                AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
                 Flash(std::string("Target: ") + party[mMemberIndex].name);
             }
             if (ePressed)
             {
                 mMemberIndex = (mMemberIndex + 1) % partySize;
+                AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
                 Flash(std::string("Target: ") + party[mMemberIndex].name);
             }
@@ -344,22 +362,34 @@ void InventoryState::HandleItemsInput()
 
     // Grid is 4 columns wide; Up/Down jump by 4 (one row), Left/Right by 1.
     constexpr int kCols = 4;
-    if (pressed(VK_LEFT,  mLeftWasDown))  mItemCursor = (mItemCursor - 1 + n) % n;
-    if (pressed(VK_RIGHT, mRightWasDown)) mItemCursor = (mItemCursor + 1) % n;
+    if (pressed(VK_LEFT,  mLeftWasDown))
+    {
+        mItemCursor = (mItemCursor - 1 + n) % n;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
+    if (pressed(VK_RIGHT, mRightWasDown))
+    {
+        mItemCursor = (mItemCursor + 1) % n;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
     if (pressed(VK_UP,    mUpWasDown))
     {
         const int next = mItemCursor - kCols;
-        mItemCursor = (next >= 0) ? next : mItemCursor;
+        if (next >= 0) { mItemCursor = next; AudioManager::Get().PlaySfx("ui_navigate"); }
     }
     if (pressed(VK_DOWN,  mDownWasDown))
     {
         const int next = mItemCursor + kCols;
-        mItemCursor = (next < n) ? next : mItemCursor;
+        if (next < n)  { mItemCursor = next; AudioManager::Get().PlaySfx("ui_navigate"); }
     }
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
-        TryUseItem(mConsumables[mItemCursor]);
+        // Success plays ui_confirm; failure (e.g. HP full) plays battle_no_ap.
+        if (TryUseItem(mConsumables[mItemCursor]))
+            AudioManager::Get().PlaySfx("ui_confirm");
+        else
+            AudioManager::Get().PlaySfx("battle_no_ap");
     }
 }
 
@@ -373,9 +403,15 @@ void InventoryState::HandleSlotsInput()
     };
 
     if (pressed(VK_UP,   mUpWasDown))
+    {
         mSlotCursor = (mSlotCursor - 1 + kEquipSlotCount) % kEquipSlotCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
     if (pressed(VK_DOWN, mDownWasDown))
+    {
         mSlotCursor = (mSlotCursor + 1) % kEquipSlotCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
 
     // Left/Right cycle party member (same as Q/E but more discoverable)
     {
@@ -385,12 +421,14 @@ void InventoryState::HandleSlotsInput()
             if (pressed(VK_LEFT,  mLeftWasDown))
             {
                 mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
+                AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
                 Flash(std::string("Target: ") + party[mMemberIndex].name);
             }
             if (pressed(VK_RIGHT, mRightWasDown))
             {
                 mMemberIndex = (mMemberIndex + 1) % partySize;
+                AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
                 Flash(std::string("Target: ") + party[mMemberIndex].name);
             }
@@ -399,6 +437,7 @@ void InventoryState::HandleSlotsInput()
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_confirm");
         OpenPicker();
     }
 }
@@ -416,12 +455,19 @@ void InventoryState::HandlePickerInput()
     const int total = static_cast<int>(mPickerItems.size()) + 1;
 
     if (pressed(VK_UP,   mUpWasDown))
+    {
         mPickerCursor = (mPickerCursor - 1 + total) % total;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
     if (pressed(VK_DOWN, mDownWasDown))
+    {
         mPickerCursor = (mPickerCursor + 1) % total;
+        AudioManager::Get().PlaySfx("ui_navigate");
+    }
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_confirm");
         if (PickerCursorIsUnequip())
         {
             TryUnequip(mPickerSlot);

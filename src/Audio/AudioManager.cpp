@@ -24,114 +24,13 @@
 //      chunks with odd byte counts have a silent pad byte after the data.
 // ============================================================
 #include "AudioManager.h"
+#include "WavLoader.h"
+#include "MediaLoader.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include <fstream>
 #include <sstream>
 #include <cstring>
-
-// ============================================================
-// Local helpers
-// ============================================================
-
-// ------------------------------------------------------------
-// LoadWavFile — minimal RIFF/WAVE parser.
-//
-// Reads the file entirely into memory, then walks the chunk list.
-// "fmt " chunk fills wfxOut (PCM or IEEE float, mono or stereo).
-// "data" chunk fills pcmOut.
-// All other chunks (LIST, ID3, bext …) are silently skipped.
-//
-// Returns true only when both "fmt " and "data" chunks were found.
-// ------------------------------------------------------------
-static bool LoadWavFile(const std::string& path,
-                        WAVEFORMATEX&       wfxOut,
-                        std::vector<BYTE>&  pcmOut)
-{
-    std::ifstream f(path, std::ios::binary | std::ios::ate);
-    if (!f.is_open())
-    {
-        LOG("[AudioManager] Could not open WAV: %s", path.c_str());
-        return false;
-    }
-
-    // Read the whole file into memory once.  Avoids repeated seek/read
-    // overhead and lets us use pointer arithmetic on the raw bytes.
-    const std::streamsize fileSize = f.tellg();
-    f.seekg(0);
-    std::vector<BYTE> raw(static_cast<size_t>(fileSize));
-    f.read(reinterpret_cast<char*>(raw.data()), fileSize);
-    if (!f)
-    {
-        LOG("[AudioManager] Failed to read WAV: %s", path.c_str());
-        return false;
-    }
-
-    const BYTE* p   = raw.data();
-    const BYTE* end = p + raw.size();
-
-    // Little-endian read helpers (WAV is always little-endian).
-    auto r32 = [](const BYTE* b) -> UINT32 {
-        return UINT32(b[0]) | (UINT32(b[1]) << 8) | (UINT32(b[2]) << 16) | (UINT32(b[3]) << 24);
-    };
-    auto r16 = [](const BYTE* b) -> UINT16 {
-        return UINT16(b[0]) | (UINT16(b[1]) << 8);
-    };
-
-    // RIFF header: "RIFF" <fileSize-8> "WAVE"
-    if (p + 12 > end || memcmp(p, "RIFF", 4) != 0 || memcmp(p + 8, "WAVE", 4) != 0)
-    {
-        LOG("[AudioManager] Not a valid RIFF/WAVE file: %s", path.c_str());
-        return false;
-    }
-    p += 12;
-
-    bool hasFmt = false;
-    bool hasData = false;
-
-    while (p + 8 <= end)
-    {
-        const char* chunkId   = reinterpret_cast<const char*>(p);
-        const UINT32 chunkSize = r32(p + 4);
-        p += 8;
-
-        // Guard against a malformed chunk that claims to extend past EOF.
-        if (p + chunkSize > end) break;
-
-        if (memcmp(chunkId, "fmt ", 4) == 0 && chunkSize >= 16)
-        {
-            // Minimum 16-byte PCM format block.  Extra bytes (e.g., cbSize
-            // field in non-PCM formats) are intentionally ignored; only the
-            // first 16 bytes are used to populate WAVEFORMATEX.
-            wfxOut.wFormatTag      = r16(p);
-            wfxOut.nChannels       = r16(p + 2);
-            wfxOut.nSamplesPerSec  = r32(p + 4);
-            wfxOut.nAvgBytesPerSec = r32(p + 8);
-            wfxOut.nBlockAlign     = r16(p + 12);
-            wfxOut.wBitsPerSample  = r16(p + 14);
-            wfxOut.cbSize          = 0;   // XAudio2 does not use cbSize for PCM/float
-            hasFmt = true;
-        }
-        else if (memcmp(chunkId, "data", 4) == 0)
-        {
-            // Copy the raw PCM samples into pcmOut.
-            // The vector is sized exactly to the chunk and kept alive in
-            // TrackData::pcmData — XAudio2 stores a pointer into this buffer.
-            pcmOut.assign(p, p + chunkSize);
-            hasData = true;
-        }
-        // Any other chunk (LIST, ID3, bext, smpl …) is silently skipped.
-
-        p += chunkSize;
-
-        // RIFF chunks are word-aligned: skip one pad byte for odd-sized chunks.
-        if (chunkSize & 1) ++p;
-    }
-
-    if (!hasFmt)  LOG("[AudioManager] Missing fmt  chunk: %s", path.c_str());
-    if (!hasData) LOG("[AudioManager] Missing data chunk: %s", path.c_str());
-    return hasFmt && hasData;
-}
 
 // ============================================================
 // Singleton
@@ -194,6 +93,37 @@ bool AudioManager::Initialize()
     mListenerStop = EventManager::Get().Subscribe("bgm_stop",
         [this](const EventData&) { StopBGM(); });
 
+    // Generic BGM event: payload is a const char* track id from bgm.json.
+    // This lets any system play an arbitrary track without a dedicated
+    // per-track event subscription.  The fixed events above are kept for
+    // backward compatibility.
+    mListenerBgmPlay = EventManager::Get().Subscribe("bgm_play",
+        [this](const EventData& e) {
+            if (e.payload)
+                PlayBGM(static_cast<const char*>(e.payload));
+        });
+
+    // Build the SFX subsystem on top of the same engine + master voice.
+    // Failure here is non-fatal -- BGM still works and PlaySfx() becomes
+    // a no-op until the cause is fixed.
+    mSfx.Initialize(mXAudio2.Get(), mMasterVoice, "data/audio/sfx.json");
+
+    // SFX event bus.  Payload is treated as const char* (a string literal
+    // by convention; the cast is unsafe with non-static lifetimes -- see
+    // the SFX comment block in AudioManager.h).
+    mListenerSfxPlay = EventManager::Get().Subscribe("sfx_play",
+        [this](const EventData& e) {
+            if (e.payload)
+                mSfx.PlaySfx(static_cast<const char*>(e.payload));
+        });
+
+    // Hit feedback: every damage broadcast plays the first-strike sting.
+    // No payload inspection -- the same SFX fires for any hit kind.
+    // Wiring the listener inside AudioManager keeps Combatant.cpp ignorant
+    // of the audio subsystem.
+    mListenerDamageTaken = EventManager::Get().Subscribe("battler_damage_taken",
+        [this](const EventData&) { mSfx.PlaySfx("battle_first_strike"); });
+
     mInitialized = true;
     LOG("[AudioManager] Initialized. %zu BGM track(s) loaded.", mTracks.size());
     return true;
@@ -209,9 +139,18 @@ void AudioManager::Shutdown()
 
     // Remove event subscriptions FIRST — prevents events fired during shutdown
     // (e.g., from state destructors) from calling into a partially torn-down manager.
-    EventManager::Get().Unsubscribe("bgm_play_overworld", mListenerPlayOverworld);
-    EventManager::Get().Unsubscribe("bgm_play_battle",    mListenerPlayBattle);
-    EventManager::Get().Unsubscribe("bgm_stop",           mListenerStop);
+    EventManager::Get().Unsubscribe("bgm_play_overworld",  mListenerPlayOverworld);
+    EventManager::Get().Unsubscribe("bgm_play_battle",     mListenerPlayBattle);
+    EventManager::Get().Unsubscribe("bgm_stop",            mListenerStop);
+    EventManager::Get().Unsubscribe("bgm_play",            mListenerBgmPlay);
+    EventManager::Get().Unsubscribe("sfx_play",            mListenerSfxPlay);
+    EventManager::Get().Unsubscribe("battler_damage_taken", mListenerDamageTaken);
+
+    // Tear down the SFX subsystem before BGM voices so the engine graph
+    // unwinds top-down: SFX source voices -> SFX submix -> BGM source
+    // voices -> mastering voice -> engine.  Inverting this order risks
+    // a data-race on the XAudio2 render thread.
+    mSfx.Shutdown();
 
     // Stop and destroy all source voices.
     // Source voices MUST be destroyed before the mastering voice and the engine —
@@ -310,7 +249,22 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
 {
     TrackData track;
 
-    if (!LoadWavFile(path, track.wfx, track.pcmData))
+    // Choose loader by file extension.  .wav files use the lightweight
+    // hand-rolled RIFF parser; everything else (mp3, wma, aac, flac, …)
+    // goes through Windows Media Foundation which auto-selects the OS
+    // codec and decodes to 16-bit PCM.
+    bool loaded = false;
+    const std::string ext = (path.size() >= 4) ? path.substr(path.size() - 4) : "";
+    if (ext == ".wav" || ext == ".WAV")
+    {
+        loaded = WavLoader::LoadFile(path, track.wfx, track.pcmData);
+    }
+    else
+    {
+        loaded = MediaLoader::LoadFile(path, track.wfx, track.pcmData);
+    }
+
+    if (!loaded)
     {
         LOG("[AudioManager] Failed to load track '%s' from '%s'.",
             id.c_str(), path.c_str());
@@ -413,4 +367,25 @@ void AudioManager::StopBGM()
     }
 
     mCurrentTrackId.clear();
+}
+
+// ============================================================
+// SFX façade -- delegates to mSfx, but guards against use before
+// Initialize() so callers do not need to test IsInitialized() first.
+// ============================================================
+
+void AudioManager::PlaySfx(const std::string& groupId, float volumeMul)
+{
+    if (!mInitialized) return;
+    mSfx.PlaySfx(groupId, volumeMul);
+}
+
+void AudioManager::SetSfxMasterVolume(float v)
+{
+    mSfx.SetMasterVolume(v);
+}
+
+float AudioManager::GetSfxMasterVolume() const
+{
+    return mSfx.GetMasterVolume();
 }

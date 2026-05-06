@@ -685,6 +685,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
     out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
     out.environmentPath = stripQ(detail::ValueOf(src, "environmentPath"));
+    out.bgmTrackId      = stripQ(detail::ValueOf(src, "bgmTrackId"));
 
     if (out.name.empty() || out.texturePath.empty())
     {

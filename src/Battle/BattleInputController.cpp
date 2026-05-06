@@ -13,6 +13,7 @@
 #include "ItemRegistry.h"
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 
 #define NOMINMAX
@@ -90,17 +91,21 @@ void BattleInputController::HandleCommandSelect()
     if (pressed(VK_UP, mKeyUpWasDown))
     {
         mCommandIndex = (mCommandIndex - 1 + cmdCount) % cmdCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mCommandIndex = (mCommandIndex + 1) % cmdCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        // Each IBattleCommand plays its own SFX (e.g. battle_skill_open,
+        // battle_item_open, battle_flee) — no generic ui_confirm here.
         LOG("[BattleState] Command confirmed: %s", mCommands[mCommandIndex]->GetLabel());
         mCommands[mCommandIndex]->Execute(mState);
         mState.DumpStateToDebugOutput();
@@ -126,6 +131,7 @@ void BattleInputController::HandleSkillSelect()
     if (pressed(VK_UP, mKeyUpWasDown))
     {
         mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
             mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
         mState.DumpStateToDebugOutput();
@@ -133,6 +139,7 @@ void BattleInputController::HandleSkillSelect()
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mSkillIndex = (mSkillIndex + 1) % skillCount;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
             mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
         mState.DumpStateToDebugOutput();
@@ -144,14 +151,17 @@ void BattleInputController::HandleSkillSelect()
         // availability (e.g. "HP below 50%") evaluates under current state.
         if (!skill || !skill->CanUse(*player, mBattle.GetContext()))
         {
+            AudioManager::Get().PlaySfx("battle_no_ap");
             LOG("[BattleState] Skill %d unavailable.", mSkillIndex + 1);
             return;
         }
+        AudioManager::Get().PlaySfx("ui_confirm");
         LOG("[BattleState] Skill confirmed: %s — now pick a target", skill->GetName());
         SetInputPhase(PlayerInputPhase::TARGET_SELECT);
     }
     if (pressed(VK_BACK, mBackWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_back");
         LOG("%s", "[BattleState] Cancelled skill select — back to command menu.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
     }
@@ -173,6 +183,7 @@ void BattleInputController::HandleTargetSelect()
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mTargetIndex = (mTargetIndex + 1) % enemyCount;
+        AudioManager::Get().PlaySfx("battle_select_enemy");
         LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
@@ -183,6 +194,7 @@ void BattleInputController::HandleTargetSelect()
     if (pressed(VK_UP, mKeyUpWasDown))
     {
         mTargetIndex = (mTargetIndex - 1 + enemyCount) % enemyCount;
+        AudioManager::Get().PlaySfx("battle_select_enemy");
         LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
@@ -194,6 +206,7 @@ void BattleInputController::HandleTargetSelect()
 
     if (pressed(VK_BACK, mBackWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_back");
         LOG("%s", "[BattleState] Cancelled target select — back to skill menu.");
         SetInputPhase(PlayerInputPhase::SKILL_SELECT);
     }
@@ -207,6 +220,7 @@ void BattleInputController::ConfirmSkillAndTarget()
     ISkill* skill = player->GetSkill(mSkillIndex);
     if (!skill || !skill->CanUse(*player, mBattle.GetContext()))
     {
+        AudioManager::Get().PlaySfx("battle_no_ap");
         LOG("%s", "[BattleState] Skill unavailable — action cancelled.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         return;
@@ -221,6 +235,7 @@ void BattleInputController::ConfirmSkillAndTarget()
     IBattler* target = enemies[mTargetIndex];
     mBattle.SetPlayerAction(mSkillIndex, target);
 
+    AudioManager::Get().PlaySfx("ui_confirm");
     LOG("[BattleState] Action confirmed: %s -> %s",
         skill->GetName(), target->GetName().c_str());
 
@@ -255,6 +270,7 @@ void BattleInputController::HandleItemSelect()
         // Empty bag — only Esc does anything.
         if (pressed(VK_BACK, mBackWasDown))
         {
+            AudioManager::Get().PlaySfx("ui_back");
             LOG("%s", "[BattleState] No items to use — back to command menu.");
             SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         }
@@ -264,12 +280,14 @@ void BattleInputController::HandleItemSelect()
     if (pressed(VK_UP, mKeyUpWasDown))
     {
         mItemIndex = (mItemIndex - 1 + count) % count;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Item cursor -> %s", mItemIds[mItemIndex].c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mItemIndex = (mItemIndex + 1) % count;
+        AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Item cursor -> %s", mItemIds[mItemIndex].c_str());
         mState.DumpStateToDebugOutput();
     }
@@ -281,6 +299,7 @@ void BattleInputController::HandleItemSelect()
             // Inventory referenced an id with no registry entry — most
             // likely a typo in a JSON file.  Refuse the action so the
             // player loses neither the item nor the turn.
+            AudioManager::Get().PlaySfx("battle_no_ap");
             LOG("[BattleState] Item id '%s' has no registry entry.",
                 mItemIds[mItemIndex].c_str());
             return;
@@ -297,6 +316,7 @@ void BattleInputController::HandleItemSelect()
             // Commit immediately with a null primary target — BuildItemActions
             // resolves the actual target list from the targeting rule.
             mBattle.SetPlayerItem(item->id, nullptr);
+            AudioManager::Get().PlaySfx("ui_confirm");
             LOG("[BattleState] Item confirmed: %s (implicit target)",
                 item->name.c_str());
             SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
@@ -305,12 +325,14 @@ void BattleInputController::HandleItemSelect()
         {
             // Need a target.  Default mTargetIndex to 0 so the cursor
             // starts on the first valid candidate.
+            AudioManager::Get().PlaySfx("ui_confirm");
             mTargetIndex = 0;
             SetInputPhase(PlayerInputPhase::ITEM_TARGET_SELECT);
         }
     }
     if (pressed(VK_BACK, mBackWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_back");
         LOG("%s", "[BattleState] Cancelled item select — back to command menu.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
     }
@@ -371,9 +393,18 @@ void BattleInputController::HandleItemTargetSelect()
     const int n = static_cast<int>(candidates.size());
     if (mTargetIndex >= n) mTargetIndex = 0;
 
+    // SFX varies by targeting context — enemy targets get battle_select_enemy,
+    // ally targets get battle_select_ally.  Resolved once from the item's
+    // targeting rule instead of per-candidate, since all candidates in a
+    // single item-target list share the same combatant side.
+    const char* cycleSfx =
+        (item->targeting == ItemTargeting::SingleEnemy)
+        ? "battle_select_enemy" : "battle_select_ally";
+
     if (pressed(VK_UP, mKeyUpWasDown))
     {
         mTargetIndex = (mTargetIndex - 1 + n) % n;
+        AudioManager::Get().PlaySfx(cycleSfx);
         LOG("[BattleState] Item target -> %s",
             candidates[mTargetIndex]->GetName().c_str());
         mState.DumpStateToDebugOutput();
@@ -381,6 +412,7 @@ void BattleInputController::HandleItemTargetSelect()
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mTargetIndex = (mTargetIndex + 1) % n;
+        AudioManager::Get().PlaySfx(cycleSfx);
         LOG("[BattleState] Item target -> %s",
             candidates[mTargetIndex]->GetName().c_str());
         mState.DumpStateToDebugOutput();
@@ -391,6 +423,7 @@ void BattleInputController::HandleItemTargetSelect()
     }
     if (pressed(VK_BACK, mBackWasDown))
     {
+        AudioManager::Get().PlaySfx("ui_back");
         LOG("%s", "[BattleState] Cancelled target — back to item select.");
         SetInputPhase(PlayerInputPhase::ITEM_SELECT);
     }
@@ -430,6 +463,7 @@ void BattleInputController::ConfirmItemAndTarget()
     IBattler* target = candidates[mTargetIndex];
     mBattle.SetPlayerItem(item->id, target);
 
+    AudioManager::Get().PlaySfx("ui_confirm");
     LOG("[BattleState] Item confirmed: %s -> %s",
         item->name.c_str(), target->GetName().c_str());
 

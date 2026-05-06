@@ -3,10 +3,14 @@
 // ============================================================
 #include "FleeCommand.h"
 #include "../States/BattleState.h"
+#include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 
 void FleeCommand::Execute(BattleState& state) const
 {
+    // Audible feedback for the flee action.
+    AudioManager::Get().PlaySfx("battle_flee");
+
     LOG("%s", "[FleeCommand] Player chose to flee — deferring pop to end of Update().");
 
     // DO NOT call StateManager::PopState() here.

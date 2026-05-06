@@ -343,9 +343,33 @@ void BattleManager::AdvanceTurn()
     mTimeline.erase(std::remove_if(mTimeline.begin(), mTimeline.end(),
         [](const TurnNode& n) { return !n.battler->IsAlive(); }), mTimeline.end());
 
+    // 2. Re-insert combatants that are alive but missing from the timeline.
+    //    This covers the revive case: ItemEffectAction::Revive sets hp > 0
+    //    but nothing previously re-added the combatant to mTimeline.
+    //    The revived combatant waits one full AV cycle (kActionGauge / spd)
+    //    before acting — balanced so revive is useful without granting an
+    //    immediate free turn.
+    auto reinsertIfMissing = [this](IBattler* b) {
+        if (!b || !b->IsAlive()) return;
+        // Check if already present in the timeline.
+        for (const auto& node : mTimeline)
+            if (node.battler == b) return;
+        // Missing — re-insert with a full AV wait.
+        float spd = static_cast<float>(b->GetStats().spd);
+        if (spd <= 0.0f) spd = 1.0f;
+        TurnNode node;
+        node.battler     = b;
+        node.baseAgility = spd;
+        node.currentAV   = kActionGauge / spd;
+        mTimeline.push_back(node);
+        Log(b->GetName() + " re-enters the fight!");
+    };
+    for (auto& p : mPlayers) reinsertIfMissing(p.get());
+    for (auto& e : mEnemies) reinsertIfMissing(e.get());
+
     if (mTimeline.empty()) return;
 
-    // 2. Reset AV for the combatant who just acted (should be at timeline index 0 with AV near 0)
+    // 3. Reset AV for the combatant who just acted (should be at timeline index 0 with AV near 0)
     if (mTimeline[0].currentAV <= 0.001f)
     {
         float spd = static_cast<float>(mTimeline[0].battler->GetStats().spd);
@@ -353,17 +377,17 @@ void BattleManager::AdvanceTurn()
         mTimeline[0].currentAV = kActionGauge / spd;
     }
 
-    // 3. Sort timeline by AV (smallest first)
+    // 4. Sort timeline by AV (smallest first)
     std::sort(mTimeline.begin(), mTimeline.end(),
         [](const TurnNode& a, const TurnNode& b) {
             return a.currentAV < b.currentAV;
         });
 
-    // 4. Advance time globally so the next combatant reaches 0 AV
+    // 5. Advance time globally so the next combatant reaches 0 AV
     float elapsedAV = mTimeline[0].currentAV;
     for (auto& node : mTimeline) node.currentAV -= elapsedAV;
 
-    // 5. Start their turn
+    // 6. Start their turn
     IBattler* next = mTimeline[0].battler;
     if (!next) return;
 

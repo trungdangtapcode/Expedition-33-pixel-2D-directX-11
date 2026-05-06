@@ -19,3 +19,6 @@ log*.txt
 *log.txt
 CLAUDE.md
 AGENTS.md
+
+__pycache__/**
+__pycache__/

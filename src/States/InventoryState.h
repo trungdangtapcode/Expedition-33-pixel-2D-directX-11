@@ -44,6 +44,7 @@
 #pragma once
 #include "IGameState.h"
 #include "../Renderer/NineSliceRenderer.h"
+#include "../Renderer/ItemIconRenderer.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/ScrollArrowRenderer.h"
 #include "../Battle/ItemData.h"   // ItemKind / EquipSlot
@@ -151,6 +152,13 @@ private:
     BattleTextRenderer   mTextRenderer;
     ScrollArrowRenderer  mChevronUp;
     ScrollArrowRenderer  mChevronDown;
+
+    // Stretches per-item icon SRVs supplied by ItemIconCache to the
+    // placeholder-square locations used by the grid, picker rows,
+    // slot rows, and detail panel.  Falls back to mDialogBox + an
+    // IconTintFor() colored quad when the icon failed to load (e.g.
+    // the artist hasn't authored the PNG yet).
+    ItemIconRenderer     mIconRenderer;
 
     // ============================================================
     //  State

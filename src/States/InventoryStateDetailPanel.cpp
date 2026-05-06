@@ -27,6 +27,7 @@
 #include "InventoryState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Battle/ItemRegistry.h"
+#include "../Battle/ItemIconCache.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/PartyManager.h"
 
@@ -59,12 +60,23 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         const ItemData* item  = ItemRegistry::Get().Find(id);
         if (!item) return;
 
-        // Big icon swatch — currently a tinted dialog quad; swappable
-        // for a real SpriteBatch::Draw on item->iconSRV when art lands.
+        // Big icon swatch — colored frame always (effect-kind color
+        // reads at a glance), real PNG overlaid when art is available.
         const float bigIcon = 96.0f;
-        mDialogBox.Draw(ctx, rightX + kPad, lineY, bigIcon, bigIcon,
+        const float bx      = rightX + kPad;
+        const float by      = lineY;
+        mDialogBox.Draw(ctx, bx, by, bigIcon, bigIcon,
                         0.6f, DirectX::XMMatrixIdentity(),
                         IconTintFor(item, 0.95f));
+        if (auto* srv = ItemIconCache::Get().GetIcon(item))
+        {
+            const float inset = bigIcon * 0.10f;
+            mIconRenderer.Draw(ctx, srv,
+                               bx + inset, by + inset,
+                               bigIcon - inset * 2.0f, bigIcon - inset * 2.0f,
+                               DirectX::XMMatrixIdentity(),
+                               DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, 0.95f));
+        }
 
         mTextRenderer.DrawString(ctx, item->name.c_str(),
                                   rightX + kPad + bigIcon + 14.0f, lineY,

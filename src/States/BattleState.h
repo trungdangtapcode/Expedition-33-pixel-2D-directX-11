@@ -68,6 +68,7 @@
 #include "../UI/BattleQTERenderer.h"
 #include "../UI/BattleBulletHellRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
+#include "../Renderer/ItemIconRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
 #include <vector>
@@ -128,6 +129,11 @@ private:
     ScrollArrowRenderer    mChevronUp;
     ScrollArrowRenderer    mChevronDown;
     NineSliceRenderer      mDialogBox;
+    // Stretches per-item icon SRVs onto the placeholder squares in
+    // the world-space item submenu.  When ItemIconCache::GetIcon()
+    // returns nullptr the colored placeholder is the only visual
+    // (no regression for items lacking authored art yet).
+    ItemIconRenderer       mItemIconRenderer;
     BattleTextRenderer     mTextRenderer;      EnvironmentRenderer    mEnvRenderer;    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
 

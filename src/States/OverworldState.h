@@ -9,7 +9,9 @@
 #include "../Entities/CheckpointCampfire.h"
 #include "../Battle/EnemyEncounterData.h"
 #include "../Debug/DebugTextureViewer.h"
+#include "../UI/BattleTextRenderer.h"
 #include <memory>
+#include <string>
 #include <vector>
 #include "../Renderer/TileMapRenderer.h"
 
@@ -57,6 +59,25 @@
 enum class BattleTransitionPhase {
     IDLE,         // no transition active; overworld runs normally
     PINCUSHION    // pincushion distortion ramping up + slow-motion active
+};
+
+struct OverworldEnemySpawnData
+{
+    std::string id;
+    std::string encounterPath;
+    float worldX = 0.0f;
+    float worldY = 0.0f;
+};
+
+struct OverworldStoryRegion
+{
+    std::string id;
+    std::string name;
+    std::string objective;
+    float minX = 0.0f;
+    float minY = 0.0f;
+    float maxX = 0.0f;
+    float maxY = 0.0f;
 };
 
 class OverworldState : public IGameState {
@@ -161,6 +182,15 @@ private:
     // DEBUG: raw texture viewer - bypasses all sprite sheet / pivot math.
     DebugTextureViewer mDebugView;
 
+    // Story objective text is data-driven by overworld_story.json so the map
+    // can communicate player motivation without hardcoding text in rendering.
+    BattleTextRenderer mStoryTextRenderer;
+    std::vector<OverworldStoryRegion> mStoryRegions;
+    std::string mDefaultArea = "Ashen Meadow";
+    std::string mDefaultObjective = "Follow the dirt road to the eastern gate.";
+    std::string mCurrentArea;
+    std::string mCurrentObjective;
+
     // ListenerID for "window_resized" - stored so we can Unsubscribe in OnExit.
     int mResizeListenerID = -1;
 
@@ -169,6 +199,11 @@ private:
     int mVictoryListenerID = -1;
 
     bool LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const;
+    bool LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const;
+    bool LoadStoryData();
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
+    const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
+    void UpdateStoryRegion(float px, float py);
+    void RenderStoryOverlay();
     bool HandleCampfireInput(float px, float py);
 };

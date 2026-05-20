@@ -9,9 +9,9 @@ without a conversion step.
 Current map:
 
 - Path: `assets/environments/overworld_map.json`
-- Size: `96 x 72` tiles
+- Size: `128 x 96` tiles
 - Tile size: `64 x 64` pixels
-- World span: `6144 x 4608` pixels
+- World span: `8192 x 6144` pixels
 - Runtime origin: the renderer centers the map on world `(0, 0)`
 
 ## Tiled Format Contract
@@ -68,6 +68,15 @@ Run it from the workspace root to rebuild:
 python patches/generate_map.py
 ```
 
-The generator creates a larger village-style test map with crossroads,
-district roads, thirteen house placements, props, map-edge boundaries,
-and matching collision rectangles.
+The generator creates a directed story route rather than a plain test
+field. The current layout contains a central meadow camp, silent market
+ruins, western watch side path, pilgrim crossing, glass shrine, eastern
+mirror gate, four campfire recovery points, six overworld encounter
+placements, props, map-edge boundaries, and matching collision
+rectangles.
+
+Related data files:
+
+- `data/campfires.json` places the recovery and checkpoint campfires.
+- `data/overworld_spawns.json` places overworld enemy encounters.
+- `data/overworld_story.json` defines area names and objective text.

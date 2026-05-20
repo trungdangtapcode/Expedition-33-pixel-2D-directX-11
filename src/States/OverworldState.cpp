@@ -29,6 +29,7 @@
 //   ControllableCharacter    - Verso sprite, WASD controlled, SceneGraph-owned.
 //   OverworldEnemy (1..N)    - stationary enemies, SceneGraph-owned.
 //   Camera2D                 - follows ControllableCharacter with smooth lerp.
+//   Story overlay            - data-driven area and objective text.
 //   PincushionDistortionFilter - fullscreen warp effect during transition phase.
 //
 // Input:
@@ -52,6 +53,7 @@
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
+#include <DirectXColors.h>
 #include <algorithm>
 #include <filesystem>
 #include <fstream>
@@ -67,9 +69,10 @@
 //   3. Load the Verso SpriteSheet from JSON.
 //   4. Spawn ControllableCharacter into SceneGraph.
 //   5. Spawn OverworldEnemy entities from data/enemies/*.json.
-//   6. Initialize PincushionDistortionFilter for the battle transition.
-//   7. Subscribe to window_resized to keep Camera2D in sync.
-//   8. Subscribe to battle_end_victory to remove defeated enemies.
+//   6. Load story regions and initialize the objective overlay.
+//   7. Initialize PincushionDistortionFilter for the battle transition.
+//   8. Subscribe to window_resized to keep Camera2D in sync.
+//   9. Subscribe to battle_end_victory to remove defeated enemies.
 // ------------------------------------------------------------
 void OverworldState::OnEnter()
 {
@@ -93,6 +96,14 @@ void OverworldState::OnEnter()
 
     // --- Camera ---
     mCamera = std::make_unique<Camera2D>(W, H);
+
+    mStoryTextRenderer.Initialize(
+        device, context,
+        L"assets/fonts/arial_16.spritefont",
+        W, H);
+    LoadStoryData();
+    mCurrentArea = mDefaultArea;
+    mCurrentObjective = mDefaultObjective;
 
     // --- Load Verso sprite sheet ---
     SpriteSheet sheet;
@@ -128,58 +139,30 @@ void OverworldState::OnEnter()
     }
 
     // --- Spawn overworld enemies ---
-    // Each overworld enemy is loaded from its own JSON, which describes both
-    // the overworld sprite (top-level fields) and the battle party (battleParty[]).
-    // Spawn positions are representative overworld locations.
-    // In a full game these would come from a level/map JSON file.
-
-    // Spawn a solo skeleton (1-on-1 fight) at position (300, 150).
+    // Positions live in data/overworld_spawns.json so encounter pacing can
+    // follow the map story without recompiling this state.
+    std::vector<OverworldEnemySpawnData> enemySpawns;
+    if (LoadEnemySpawnData(enemySpawns))
     {
-        EnemyEncounterData soloData{};
-        if (JsonLoader::LoadEnemyEncounterData("data/enemies/skeleton.json", soloData))
+        for (const OverworldEnemySpawnData& spawn : enemySpawns)
         {
-            OverworldEnemy* e = mScene.Spawn<OverworldEnemy>(
-                device, context, soloData, 300.0f, 150.0f, mCamera.get());
-            if (e) mOverworldEnemies.push_back(e);
-        }
-        else
-        {
-            LOG("[OverworldState] WARNING - Could not load skeleton.json; solo enemy not spawned.");
+            EnemyEncounterData encounterData{};
+            if (JsonLoader::LoadEnemyEncounterData(spawn.encounterPath, encounterData))
+            {
+                OverworldEnemy* enemy = mScene.Spawn<OverworldEnemy>(
+                    device, context, encounterData, spawn.worldX, spawn.worldY, mCamera.get());
+                if (enemy) mOverworldEnemies.push_back(enemy);
+            }
+            else
+            {
+                LOG("[OverworldState] WARNING - Could not load encounter '%s' for spawn '%s'.",
+                    spawn.encounterPath.c_str(), spawn.id.c_str());
+            }
         }
     }
-
-    // Spawn a skeleton group (3-on-party fight) at position (-250, -100).
-    // The group uses a separate JSON so encounter composition is data-driven,
-    // not controlled by spawn-count in code.
+    else
     {
-        EnemyEncounterData groupData{};
-        if (JsonLoader::LoadEnemyEncounterData("data/enemies/skeleton_group.json", groupData))
-        {
-            OverworldEnemy* e = mScene.Spawn<OverworldEnemy>(
-                device, context, groupData, -250.0f, -100.0f, mCamera.get());
-            if (e) mOverworldEnemies.push_back(e);
-        }
-        else
-        {
-            LOG("[OverworldState] WARNING - Could not load skeleton_group.json; group enemy not spawned.");
-        }
-    }
-
-    // Spawn "Verso Cloned" - a dark mirror-match boss using the player's
-    // own sprite.  Positioned away from the skeletons so the player has to
-    // explore to find it.  Strong solo encounter (220 HP / 22 ATK / 14 SPD).
-    {
-        EnemyEncounterData cloneData{};
-        if (JsonLoader::LoadEnemyEncounterData("data/enemies/verso_cloned.json", cloneData))
-        {
-            OverworldEnemy* e = mScene.Spawn<OverworldEnemy>(
-                device, context, cloneData, 500.0f, -200.0f, mCamera.get());
-            if (e) mOverworldEnemies.push_back(e);
-        }
-        else
-        {
-            LOG("[OverworldState] WARNING - Could not load verso_cloned.json; clone enemy not spawned.");
-        }
+        LOG("[OverworldState] WARNING - No overworld enemy spawns were loaded.");
     }
 
     // --- Pincushion and Camera Effect for battle transition ---
@@ -205,6 +188,7 @@ void OverworldState::OnEnter()
             const int nH = D3DContext::Get().GetHeight();
             if (mCamera) mCamera->SetScreenSize(nW, nH);
             if (mTransitionController) mTransitionController->OnResize(nW, nH);
+            mStoryTextRenderer.SetScreenSize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -268,6 +252,7 @@ void OverworldState::OnExit()
     mCircleRenderer.Shutdown();
     mTileMap.Shutdown();
     mDebugView.Shutdown();
+    mStoryTextRenderer.Shutdown();
 
     // Release transition controller GPU resources.
     if (mTransitionController)
@@ -364,6 +349,141 @@ bool OverworldState::LoadCampfireData(std::vector<CheckpointCampfireData>& outCa
     return !outCampfires.empty();
 }
 
+// ------------------------------------------------------------
+// Function: LoadEnemySpawnData
+// Purpose:
+//   Load overworld enemy positions from data/overworld_spawns.json.
+// Why:
+//   Encounter placement is part of map pacing, so designers should be able
+//   to move enemies without recompiling OverworldState.
+// ------------------------------------------------------------
+bool OverworldState::LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_spawns.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_spawns.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld spawn config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "spawns");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldEnemySpawnData data{};
+        data.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+        data.encounterPath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "encounterPath"));
+        data.worldX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
+        data.worldY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldY"), 0.0f);
+
+        if (data.id.empty() || data.encounterPath.empty())
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid overworld spawn entry.");
+            continue;
+        }
+
+        outSpawns.push_back(data);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld enemy spawn(s).", outSpawns.size());
+    return !outSpawns.empty();
+}
+
+// ------------------------------------------------------------
+// Function: LoadStoryData
+// Purpose:
+//   Load area names and objectives for the overworld story overlay.
+// Why:
+//   The objective text is player-facing narrative content, so it belongs in
+//   data rather than in rendering code.
+// ------------------------------------------------------------
+bool OverworldState::LoadStoryData()
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_story.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_story.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld story config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::string defaultArea = JsonLoader::detail::CleanString(
+        JsonLoader::detail::ValueOf(src, "defaultArea"));
+    if (!defaultArea.empty()) mDefaultArea = defaultArea;
+
+    const std::string defaultObjective = JsonLoader::detail::CleanString(
+        JsonLoader::detail::ValueOf(src, "defaultObjective"));
+    if (!defaultObjective.empty()) mDefaultObjective = defaultObjective;
+
+    mStoryRegions.clear();
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "regions");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldStoryRegion region{};
+        region.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+        region.name = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "name"));
+        region.objective = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "objective"));
+        region.minX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "minX"), 0.0f);
+        region.minY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "minY"), 0.0f);
+        region.maxX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "maxX"), 0.0f);
+        region.maxY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "maxY"), 0.0f);
+
+        if (region.id.empty() || region.name.empty() || region.objective.empty())
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid story region entry.");
+            continue;
+        }
+
+        mStoryRegions.push_back(region);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld story region(s).", mStoryRegions.size());
+    return !mStoryRegions.empty();
+}
+
 CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const
 {
     for (CheckpointCampfire* campfire : mCampfires)
@@ -374,6 +494,40 @@ CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const
         }
     }
     return nullptr;
+}
+
+const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) const
+{
+    for (const OverworldStoryRegion& region : mStoryRegions)
+    {
+        if (px >= region.minX && px <= region.maxX &&
+            py >= region.minY && py <= region.maxY)
+        {
+            return &region;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------
+// Function: UpdateStoryRegion
+// Purpose:
+//   Refresh the active area label and objective from the player's position.
+// Why:
+//   Region-specific objectives give the large map short-term goals without
+//   adding a full quest system yet.
+// ------------------------------------------------------------
+void OverworldState::UpdateStoryRegion(float px, float py)
+{
+    if (const OverworldStoryRegion* region = FindStoryRegion(px, py))
+    {
+        mCurrentArea = region->name;
+        mCurrentObjective = region->objective;
+        return;
+    }
+
+    mCurrentArea = mDefaultArea;
+    mCurrentObjective = mDefaultObjective;
 }
 
 bool OverworldState::HandleCampfireInput(float px, float py)
@@ -516,6 +670,8 @@ void OverworldState::Update(float dt)
 
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
+        UpdateStoryRegion(mPlayer->GetX(), mPlayer->GetY());
+
         if (HandleCampfireInput(mPlayer->GetX(), mPlayer->GetY()))
         {
             return;
@@ -625,6 +781,35 @@ void OverworldState::Update(float dt)
 }
 
 // ------------------------------------------------------------
+// Function: RenderStoryOverlay
+// Purpose:
+//   Draw the current area title and objective.
+// Why:
+//   The expanded overworld needs visible narrative direction so the player
+//   understands why each road and landmark matters.
+// ------------------------------------------------------------
+void OverworldState::RenderStoryOverlay()
+{
+    if (!mStoryTextRenderer.IsReady()) return;
+
+    ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
+    constexpr float x = 24.0f;
+    constexpr float titleY = 22.0f;
+    constexpr float objectiveY = 48.0f;
+
+    mStoryTextRenderer.BeginBatch(ctx);
+    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x + 2.0f, titleY + 2.0f,
+                                     DirectX::Colors::Black);
+    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x, titleY,
+                                     DirectX::Colors::White);
+    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x + 2.0f, objectiveY + 2.0f,
+                                     DirectX::Colors::Black);
+    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x, objectiveY,
+                                     DirectX::Colors::PaleGoldenrod);
+    mStoryTextRenderer.EndBatch();
+}
+
+// ------------------------------------------------------------
 // Function: Render
 // Purpose:
 //   1. If pincushion filter is active: redirect scene draws to offscreen RT.
@@ -681,4 +866,5 @@ void OverworldState::Render()
         mTransitionController->EndCaptureAndRender(ctx);
     }
 
+    RenderStoryOverlay();
 }

@@ -10,6 +10,39 @@
       "contactRadius": 96.0,
       "renderScale": 1.8,
       "upgradeExpReward": 120
+    },
+    {
+      "id": "western_watch",
+      "texturePath": "assets/animations/campfire_checkpoint.png",
+      "jsonPath": "assets/animations/campfire_checkpoint.json",
+      "idleClip": "idle",
+      "worldX": -2250.0,
+      "worldY": -720.0,
+      "contactRadius": 96.0,
+      "renderScale": 1.8,
+      "upgradeExpReward": 90
+    },
+    {
+      "id": "pilgrim_crossing",
+      "texturePath": "assets/animations/campfire_checkpoint.png",
+      "jsonPath": "assets/animations/campfire_checkpoint.json",
+      "idleClip": "idle",
+      "worldX": 2180.0,
+      "worldY": -840.0,
+      "contactRadius": 96.0,
+      "renderScale": 1.8,
+      "upgradeExpReward": 160
+    },
+    {
+      "id": "glass_shrine",
+      "texturePath": "assets/animations/campfire_checkpoint.png",
+      "jsonPath": "assets/animations/campfire_checkpoint.json",
+      "idleClip": "idle",
+      "worldX": 820.0,
+      "worldY": 2120.0,
+      "contactRadius": 96.0,
+      "renderScale": 1.8,
+      "upgradeExpReward": 220
     }
   ]
 }

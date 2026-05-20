@@ -27,7 +27,7 @@ The state layer stays thin:
 - `MenuState` starts a New Game by resetting durable systems, writing an initial checkpoint, and pushing `OverworldState`.
 - `MenuState` continues by loading the checkpoint and pushing `OverworldState`.
 - `OverworldState` spawns checkpoint campfires from `data/campfires.json`.
-- Near a campfire: `F` saves, `C` loads, `U` rests/upgrades the party, and `L` opens lineup/equipment.
+- Near a campfire: `F` quick-saves, `C` quick-loads, `U` opens the campfire menu, and `L` opens lineup/equipment.
 - Battle code does not know about save files. It already broadcasts `battle_end_victory`, which `SaveManager` listens to.
 
 ## File Format

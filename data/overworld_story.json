@@ -1,0 +1,60 @@
+{
+  "defaultArea": "Ashen Meadow",
+  "defaultObjective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
+  "regions": [
+    {
+      "id": "meadow_wake",
+      "name": "Meadow Wake",
+      "objective": "The first campfire is alive. Follow the eastern road and find what broke the village.",
+      "minX": -720.0,
+      "minY": -560.0,
+      "maxX": 760.0,
+      "maxY": 640.0
+    },
+    {
+      "id": "silent_market",
+      "name": "Silent Market",
+      "objective": "The market is empty, but the road still points east. Push through the ruins.",
+      "minX": -900.0,
+      "minY": -1900.0,
+      "maxX": 900.0,
+      "maxY": -760.0
+    },
+    {
+      "id": "western_watch",
+      "name": "Western Watch",
+      "objective": "A side path leads to an old watch post. Claim the campfire before returning to the main road.",
+      "minX": -3200.0,
+      "minY": -1280.0,
+      "maxX": -1700.0,
+      "maxY": 260.0
+    },
+    {
+      "id": "pilgrim_crossing",
+      "name": "Pilgrim Crossing",
+      "objective": "The road splits around an enemy patrol. Win the crossing and the mirror gate will come into view.",
+      "minX": 1320.0,
+      "minY": -1280.0,
+      "maxX": 2380.0,
+      "maxY": -520.0
+    },
+    {
+      "id": "glass_shrine",
+      "name": "Glass Shrine",
+      "objective": "The shrine campfire offers one last recovery. Gather strength before the eastern road.",
+      "minX": -120.0,
+      "minY": 1560.0,
+      "maxX": 1280.0,
+      "maxY": 2760.0
+    },
+    {
+      "id": "mirror_gate",
+      "name": "Mirror Gate",
+      "objective": "The clone waits beyond the gate. Defeat it to prove Verso is more than an echo.",
+      "minX": 2840.0,
+      "minY": -2100.0,
+      "maxX": 3960.0,
+      "maxY": -940.0
+    }
+  ]
+}

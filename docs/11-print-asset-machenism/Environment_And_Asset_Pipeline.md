@@ -26,9 +26,11 @@ Instead of manually dragging and dropping single pixel layers, the project now r
 4. **Export**: The completely masked and tiled Atlases are flushed directly to `assets/environments/`, ready to be ingested instantly by `DirectX::CreateWICTextureFromFileEx` upon game launch.
 
 ### Automated Generative JSON Mapping (`generate_map.py`)
-Instead of manually mapping the sample `96x72` world by hand, the `generate_map.py` script automatically synthesizes the level structures:
-- Procedural dirt paths algorithmically drawn inside the terrain block.
-- Calculates and injects multi-tile objects. For instance, the script iterates through an 8x8 matrix (spanning columns `X` and rows `Y`) precisely distributing 64 unique tile GIDs identically across the object array to construct the massive house.
+Instead of manually mapping the sample `128x96` world by hand, the `generate_map.py` script automatically synthesizes the level structures:
+- Procedural dirt paths that form a readable adventure route from the central meadow to the eastern mirror gate.
+- Landmark clearings for the silent market, western watch, pilgrim crossing, glass shrine, and mirror gate.
+- Multi-tile objects. For instance, the script iterates through an 8x8 matrix (spanning columns `X` and rows `Y`) precisely distributing 64 unique tile GIDs identically across the object array to construct the massive house.
+- Matching collision rectangles for houses, rocks, tables, and world boundaries.
 
 ## 3. Sub-Tile Collisions & Separating Axis Physics
 

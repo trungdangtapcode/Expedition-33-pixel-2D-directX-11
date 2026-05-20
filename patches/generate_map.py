@@ -8,8 +8,8 @@ from pathlib import Path
 
 
 TILE_SIZE = 64
-WIDTH = 96
-HEIGHT = 72
+WIDTH = 128
+HEIGHT = 96
 
 GROUND_GRASS_A = 1
 GROUND_GRASS_B = 2
@@ -27,36 +27,79 @@ def tile_index(tx: int, ty: int) -> int:
     return ty * WIDTH + tx
 
 
+def paint_tile(data: list[int], tx: int, ty: int, gid: int) -> None:
+    if 0 <= tx < WIDTH and 0 <= ty < HEIGHT:
+        data[tile_index(tx, ty)] = gid
+
+
+def paint_dirt(data: list[int], tx: int, ty: int) -> None:
+    paint_tile(data, tx, ty, GROUND_DIRT_A if (tx + ty) % 2 == 0 else GROUND_DIRT_B)
+
+
+def paint_rect(data: list[int], left: int, top: int, right: int, bottom: int) -> None:
+    for ty in range(top, bottom + 1):
+        for tx in range(left, right + 1):
+            paint_dirt(data, tx, ty)
+
+
+def paint_disc(data: list[int], cx: int, cy: int, radius: int) -> None:
+    radius_sq = radius * radius
+    for ty in range(cy - radius, cy + radius + 1):
+        for tx in range(cx - radius, cx + radius + 1):
+            dx = tx - cx
+            dy = ty - cy
+            if dx * dx + dy * dy <= radius_sq:
+                paint_dirt(data, tx, ty)
+
+
+def paint_road_line(data: list[int],
+                    start_x: int,
+                    start_y: int,
+                    end_x: int,
+                    end_y: int,
+                    half_width: int = 1) -> None:
+    steps = max(abs(end_x - start_x), abs(end_y - start_y), 1)
+    for step in range(steps + 1):
+        t = step / steps
+        tx = round(start_x + (end_x - start_x) * t)
+        ty = round(start_y + (end_y - start_y) * t)
+        paint_rect(data, tx - half_width, ty - half_width, tx + half_width, ty + half_width)
+
+
 def make_ground() -> list[int]:
     data: list[int] = []
+    for y in range(HEIGHT):
+        for x in range(WIDTH):
+            data.append(GROUND_GRASS_A if (x + y) % 2 == 0 else GROUND_GRASS_B)
+
     center_x = WIDTH // 2
     center_y = HEIGHT // 2
 
-    for y in range(HEIGHT):
-        for x in range(WIDTH):
-            on_plaza = abs(x - center_x) <= 7 and abs(y - center_y) <= 4
-            on_main_road = abs(y - center_y) <= 1
-            on_cross_road = abs(x - center_x) <= 1 and 6 <= y <= HEIGHT - 7
-            on_north_lane = abs(y - (center_y - 22)) <= 1 and 6 <= x <= WIDTH - 7
-            on_south_lane = abs(y - (center_y + 22)) <= 1 and 6 <= x <= WIDTH - 7
-            on_west_lane = abs(x - (center_x - 32)) <= 1 and 8 <= y <= HEIGHT - 8
-            on_east_lane = abs(x - (center_x + 32)) <= 1 and 8 <= y <= HEIGHT - 8
-            on_northwest_cut = abs((x - 14) - (y - 10)) <= 1 and 12 <= x <= 33 and 8 <= y <= 29
-            on_southeast_cut = abs((x - 62) - (y - 42)) <= 1 and 58 <= x <= 84 and 38 <= y <= 64
+    # The map is built as a readable adventure route:
+    # center camp -> village ruins -> branch choices -> shrine -> mirror gate.
+    paint_disc(data, center_x, center_y, 8)
+    paint_rect(data, 8, center_y - 1, WIDTH - 9, center_y + 1)
+    paint_road_line(data, center_x, center_y, center_x, 16, 1)
+    paint_road_line(data, center_x, center_y, 22, 38, 1)
+    paint_road_line(data, center_x, center_y, 72, 80, 1)
+    paint_road_line(data, center_x, center_y, 116, 24, 1)
+    paint_road_line(data, 22, 38, 40, 22, 1)
+    paint_road_line(data, 72, 80, 105, 73, 1)
 
-            if (on_plaza or on_main_road or on_cross_road or on_north_lane
-                    or on_south_lane or on_west_lane or on_east_lane
-                    or on_northwest_cut or on_southeast_cut):
-                data.append(GROUND_DIRT_A if (x + y) % 2 == 0 else GROUND_DIRT_B)
-            else:
-                data.append(GROUND_GRASS_A if (x + y) % 2 == 0 else GROUND_GRASS_B)
+    # Landmarks get broader dirt silhouettes so they read from the camera view.
+    paint_disc(data, 60, 24, 7)    # Silent market ruins.
+    paint_disc(data, 23, 38, 6)    # Western watch.
+    paint_disc(data, 72, 80, 7)    # Glass shrine camp.
+    paint_disc(data, 91, 33, 5)    # Pilgrim crossing.
+    paint_disc(data, 116, 24, 7)   # Mirror gate arena.
+
+    # Scars and side paths hint at a world that existed before the player arrived.
+    paint_road_line(data, 49, 31, 35, 18, 1)
+    paint_road_line(data, 84, 43, 98, 56, 1)
+    paint_road_line(data, 29, 50, 20, 66, 1)
+    paint_road_line(data, 112, 31, 119, 42, 1)
 
     return data
-
-
-def place_tile(objects: list[int], tx: int, ty: int, gid: int) -> None:
-    if 0 <= tx < WIDTH and 0 <= ty < HEIGHT:
-        objects[tile_index(tx, ty)] = gid
 
 
 def add_collider(colliders: list[dict[str, object]],
@@ -73,6 +116,22 @@ def add_collider(colliders: list[dict[str, object]],
         "width": width,
         "height": height,
     })
+
+
+def add_map_bounds(colliders: list[dict[str, object]]) -> None:
+    map_w = WIDTH * TILE_SIZE
+    map_h = HEIGHT * TILE_SIZE
+    t = TILE_SIZE
+
+    add_collider(colliders, "BoundaryNorth", 0, 0, map_w, t)
+    add_collider(colliders, "BoundarySouth", 0, map_h - t, map_w, t)
+    add_collider(colliders, "BoundaryWest", 0, 0, t, map_h)
+    add_collider(colliders, "BoundaryEast", map_w - t, 0, t, map_h)
+
+
+def place_tile(objects: list[int], tx: int, ty: int, gid: int) -> None:
+    if 0 <= tx < WIDTH and 0 <= ty < HEIGHT:
+        objects[tile_index(tx, ty)] = gid
 
 
 def place_house(objects: list[int],
@@ -99,17 +158,6 @@ def place_house(objects: list[int],
     )
 
 
-def add_map_bounds(colliders: list[dict[str, object]]) -> None:
-    map_w = WIDTH * TILE_SIZE
-    map_h = HEIGHT * TILE_SIZE
-    t = TILE_SIZE
-
-    add_collider(colliders, "BoundaryNorth", 0, 0, map_w, t)
-    add_collider(colliders, "BoundarySouth", 0, map_h - t, map_w, t)
-    add_collider(colliders, "BoundaryWest", 0, 0, t, map_h)
-    add_collider(colliders, "BoundaryEast", map_w - t, 0, t, map_h)
-
-
 def place_prop(objects: list[int],
                colliders: list[dict[str, object]],
                tx: int,
@@ -130,57 +178,79 @@ def place_prop(objects: list[int],
     )
 
 
+def place_rocks(objects: list[int],
+                colliders: list[dict[str, object]],
+                specs: list[tuple[int, int, str]]) -> None:
+    for tx, ty, name in specs:
+        place_prop(objects, colliders, tx, ty, ROCK_GID, name, 28, 36)
+
+
+def place_tables(objects: list[int],
+                 colliders: list[dict[str, object]],
+                 specs: list[tuple[int, int, str]]) -> None:
+    for tx, ty, name in specs:
+        place_prop(objects, colliders, tx, ty, TABLE_GID, name, 24, 40)
+
+
 def make_objects() -> tuple[list[int], list[dict[str, object]]]:
     objects = [0] * (WIDTH * HEIGHT)
     colliders: list[dict[str, object]] = []
 
-    center_x = WIDTH // 2
-    center_y = HEIGHT // 2
-
     add_map_bounds(colliders)
 
     house_specs = [
-        (center_x + 2, center_y - 18, "NorthHouseA"),
-        (center_x - 14, center_y - 19, "NorthHouseB"),
-        (center_x + 19, center_y - 16, "NorthHouseC"),
-        (center_x - 34, center_y - 10, "WestVillageHouseA"),
-        (center_x - 42, center_y + 7, "WestVillageHouseB"),
-        (center_x + 32, center_y - 9, "EastVillageHouseA"),
-        (center_x + 40, center_y + 8, "EastVillageHouseB"),
-        (center_x - 8, center_y + 14, "SouthHouseA"),
-        (center_x + 9, center_y + 17, "SouthHouseB"),
-        (center_x - 34, center_y + 23, "SouthwestFarmHouse"),
-        (center_x + 33, center_y + 24, "SoutheastFarmHouse"),
-        (6, 9, "NorthwestOutpost"),
-        (82, 9, "NortheastOutpost"),
+        (54, 17, "SilentMarketHouseA"),
+        (66, 18, "SilentMarketHouseB"),
+        (45, 27, "SilentMarketHouseC"),
+        (17, 31, "WesternWatchHouseA"),
+        (28, 36, "WesternWatchHouseB"),
+        (12, 58, "OldFarmHouse"),
+        (66, 72, "GlassShrineCaretakerHouse"),
+        (78, 78, "GlassShrinePilgrimHouse"),
+        (97, 66, "FarOrchardHouseA"),
+        (108, 70, "FarOrchardHouseB"),
+        (88, 25, "PilgrimCrossingHouse"),
+        (107, 15, "MirrorGateOutpostA"),
+        (118, 18, "MirrorGateOutpostB"),
+        (58, 55, "MeadowStorehouseA"),
+        (70, 55, "MeadowStorehouseB"),
     ]
 
     for tx, ty, name in house_specs:
         place_house(objects, colliders, tx, ty, name)
 
-    prop_specs = [
-        (center_x - 4, center_y - 2, TABLE_GID, "MarketTableA", 24, 40),
-        (center_x + 5, center_y + 2, TABLE_GID, "MarketTableB", 24, 40),
-        (center_x - 8, center_y + 3, TABLE_GID, "MarketTableC", 24, 40),
-        (center_x + 9, center_y - 3, TABLE_GID, "MarketTableD", 24, 40),
-        (center_x - 11, center_y + 5, ROCK_GID, "RoadRockA", 28, 36),
-        (center_x + 12, center_y + 6, ROCK_GID, "RoadRockB", 28, 36),
-        (center_x - 40, center_y - 26, ROCK_GID, "FieldRockNW1", 28, 36),
-        (center_x - 24, center_y - 28, ROCK_GID, "FieldRockNW2", 28, 36),
-        (center_x + 28, center_y - 27, ROCK_GID, "FieldRockNE1", 28, 36),
-        (center_x + 43, center_y - 22, ROCK_GID, "FieldRockNE2", 28, 36),
-        (center_x - 41, center_y + 25, ROCK_GID, "FieldRockSW1", 28, 36),
-        (center_x - 20, center_y + 29, ROCK_GID, "FieldRockSW2", 28, 36),
-        (center_x + 24, center_y + 28, ROCK_GID, "FieldRockSE1", 28, 36),
-        (center_x + 42, center_y + 24, ROCK_GID, "FieldRockSE2", 28, 36),
-        (center_x - 2, center_y - 29, ROCK_GID, "NorthRoadRock", 28, 36),
-        (center_x + 3, center_y + 30, ROCK_GID, "SouthRoadRock", 28, 36),
-        (8, HEIGHT - 9, ROCK_GID, "FarSouthwestRock", 28, 36),
-        (WIDTH - 9, HEIGHT - 10, ROCK_GID, "FarSoutheastRock", 28, 36),
-    ]
+    place_tables(objects, colliders, [
+        (58, 44, "MeadowTableWest"),
+        (68, 45, "MeadowTableEast"),
+        (60, 27, "SilentMarketTableA"),
+        (65, 28, "SilentMarketTableB"),
+        (72, 76, "ShrineOfferingTableA"),
+        (75, 82, "ShrineOfferingTableB"),
+        (91, 36, "PilgrimCrossingTable"),
+    ])
 
-    for tx, ty, gid, name, offset_y, height in prop_specs:
-        place_prop(objects, colliders, tx, ty, gid, name, offset_y, height)
+    place_rocks(objects, colliders, [
+        (61, 41, "MeadowMemoryStoneA"),
+        (67, 42, "MeadowMemoryStoneB"),
+        (51, 33, "SilentMarketRubbleA"),
+        (70, 31, "SilentMarketRubbleB"),
+        (21, 34, "WesternWatchStoneA"),
+        (25, 42, "WesternWatchStoneB"),
+        (15, 68, "OldFarmStone"),
+        (69, 84, "GlassShardA"),
+        (76, 73, "GlassShardB"),
+        (82, 82, "GlassShardC"),
+        (89, 30, "PilgrimRoadStoneA"),
+        (96, 34, "PilgrimRoadStoneB"),
+        (111, 23, "MirrorGatePillarA"),
+        (116, 18, "MirrorGatePillarB"),
+        (121, 24, "MirrorGatePillarC"),
+        (116, 30, "MirrorGatePillarD"),
+        (103, 55, "AshRoadStone"),
+        (117, 42, "BrokenTrailStone"),
+        (35, 20, "OldNorthTrailStoneA"),
+        (40, 24, "OldNorthTrailStoneB"),
+    ])
 
     return objects, colliders
 

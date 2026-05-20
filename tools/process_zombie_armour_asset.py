@@ -142,15 +142,15 @@ def build_default_plan(rows: list[list[Rect]]) -> list[AnimationPlan]:
 
     if len(rows) >= 30:
         return [
-            AnimationPlan("idle", 9, safe_count(9, 9), 8, True),
-            AnimationPlan("fight-state", 9, safe_count(9, 9), 8, True),
-            AnimationPlan("ready", 13, safe_count(13, 6), 10, False),
+            AnimationPlan("idle", 8, safe_count(8, 9), 8, True),
+            AnimationPlan("fight-state", 8, safe_count(8, 9), 8, True),
+            AnimationPlan("ready", 12, safe_count(12, 6), 10, False),
             AnimationPlan("unready", 14, safe_count(14, 6), 10, False),
-            AnimationPlan("walk", 17, safe_count(17, 13), 10, True),
-            AnimationPlan("battle-move", 17, safe_count(17, 13), 10, True),
-            AnimationPlan("battle-unmove", 17, safe_count(17, 13), 10, True),
-            AnimationPlan("attack-1", 5, safe_count(5, 8), 12, False),
-            AnimationPlan("hurt", 35, safe_count(35, 3), 8, False),
+            AnimationPlan("walk", 26, safe_count(26, 5), 10, True),
+            AnimationPlan("battle-move", 26, safe_count(26, 5), 10, True),
+            AnimationPlan("battle-unmove", 26, safe_count(26, 5), 10, True),
+            AnimationPlan("attack-1", 6, safe_count(6, 6), 12, False),
+            AnimationPlan("hurt", 36, safe_count(36, 3), 8, False),
             AnimationPlan("die", 19, safe_count(19, 6), 6, False),
         ]
 

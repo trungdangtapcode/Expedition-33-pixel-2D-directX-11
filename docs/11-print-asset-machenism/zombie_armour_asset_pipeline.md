@@ -80,20 +80,21 @@ walk and run cycles that are better saved for a future plain zombie enemy.
 Current shipped clips:
 
 ```text
-idle          source row 9   9 frames  loop
-fight-state   source row 9   9 frames  loop
-ready         source row 13  6 frames  one-shot
+idle          source row 8   9 frames  loop
+fight-state   source row 8   9 frames  loop
+ready         source row 12  6 frames  one-shot
 unready       source row 14  6 frames  one-shot
-walk          source row 17 13 frames  loop
-battle-move   source row 17 13 frames  loop
-battle-unmove source row 17 13 frames  loop
-attack-1      source row 5   8 frames  one-shot
-hurt          source row 35  3 frames  one-shot
+walk          source row 26  5 frames  loop
+battle-move   source row 26  5 frames  loop
+battle-unmove source row 26  5 frames  loop
+attack-1      source row 6   6 frames  one-shot
+hurt          source row 36  3 frames  one-shot
 die           source row 19  6 frames  one-shot
 ```
 
 These rows were chosen because they stay visually consistent with the armoured
-enemy role and match the animation names already requested by the battle code.
+enemy role, use the same side-view combat silhouette as `skeleton.png`, and
+match the animation names already requested by the battle code.
 
 ## Reference Generation Strategy
 
@@ -145,11 +146,11 @@ For precise animation mapping, create a recipe JSON:
 ```json
 {
   "animations": [
-    { "name": "idle", "sourceRow": 9, "frames": 9, "frameRate": 8, "loop": true },
-    { "name": "walk", "sourceRow": 17, "frames": 13, "frameRate": 10, "loop": true },
-    { "name": "fight-state", "sourceRow": 9, "frames": 9, "frameRate": 8, "loop": true },
-    { "name": "attack-1", "sourceRow": 5, "frames": 8, "frameRate": 12, "loop": false },
-    { "name": "hurt", "sourceRow": 35, "frames": 3, "frameRate": 8, "loop": false },
+    { "name": "idle", "sourceRow": 8, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "walk", "sourceRow": 26, "frames": 5, "frameRate": 10, "loop": true },
+    { "name": "fight-state", "sourceRow": 8, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "attack-1", "sourceRow": 6, "frames": 6, "frameRate": 12, "loop": false },
+    { "name": "hurt", "sourceRow": 36, "frames": 3, "frameRate": 8, "loop": false },
     { "name": "die", "sourceRow": 19, "frames": 6, "frameRate": 6, "loop": false }
   ]
 }

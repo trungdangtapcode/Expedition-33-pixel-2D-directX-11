@@ -1,7 +1,7 @@
 {
   "sprite_name": "zombie_armour",
   "character": "zombie_armour",
-  "width": 1664,
+  "width": 1152,
   "height": 1280,
   "frame_width": 128,
   "frame_height": 128,
@@ -52,7 +52,7 @@
     },
     {
       "name": "walk",
-      "num_frames": 13,
+      "num_frames": 5,
       "frame_rate": 10,
       "loop": true,
       "pivot": [
@@ -63,7 +63,7 @@
     },
     {
       "name": "battle-move",
-      "num_frames": 13,
+      "num_frames": 5,
       "frame_rate": 10,
       "loop": true,
       "pivot": [
@@ -74,7 +74,7 @@
     },
     {
       "name": "battle-unmove",
-      "num_frames": 13,
+      "num_frames": 5,
       "frame_rate": 10,
       "loop": true,
       "pivot": [
@@ -85,7 +85,7 @@
     },
     {
       "name": "attack-1",
-      "num_frames": 8,
+      "num_frames": 6,
       "frame_rate": 12,
       "loop": false,
       "pivot": [

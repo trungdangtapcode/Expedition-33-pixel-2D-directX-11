@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Convert the raw zombie armour sprite sheet into the game's atlas format."""
+"""Create the zombie armour enemy atlas in the game's sprite-sheet format."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-from PIL import Image
+from PIL import Image, ImageDraw
 
 
 WORKSPACE_ROOT = Path(__file__).resolve().parents[1]
@@ -16,9 +16,11 @@ DEFAULT_SOURCE = WORKSPACE_ROOT / "source_assets" / "zombie_armour_raw.png"
 DEFAULT_ATLAS = WORKSPACE_ROOT / "assets" / "animations" / "zombie_armour.png"
 DEFAULT_JSON = WORKSPACE_ROOT / "assets" / "animations" / "zombie_armour.json"
 DEFAULT_TURN_VIEW = WORKSPACE_ROOT / "assets" / "UI" / "turn-view-zombie-armour.png"
+DEFAULT_REFERENCE_ATLAS = WORKSPACE_ROOT / "assets" / "animations" / "skeleton.png"
+DEFAULT_REFERENCE_JSON = WORKSPACE_ROOT / "assets" / "animations" / "skeleton.json"
 
 FRAME_SIZE = 128
-PIVOT_X = 64
+PIVOT_X = 65
 PIVOT_Y = 122
 GROUND_Y = 120
 
@@ -211,6 +213,184 @@ def build_atlas(source: Image.Image,
     return atlas
 
 
+def load_reference_plans(path: Path) -> list[AnimationPlan]:
+    with path.open("r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    plans: list[AnimationPlan] = []
+    for row_index, entry in enumerate(data.get("animations", [])):
+        plans.append(AnimationPlan(
+            name=str(entry["name"]),
+            row_index=row_index,
+            frame_count=int(entry["num_frames"]),
+            frame_rate=int(entry.get("frame_rate", 8)),
+            loop=bool(entry.get("loop", True)),
+        ))
+
+    if not plans:
+        raise RuntimeError(f"Reference JSON '{path}' did not define any animations.")
+
+    return plans
+
+
+def tint_reference_pixels(atlas: Image.Image) -> Image.Image:
+    out = atlas.convert("RGBA")
+    pixels = out.load()
+    width, height = out.size
+
+    for y in range(height):
+        for x in range(width):
+            r, g, b, a = pixels[x, y]
+            if a == 0:
+                continue
+
+            light = int((r * 30 + g * 59 + b * 11) / 100)
+            if light > 180:
+                base = (218, 207, 166)
+            elif light > 120:
+                base = (166, 142, 108)
+            elif light > 70:
+                base = (101, 80, 64)
+            else:
+                base = (39, 34, 32)
+
+            pixels[x, y] = (
+                min(255, int(base[0] * 0.84 + light * 0.18)),
+                min(255, int(base[1] * 0.86 + light * 0.12)),
+                min(255, int(base[2] * 0.88 + light * 0.08)),
+                a,
+            )
+
+    return out
+
+
+def draw_armour_on_frame(frame: Image.Image) -> None:
+    alpha = frame.getchannel("A")
+    bounds = alpha.getbbox()
+    if bounds is None:
+        return
+
+    left, top, right, bottom = bounds
+    width = max(1, right - left)
+    height = max(1, bottom - top)
+    center_x = (left + right) // 2
+
+    draw = ImageDraw.Draw(frame, "RGBA")
+
+    dark = (34, 30, 27, 235)
+    steel = (94, 93, 87, 230)
+    steel_light = (143, 133, 111, 220)
+    brass = (146, 105, 61, 230)
+    rust = (108, 58, 36, 220)
+    ember = (221, 75, 32, 245)
+
+    head_top = top + max(0, height // 18)
+    head_w = max(15, min(30, width // 2 + 6))
+    helmet_left = center_x - head_w // 2
+    helmet_right = center_x + head_w // 2
+    helmet_bottom = head_top + max(9, height // 7)
+
+    draw.rectangle((helmet_left - 1, head_top + 4, helmet_right + 1, helmet_bottom), fill=dark)
+    draw.rectangle((helmet_left + 1, head_top + 3, helmet_right - 1, helmet_bottom - 2), fill=steel)
+    draw.rectangle((helmet_left + 3, head_top + 2, helmet_right - 3, head_top + 5), fill=steel_light)
+    draw.rectangle((helmet_left + 4, helmet_bottom - 2, helmet_right - 4, helmet_bottom), fill=brass)
+
+    eye_y = helmet_bottom + max(1, height // 18)
+    draw.rectangle((center_x - 5, eye_y, center_x - 3, eye_y + 2), fill=ember)
+    draw.rectangle((center_x + 3, eye_y, center_x + 5, eye_y + 2), fill=ember)
+
+    torso_top = top + max(22, height * 34 // 100)
+    torso_bottom = top + max(36, height * 66 // 100)
+    chest_half = max(8, min(16, width // 4))
+    draw.polygon(
+        [
+            (center_x - chest_half, torso_top + 3),
+            (center_x + chest_half, torso_top + 3),
+            (center_x + chest_half - 3, torso_bottom),
+            (center_x, torso_bottom + 4),
+            (center_x - chest_half + 3, torso_bottom),
+        ],
+        fill=dark,
+    )
+    draw.polygon(
+        [
+            (center_x - chest_half + 2, torso_top + 4),
+            (center_x + chest_half - 2, torso_top + 4),
+            (center_x + chest_half - 5, torso_bottom - 2),
+            (center_x, torso_bottom + 1),
+            (center_x - chest_half + 5, torso_bottom - 2),
+        ],
+        fill=steel,
+    )
+    draw.line((center_x, torso_top + 5, center_x, torso_bottom), fill=steel_light, width=1)
+    draw.rectangle((center_x - chest_half + 4, torso_top + 8, center_x - 2, torso_top + 10), fill=brass)
+    draw.rectangle((center_x + 2, torso_top + 8, center_x + chest_half - 4, torso_top + 10), fill=rust)
+
+    shoulder_y = torso_top + 2
+    shoulder_span = max(12, min(24, width // 3))
+    draw.polygon(
+        [
+            (center_x - chest_half - 3, shoulder_y),
+            (center_x - chest_half - shoulder_span, shoulder_y + 5),
+            (center_x - chest_half - 5, shoulder_y + 12),
+            (center_x - chest_half + 2, shoulder_y + 8),
+        ],
+        fill=dark,
+    )
+    draw.polygon(
+        [
+            (center_x + chest_half + 3, shoulder_y),
+            (center_x + chest_half + shoulder_span, shoulder_y + 5),
+            (center_x + chest_half + 5, shoulder_y + 12),
+            (center_x + chest_half - 2, shoulder_y + 8),
+        ],
+        fill=dark,
+    )
+    draw.polygon(
+        [
+            (center_x - chest_half - 2, shoulder_y + 1),
+            (center_x - chest_half - shoulder_span + 4, shoulder_y + 6),
+            (center_x - chest_half - 5, shoulder_y + 10),
+            (center_x - chest_half + 1, shoulder_y + 7),
+        ],
+        fill=brass,
+    )
+    draw.polygon(
+        [
+            (center_x + chest_half + 2, shoulder_y + 1),
+            (center_x + chest_half + shoulder_span - 4, shoulder_y + 6),
+            (center_x + chest_half + 5, shoulder_y + 10),
+            (center_x + chest_half - 1, shoulder_y + 7),
+        ],
+        fill=brass,
+    )
+
+    hip_y = torso_bottom + max(2, height // 20)
+    draw.rectangle((center_x - 11, hip_y, center_x + 11, hip_y + 4), fill=dark)
+    draw.rectangle((center_x - 9, hip_y + 1, center_x + 9, hip_y + 2), fill=brass)
+
+
+def build_reference_atlas(reference_atlas_path: Path) -> Image.Image:
+    source = Image.open(reference_atlas_path).convert("RGBA")
+    atlas = tint_reference_pixels(source)
+
+    columns = max(1, atlas.width // FRAME_SIZE)
+    rows = max(1, atlas.height // FRAME_SIZE)
+    for row in range(rows):
+        for column in range(columns):
+            box = (
+                column * FRAME_SIZE,
+                row * FRAME_SIZE,
+                (column + 1) * FRAME_SIZE,
+                (row + 1) * FRAME_SIZE,
+            )
+            frame = atlas.crop(box)
+            draw_armour_on_frame(frame)
+            atlas.alpha_composite(frame, (box[0], box[1]))
+
+    return atlas
+
+
 def write_sprite_json(path: Path, atlas: Image.Image, plans: list[AnimationPlan]) -> None:
     data = {
         "sprite_name": "zombie_armour",
@@ -248,10 +428,18 @@ def write_turn_view(path: Path, atlas: Image.Image) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Process the zombie armour enemy sheet.")
+    parser.add_argument(
+        "--source-mode",
+        choices=("auto", "raw", "skeleton-reference"),
+        default="auto",
+        help="Choose raw sheet processing, skeleton-based generation, or automatic fallback.",
+    )
     parser.add_argument("--input", default=str(DEFAULT_SOURCE), help="Raw black-background sprite sheet.")
     parser.add_argument("--atlas", default=str(DEFAULT_ATLAS), help="Output animation atlas PNG.")
     parser.add_argument("--json", default=str(DEFAULT_JSON), help="Output sprite-sheet JSON.")
     parser.add_argument("--turn-view", default=str(DEFAULT_TURN_VIEW), help="Output turn queue portrait PNG.")
+    parser.add_argument("--reference-atlas", default=str(DEFAULT_REFERENCE_ATLAS), help="Fallback atlas used for skeleton-reference mode.")
+    parser.add_argument("--reference-json", default=str(DEFAULT_REFERENCE_JSON), help="Fallback sprite JSON used for skeleton-reference mode.")
     parser.add_argument("--recipe", default=None, help="Optional JSON recipe that maps source rows to clip names.")
     parser.add_argument("--threshold", type=int, default=8, help="Pixels brighter than this are treated as sprite pixels.")
     parser.add_argument("--row-gap", type=int, default=6, help="Blank scanlines tolerated inside one detected row.")
@@ -261,21 +449,35 @@ def main() -> None:
     args = parser.parse_args()
 
     source_path = Path(args.input)
-    if not source_path.exists():
+    should_process_raw = args.source_mode == "raw" or (args.source_mode == "auto" and source_path.exists())
+    if should_process_raw and not source_path.exists():
         raise FileNotFoundError(
             f"Source sheet not found: {source_path}. Save the provided image there or pass --input."
         )
 
-    source = Image.open(source_path).convert("RGBA")
-    rows = find_frame_rects(
-        source,
-        threshold=args.threshold,
-        row_gap=args.row_gap,
-        column_gap=args.column_gap,
-        min_frame_pixels=args.min_frame_pixels,
-    )
-    plans = load_plan(Path(args.recipe) if args.recipe else None, rows)
-    atlas = build_atlas(source, rows, plans, max(1, args.scale))
+    if should_process_raw:
+        source = Image.open(source_path).convert("RGBA")
+        rows = find_frame_rects(
+            source,
+            threshold=args.threshold,
+            row_gap=args.row_gap,
+            column_gap=args.column_gap,
+            min_frame_pixels=args.min_frame_pixels,
+        )
+        plans = load_plan(Path(args.recipe) if args.recipe else None, rows)
+        atlas = build_atlas(source, rows, plans, max(1, args.scale))
+        mode_note = f"processed {len(rows)} detected source row(s)"
+    else:
+        reference_atlas_path = Path(args.reference_atlas)
+        reference_json_path = Path(args.reference_json)
+        if not reference_atlas_path.exists():
+            raise FileNotFoundError(f"Reference atlas not found: {reference_atlas_path}.")
+        if not reference_json_path.exists():
+            raise FileNotFoundError(f"Reference JSON not found: {reference_json_path}.")
+
+        plans = load_reference_plans(reference_json_path)
+        atlas = build_reference_atlas(reference_atlas_path)
+        mode_note = "generated from the skeleton reference atlas"
 
     atlas_path = Path(args.atlas)
     json_path = Path(args.json)
@@ -286,7 +488,7 @@ def main() -> None:
     write_sprite_json(json_path, atlas, plans)
     write_turn_view(turn_view_path, atlas)
 
-    print(f"Detected {len(rows)} source row(s).")
+    print(f"Zombie armour asset {mode_note}.")
     print(f"Wrote {atlas_path}")
     print(f"Wrote {json_path}")
     print(f"Wrote {turn_view_path}")

@@ -2,10 +2,13 @@
 
 ## Goal
 
-The zombie armour sheet is an enemy-class asset, similar to the existing
-Skeleton enemy. The source sheet is a black-background sprite sheet with many
-small pixel-art poses. The game needs a normalized atlas where every animation
-clip occupies one row of fixed `128 x 128` frames.
+The zombie armour is an enemy-class asset, similar to the existing Skeleton
+enemy. The runtime asset is committed as a normal engine sprite sheet so the
+enemy can appear immediately in the overworld and battle scenes.
+
+The tool can also process a future exact source sheet. If an artist saves the
+raw black-background sheet locally, the same script can detect source rows and
+repack selected poses into the runtime layout.
 
 The processor lives at:
 
@@ -13,7 +16,7 @@ The processor lives at:
 tools/process_zombie_armour_asset.py
 ```
 
-Default source path:
+Optional raw source path:
 
 ```text
 source_assets/zombie_armour_raw.png
@@ -29,21 +32,39 @@ assets/UI/turn-view-zombie-armour.png
 
 ## Why A Processor Is Needed
 
-The raw source sheet is not already in the runtime format:
+The runtime asset should be reproducible from script instead of hand-edited
+binary files. This matters because:
 
-- Frames are arranged in many irregular rows.
-- The background is black instead of transparent.
-- Frame spacing is not guaranteed to be a fixed grid.
-- The engine expects one row per animation clip.
 - `WorldSpriteRenderer` expects fixed frame dimensions from JSON.
+- Overworld and battle rendering both need the same clip names.
+- Turn queue portraits need a separate `256 x 128` UI texture.
+- A future raw sheet may arrive in an irregular layout with a black background.
+- Generated assets need to stay consistent across machines.
 
-The processor solves this by detecting visible sprite pixels, grouping them
-into source rows and frame boxes, then repacking selected rows into a clean
-runtime atlas.
+The default mode now generates the zombie armour from the existing Skeleton
+runtime atlas. This keeps the layout identical to a known-good enemy sheet while
+adding an undead tint, helmet, chest armour, shoulder plates, belt details, and
+glowing eyes on every frame.
 
 ## Processing Command
 
-Save the provided image as:
+Run:
+
+```text
+python tools/process_zombie_armour_asset.py
+```
+
+If `source_assets/zombie_armour_raw.png` exists, the script processes that raw
+sheet. If it does not exist, the script falls back to the skeleton-reference
+generator and still writes playable runtime assets.
+
+To force the committed reference generator:
+
+```text
+python tools/process_zombie_armour_asset.py --source-mode skeleton-reference
+```
+
+To force raw-sheet processing, save the provided source image as:
 
 ```text
 source_assets/zombie_armour_raw.png
@@ -52,14 +73,31 @@ source_assets/zombie_armour_raw.png
 Then run:
 
 ```text
-python tools/process_zombie_armour_asset.py
+python tools/process_zombie_armour_asset.py --source-mode raw
 ```
 
 The script writes the animation atlas, sprite-sheet JSON, and turn-view portrait.
 
-## Detection Strategy
+## Reference Generation Strategy
 
-The script:
+The default fallback path:
+
+1. Loads `assets/animations/skeleton.png`.
+2. Loads clip names, frame counts, frame rates, and loop flags from
+   `assets/animations/skeleton.json`.
+3. Tints the source pixels toward old bone, rust, and dark leather values while
+   preserving original alpha and shading.
+4. Draws armour overlays inside each `128 x 128` frame.
+5. Writes `assets/animations/zombie_armour.png`.
+6. Writes `assets/animations/zombie_armour.json` with `sprite_name` and
+   `character` changed to `zombie_armour`.
+7. Writes `assets/UI/turn-view-zombie-armour.png`.
+
+This path is deterministic and does not require a local source sheet.
+
+## Raw Sheet Detection Strategy
+
+The raw-sheet path:
 
 1. Converts the source image to RGBA.
 2. Treats pixels brighter than `--threshold` as sprite pixels.
@@ -70,7 +108,7 @@ The script:
 7. Pastes each frame into a transparent `128 x 128` cell.
 8. Writes project-format sprite-sheet JSON.
 
-Default packing:
+Default raw-sheet packing:
 
 - `idle`: source row 0
 - `walk`: source row 1
@@ -141,17 +179,26 @@ Current spawn id:
 glass_shrine_zombie_armour
 ```
 
+Current overworld position:
+
+```text
+worldX = 1220.0
+worldY = 2240.0
+```
+
 The spawn is near the glass shrine route. This makes the enemy a mid-to-late
 roadblock before the mirror gate.
 
 ## Missing Asset Behavior
 
-The raw image is not committed to the repository by this script. Until the
-processor writes the runtime files, `OverworldState` skips the zombie armour
-spawn and logs a warning.
+The generated runtime assets are committed, so the zombie armour spawn is
+visible in a normal checkout.
 
-This keeps the game bootable even if a teammate has not run the asset processor
-yet. Once the generated PNG/JSON files exist, the spawn automatically appears.
+`OverworldState` still skips the spawn and logs a warning if the files are
+deleted or not generated. This keeps the game bootable while assets are being
+reprocessed.
+
+Once the generated PNG/JSON files exist again, the spawn automatically appears.
 
 ## Build Verification
 

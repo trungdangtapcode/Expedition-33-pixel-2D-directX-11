@@ -30,5 +30,8 @@ __pycache__/
 assets/UI/*
 !assets/UI/save_checkpoint_badge.png
 !assets/UI/save_checkpoint_badge.json
+!assets/UI/turn-view-zombie-armour.png
 !assets/animations/campfire_checkpoint.png
 !assets/animations/campfire_checkpoint.json
+!assets/animations/zombie_armour.png
+!assets/animations/zombie_armour.json

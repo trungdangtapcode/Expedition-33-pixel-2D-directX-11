@@ -35,17 +35,18 @@
 //   W / A / S / D - move the Verso character
 //   ESC           - return to MenuState
 //   B (near enemy) - trigger battle transition (pincushion -> push BattleState)
+//   U (near campfire) - open the CampfireState hub
+//   L (near campfire) - open the party lineup
 // ============================================================
 #include "OverworldState.h"
 #include "StateManager.h"
 #include "MenuState.h"
 #include "BattleState.h"
 #include "InventoryState.h"
+#include "CampfireState.h"
 #include "LineupState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
-#include "../Systems/GameProgress.h"
-#include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Core/TimeSystem.h"
 #include "../Events/EventManager.h"
@@ -439,21 +440,10 @@ bool OverworldState::HandleCampfireInput(float px, float py)
 
     if (uPressed)
     {
-        const std::string flag = "campfire_upgrade:" + data.id;
-        PartyManager::Get().RestoreFullHP();
-
-        if (data.upgradeExpReward > 0 && !GameProgress::Get().HasFlag(flag))
-        {
-            PartyManager::Get().AddExp(data.upgradeExpReward);
-            GameProgress::Get().SetFlag(flag);
-            SaveManager::Get().SaveCheckpoint("campfire_upgrade:" + data.id);
-            LOG("[OverworldState] Campfire '%s' restored the party and granted %d EXP.",
-                data.id.c_str(), data.upgradeExpReward);
-            return false;
-        }
-
-        SaveManager::Get().SaveCheckpoint("campfire_rest:" + data.id);
-        LOG("[OverworldState] Campfire '%s' restored the party.", data.id.c_str());
+        StateManager::Get().PushState(
+            std::make_unique<CampfireState>(data.id, data.upgradeExpReward));
+        LOG("[OverworldState] Campfire '%s' opened the campfire menu.", data.id.c_str());
+        return true;
     }
 
     return false;

@@ -128,7 +128,7 @@ private:
     std::vector<OverworldEnemy*> mOverworldEnemies;
 
     // Campfires are SceneGraph-owned; this vector only observes them for
-    // proximity checks and save/load/upgrade interaction input.
+    // proximity checks and campfire-specific interaction input.
     std::vector<CheckpointCampfire*> mCampfires;
 
     // Encounter data copied from the nearby enemy when B is pressed.
@@ -152,7 +152,8 @@ private:
     // One-press L key tracking - opens the LineupState overlay only at campfires.
     bool mLWasDown = false;
 
-    // One-press campfire interaction tracking.
+    // One-press campfire interaction tracking. U opens the campfire hub;
+    // F/C remain quick save/load shortcuts while standing near the fire.
     bool mFWasDown = false;
     bool mCWasDown = false;
     bool mUWasDown = false;

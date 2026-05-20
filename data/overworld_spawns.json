@@ -41,6 +41,30 @@
       "encounterPath": "data/enemies/zombie_armour.json",
       "worldX": 1220.0,
       "worldY": 2240.0
+    },
+    {
+      "id": "glass_shrine_zombie_armour_west",
+      "encounterPath": "data/enemies/zombie_armour.json",
+      "worldX": 620.0,
+      "worldY": 2320.0
+    },
+    {
+      "id": "glass_shrine_zombie_armour_east",
+      "encounterPath": "data/enemies/zombie_armour.json",
+      "worldX": 1560.0,
+      "worldY": 2140.0
+    },
+    {
+      "id": "glass_shrine_zombie_armour_south",
+      "encounterPath": "data/enemies/zombie_armour.json",
+      "worldX": 940.0,
+      "worldY": 2580.0
+    },
+    {
+      "id": "glass_shrine_zombie_armour_far_south",
+      "encounterPath": "data/enemies/zombie_armour.json",
+      "worldX": 1360.0,
+      "worldY": 2700.0
     }
   ]
 }

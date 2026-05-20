@@ -71,7 +71,7 @@ python patches/generate_map.py
 The generator creates a directed story route rather than a plain test
 field. The current layout contains a central meadow camp, silent market
 ruins, western watch side path, pilgrim crossing, glass shrine, eastern
-mirror gate, four campfire recovery points, seven overworld encounter
+mirror gate, four campfire recovery points, eleven overworld encounter
 placements, props, map-edge boundaries, and matching collision
 rectangles.
 

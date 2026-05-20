@@ -173,21 +173,30 @@ The spawn entry lives in:
 data/overworld_spawns.json
 ```
 
-Current spawn id:
+Current spawn ids:
 
 ```text
 glass_shrine_zombie_armour
+glass_shrine_zombie_armour_west
+glass_shrine_zombie_armour_east
+glass_shrine_zombie_armour_south
+glass_shrine_zombie_armour_far_south
 ```
 
-Current overworld position:
+Current overworld positions:
 
 ```text
-worldX = 1220.0
-worldY = 2240.0
+glass_shrine_zombie_armour       worldX = 1220.0  worldY = 2240.0
+glass_shrine_zombie_armour_west  worldX = 620.0   worldY = 2320.0
+glass_shrine_zombie_armour_east  worldX = 1560.0  worldY = 2140.0
+glass_shrine_zombie_armour_south worldX = 940.0   worldY = 2580.0
+glass_shrine_zombie_armour_far_south worldX = 1360.0  worldY = 2700.0
 ```
 
-The spawn is near the glass shrine route. This makes the enemy a mid-to-late
-roadblock before the mirror gate.
+The spawns are near the glass shrine route. They use the same enemy path as the
+solo Skeleton-style overworld encounters: one overworld body starts one solo
+zombie armour battle. The cluster makes the shrine feel occupied without adding
+a separate enemy class or special group behavior.
 
 ## Missing Asset Behavior
 

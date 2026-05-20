@@ -146,14 +146,14 @@ the map layout.
 
 ## Pacing Intent
 
-The current route uses seven overworld encounter entries:
+The current route uses eleven overworld encounter entries:
 
 - A solo skeleton near the meadow road to teach battle entry.
 - A group ambush in the silent market ruins.
 - A western watch guard on the optional side route.
 - A stronger group at pilgrim crossing.
 - A shrine sentinel before the final recovery point.
-- A zombie armour roadblock near the glass shrine route.
+- Five solo zombie armour patrols around the glass shrine route.
 - The mirror clone near the eastern gate.
 
 The player motivation is layered:

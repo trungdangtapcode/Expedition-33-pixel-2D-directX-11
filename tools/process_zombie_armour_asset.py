@@ -23,6 +23,8 @@ FRAME_SIZE = 128
 PIVOT_X = 65
 PIVOT_Y = 122
 GROUND_Y = 120
+MAX_PACKED_WIDTH = 124
+MAX_PACKED_HEIGHT = 120
 
 
 @dataclass
@@ -138,6 +140,20 @@ def build_default_plan(rows: list[list[Rect]]) -> list[AnimationPlan]:
             return max(1, min(len(rows[row_index]), fallback))
         return max(1, min(len(rows[0]), fallback))
 
+    if len(rows) >= 30:
+        return [
+            AnimationPlan("idle", 9, safe_count(9, 9), 8, True),
+            AnimationPlan("fight-state", 9, safe_count(9, 9), 8, True),
+            AnimationPlan("ready", 13, safe_count(13, 6), 10, False),
+            AnimationPlan("unready", 14, safe_count(14, 6), 10, False),
+            AnimationPlan("walk", 17, safe_count(17, 13), 10, True),
+            AnimationPlan("battle-move", 17, safe_count(17, 13), 10, True),
+            AnimationPlan("battle-unmove", 17, safe_count(17, 13), 10, True),
+            AnimationPlan("attack-1", 5, safe_count(5, 8), 12, False),
+            AnimationPlan("hurt", 35, safe_count(35, 3), 8, False),
+            AnimationPlan("die", 19, safe_count(19, 6), 6, False),
+        ]
+
     attack_row = 2 if len(rows) > 2 else 0
     die_row = len(rows) - 1
 
@@ -177,6 +193,12 @@ def extract_frame(source: Image.Image, rect: Rect, scale: int) -> Image.Image:
     frame = source.crop((rect.left, rect.top, rect.right + 1, rect.bottom + 1)).convert("RGBA")
     if scale != 1:
         frame = frame.resize((frame.width * scale, frame.height * scale), Image.Resampling.NEAREST)
+    fit_scale = min(1.0, MAX_PACKED_WIDTH / frame.width, MAX_PACKED_HEIGHT / frame.height)
+    if fit_scale < 1.0:
+        frame = frame.resize(
+            (max(1, int(frame.width * fit_scale)), max(1, int(frame.height * fit_scale))),
+            Image.Resampling.NEAREST,
+        )
     return frame
 
 
@@ -445,7 +467,7 @@ def main() -> None:
     parser.add_argument("--row-gap", type=int, default=6, help="Blank scanlines tolerated inside one detected row.")
     parser.add_argument("--column-gap", type=int, default=4, help="Blank columns tolerated inside one detected frame.")
     parser.add_argument("--min-frame-pixels", type=int, default=24, help="Discard detected boxes below this pixel count.")
-    parser.add_argument("--scale", type=int, default=3, help="Nearest-neighbor scale applied before packing frames.")
+    parser.add_argument("--scale", type=int, default=2, help="Nearest-neighbor scale applied before packing frames.")
     args = parser.parse_args()
 
     source_path = Path(args.input)

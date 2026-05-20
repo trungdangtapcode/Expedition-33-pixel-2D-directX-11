@@ -6,9 +6,11 @@ The zombie armour is an enemy-class asset, similar to the existing Skeleton
 enemy. The runtime asset is committed as a normal engine sprite sheet so the
 enemy can appear immediately in the overworld and battle scenes.
 
-The tool can also process a future exact source sheet. If an artist saves the
-raw black-background sheet locally, the same script can detect source rows and
-repack selected poses into the runtime layout.
+The committed raw source sheet is:
+
+```text
+source_assets/zombie_armour_raw.png
+```
 
 The processor lives at:
 
@@ -16,7 +18,7 @@ The processor lives at:
 tools/process_zombie_armour_asset.py
 ```
 
-Optional raw source path:
+Primary raw source path:
 
 ```text
 source_assets/zombie_armour_raw.png
@@ -38,13 +40,11 @@ binary files. This matters because:
 - `WorldSpriteRenderer` expects fixed frame dimensions from JSON.
 - Overworld and battle rendering both need the same clip names.
 - Turn queue portraits need a separate `256 x 128` UI texture.
-- A future raw sheet may arrive in an irregular layout with a black background.
+- The raw sheet is irregular and contains many rows that should not all ship.
 - Generated assets need to stay consistent across machines.
 
-The default mode now generates the zombie armour from the existing Skeleton
-runtime atlas. This keeps the layout identical to a known-good enemy sheet while
-adding an undead tint, helmet, chest armour, shoulder plates, belt details, and
-glowing eyes on every frame.
+The default mode processes `source_assets/zombie_armour_raw.png` when it exists.
+The skeleton-reference generator remains as an emergency fallback only.
 
 ## Processing Command
 
@@ -54,33 +54,50 @@ Run:
 python tools/process_zombie_armour_asset.py
 ```
 
-If `source_assets/zombie_armour_raw.png` exists, the script processes that raw
-sheet. If it does not exist, the script falls back to the skeleton-reference
-generator and still writes playable runtime assets.
+The committed repository includes `source_assets/zombie_armour_raw.png`, so the
+normal command processes the real raw sheet.
 
-To force the committed reference generator:
-
-```text
-python tools/process_zombie_armour_asset.py --source-mode skeleton-reference
-```
-
-To force raw-sheet processing, save the provided source image as:
-
-```text
-source_assets/zombie_armour_raw.png
-```
-
-Then run:
+To force raw-sheet processing:
 
 ```text
 python tools/process_zombie_armour_asset.py --source-mode raw
 ```
 
+To force the emergency skeleton-reference generator:
+
+```text
+python tools/process_zombie_armour_asset.py --source-mode skeleton-reference
+```
+
 The script writes the animation atlas, sprite-sheet JSON, and turn-view portrait.
+
+## Raw Sheet Row Selection
+
+The provided source sheet is detected as 53 rows. Not every row belongs in the
+current `Zombie Armour` enemy. The bottom half contains less-armoured zombie
+walk and run cycles that are better saved for a future plain zombie enemy.
+
+Current shipped clips:
+
+```text
+idle          source row 9   9 frames  loop
+fight-state   source row 9   9 frames  loop
+ready         source row 13  6 frames  one-shot
+unready       source row 14  6 frames  one-shot
+walk          source row 17 13 frames  loop
+battle-move   source row 17 13 frames  loop
+battle-unmove source row 17 13 frames  loop
+attack-1      source row 5   8 frames  one-shot
+hurt          source row 35  3 frames  one-shot
+die           source row 19  6 frames  one-shot
+```
+
+These rows were chosen because they stay visually consistent with the armoured
+enemy role and match the animation names already requested by the battle code.
 
 ## Reference Generation Strategy
 
-The default fallback path:
+The emergency fallback path:
 
 1. Loads `assets/animations/skeleton.png`.
 2. Loads clip names, frame counts, frame rates, and loop flags from
@@ -93,7 +110,9 @@ The default fallback path:
    `character` changed to `zombie_armour`.
 7. Writes `assets/UI/turn-view-zombie-armour.png`.
 
-This path is deterministic and does not require a local source sheet.
+This path is deterministic and does not require a local source sheet, but it is
+not the preferred authored asset now that the raw zombie armour sheet is
+committed.
 
 ## Raw Sheet Detection Strategy
 
@@ -108,7 +127,7 @@ The raw-sheet path:
 7. Pastes each frame into a transparent `128 x 128` cell.
 8. Writes project-format sprite-sheet JSON.
 
-Default raw-sheet packing:
+Default raw-sheet packing for generic sheets:
 
 - `idle`: source row 0
 - `walk`: source row 1
@@ -116,8 +135,8 @@ Default raw-sheet packing:
 - `attack-1`: source row 2
 - `die`: last detected source row
 
-The defaults are intentionally conservative. They make the enemy playable, but
-an artist can refine the mapping with a recipe.
+For this specific zombie armour sheet, the processor uses the row selection
+listed above.
 
 ## Optional Recipe
 
@@ -126,11 +145,12 @@ For precise animation mapping, create a recipe JSON:
 ```json
 {
   "animations": [
-    { "name": "idle", "sourceRow": 0, "frames": 8, "frameRate": 8, "loop": true },
-    { "name": "walk", "sourceRow": 1, "frames": 8, "frameRate": 10, "loop": true },
-    { "name": "fight-state", "sourceRow": 0, "frames": 8, "frameRate": 8, "loop": true },
-    { "name": "attack-1", "sourceRow": 6, "frames": 8, "frameRate": 12, "loop": false },
-    { "name": "die", "sourceRow": 18, "frames": 6, "frameRate": 6, "loop": false }
+    { "name": "idle", "sourceRow": 9, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "walk", "sourceRow": 17, "frames": 13, "frameRate": 10, "loop": true },
+    { "name": "fight-state", "sourceRow": 9, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "attack-1", "sourceRow": 5, "frames": 8, "frameRate": 12, "loop": false },
+    { "name": "hurt", "sourceRow": 35, "frames": 3, "frameRate": 8, "loop": false },
+    { "name": "die", "sourceRow": 19, "frames": 6, "frameRate": 6, "loop": false }
   ]
 }
 ```

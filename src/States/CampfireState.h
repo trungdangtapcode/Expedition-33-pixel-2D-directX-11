@@ -31,6 +31,13 @@ public:
     const char* GetName() const override { return "CampfireState"; }
 
 private:
+    enum class Phase
+    {
+        MainMenu,
+        SaveSlotSelect,
+        LoadSlotSelect
+    };
+
     enum class MenuOption
     {
         Rest,
@@ -44,6 +51,7 @@ private:
 
     bool Pressed(int vk, bool& wasDown);
     void ActivateSelection();
+    void ActivateSlotSelection();
     void Flash(const std::string& message);
 
     static const char* OptionLabel(MenuOption option);
@@ -52,13 +60,18 @@ private:
         return static_cast<int>(MenuOption::Count);
     }
 
+    void RenderMainMenu(float panelX, float panelY);
+    void RenderSlotMenu(float panelX, float panelY);
+
     std::string mCampfireId;
     int mUpgradeExpReward = 0;
 
     NineSliceRenderer mDialogBox;
     BattleTextRenderer mTextRenderer;
 
+    Phase mPhase = Phase::MainMenu;
     int mCursor = 0;
+    int mSlotCursor = 0;
     std::string mFlashMessage;
     float mFlashTimer = 0.0f;
     float mElapsed = 0.0f;

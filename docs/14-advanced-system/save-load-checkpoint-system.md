@@ -1,58 +1,194 @@
-# Save/Load Checkpoint System
+# Save/Load Slot System
 
 ## Goal
 
-The checkpoint system persists only durable gameplay authority data:
+The save system now supports numbered save slots instead of a single fixed
+checkpoint file.
+
+The system still persists only durable gameplay authority data:
 
 - Party member base stats, current resources, level, EXP, growth, and equipment.
 - Inventory item counts.
+- One-time world flags from `GameProgress`.
 - The scene id that should be restored after loading.
 
-It does not serialize live state instances, battle action queues, renderer state, GPU resources, or event listeners.
+It does not serialize live state instances, battle action queues, renderer
+state, GPU resources, transient input state, or event listeners.
 
 ## Architecture
 
-`SaveManager` is a system-level singleton in `src/Systems/SaveManager.*`.
+`SaveManager` is the only authority for save files. It lives in:
+
+```text
+src/Systems/SaveManager.h
+src/Systems/SaveManager.cpp
+```
 
 It depends on:
 
 - `PartyManager` for party snapshots.
 - `Inventory` for item-count snapshots.
-- `EventManager` for automatic checkpoint writes after battle victory.
 - `GameProgress` for one-time world flags such as claimed campfire upgrades.
-- `JsonLoader::detail` helpers for the same small hand-rolled JSON style used elsewhere.
+- `EventManager` for automatic post-battle saves.
+- `JsonLoader::detail` helpers for the project-local JSON parser style.
 
-The state layer stays thin:
+State classes stay thin:
 
-- `MenuState` starts a New Game by resetting durable systems, writing an initial checkpoint, and pushing `OverworldState`.
-- `MenuState` continues by loading the checkpoint and pushing `OverworldState`.
-- `OverworldState` spawns checkpoint campfires from `data/campfires.json`.
-- Near a campfire: `F` quick-saves, `C` quick-loads, `U` opens the campfire menu, and `L` opens lineup/equipment.
-- Battle code does not know about save files. It already broadcasts `battle_end_victory`, which `SaveManager` listens to.
+- `MenuState` starts a New Game by writing Slot 1.
+- `MenuState` can continue the first occupied slot with `C`.
+- `MenuState` can load a specific slot with number keys `1` through `9`.
+- `CampfireState` opens explicit Save Slot and Load Slot submenus.
+- `OverworldState` keeps `F` and `C` as quick save/load shortcuts for the
+  active slot while near a campfire.
+
+## Slot Configuration
+
+Slot behavior is configured in:
+
+```text
+data/save_checkpoints.json
+```
+
+Current config:
+
+```json
+{
+  "slotPath": "save/checkpoint_slot_0.json",
+  "slotDirectory": "save",
+  "slotFilePrefix": "checkpoint_slot_",
+  "slotFileExtension": ".json",
+  "slotCount": 3,
+  "defaultSlotIndex": 0,
+  "autoCheckpointId": "overworld_after_battle",
+  "autoSceneId": "overworld",
+  "iconPath": "assets/UI/save_checkpoint_badge.png"
+}
+```
+
+`slotPath` remains for backward compatibility with older docs/tools, but the
+runtime now computes slot paths from:
+
+```text
+slotDirectory + "/" + slotFilePrefix + slotIndex + slotFileExtension
+```
+
+With the current config:
+
+```text
+save/checkpoint_slot_0.json
+save/checkpoint_slot_1.json
+save/checkpoint_slot_2.json
+```
+
+The player-facing labels are Slot 1, Slot 2, and Slot 3. Internally those are
+indices 0, 1, and 2.
+
+## SaveManager API
+
+Compatibility API:
+
+```cpp
+bool SaveCheckpoint(const std::string& reason) const;
+bool LoadCheckpoint(std::string* outSceneId = nullptr) const;
+```
+
+These functions operate on the active slot.
+
+Slot-specific API:
+
+```cpp
+bool SaveCheckpointToSlot(int slotIndex, const std::string& reason) const;
+bool LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId = nullptr) const;
+bool SlotExists(int slotIndex) const;
+int FindFirstExistingSlot() const;
+std::string GetSlotPath(int slotIndex) const;
+SaveSlotInfo GetSlotInfo(int slotIndex) const;
+std::vector<SaveSlotInfo> GetSlotInfos() const;
+```
+
+`SaveSlotInfo` is read-only metadata for UI:
+
+```cpp
+struct SaveSlotInfo
+{
+    int slotIndex;
+    std::string path;
+    bool exists;
+    int schemaVersion;
+    std::string checkpointId;
+    std::string sceneId;
+    std::string reason;
+    std::string leadMemberId;
+    int leadLevel;
+};
+```
+
+## Active Slot
+
+`SaveManager` tracks an active slot index.
+
+- Saving to a slot makes that slot active.
+- Loading from a slot makes that slot active.
+- Automatic post-battle saves write to the active slot.
+- Old compatibility calls use the active slot.
+
+This gives expected RPG behavior: after loading Slot 2, campfire quick-save and
+battle auto-save continue writing Slot 2 until the player chooses another slot.
 
 ## File Format
 
-The active checkpoint path is configured in `data/save_checkpoints.json`.
-
-Current output:
+Each slot writes the same schema as the earlier checkpoint file, plus
+`slotIndex` metadata:
 
 ```json
 {
   "schemaVersion": 1,
+  "slotIndex": 0,
   "checkpointId": "overworld_after_battle",
   "sceneId": "overworld",
-  "reason": "battle_victory",
+  "reason": "campfire_save:meadow_start",
   "party": [],
   "flags": [],
   "inventory": []
 }
 ```
 
-Schema versioning is mandatory so future save migrations can reject or upgrade old saves explicitly.
+Schema versioning remains mandatory so future save migrations can reject or
+upgrade old saves explicitly.
 
-## Asset
+## Campfire Flow
 
-The checkpoint badge lives at:
+Near a campfire:
+
+- `U` opens the campfire menu.
+- `F` quick-saves the active slot.
+- `C` quick-loads the active slot.
+- `L` opens lineup/equipment.
+
+Inside the campfire menu:
+
+- `Save Slot` opens a slot selection submenu.
+- `Load Slot` opens a slot selection submenu.
+- Empty slots are labeled `Empty`.
+- Existing slots show lead member id, lead level, and save reason.
+
+The campfire menu does not parse save files directly. It asks `SaveManager` for
+`SaveSlotInfo` and calls the slot-specific save/load APIs.
+
+## Title Menu Flow
+
+Current title menu behavior:
+
+- `Enter`: start a new game and write Slot 1.
+- `C`: continue the first occupied slot.
+- `1` through `9`: load that specific slot if it exists.
+
+The title screen still has no authored visual menu renderer, so these controls
+are logged through `LOG()` until a richer menu UI is added.
+
+## Assets
+
+The save badge and campfire assets live at:
 
 ```text
 assets/UI/save_checkpoint_badge.png
@@ -61,18 +197,17 @@ assets/animations/campfire_checkpoint.png
 assets/animations/campfire_checkpoint.json
 ```
 
-The source generator is:
+The source generators are:
 
 ```text
 tools/draw_save_load_assets.py
 tools/draw_campfire_asset.py
 ```
 
-The generator uses only the Python standard library, writes a PNG directly, and can be rerun without external tools.
-
 ## Future Extension Points
 
-- Add named checkpoint triggers in map data once overworld spawn positions are map-authored.
-- Add a `sceneState` object when the overworld has defeated enemy ids or cutscene progress.
-- Add multiple slots by changing `slotPath` into a slot table in `data/save_checkpoints.json`.
+- Add a visual title-menu slot picker.
+- Add timestamp metadata once the project has a stable wall-clock policy for
+  save metadata.
+- Add `sceneState` for defeated overworld enemy ids and cutscene progress.
 - Add migration functions keyed by `schemaVersion`.

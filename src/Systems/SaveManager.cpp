@@ -1,8 +1,9 @@
 // ============================================================
 // File: SaveManager.cpp
-// Responsibility: Serialize and restore checkpoint data using the
+// Responsibility: Serialize and restore numbered save slots using the
 //                 existing JsonLoader helper style.
 // ============================================================
+#define NOMINMAX
 #include "SaveManager.h"
 #include "GameProgress.h"
 #include "Inventory.h"
@@ -10,6 +11,7 @@
 #include "../Events/EventManager.h"
 #include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
+#include <algorithm>
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -45,7 +47,7 @@ namespace
     // Purpose:
     //   Pick the workspace-root save path when launched from bin.
     // Why:
-    //   Checkpoints should live beside the project data directory instead of
+    //   Save slots should live beside the project data directory instead of
     //   splitting between save/ and bin/save/ depending on launch method.
     // ------------------------------------------------------------
     std::filesystem::path ResolveWritablePath(const std::string& path)
@@ -123,6 +125,20 @@ namespace
     int ReadJsonInt(const std::string& src, const std::string& key, int fallback = 0)
     {
         return JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, key), fallback);
+    }
+
+    std::string BuildSlotPath(const SaveCheckpointConfig& config, int slotIndex)
+    {
+        std::ostringstream path;
+        path << config.slotDirectory;
+        if (!config.slotDirectory.empty() &&
+            config.slotDirectory.back() != '/' &&
+            config.slotDirectory.back() != '\\')
+        {
+            path << "/";
+        }
+        path << config.slotFilePrefix << slotIndex << config.slotFileExtension;
+        return path.str();
     }
 
     BattlerStats ReadStats(const std::string& src)
@@ -210,9 +226,20 @@ void SaveManager::LoadConfig()
 
     JsonLoader::detail::WarnIfUTF16(src, kConfigPath);
     mConfig.slotPath = ReadJsonString(src, "slotPath", mConfig.slotPath);
+    mConfig.slotDirectory = ReadJsonString(src, "slotDirectory", mConfig.slotDirectory);
+    mConfig.slotFilePrefix = ReadJsonString(src, "slotFilePrefix", mConfig.slotFilePrefix);
+    mConfig.slotFileExtension = ReadJsonString(src, "slotFileExtension", mConfig.slotFileExtension);
+    mConfig.slotCount = std::max(1, ReadJsonInt(src, "slotCount", mConfig.slotCount));
+    mConfig.defaultSlotIndex = ReadJsonInt(src, "defaultSlotIndex", mConfig.defaultSlotIndex);
+    if (mConfig.defaultSlotIndex < 0 || mConfig.defaultSlotIndex >= mConfig.slotCount)
+    {
+        mConfig.defaultSlotIndex = 0;
+    }
     mConfig.autoCheckpointId = ReadJsonString(src, "autoCheckpointId", mConfig.autoCheckpointId);
     mConfig.autoSceneId = ReadJsonString(src, "autoSceneId", mConfig.autoSceneId);
     mConfig.iconPath = ReadJsonString(src, "iconPath", mConfig.iconPath);
+    mConfig.slotPath = BuildSlotPath(mConfig, mConfig.defaultSlotIndex);
+    mActiveSlotIndex = mConfig.defaultSlotIndex;
 }
 
 void SaveManager::SubscribeAutoCheckpoint()
@@ -228,18 +255,103 @@ void SaveManager::SubscribeAutoCheckpoint()
 
 bool SaveManager::CheckpointExists() const
 {
-    return std::filesystem::exists(ResolveReadablePath(mConfig.slotPath));
+    return FindFirstExistingSlot() >= 0;
+}
+
+bool SaveManager::IsValidSlotIndex(int slotIndex) const
+{
+    return slotIndex >= 0 && slotIndex < mConfig.slotCount;
+}
+
+std::string SaveManager::GetSlotPath(int slotIndex) const
+{
+    if (!IsValidSlotIndex(slotIndex))
+    {
+        slotIndex = mConfig.defaultSlotIndex;
+    }
+    return BuildSlotPath(mConfig, slotIndex);
+}
+
+bool SaveManager::SlotExists(int slotIndex) const
+{
+    if (!IsValidSlotIndex(slotIndex)) return false;
+    return std::filesystem::exists(ResolveReadablePath(GetSlotPath(slotIndex)));
+}
+
+int SaveManager::FindFirstExistingSlot() const
+{
+    for (int i = 0; i < mConfig.slotCount; ++i)
+    {
+        if (SlotExists(i)) return i;
+    }
+    return -1;
+}
+
+SaveSlotInfo SaveManager::GetSlotInfo(int slotIndex) const
+{
+    SaveSlotInfo info{};
+    info.slotIndex = slotIndex;
+    info.path = GetSlotPath(slotIndex);
+
+    if (!IsValidSlotIndex(slotIndex)) return info;
+
+    const std::filesystem::path path = ResolveReadablePath(info.path);
+    std::string src;
+    if (!ReadTextFile(path, src))
+    {
+        return info;
+    }
+
+    JsonLoader::detail::WarnIfUTF16(src, info.path);
+    info.exists = true;
+    info.schemaVersion = ReadJsonInt(src, "schemaVersion");
+    info.checkpointId = ReadJsonString(src, "checkpointId");
+    info.sceneId = ReadJsonString(src, "sceneId");
+    info.reason = ReadJsonString(src, "reason");
+
+    const std::vector<std::string> partyObjects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "party");
+    if (!partyObjects.empty())
+    {
+        info.leadMemberId = ReadJsonString(partyObjects.front(), "id");
+        info.leadLevel = ReadJsonInt(partyObjects.front(), "level", 1);
+    }
+
+    return info;
+}
+
+std::vector<SaveSlotInfo> SaveManager::GetSlotInfos() const
+{
+    std::vector<SaveSlotInfo> infos;
+    infos.reserve(static_cast<size_t>(mConfig.slotCount));
+    for (int i = 0; i < mConfig.slotCount; ++i)
+    {
+        infos.push_back(GetSlotInfo(i));
+    }
+    return infos;
 }
 
 bool SaveManager::SaveCheckpoint(const std::string& reason) const
 {
+    return SaveCheckpointToSlot(mActiveSlotIndex, reason);
+}
+
+bool SaveManager::SaveCheckpointToSlot(int slotIndex, const std::string& reason) const
+{
     namespace fs = std::filesystem;
+
+    if (!IsValidSlotIndex(slotIndex))
+    {
+        LOG("[SaveManager] ERROR: Cannot save invalid slot %d.", slotIndex + 1);
+        return false;
+    }
 
     const std::vector<PartyMemberProgress> party = PartyManager::Get().CaptureProgress();
     const std::vector<InventoryEntry> inventory = Inventory::Get().CaptureEntries();
     const std::vector<std::string> flags = GameProgress::Get().CaptureFlags();
 
-    const fs::path finalPath = ResolveWritablePath(mConfig.slotPath);
+    const std::string slotPath = GetSlotPath(slotIndex);
+    const fs::path finalPath = ResolveWritablePath(slotPath);
     const fs::path parent = finalPath.parent_path();
     if (!parent.empty())
     {
@@ -264,6 +376,7 @@ bool SaveManager::SaveCheckpoint(const std::string& reason) const
 
     file << "{\n";
     file << "  \"schemaVersion\": " << kSaveSchemaVersion << ",\n";
+    file << "  \"slotIndex\": " << slotIndex << ",\n";
     file << "  \"checkpointId\": " << JsonString(mConfig.autoCheckpointId) << ",\n";
     file << "  \"sceneId\": " << JsonString(mConfig.autoSceneId) << ",\n";
     file << "  \"reason\": " << JsonString(reason) << ",\n";
@@ -316,26 +429,42 @@ bool SaveManager::SaveCheckpoint(const std::string& reason) const
         return false;
     }
 
-    LOG("[SaveManager] Checkpoint saved to '%s'. Reason: %s.", finalPath.string().c_str(), reason.c_str());
+    mActiveSlotIndex = slotIndex;
+    LOG("[SaveManager] Slot %d saved to '%s'. Reason: %s.",
+        slotIndex + 1, finalPath.string().c_str(), reason.c_str());
     return true;
 }
 
 bool SaveManager::LoadCheckpoint(std::string* outSceneId) const
 {
-    const std::filesystem::path path = ResolveReadablePath(mConfig.slotPath);
+    return LoadCheckpointFromSlot(mActiveSlotIndex, outSceneId);
+}
+
+bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId) const
+{
+    if (!IsValidSlotIndex(slotIndex))
+    {
+        LOG("[SaveManager] ERROR: Cannot load invalid slot %d.", slotIndex + 1);
+        return false;
+    }
+
+    const std::string slotPath = GetSlotPath(slotIndex);
+    const std::filesystem::path path = ResolveReadablePath(slotPath);
 
     std::string src;
     if (!ReadTextFile(path, src))
     {
-        LOG("[SaveManager] No checkpoint found at '%s'.", mConfig.slotPath.c_str());
+        LOG("[SaveManager] No checkpoint found in slot %d at '%s'.",
+            slotIndex + 1, slotPath.c_str());
         return false;
     }
 
-    JsonLoader::detail::WarnIfUTF16(src, mConfig.slotPath);
+    JsonLoader::detail::WarnIfUTF16(src, slotPath);
     const int schemaVersion = ReadJsonInt(src, "schemaVersion");
     if (schemaVersion != kSaveSchemaVersion)
     {
-        LOG("[SaveManager] ERROR: Unsupported save schema %d.", schemaVersion);
+        LOG("[SaveManager] ERROR: Unsupported save schema %d in slot %d.",
+            schemaVersion, slotIndex + 1);
         return false;
     }
 
@@ -382,6 +511,8 @@ bool SaveManager::LoadCheckpoint(std::string* outSceneId) const
     const std::string sceneId = ReadJsonString(src, "sceneId", mConfig.autoSceneId);
     if (outSceneId) *outSceneId = sceneId;
 
-    LOG("[SaveManager] Checkpoint loaded from '%s'. Scene: %s.", path.string().c_str(), sceneId.c_str());
+    mActiveSlotIndex = slotIndex;
+    LOG("[SaveManager] Slot %d loaded from '%s'. Scene: %s.",
+        slotIndex + 1, path.string().c_str(), sceneId.c_str());
     return true;
 }

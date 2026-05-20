@@ -2,7 +2,7 @@
 
 ## Purpose
 
-The campfire menu is the overworld recovery and checkpoint hub. It is opened only
+The campfire menu is the overworld recovery and save-slot hub. It is opened only
 when the player stands near a checkpoint campfire and presses `U`.
 
 This feature moves campfire actions out of the raw overworld hotkey branch and
@@ -16,8 +16,8 @@ Near a campfire:
 
 - `U` opens the campfire menu.
 - `L` opens the party lineup directly.
-- `F` quick-saves the checkpoint.
-- `C` quick-loads the checkpoint.
+- `F` quick-saves the active slot.
+- `C` quick-loads the active slot.
 
 Inside the campfire menu:
 
@@ -28,11 +28,14 @@ Inside the campfire menu:
 The current menu options are:
 
 - `Rest`
-- `Save Checkpoint`
-- `Load Checkpoint`
+- `Save Slot`
+- `Load Slot`
 - `Upgrade Party`
 - `Lineup`
 - `Exit`
+
+`Save Slot` and `Load Slot` each open a second menu phase where the player
+chooses a numbered slot.
 
 ## Architecture
 
@@ -54,13 +57,15 @@ The current menu options are:
 - While it is on top, overworld update is paused.
 - It owns its UI renderers and releases them in `OnExit`.
 - It delegates durable operations to existing systems.
+- It has separate phases for the main menu, save-slot selection, and load-slot
+  selection.
 
 ## System Boundaries
 
 `CampfireState` uses these existing services:
 
 - `PartyManager` for party restoration and EXP training.
-- `SaveManager` for checkpoint save/load.
+- `SaveManager` for active-slot and numbered-slot save/load.
 - `GameProgress` for one-time campfire training flags.
 - `StateManager` to push `LineupState` or pop itself.
 - `AudioManager` for menu feedback SFX.
@@ -75,19 +80,24 @@ It does not:
 ## Save And Training Behavior
 
 `Rest` restores every active party member through `PartyManager::RestoreFullHP`
-and saves a checkpoint with reason:
+and saves the active slot with reason:
 
 ```text
 campfire_rest:<campfireId>
 ```
 
-`Save Checkpoint` writes a checkpoint with reason:
+`Save Slot` opens a numbered slot picker. Confirming a slot writes that slot
+with reason:
 
 ```text
 campfire_save:<campfireId>
 ```
 
-`Load Checkpoint` restores the current checkpoint through `SaveManager`.
+`Load Slot` opens a numbered slot picker. Confirming an occupied slot restores
+that slot through `SaveManager`.
+
+Slot rows are supplied by `SaveManager::GetSlotInfo`. Empty slots are labeled
+`Empty`; occupied slots show lead member id, lead level, and save reason.
 
 `Upgrade Party` preserves the existing one-time campfire training behavior:
 

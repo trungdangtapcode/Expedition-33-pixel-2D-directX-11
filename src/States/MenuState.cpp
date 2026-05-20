@@ -3,9 +3,10 @@
 // Responsibility: Route menu input to New Game or Continue.
 //
 // Transitions:
-//   Enter -> reset durable systems, create an initial checkpoint, then
+//   Enter -> reset durable systems, create an initial save in slot 1, then
 //            ChangeState(OverworldState).
-//   C     -> load the checkpoint, then ChangeState(OverworldState).
+//   C     -> load the first occupied save slot, then ChangeState(OverworldState).
+//   1..9  -> load that numbered save slot when it exists.
 //
 // Lifetime:
 //   OnEnter is called when StateManager pushes this state.
@@ -29,12 +30,19 @@ void MenuState::OnEnter()
     SaveManager::Get().Initialize();
     mEnterWasDown = false;
     mContinueWasDown = false;
-
-    LOG("[MenuState] OnEnter. Enter = New Game. C = Continue.");
-    if (SaveManager::Get().CheckpointExists())
+    for (bool& wasDown : mSlotWasDown)
     {
-        LOG("[MenuState] Continue checkpoint available at '%s'.",
-            SaveManager::Get().GetConfig().slotPath.c_str());
+        wasDown = false;
+    }
+
+    LOG("[MenuState] OnEnter. Enter = New Game Slot 1. C = Continue first slot. 1-9 = Continue specific slot.");
+    for (const SaveSlotInfo& slot : SaveManager::Get().GetSlotInfos())
+    {
+        if (slot.exists)
+        {
+            LOG("[MenuState] Slot %d available at '%s'.",
+                slot.slotIndex + 1, slot.path.c_str());
+        }
     }
 }
 
@@ -56,7 +64,7 @@ void MenuState::Update(float /*dt*/)
         PartyManager::Get().ResetToDefaults();
         Inventory::Get().ResetToDefaults();
         GameProgress::Get().Reset();
-        SaveManager::Get().SaveCheckpoint("new_game");
+        SaveManager::Get().SaveCheckpointToSlot(0, "new_game");
 
         StateManager::Get().ChangeState(std::make_unique<OverworldState>());
         return;
@@ -68,11 +76,20 @@ void MenuState::Update(float /*dt*/)
 
     if (continuePressed)
     {
-        std::string sceneId;
-        if (!SaveManager::Get().LoadCheckpoint(&sceneId))
+        const int firstSlot = SaveManager::Get().FindFirstExistingSlot();
+        if (firstSlot < 0)
         {
             AudioManager::Get().PlaySfx("battle_no_ap");
-            LOG("[MenuState] Continue requested, but no valid checkpoint was loaded.");
+            LOG("[MenuState] Continue requested, but no save slot exists.");
+            return;
+        }
+
+        std::string sceneId;
+        if (!SaveManager::Get().LoadCheckpointFromSlot(firstSlot, &sceneId))
+        {
+            AudioManager::Get().PlaySfx("battle_no_ap");
+            LOG("[MenuState] Continue requested, but slot %d could not be loaded.",
+                firstSlot + 1);
             return;
         }
 
@@ -84,6 +101,37 @@ void MenuState::Update(float /*dt*/)
         }
 
         StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+        return;
+    }
+
+    const int slotCount = SaveManager::Get().GetSlotCount();
+    const int checkedSlots = (slotCount < 9) ? slotCount : 9;
+    for (int i = 0; i < checkedSlots; ++i)
+    {
+        const int key = '1' + i;
+        const bool slotDown = (GetAsyncKeyState(key) & 0x8000) != 0;
+        const bool slotPressed = slotDown && !mSlotWasDown[i];
+        mSlotWasDown[i] = slotDown;
+
+        if (!slotPressed) continue;
+
+        std::string sceneId;
+        if (!SaveManager::Get().LoadCheckpointFromSlot(i, &sceneId))
+        {
+            AudioManager::Get().PlaySfx("battle_no_ap");
+            LOG("[MenuState] Slot %d requested, but it is empty or invalid.", i + 1);
+            return;
+        }
+
+        AudioManager::Get().PlaySfx("ui_confirm");
+        if (sceneId != "overworld")
+        {
+            LOG("[MenuState] Save scene '%s' is not implemented yet; loading overworld fallback.",
+                sceneId.c_str());
+        }
+
+        StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+        return;
     }
 }
 

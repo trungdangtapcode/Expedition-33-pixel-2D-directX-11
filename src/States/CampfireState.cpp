@@ -12,6 +12,7 @@
 //   2. Mutating party data without SaveManager -> changes disappear after
 //      restarting the game.
 //   3. Letting the opening U key fall through -> the menu closes on entry.
+//   4. Loading a slot by reading JSON here -> bypasses SaveManager validation.
 // ============================================================
 #define NOMINMAX
 #include "CampfireState.h"
@@ -76,6 +77,8 @@ void CampfireState::OnEnter()
         d3d.GetWidth(), d3d.GetHeight());
 
     mCursor = 0;
+    mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
+    mPhase = Phase::MainMenu;
     mFlashMessage.clear();
     mFlashTimer = 0.0f;
     mElapsed = 0.0f;
@@ -141,8 +144,8 @@ const char* CampfireState::OptionLabel(MenuOption option)
     switch (option)
     {
     case MenuOption::Rest:     return "Rest";
-    case MenuOption::Save:     return "Save Checkpoint";
-    case MenuOption::Load:     return "Load Checkpoint";
+    case MenuOption::Save:     return "Save Slot";
+    case MenuOption::Load:     return "Load Slot";
     case MenuOption::Training: return "Upgrade Party";
     case MenuOption::Lineup:   return "Lineup";
     case MenuOption::Exit:     return "Exit";
@@ -166,38 +169,21 @@ void CampfireState::ActivateSelection()
     case MenuOption::Rest:
         PartyManager::Get().RestoreFullHP();
         SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
-        Flash("Party restored. Checkpoint saved.");
+        Flash("Party restored. Active slot saved.");
         AudioManager::Get().PlaySfx("ui_confirm");
         break;
 
     case MenuOption::Save:
-        if (SaveManager::Get().SaveCheckpoint("campfire_save:" + mCampfireId))
-        {
-            Flash("Checkpoint saved.");
-            AudioManager::Get().PlaySfx("ui_confirm");
-        }
-        else
-        {
-            Flash("Save failed.");
-            AudioManager::Get().PlaySfx("battle_no_ap");
-        }
+        mPhase = Phase::SaveSlotSelect;
+        mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
+        AudioManager::Get().PlaySfx("ui_confirm");
         break;
 
     case MenuOption::Load:
-    {
-        std::string sceneId;
-        if (SaveManager::Get().LoadCheckpoint(&sceneId))
-        {
-            Flash("Checkpoint loaded.");
-            AudioManager::Get().PlaySfx("ui_confirm");
-        }
-        else
-        {
-            Flash("No checkpoint found.");
-            AudioManager::Get().PlaySfx("battle_no_ap");
-        }
+        mPhase = Phase::LoadSlotSelect;
+        mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
+        AudioManager::Get().PlaySfx("ui_confirm");
         break;
-    }
 
     case MenuOption::Training:
     {
@@ -218,7 +204,7 @@ void CampfireState::ActivateSelection()
         else
         {
             SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
-            Flash("Training already claimed. Party restored.");
+            Flash("Training claimed. Active slot saved.");
             AudioManager::Get().PlaySfx("battle_no_ap");
         }
         break;
@@ -240,6 +226,54 @@ void CampfireState::ActivateSelection()
 }
 
 // ------------------------------------------------------------
+// Function: ActivateSlotSelection
+// Purpose:
+//   Save to or load from the highlighted numbered slot.
+// Why:
+//   The campfire menu is the player's explicit save point, so slot choice
+//   belongs in this UI while serialization remains in SaveManager.
+// ------------------------------------------------------------
+void CampfireState::ActivateSlotSelection()
+{
+    if (mPhase == Phase::SaveSlotSelect)
+    {
+        if (SaveManager::Get().SaveCheckpointToSlot(
+                mSlotCursor, "campfire_save:" + mCampfireId))
+        {
+            char buffer[96]{};
+            std::snprintf(buffer, sizeof(buffer), "Saved to Slot %d.", mSlotCursor + 1);
+            Flash(buffer);
+            AudioManager::Get().PlaySfx("ui_confirm");
+            mPhase = Phase::MainMenu;
+        }
+        else
+        {
+            Flash("Save failed.");
+            AudioManager::Get().PlaySfx("battle_no_ap");
+        }
+        return;
+    }
+
+    if (mPhase == Phase::LoadSlotSelect)
+    {
+        std::string sceneId;
+        if (SaveManager::Get().LoadCheckpointFromSlot(mSlotCursor, &sceneId))
+        {
+            char buffer[96]{};
+            std::snprintf(buffer, sizeof(buffer), "Loaded Slot %d.", mSlotCursor + 1);
+            Flash(buffer);
+            AudioManager::Get().PlaySfx("ui_confirm");
+            mPhase = Phase::MainMenu;
+        }
+        else
+        {
+            Flash("That slot is empty.");
+            AudioManager::Get().PlaySfx("battle_no_ap");
+        }
+    }
+}
+
+// ------------------------------------------------------------
 // Function: Update
 // Purpose:
 //   Run campfire menu input and feedback timers.
@@ -255,35 +289,157 @@ void CampfireState::Update(float dt)
         mFlashTimer = std::max(0.0f, mFlashTimer - dt);
     }
 
-    if (Pressed(VK_ESCAPE, mEscWasDown) ||
-        Pressed(VK_BACK, mBackWasDown) ||
-        Pressed('U', mUWasDown))
+    const bool escPressed = Pressed(VK_ESCAPE, mEscWasDown);
+    const bool backPressed = Pressed(VK_BACK, mBackWasDown);
+    const bool closePressed = Pressed('U', mUWasDown);
+
+    if (closePressed)
     {
         AudioManager::Get().PlaySfx("ui_back");
         StateManager::Get().PopState();
         return;
     }
 
+    if (escPressed || backPressed)
+    {
+        AudioManager::Get().PlaySfx("ui_back");
+        if (mPhase == Phase::MainMenu)
+        {
+            StateManager::Get().PopState();
+        }
+        else
+        {
+            mPhase = Phase::MainMenu;
+        }
+        return;
+    }
+
+    const int cursorCount = (mPhase == Phase::MainMenu)
+        ? OptionCount()
+        : SaveManager::Get().GetSlotCount();
+
     if (Pressed(VK_UP, mUpWasDown))
     {
-        mCursor = (mCursor - 1 + OptionCount()) % OptionCount();
+        if (mPhase == Phase::MainMenu)
+        {
+            mCursor = (mCursor - 1 + cursorCount) % cursorCount;
+        }
+        else
+        {
+            mSlotCursor = (mSlotCursor - 1 + cursorCount) % cursorCount;
+        }
         AudioManager::Get().PlaySfx("ui_navigate");
     }
     if (Pressed(VK_DOWN, mDownWasDown))
     {
-        mCursor = (mCursor + 1) % OptionCount();
+        if (mPhase == Phase::MainMenu)
+        {
+            mCursor = (mCursor + 1) % cursorCount;
+        }
+        else
+        {
+            mSlotCursor = (mSlotCursor + 1) % cursorCount;
+        }
         AudioManager::Get().PlaySfx("ui_navigate");
     }
     if (Pressed(VK_RETURN, mEnterWasDown))
     {
-        ActivateSelection();
+        if (mPhase == Phase::MainMenu)
+        {
+            ActivateSelection();
+        }
+        else
+        {
+            ActivateSlotSelection();
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Function: RenderMainMenu
+// Purpose:
+//   Draw the top-level campfire action list.
+// Why:
+//   The main menu remains separate from slot selection so save/load can
+//   display richer slot metadata without crowding the hub.
+// ------------------------------------------------------------
+void CampfireState::RenderMainMenu(float panelX, float panelY)
+{
+    const float listX = panelX + 96.0f;
+    const float listY = panelY + 126.0f;
+    for (int i = 0; i < OptionCount(); ++i)
+    {
+        const bool selected = (i == mCursor);
+        const float rowY = listY + static_cast<float>(i) * kRowH;
+
+        if (selected)
+        {
+            const float pulse = 0.86f + 0.14f * std::sin(mElapsed * 7.0f);
+            const DirectX::XMVECTOR color = DirectX::XMVectorSet(1.0f, pulse, 0.45f, 1.0f);
+            mTextRenderer.DrawStringRaw(">", listX - 34.0f, rowY, color);
+            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY, color);
+        }
+        else
+        {
+            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY,
+                                        DirectX::Colors::LightGray);
+        }
+    }
+}
+
+// ------------------------------------------------------------
+// Function: RenderSlotMenu
+// Purpose:
+//   Draw numbered save slots with basic metadata.
+// Why:
+//   The player must see which slots are empty before confirming save/load.
+// ------------------------------------------------------------
+void CampfireState::RenderSlotMenu(float panelX, float panelY)
+{
+    const float listX = panelX + 88.0f;
+    const float listY = panelY + 128.0f;
+    const int slotCount = SaveManager::Get().GetSlotCount();
+
+    for (int i = 0; i < slotCount; ++i)
+    {
+        const SaveSlotInfo info = SaveManager::Get().GetSlotInfo(i);
+        const bool selected = (i == mSlotCursor);
+        const float rowY = listY + static_cast<float>(i) * kRowH;
+
+        char label[192]{};
+        if (info.exists)
+        {
+            std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s",
+                          i + 1,
+                          info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
+                          info.leadLevel,
+                          info.reason.empty() ? "saved game" : info.reason.c_str());
+        }
+        else
+        {
+            std::snprintf(label, sizeof(label), "Slot %d - Empty", i + 1);
+        }
+
+        if (selected)
+        {
+            const float pulse = 0.86f + 0.14f * std::sin(mElapsed * 7.0f);
+            const DirectX::XMVECTOR color = DirectX::XMVectorSet(1.0f, pulse, 0.45f, 1.0f);
+            mTextRenderer.DrawStringRaw(">", listX - 34.0f, rowY, color);
+            mTextRenderer.DrawStringRaw(label, listX, rowY, color);
+        }
+        else
+        {
+            mTextRenderer.DrawStringRaw(label, listX, rowY,
+                                        info.exists ? DirectX::Colors::LightGray
+                                                    : DirectX::Colors::Gray);
+        }
     }
 }
 
 // ------------------------------------------------------------
 // Function: Render
 // Purpose:
-//   Draw the campfire hub panel and menu text.
+//   Draw the campfire hub panel and the active menu phase.
 // Why:
 //   The state is modal, so it renders a compact centered UI surface.
 // ------------------------------------------------------------
@@ -307,29 +463,20 @@ void CampfireState::Render()
     mTextRenderer.BeginBatch(ctx);
     mTextRenderer.DrawStringCenteredRaw("Campfire", panelX + kPanelW * 0.5f, panelY + 34.0f,
                                         DirectX::Colors::White, 1.35f, true);
-    mTextRenderer.DrawStringCenteredRaw("Rest, save, train, or manage the party.",
+    const char* subtitle = "Rest, save, train, or manage the party.";
+    if (mPhase == Phase::SaveSlotSelect) subtitle = "Choose a slot to overwrite.";
+    if (mPhase == Phase::LoadSlotSelect) subtitle = "Choose a slot to load.";
+    mTextRenderer.DrawStringCenteredRaw(subtitle,
                                         panelX + kPanelW * 0.5f, panelY + 76.0f,
                                         DirectX::Colors::LightGray);
 
-    const float listX = panelX + 96.0f;
-    const float listY = panelY + 126.0f;
-    for (int i = 0; i < OptionCount(); ++i)
+    if (mPhase == Phase::MainMenu)
     {
-        const bool selected = (i == mCursor);
-        const float rowY = listY + static_cast<float>(i) * kRowH;
-
-        if (selected)
-        {
-            const float pulse = 0.86f + 0.14f * std::sin(mElapsed * 7.0f);
-            const DirectX::XMVECTOR color = DirectX::XMVectorSet(1.0f, pulse, 0.45f, 1.0f);
-            mTextRenderer.DrawStringRaw(">", listX - 34.0f, rowY, color);
-            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY, color);
-        }
-        else
-        {
-            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY,
-                                        DirectX::Colors::LightGray);
-        }
+        RenderMainMenu(panelX, panelY);
+    }
+    else
+    {
+        RenderSlotMenu(panelX, panelY);
     }
 
     if (mFlashTimer > 0.0f && !mFlashMessage.empty())
@@ -340,7 +487,10 @@ void CampfireState::Render()
                                             DirectX::Colors::PaleGreen);
     }
 
-    mTextRenderer.DrawStringCenteredRaw("Up/Down: choose   Enter: confirm   Esc/U: close",
+    const char* hint = (mPhase == Phase::MainMenu)
+        ? "Up/Down: choose   Enter: confirm   Esc/U: close"
+        : "Up/Down: choose slot   Enter: confirm   Esc: back   U: close";
+    mTextRenderer.DrawStringCenteredRaw(hint,
                                         panelX + kPanelW * 0.5f,
                                         panelY + kPanelH - 34.0f,
                                         DirectX::Colors::Silver);

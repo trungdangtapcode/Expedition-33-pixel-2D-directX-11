@@ -1,11 +1,11 @@
 // ============================================================
 // File: SaveManager.h
-// Responsibility: Own checkpoint save/load orchestration and JSON
-//                 persistence for durable game progress.
+// Responsibility: Own save-slot orchestration and JSON persistence for
+//                 durable game progress.
 //
 // Owns:
-//   - Save checkpoint configuration loaded from data/save_checkpoints.json.
-//   - Event subscription that writes an auto-checkpoint after battle victory.
+//   - Save-slot configuration loaded from data/save_checkpoints.json.
+//   - Event subscription that writes an auto-save after battle victory.
 //
 // Does not own:
 //   - Party stats or equipment. PartyManager is the authority.
@@ -19,13 +19,32 @@
 #pragma once
 
 #include <string>
+#include <vector>
 
 struct SaveCheckpointConfig
 {
     std::string slotPath = "save/checkpoint_slot_0.json";
+    std::string slotDirectory = "save";
+    std::string slotFilePrefix = "checkpoint_slot_";
+    std::string slotFileExtension = ".json";
+    int slotCount = 3;
+    int defaultSlotIndex = 0;
     std::string autoCheckpointId = "overworld_after_battle";
     std::string autoSceneId = "overworld";
     std::string iconPath = "assets/UI/save_checkpoint_badge.png";
+};
+
+struct SaveSlotInfo
+{
+    int slotIndex = 0;
+    std::string path;
+    bool exists = false;
+    int schemaVersion = 0;
+    std::string checkpointId;
+    std::string sceneId;
+    std::string reason;
+    std::string leadMemberId;
+    int leadLevel = 1;
 };
 
 class SaveManager
@@ -52,8 +71,18 @@ public:
     bool Initialize() const { return true; }
 
     bool CheckpointExists() const;
+    bool SlotExists(int slotIndex) const;
     bool SaveCheckpoint(const std::string& reason) const;
     bool LoadCheckpoint(std::string* outSceneId = nullptr) const;
+    bool SaveCheckpointToSlot(int slotIndex, const std::string& reason) const;
+    bool LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId = nullptr) const;
+
+    int GetSlotCount() const { return mConfig.slotCount; }
+    int GetActiveSlotIndex() const { return mActiveSlotIndex; }
+    int FindFirstExistingSlot() const;
+    std::string GetSlotPath(int slotIndex) const;
+    SaveSlotInfo GetSlotInfo(int slotIndex) const;
+    std::vector<SaveSlotInfo> GetSlotInfos() const;
 
     const SaveCheckpointConfig& GetConfig() const { return mConfig; }
 
@@ -65,7 +94,9 @@ private:
 
     void LoadConfig();
     void SubscribeAutoCheckpoint();
+    bool IsValidSlotIndex(int slotIndex) const;
 
     SaveCheckpointConfig mConfig;
+    mutable int mActiveSlotIndex = 0;
     int mVictoryListenerId = -1;
 };

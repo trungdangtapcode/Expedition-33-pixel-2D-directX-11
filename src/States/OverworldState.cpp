@@ -569,7 +569,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
     if (fPressed)
     {
         SaveManager::Get().SaveCheckpoint("campfire_save:" + data.id);
-        LOG("[OverworldState] Campfire '%s' saved the checkpoint.", data.id.c_str());
+        LOG("[OverworldState] Campfire '%s' saved the active slot.", data.id.c_str());
         return false;
     }
 
@@ -578,7 +578,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
         std::string sceneId;
         if (!SaveManager::Get().LoadCheckpoint(&sceneId))
         {
-            LOG("[OverworldState] Campfire '%s' could not load a checkpoint.", data.id.c_str());
+            LOG("[OverworldState] Campfire '%s' could not load the active slot.", data.id.c_str());
             return false;
         }
 

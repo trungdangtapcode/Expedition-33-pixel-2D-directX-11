@@ -7,7 +7,7 @@
 //   Replaced by OverworldState when the player starts or loads a game.
 //
 // Save/load:
-//   MenuState does not serialize data itself. It delegates checkpoint work
+//   MenuState does not serialize data itself. It delegates save-slot work
 //   to SaveManager and only owns the high-level state transition decision.
 // ============================================================
 #pragma once
@@ -26,4 +26,5 @@ public:
 private:
     bool mEnterWasDown = false;
     bool mContinueWasDown = false;
+    bool mSlotWasDown[9] = {};
 };

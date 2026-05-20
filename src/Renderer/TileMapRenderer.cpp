@@ -22,6 +22,11 @@ bool TileMapRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
     }
 
     for (const auto& ts : mData.tilesets) {
+        if (ts.texturePath.empty()) {
+            LOG("[TileMapRenderer] ERROR: Tileset has no image path.");
+            return false;
+        }
+
         TextureInfo info;
         HRESULT hr = DirectX::CreateWICTextureFromFileEx(
             device, context,
@@ -42,7 +47,9 @@ bool TileMapRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         if (SUCCEEDED(resource.As(&tex2D))) {
             D3D11_TEXTURE2D_DESC desc;
             tex2D->GetDesc(&desc);
-            info.cols = desc.Width / mData.tileWidth;
+            const int tileWidth = (ts.tileWidth > 0) ? ts.tileWidth : mData.tileWidth;
+            info.cols = (tileWidth > 0) ? static_cast<int>(desc.Width) / tileWidth : 1;
+            if (info.cols <= 0) info.cols = 1;
         } else {
             info.cols = 1; 
         }
@@ -74,18 +81,32 @@ void TileMapRenderer::Render(ID3D11DeviceContext* context, const Camera2D& camer
         view
     );
 
-    // Draw the map centered roughly around the origin, or top-left at (-width/2, -height/2)
-    // We'll align the map so that (0,0) is in the middle of the tile map
+    // Keep the map centered on world origin so existing player, campfire,
+    // and enemy spawn coordinates remain stable when the map grows.
     float startX = -((mData.cols * mData.tileWidth) / 2.0f);
     float startY = -((mData.rows * mData.tileHeight) / 2.0f);
 
     for (const auto& layer : mData.layers) {
-        for (int y = 0; y < mData.rows; ++y) {
-            for (int x = 0; x < mData.cols; ++x) {
-                int gid = layer.tiles[y * mData.cols + x];
-                if (gid == 0) continue; // Tiled 0 is empty
+        const int layerCols = (layer.cols > 0) ? layer.cols : mData.cols;
+        const int layerRows = (layer.rows > 0) ? layer.rows : mData.rows;
+        if (layerCols <= 0 || layerRows <= 0) continue;
 
-                // Find which tileset this GID belongs to
+        for (int y = 0; y < layerRows; ++y) {
+            for (int x = 0; x < layerCols; ++x) {
+                const size_t index = static_cast<size_t>(y) * static_cast<size_t>(layerCols)
+                                   + static_cast<size_t>(x);
+                if (index >= layer.tiles.size()) continue;
+
+                int gid = layer.tiles[index];
+                if (gid == 0) continue; // Tiled 0 is empty.
+
+                // Clear Tiled flip flags from the top bits before resolving
+                // the tileset.  The renderer does not draw flipped tiles yet,
+                // but clearing flags prevents edited maps from sampling a
+                // nonsense atlas location.
+                gid = static_cast<int>(static_cast<unsigned int>(gid) & 0x1FFFFFFFu);
+
+                // Find which tileset this GID belongs to.
                 int tsIndex = 0;
                 for (size_t i = 1; i < mData.tilesets.size(); ++i) {
                     if (gid >= mData.tilesets[i].firstGid) {
@@ -97,17 +118,20 @@ void TileMapRenderer::Render(ID3D11DeviceContext* context, const Camera2D& camer
                 const auto& tex = mTextures[tsIndex];
 
                 int localId = gid - ts.firstGid;
-                int srcX = (localId % tex.cols) * mData.tileWidth;
-                int srcY = (localId / tex.cols) * mData.tileHeight;
+                if (localId < 0) continue;
 
-                RECT srcRect = { srcX, srcY, srcX + mData.tileWidth, srcY + mData.tileHeight };
+                const int tileWidth = (ts.tileWidth > 0) ? ts.tileWidth : mData.tileWidth;
+                const int tileHeight = (ts.tileHeight > 0) ? ts.tileHeight : mData.tileHeight;
+                int srcX = (localId % tex.cols) * tileWidth;
+                int srcY = (localId / tex.cols) * tileHeight;
+
+                RECT srcRect = { srcX, srcY, srcX + tileWidth, srcY + tileHeight };
                 
                 DirectX::XMFLOAT2 worldPos(
                     startX + x * mData.tileWidth,
                     startY + y * mData.tileHeight
                 );
 
-                // SpriteBatch::Draw expects a float2
                 mSpriteBatch->Draw(tex.srv.Get(), worldPos, &srcRect, DirectX::Colors::White);
             }
         }

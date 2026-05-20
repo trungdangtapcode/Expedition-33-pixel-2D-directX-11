@@ -1132,9 +1132,15 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
 struct TilesetInfo {
     int firstGid = 1;
     std::wstring texturePath;
+    int tileWidth = 0;
+    int tileHeight = 0;
 };
 
 struct TileLayer {
+    std::string name;
+    int cols = 0;
+    int rows = 0;
+    bool visible = true;
     std::vector<int> tiles;
 };
 
@@ -1158,6 +1164,10 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
     std::ostringstream buf;
     buf << file.rdbuf();
     std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    const std::filesystem::path mapPath(path);
+    const std::filesystem::path mapDir = mapPath.parent_path();
 
     auto stripQ = [](const std::string& s) -> std::string {
         std::string t = detail::Trim(s);
@@ -1170,32 +1180,82 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
         return std::wstring(s.begin(), s.end());
     };
 
+    auto normalizeSlashes = [](std::string s) -> std::string {
+        for (char& c : s) {
+            if (c == '\\') c = '/';
+        }
+        return s;
+    };
+
+    auto readTextFile = [](const std::filesystem::path& p, std::string& outText) -> bool {
+        std::ifstream in(p);
+        if (!in.is_open()) return false;
+
+        std::ostringstream buffer;
+        buffer << in.rdbuf();
+        outText = buffer.str();
+        return true;
+    };
+
+    auto resolveRelativePath = [&](const std::filesystem::path& baseDir,
+                                   const std::string& rawPath) -> std::filesystem::path {
+        const std::string normalized = normalizeSlashes(rawPath);
+        std::filesystem::path candidate(normalized);
+        if (candidate.is_absolute()) return candidate;
+
+        const std::filesystem::path fromBase = baseDir.empty()
+            ? candidate
+            : (baseDir / candidate);
+        if (std::filesystem::exists(fromBase)) return fromBase;
+
+        return fromBase;
+    };
+
     // Tiled map dimensions
     out.cols = detail::ParseInt(detail::ValueOf(src, "width"), 0);
     out.rows = detail::ParseInt(detail::ValueOf(src, "height"), 0);
     out.tileWidth = detail::ParseInt(detail::ValueOf(src, "tilewidth"), 64);
     out.tileHeight = detail::ParseInt(detail::ValueOf(src, "tileheight"), 64);
 
-    // Tilesets
+    // Tilesets.  Tiled supports embedded tilesets and external JSON
+    // tileset references.  The map entry owns firstgid; an external
+    // tileset file owns the image and tile dimensions.
     std::vector<std::string> tilesets = detail::ExtractObjectsFromArray(src, "tilesets");
     for (const auto& ts : tilesets) {
         TilesetInfo info;
         info.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
+
+        std::string tilesetSrc = ts;
+        std::filesystem::path tilesetBaseDir = mapDir;
+        const std::string sourcePath = stripQ(detail::ValueOf(ts, "source"));
+        if (!sourcePath.empty() && sourcePath != "null") {
+            const std::filesystem::path resolvedSource = resolveRelativePath(mapDir, sourcePath);
+            std::string externalSrc;
+            if (readTextFile(resolvedSource, externalSrc)) {
+                detail::WarnIfUTF16(externalSrc, resolvedSource.string());
+                tilesetSrc = externalSrc;
+                tilesetBaseDir = resolvedSource.parent_path();
+            } else {
+                LOG("[JsonLoader] WARNING: Could not read external tileset '%s' for map '%s'.",
+                    resolvedSource.string().c_str(), path.c_str());
+            }
+        }
+
+        info.tileWidth = detail::ParseInt(detail::ValueOf(tilesetSrc, "tilewidth"), out.tileWidth);
+        info.tileHeight = detail::ParseInt(detail::ValueOf(tilesetSrc, "tileheight"), out.tileHeight);
         
-        std::string tp = detail::ValueOf(ts, "image");
+        std::string tp = detail::ValueOf(tilesetSrc, "image");
         if (!tp.empty() && tp != "null") {
             tp = stripQ(tp);
-            // Replace backward slashes with forward slashes for unified parsing
-            for (char& c : tp) if (c == '\\') c = '/';
-            // Tiled paths are relative to the json file. We'll strip the path and assume it's in assets/environments.
-            size_t slash = tp.find_last_of('/');
-            if (slash != std::string::npos) tp = tp.substr(slash + 1);
-            info.texturePath = toWide("assets/environments/" + tp);
+            const std::filesystem::path resolvedImage = resolveRelativePath(tilesetBaseDir, tp);
+            info.texturePath = toWide(normalizeSlashes(resolvedImage.generic_string()));
         }
         out.tilesets.push_back(info);
     }
 
-    // Layers (find tilelayers and objectgroups)
+    // Layers: render visible tile layers and load object groups as
+    // collision data.  Tile layers keep their own dimensions so a real
+    // Tiled save with per-layer width/height remains valid.
     std::vector<std::string> layers = detail::ExtractObjectsFromArray(src, "layers");
     
     // Compute bounds offset based on map size so colliders match rendered tiles
@@ -1205,7 +1265,14 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
     for (const auto& layer : layers) {
         std::string type = stripQ(detail::ValueOf(layer, "type"));
         if (type == "tilelayer") {
+            const bool visible = detail::ParseBool(detail::ValueOf(layer, "visible"), true);
+            if (!visible) continue;
+
             TileLayer tileLayer;
+            tileLayer.name = stripQ(detail::ValueOf(layer, "name"));
+            tileLayer.cols = detail::ParseInt(detail::ValueOf(layer, "width"), out.cols);
+            tileLayer.rows = detail::ParseInt(detail::ValueOf(layer, "height"), out.rows);
+            tileLayer.visible = visible;
             size_t kpos = layer.find("\"data\"");
             if (kpos != std::string::npos) {
                 size_t bracket = layer.find('[', kpos);
@@ -1231,6 +1298,10 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
                         start = comma + 1;
                     }
                 }
+            }
+            const size_t expected = static_cast<size_t>(tileLayer.cols) * static_cast<size_t>(tileLayer.rows);
+            if (tileLayer.tiles.size() < expected) {
+                tileLayer.tiles.resize(expected, 0);
             }
             out.layers.push_back(tileLayer);
         } else if (type == "objectgroup") {

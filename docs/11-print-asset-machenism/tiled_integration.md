@@ -1,35 +1,73 @@
 # Overworld Tiled Map Integration
 
-**Date:** April 2026
-**Target:** Turn-based JRPG Engine (DirectX 11, C++17)
+## Goal
 
-## Overview
-This document summarizes the comprehensive integration of an optimized, Tiled-compatible 2D background tilemap renderer for the `OverworldState`. The system was designed to allow seamless bidirectional workflow: mapping levels using the [Tiled Editor](https://www.mapeditor.org/), and loading them perfectly in-engine at runtime without build steps or conversion.
+The overworld map is authored as a fixed-size orthogonal Tiled JSON map
+that can be opened directly in the Tiled editor and loaded by the game
+without a conversion step.
 
-## 1. Engine & Rendering Architecture Updates
+Current map:
 
-### `JsonLoader.h` Update
-The raw, hand-rolled JSON parser was upgraded to ingest the standardized Tiled JSON export schema accurately.
-* **Metadata Extraction:** Extracting `"tilewidth"`, `"tileheight"`, `"width"`, `"height"` directly from the root layer.
-* **Tileset Gid Calculation:** Successfully parses `"tilesets"`, identifying `"firstgid"` and associated `"image"`. This handles Tiled's index-shift architecture (where `0` is transparent and valid tile IDs begin at `firstgid`).
-* **Clean Formatting Correction:** Added robust `detail::Trim` functionality to strip leading newlines and spaces off JSON key-value pairs before unquoting them, resolving a critical bug that crashed DirectX texture load arrays (`CreateWICTextureFromFileEx`) with corrupt paths.
+- Path: `assets/environments/overworld_map.json`
+- Size: `96 x 72` tiles
+- Tile size: `64 x 64` pixels
+- World span: `6144 x 4608` pixels
+- Runtime origin: the renderer centers the map on world `(0, 0)`
 
-### `TileMapRenderer` Class (New Component)
-Created an optimized `SpriteBatch` rendering loop intended solely for rendering background geometries beneath entities.
-* **Double Projection Fix:** Addressed a critical bug where the camera projection was squashing vertices out of clip space by explicitly utilizing `camera.GetViewMatrix()` instead of `camera.GetViewProjectionMatrix()`. The GPU properly completes the pipeline (World → Screen Pixels → NDC).
-* **Z-Order Independence:** Integrated directly into `OverworldState::Render()` before the JRPG characters (`mScene.Render()`) and debug layers to ensure visual depth is respected naturally without relying heavily on Z-buffer writes.
-* **Offset Math Fix:** Set optimal center alignment variables: `startX = -((cols * width) / 2)` and `startY = -((rows * height) / 2)`. This centers the origin directly onto the player's spawn point seamlessly.
+## Tiled Format Contract
 
-## 2. Asset Work & Pipelines
+The loader expects the standard Tiled JSON shape:
 
-### Beautiful Python Sub-Textures (`patches/`)
-Bypassed AI rendering anomalies (which attempted to draw UI margins and text tags over spritesheets) by providing a mathematical compilation script `patches/generate_tiles.py` and `combine_tiles.ps1`.
-* Dynamically combines mathematically seamless tiles into `assets/environments/overworld_tiles.png`.
-* Scales and fits high-resolution noise-textures (grass, dirt, stone) perfectly into single 128x128 bounding boxes.
+- Top-level map fields: `type`, `orientation`, `renderorder`, `width`,
+  `height`, `tilewidth`, `tileheight`, `layers`, and `tilesets`.
+- Tile layers: `type: "tilelayer"` with an integer `data` array.
+- Empty tile cells use global tile id `0`.
+- Tilesets use `firstgid` so the renderer can map global tile ids back
+  into the correct atlas.
+- Object layers can define collision rectangles through `x`, `y`,
+  `width`, and `height`.
 
-### Native Tiled Cross-Compatibility
-We updated `assets/environments/overworld_map.json` with all critical Tiled metadata:
-* `version`, `orientation: "orthogonal"`, `renderorder: "right-down"`.
-* Complete `layers` objects and nested `"id"`, `"name"`, `"visible"` components.
+The runtime also supports external JSON tileset references through the
+Tiled `source` field. Embedded tilesets remain the default for this map
+because they keep the whole sample easy to inspect in one file.
 
-With these injected, developers can now literally open `overworld_map.json` in the Tiled editor. Edits inside the Tiled UI instantly update upon "Save", allowing real-time level building alongside DirectX11 testing.
+## Editing Workflow
+
+1. Open `assets/environments/overworld_map.json` in Tiled.
+2. Keep the map orthogonal and fixed-size. Infinite maps are not part of
+   the current renderer.
+3. Keep tile layer data exported as JSON arrays. Base64 or compressed
+   layer data is not supported by the hand-written parser.
+4. Use `Ground` for base terrain and `Objects` for decorative atlas
+   tiles.
+5. Use the `Collisions` object layer for solid AABB rectangles.
+6. Save the map as JSON.
+
+## Runtime Notes
+
+`TileMapRenderer` draws tile layers through `SpriteBatch` with
+`camera.GetViewMatrix()`. SpriteBatch handles the pixel-to-NDC transform
+internally, so passing a view-projection matrix would double-project the
+tiles and make them disappear.
+
+The loader clears Tiled flip flag bits before atlas lookup. Flipped tile
+rendering itself is not implemented yet, so avoid relying on flipped
+tiles for authored content.
+
+## Generator
+
+The checked-in sample map is generated by:
+
+```text
+patches/generate_map.py
+```
+
+Run it from the workspace root to rebuild:
+
+```text
+python patches/generate_map.py
+```
+
+The generator creates a larger village-style test map with crossroads,
+district roads, thirteen house placements, props, map-edge boundaries,
+and matching collision rectangles.

@@ -26,7 +26,7 @@ Instead of manually dragging and dropping single pixel layers, the project now r
 4. **Export**: The completely masked and tiled Atlases are flushed directly to `assets/environments/`, ready to be ingested instantly by `DirectX::CreateWICTextureFromFileEx` upon game launch.
 
 ### Automated Generative JSON Mapping (`generate_map.py`)
-Instead of manually mapping a dense 25x18 world inside software suites, the `generate_map.py` script automatically synthesizes the level structures:
+Instead of manually mapping the sample `96x72` world by hand, the `generate_map.py` script automatically synthesizes the level structures:
 - Procedural dirt paths algorithmically drawn inside the terrain block.
 - Calculates and injects multi-tile objects. For instance, the script iterates through an 8x8 matrix (spanning columns `X` and rows `Y`) precisely distributing 64 unique tile GIDs identically across the object array to construct the massive house.
 

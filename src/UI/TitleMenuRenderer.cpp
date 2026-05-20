@@ -4,9 +4,8 @@
 //
 // Rendering pipeline:
 //   1. Draw the title banner as a cover-scaled full-screen image.
-//   2. Apply a translucent dark fill so menu text stays readable.
-//   3. Draw one nine-slice menu panel for the active phase.
-//   4. Draw row highlights and text from prepared MenuState view data.
+//   2. Apply a subtle dark fill and drifting particles.
+//   3. Draw either the press-start prompt, centered command list, or slots.
 //
 // Common mistakes:
 //   1. Passing a camera matrix to this renderer -> title UI is screen-space.
@@ -20,6 +19,7 @@
 #include <DirectXColors.h>
 #include <WICTextureLoader.h>
 #include <algorithm>
+#include <cstdio>
 #include <cmath>
 #include <cstdint>
 #include <fstream>
@@ -30,12 +30,9 @@ using Microsoft::WRL::ComPtr;
 namespace
 {
     constexpr float kPanelMargin = 32.0f;
-    constexpr float kHeaderY = 28.0f;
-    constexpr float kSubtitleY = 58.0f;
-    constexpr float kHighlightInsetX = 42.0f;
-    constexpr float kHighlightH = 34.0f;
-    constexpr float kSelectorOffsetX = 34.0f;
+    constexpr float kHighlightH = 32.0f;
     constexpr size_t kSlotSecondaryLimit = 62;
+    constexpr int kParticleCount = 56;
 
     // ------------------------------------------------------------
     // Function: ReadTextFile
@@ -120,6 +117,20 @@ namespace
         rect.bottom = static_cast<LONG>(std::round(y + height));
         return rect;
     }
+
+    // ------------------------------------------------------------
+    // Function: Hash01
+    // Purpose:
+    //   Generate a stable pseudo-random value in [0, 1).
+    // Why:
+    //   Title particles need deterministic placement without storing a
+    //   per-particle array or introducing a random-number system.
+    // ------------------------------------------------------------
+    float Hash01(int index, float salt)
+    {
+        const float n = std::sin((static_cast<float>(index) * 12.9898f + salt) * 78.233f) * 43758.5453f;
+        return n - std::floor(n);
+    }
 }
 
 // ------------------------------------------------------------
@@ -152,15 +163,6 @@ bool TitleMenuRenderer::Initialize(ID3D11Device* device,
 
     mSpriteBatch = std::make_unique<DirectX::SpriteBatch>(context);
     mStates = std::make_unique<DirectX::CommonStates>(device);
-
-    const std::wstring dialogTexture = ToWidePath(mLayout.dialogTexturePath);
-    if (!mDialogBox.Initialize(device, context,
-                               dialogTexture,
-                               mLayout.dialogJsonPath,
-                               mScreenW, mScreenH))
-    {
-        return false;
-    }
 
     const std::wstring fontPath = ToWidePath(mLayout.fontPath);
     if (!mTextRenderer.Initialize(device, context,
@@ -196,25 +198,21 @@ bool TitleMenuRenderer::LoadLayout(const std::string& layoutPath)
     JsonLoader::detail::WarnIfUTF16(src, layoutPath);
 
     mLayout.backgroundImagePath = ReadJsonString(src, "backgroundImagePath", mLayout.backgroundImagePath);
-    mLayout.dialogTexturePath = ReadJsonString(src, "dialogTexturePath", mLayout.dialogTexturePath);
-    mLayout.dialogJsonPath = ReadJsonString(src, "dialogJsonPath", mLayout.dialogJsonPath);
     mLayout.fontPath = ReadJsonString(src, "fontPath", mLayout.fontPath);
-    mLayout.mainPanelWidth = ReadJsonFloat(src, "mainPanelWidth", mLayout.mainPanelWidth);
-    mLayout.mainPanelHeight = ReadJsonFloat(src, "mainPanelHeight", mLayout.mainPanelHeight);
-    mLayout.mainPanelRight = ReadJsonFloat(src, "mainPanelRight", mLayout.mainPanelRight);
-    mLayout.mainPanelBottom = ReadJsonFloat(src, "mainPanelBottom", mLayout.mainPanelBottom);
     mLayout.slotPanelWidth = ReadJsonFloat(src, "slotPanelWidth", mLayout.slotPanelWidth);
     mLayout.slotPanelHeight = ReadJsonFloat(src, "slotPanelHeight", mLayout.slotPanelHeight);
     mLayout.slotPanelBottom = ReadJsonFloat(src, "slotPanelBottom", mLayout.slotPanelBottom);
-    mLayout.panelAlpha = Clamp01(ReadJsonFloat(src, "panelAlpha", mLayout.panelAlpha));
     mLayout.backgroundDimAlpha = Clamp01(ReadJsonFloat(src, "backgroundDimAlpha", mLayout.backgroundDimAlpha));
     mLayout.logoAlphaMin = Clamp01(ReadJsonFloat(src, "logoAlphaMin", mLayout.logoAlphaMin));
     mLayout.logoAlphaMax = Clamp01(ReadJsonFloat(src, "logoAlphaMax", mLayout.logoAlphaMax));
     mLayout.logoPulseSpeed = ReadJsonFloat(src, "logoPulseSpeed", mLayout.logoPulseSpeed);
-    mLayout.optionStartX = ReadJsonFloat(src, "optionStartX", mLayout.optionStartX);
+    mLayout.particleAlpha = Clamp01(ReadJsonFloat(src, "particleAlpha", mLayout.particleAlpha));
+    mLayout.pressPromptY = ReadJsonFloat(src, "pressPromptY", mLayout.pressPromptY);
+    mLayout.pressPromptScale = ReadJsonFloat(src, "pressPromptScale", mLayout.pressPromptScale);
+    mLayout.pressPromptBlinkSpeed = ReadJsonFloat(src, "pressPromptBlinkSpeed", mLayout.pressPromptBlinkSpeed);
     mLayout.optionStartY = ReadJsonFloat(src, "optionStartY", mLayout.optionStartY);
     mLayout.optionRowHeight = ReadJsonFloat(src, "optionRowHeight", mLayout.optionRowHeight);
-    mLayout.slotStartX = ReadJsonFloat(src, "slotStartX", mLayout.slotStartX);
+    mLayout.optionTextScale = ReadJsonFloat(src, "optionTextScale", mLayout.optionTextScale);
     mLayout.slotStartY = ReadJsonFloat(src, "slotStartY", mLayout.slotStartY);
     mLayout.slotRowHeight = ReadJsonFloat(src, "slotRowHeight", mLayout.slotRowHeight);
     mLayout.flashDuration = ReadJsonFloat(src, "flashDuration", mLayout.flashDuration);
@@ -335,7 +333,6 @@ void TitleMenuRenderer::SetScreenSize(int screenW, int screenH)
 {
     mScreenW = screenW;
     mScreenH = screenH;
-    mDialogBox.SetScreenSize(screenW, screenH);
     mTextRenderer.SetScreenSize(screenW, screenH);
 }
 
@@ -412,6 +409,57 @@ void TitleMenuRenderer::DrawBackdrop(ID3D11DeviceContext* context, float elapsed
 }
 
 // ------------------------------------------------------------
+// Function: DrawAmbientParticles
+// Purpose:
+//   Draw slow drifting petal-like flecks over the dark title screen.
+// Why:
+//   The reference screen is atmospheric and sparse; lightweight particles
+//   create motion without adding a new particle system or texture atlas.
+// ------------------------------------------------------------
+void TitleMenuRenderer::DrawAmbientParticles(ID3D11DeviceContext* context, float elapsed)
+{
+    if (!mSpriteBatch || !mStates || !mFillSRV) return;
+
+    const float screenW = static_cast<float>(mScreenW);
+    const float screenH = static_cast<float>(mScreenH);
+
+    BindViewport(context);
+    mSpriteBatch->Begin(DirectX::SpriteSortMode_Deferred,
+                        mStates->NonPremultiplied(),
+                        mStates->LinearClamp(),
+                        mStates->DepthNone());
+
+    for (int i = 0; i < kParticleCount; ++i)
+    {
+        const float lane = Hash01(i, 0.13f);
+        const float depth = Hash01(i, 0.37f);
+        const float speed = 10.0f + depth * 28.0f;
+        const float baseY = Hash01(i, 0.71f) * (screenH + 96.0f);
+        const float y = std::fmod(baseY + elapsed * speed, screenH + 96.0f) - 48.0f;
+        const float sway = std::sin(elapsed * (0.25f + depth * 0.55f) + depth * 6.28318f) * (18.0f + depth * 42.0f);
+        const float x = lane * screenW + sway;
+        const float w = 2.0f + Hash01(i, 1.23f) * 7.0f;
+        const float h = 1.0f + Hash01(i, 1.79f) * 3.0f;
+        const float rotation = Hash01(i, 2.41f) * 6.28318f + elapsed * (0.12f + depth * 0.45f);
+        const float warm = Hash01(i, 3.11f);
+        const float alpha = mLayout.particleAlpha * (0.22f + depth * 0.72f);
+        const DirectX::XMVECTOR color = (warm < 0.32f)
+            ? DirectX::XMVectorSet(0.95f, 0.18f + warm * 0.55f, 0.26f, alpha)
+            : DirectX::XMVectorSet(0.88f, 0.82f, 0.68f, alpha);
+
+        mSpriteBatch->Draw(mFillSRV.Get(),
+                           DirectX::XMFLOAT2(x, y),
+                           nullptr,
+                           color,
+                           rotation,
+                           DirectX::XMFLOAT2(0.5f, 0.5f),
+                           DirectX::XMFLOAT2(w, h));
+    }
+
+    mSpriteBatch->End();
+}
+
+// ------------------------------------------------------------
 // Function: DrawFillRect
 // Purpose:
 //   Draw a tintable rectangle in screen pixels.
@@ -453,6 +501,13 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
     if (!mInitialized || !context) return;
 
     DrawBackdrop(context, state.elapsed);
+    DrawAmbientParticles(context, state.elapsed);
+
+    if (state.phase == TitleMenuVisualPhase::PressStart)
+    {
+        RenderPressStart(context, state);
+        return;
+    }
 
     if (state.phase == TitleMenuVisualPhase::LoadSlots)
     {
@@ -464,77 +519,93 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
 }
 
 // ------------------------------------------------------------
+// Function: RenderPressStart
+// Purpose:
+//   Draw the reference-style centered press-start prompt.
+// Why:
+//   The first title screen should preserve the logo composition and avoid
+//   menu chrome until the player asks to continue.
+// ------------------------------------------------------------
+void TitleMenuRenderer::RenderPressStart(ID3D11DeviceContext* context,
+                                         const TitleMenuRenderState& state)
+{
+    const float screenW = static_cast<float>(mScreenW);
+    const float y = std::min(mLayout.pressPromptY,
+                             static_cast<float>(mScreenH) - 96.0f);
+    const float pulse = (std::sin(state.elapsed * mLayout.pressPromptBlinkSpeed) + 1.0f) * 0.5f;
+    const float alpha = 0.36f + pulse * 0.64f;
+
+    mTextRenderer.BeginBatch(context);
+    mTextRenderer.DrawStringCenteredRaw("PRESS ANY BUTTON",
+                                        screenW * 0.5f,
+                                        y,
+                                        DirectX::XMVectorSet(1.0f, 0.95f, 0.86f, alpha),
+                                        mLayout.pressPromptScale,
+                                        true);
+    mTextRenderer.EndBatch();
+}
+
+// ------------------------------------------------------------
 // Function: RenderMainOptions
 // Purpose:
-//   Draw the main title command list.
+//   Draw the main title command list as centered text.
 // Why:
-//   New Game, Continue, Load Slot, and Quit are the player's first choices.
+//   The reference composition is clean and logo-led; a quiet text list keeps
+//   the screen from becoming a floating dialog box.
 // ------------------------------------------------------------
 void TitleMenuRenderer::RenderMainOptions(ID3D11DeviceContext* context,
                                           const TitleMenuRenderState& state)
 {
     const float screenW = static_cast<float>(mScreenW);
     const float screenH = static_cast<float>(mScreenH);
-    const float panelW = std::min(mLayout.mainPanelWidth, screenW - kPanelMargin * 2.0f);
-    const float panelH = std::min(mLayout.mainPanelHeight, screenH - kPanelMargin * 2.0f);
-    float panelX = screenW - panelW - mLayout.mainPanelRight;
-    float panelY = screenH - panelH - mLayout.mainPanelBottom;
-    panelX = std::max(kPanelMargin, panelX);
-    panelY = std::max(kPanelMargin, panelY);
+    const float listY = std::min(mLayout.optionStartY, screenH - 210.0f);
+    const float highlightW = std::min(360.0f, screenW - kPanelMargin * 2.0f);
+    const float highlightX = (screenW - highlightW) * 0.5f;
+    const float pulse = 0.22f + 0.10f * std::sin(state.elapsed * 5.4f);
 
-    const DirectX::XMVECTOR panelColor =
-        DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, mLayout.panelAlpha);
-    mDialogBox.Draw(context, panelX, panelY, panelW, panelH,
-                    1.0f, DirectX::XMMatrixIdentity(), panelColor);
-
-    const float highlightX = panelX + kHighlightInsetX;
-    const float highlightW = panelW - kHighlightInsetX * 2.0f;
-    const float pulse = 0.62f + 0.18f * std::sin(state.elapsed * 6.0f);
     if (state.cursor >= 0 && state.cursor < static_cast<int>(state.options.size()))
     {
-        const float rowY = panelY + mLayout.optionStartY +
+        const float rowY = listY +
             static_cast<float>(state.cursor) * mLayout.optionRowHeight - 6.0f;
         DrawFillRect(context, highlightX, rowY, highlightW, kHighlightH,
-                     DirectX::XMVectorSet(0.78f, 0.54f, 0.28f, pulse));
+                     DirectX::XMVectorSet(0.82f, 0.56f, 0.24f, pulse));
     }
 
     mTextRenderer.BeginBatch(context);
-    mTextRenderer.DrawStringCenteredRaw("Main Menu",
-                                        panelX + panelW * 0.5f,
-                                        panelY + kHeaderY,
-                                        DirectX::Colors::White,
-                                        1.22f,
-                                        true);
-    mTextRenderer.DrawStringCenteredRaw("Choose the next step.",
-                                        panelX + panelW * 0.5f,
-                                        panelY + kSubtitleY,
-                                        DirectX::Colors::Silver);
-
-    const float labelX = panelX + mLayout.optionStartX;
-    const float labelY = panelY + mLayout.optionStartY;
     for (int i = 0; i < static_cast<int>(state.options.size()); ++i)
     {
         const TitleMenuOptionView& option = state.options[static_cast<size_t>(i)];
         const bool selected = (i == state.cursor);
-        const float rowY = labelY + static_cast<float>(i) * mLayout.optionRowHeight;
+        const float rowY = listY + static_cast<float>(i) * mLayout.optionRowHeight;
         const DirectX::XMVECTOR color = !option.enabled
-            ? DirectX::Colors::Gray
+            ? DirectX::Colors::DimGray
             : (selected
-                ? DirectX::XMVectorSet(1.0f, 0.92f, 0.58f, 1.0f)
-                : DirectX::Colors::LightGray);
+                ? DirectX::XMVectorSet(1.0f, 0.91f, 0.58f, 1.0f)
+                : DirectX::XMVectorSet(0.86f, 0.84f, 0.78f, 0.86f));
 
+        char label[96]{};
         if (selected)
         {
-            mTextRenderer.DrawStringRaw(">", labelX - kSelectorOffsetX, rowY, color);
+            std::snprintf(label, sizeof(label), ">  %s", option.label.c_str());
         }
-        mTextRenderer.DrawStringRaw(option.label.c_str(), labelX, rowY, color);
+        else
+        {
+            std::snprintf(label, sizeof(label), "%s", option.label.c_str());
+        }
+
+        mTextRenderer.DrawStringCenteredRaw(label,
+                                            screenW * 0.5f,
+                                            rowY,
+                                            color,
+                                            mLayout.optionTextScale,
+                                            selected);
     }
 
     if (!state.flashMessage.empty() && state.flashAlpha > 0.0f)
     {
         mTextRenderer.DrawStringCenteredRaw(state.flashMessage.c_str(),
-                                            panelX + panelW * 0.5f,
-                                            panelY + panelH - 36.0f,
+                                            screenW * 0.5f,
+                                            listY + mLayout.optionRowHeight * 4.5f,
                                             DirectX::XMVectorSet(0.72f, 1.0f, 0.72f,
                                                                   Clamp01(state.flashAlpha)));
     }
@@ -560,14 +631,12 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
     float panelY = screenH - panelH - mLayout.slotPanelBottom;
     panelY = std::max(kPanelMargin, panelY);
 
-    const DirectX::XMVECTOR panelColor =
-        DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, mLayout.panelAlpha);
-    mDialogBox.Draw(context, panelX, panelY, panelW, panelH,
-                    1.0f, DirectX::XMMatrixIdentity(), panelColor);
+    DrawFillRect(context, 0.0f, panelY - 28.0f, screenW, panelH + 56.0f,
+                 DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.46f));
 
-    const float highlightX = panelX + 42.0f;
-    const float highlightW = panelW - 84.0f;
-    const float pulse = 0.56f + 0.18f * std::sin(state.elapsed * 6.0f);
+    const float highlightX = panelX + 56.0f;
+    const float highlightW = panelW - 112.0f;
+    const float pulse = 0.24f + 0.10f * std::sin(state.elapsed * 5.4f);
     if (state.slotCursor >= 0 && state.slotCursor < static_cast<int>(state.slots.size()))
     {
         const float rowY = panelY + mLayout.slotStartY +
@@ -579,16 +648,15 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
     mTextRenderer.BeginBatch(context);
     mTextRenderer.DrawStringCenteredRaw("Load Game",
                                         panelX + panelW * 0.5f,
-                                        panelY + kHeaderY,
+                                        panelY + 18.0f,
                                         DirectX::Colors::White,
                                         1.22f,
                                         true);
     mTextRenderer.DrawStringCenteredRaw("Select a save slot.",
                                         panelX + panelW * 0.5f,
-                                        panelY + kSubtitleY,
+                                        panelY + 48.0f,
                                         DirectX::Colors::Silver);
 
-    const float rowX = panelX + mLayout.slotStartX;
     const float rowY = panelY + mLayout.slotStartY;
     for (int i = 0; i < static_cast<int>(state.slots.size()); ++i)
     {
@@ -604,16 +672,26 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
             ? DirectX::Colors::DimGray
             : (slot.active ? DirectX::Colors::PaleGreen : DirectX::Colors::LightGray);
 
+        char primary[128]{};
         if (selected)
         {
-            mTextRenderer.DrawStringRaw(">", rowX - kSelectorOffsetX, currentY, primaryColor);
+            std::snprintf(primary, sizeof(primary), ">  %s", slot.primary.c_str());
+        }
+        else
+        {
+            std::snprintf(primary, sizeof(primary), "%s", slot.primary.c_str());
         }
 
-        mTextRenderer.DrawStringRaw(slot.primary.c_str(), rowX, currentY, primaryColor);
-        mTextRenderer.DrawStringRaw(ShortenText(slot.secondary, kSlotSecondaryLimit).c_str(),
-                                    rowX + 24.0f,
-                                    currentY + 25.0f,
-                                    secondaryColor);
+        mTextRenderer.DrawStringCenteredRaw(primary,
+                                            panelX + panelW * 0.5f,
+                                            currentY,
+                                            primaryColor,
+                                            1.0f,
+                                            selected);
+        mTextRenderer.DrawStringCenteredRaw(ShortenText(slot.secondary, kSlotSecondaryLimit).c_str(),
+                                            panelX + panelW * 0.5f,
+                                            currentY + 25.0f,
+                                            secondaryColor);
     }
 
     if (!state.flashMessage.empty() && state.flashAlpha > 0.0f)
@@ -639,7 +717,6 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
 void TitleMenuRenderer::Shutdown()
 {
     mTextRenderer.Shutdown();
-    mDialogBox.Shutdown();
     mSpriteBatch.reset();
     mStates.reset();
     mFillSRV.Reset();

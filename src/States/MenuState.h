@@ -29,6 +29,7 @@ public:
 private:
     enum class Phase
     {
+        PressStart,
         MainOptions,
         LoadSlots
     };
@@ -43,6 +44,8 @@ private:
     };
 
     bool Pressed(int vk, bool& wasDown);
+    bool AnyStartPressed();
+    void CaptureInputLatches();
     bool IsMainOptionEnabled(MainOption option) const;
     void MoveMainCursor(int direction);
     void MoveSlotCursor(int direction);
@@ -59,7 +62,7 @@ private:
     static int MainOptionCount();
 
     TitleMenuRenderer mRenderer;
-    Phase mPhase = Phase::MainOptions;
+    Phase mPhase = Phase::PressStart;
     int mCursor = 0;
     int mSlotCursor = 0;
     float mElapsed = 0.0f;
@@ -71,4 +74,5 @@ private:
     bool mEnterWasDown = false;
     bool mBackWasDown = false;
     bool mEscapeWasDown = false;
+    bool mAnyStartWasDown = false;
 };

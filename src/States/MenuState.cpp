@@ -3,6 +3,7 @@
 // Responsibility: Drive the title menu input and route selected commands.
 //
 // Transitions:
+//   Press Any Button -> reveal the command list.
 //   New Game  -> reset durable systems, write Slot 1, then enter overworld.
 //   Continue  -> load the first occupied slot, then enter overworld.
 //   Load Slot -> open a visual slot picker backed by SaveManager metadata.
@@ -51,6 +52,32 @@ namespace
         while (value >= count) value -= count;
         return value;
     }
+
+    // ------------------------------------------------------------
+    // Function: IsStartKeyDown
+    // Purpose:
+    //   Detect keyboard buttons that should satisfy the press-start prompt.
+    // Why:
+    //   The title reference asks for a single entry prompt before exposing
+    //   the command list, so the first screen should accept common keys.
+    // ------------------------------------------------------------
+    bool IsStartKeyDown()
+    {
+        static constexpr int kStartKeys[] =
+        {
+            VK_RETURN, VK_SPACE, VK_UP, VK_DOWN, VK_LEFT, VK_RIGHT,
+            'W', 'A', 'S', 'D', 'E', 'F', 'U', 'L', 'C'
+        };
+
+        for (int key : kStartKeys)
+        {
+            if ((GetAsyncKeyState(key) & 0x8000) != 0)
+            {
+                return true;
+            }
+        }
+        return false;
+    }
 }
 
 // ------------------------------------------------------------
@@ -84,7 +111,7 @@ void MenuState::OnEnter()
                          d3d.GetWidth(),
                          d3d.GetHeight());
 
-    mPhase = Phase::MainOptions;
+    mPhase = Phase::PressStart;
     mCursor = SaveManager::Get().FindFirstExistingSlot() >= 0
         ? static_cast<int>(MainOption::Continue)
         : static_cast<int>(MainOption::NewGame);
@@ -102,8 +129,9 @@ void MenuState::OnEnter()
     mEnterWasDown = false;
     mBackWasDown = false;
     mEscapeWasDown = false;
+    mAnyStartWasDown = IsStartKeyDown();
 
-    LOG("[MenuState] OnEnter. Visual title menu ready.");
+    LOG("[MenuState] OnEnter. Press-start title menu ready.");
 }
 
 // ------------------------------------------------------------
@@ -133,6 +161,39 @@ bool MenuState::Pressed(int vk, bool& wasDown)
     const bool fresh = down && !wasDown;
     wasDown = down;
     return fresh;
+}
+
+// ------------------------------------------------------------
+// Function: AnyStartPressed
+// Purpose:
+//   Convert the press-start key group into one edge-triggered action.
+// Why:
+//   The title screen should reveal the real menu once, then hand off to
+//   normal cursor controls without immediately activating an option.
+// ------------------------------------------------------------
+bool MenuState::AnyStartPressed()
+{
+    const bool down = IsStartKeyDown();
+    const bool fresh = down && !mAnyStartWasDown;
+    mAnyStartWasDown = down;
+    return fresh;
+}
+
+// ------------------------------------------------------------
+// Function: CaptureInputLatches
+// Purpose:
+//   Synchronize individual button latches with current physical key states.
+// Why:
+//   If Enter reveals the menu, holding it for one more frame must not also
+//   confirm New Game.
+// ------------------------------------------------------------
+void MenuState::CaptureInputLatches()
+{
+    mUpWasDown = (GetAsyncKeyState(VK_UP) & 0x8000) != 0;
+    mDownWasDown = (GetAsyncKeyState(VK_DOWN) & 0x8000) != 0;
+    mEnterWasDown = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
+    mBackWasDown = (GetAsyncKeyState(VK_BACK) & 0x8000) != 0;
+    mEscapeWasDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
 }
 
 // ------------------------------------------------------------
@@ -374,9 +435,28 @@ void MenuState::Update(float dt)
 
     const bool backPressed = Pressed(VK_BACK, mBackWasDown);
     const bool escapePressed = Pressed(VK_ESCAPE, mEscapeWasDown);
+    if (mPhase == Phase::PressStart)
+    {
+        if (AnyStartPressed())
+        {
+            mPhase = Phase::MainOptions;
+            CaptureInputLatches();
+            AudioManager::Get().PlaySfx("ui_confirm");
+        }
+        return;
+    }
+
     if ((backPressed || escapePressed) && mPhase == Phase::LoadSlots)
     {
         mPhase = Phase::MainOptions;
+        AudioManager::Get().PlaySfx("ui_back");
+        return;
+    }
+
+    if (backPressed && mPhase == Phase::MainOptions)
+    {
+        mPhase = Phase::PressStart;
+        CaptureInputLatches();
         AudioManager::Get().PlaySfx("ui_back");
         return;
     }
@@ -504,9 +584,18 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
 TitleMenuRenderState MenuState::BuildRenderState() const
 {
     TitleMenuRenderState state{};
-    state.phase = (mPhase == Phase::MainOptions)
-        ? TitleMenuVisualPhase::MainOptions
-        : TitleMenuVisualPhase::LoadSlots;
+    if (mPhase == Phase::PressStart)
+    {
+        state.phase = TitleMenuVisualPhase::PressStart;
+    }
+    else if (mPhase == Phase::MainOptions)
+    {
+        state.phase = TitleMenuVisualPhase::MainOptions;
+    }
+    else
+    {
+        state.phase = TitleMenuVisualPhase::LoadSlots;
+    }
     state.options = BuildOptionViews();
     state.slots = BuildSlotViews();
     state.cursor = mCursor;

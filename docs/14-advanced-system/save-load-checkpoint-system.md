@@ -182,7 +182,8 @@ The campfire menu does not parse save files directly. It asks `SaveManager` for
 Current title menu behavior:
 
 - The first screen uses `assets/e33_pixel_banner.png` as a full-screen title
-  banner.
+  banner with a `PRESS ANY BUTTON` prompt.
+- Pressing a common confirm or movement key reveals the command list.
 - `New Game` resets durable systems and writes Slot 1.
 - `Continue` loads the first occupied slot.
 - `Load Slot` opens a visual slot picker backed by `SaveSlotInfo`.

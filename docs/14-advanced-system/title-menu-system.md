@@ -23,7 +23,6 @@ The previous title flow lived entirely in `MenuState`:
 
 The project already had reusable UI primitives:
 
-- `NineSliceRenderer` for RPG panel chrome.
 - `BattleTextRenderer` for SpriteFont text.
 - `SaveManager::GetSlotInfos()` for read-only slot metadata.
 - `assets/e33_pixel_banner.png` as a full-screen title/logo image.
@@ -32,10 +31,14 @@ The new design keeps those responsibilities intact.
 
 ## Runtime Flow
 
-`MenuState` owns input and transitions. It has two phases:
+`MenuState` owns input and transitions. It has three phases:
 
+- `PressStart`
 - `MainOptions`
 - `LoadSlots`
+
+`PressStart` is the first screen. It keeps the logo unobstructed and waits for
+any common confirm/movement key before revealing menu choices.
 
 Main options:
 
@@ -65,8 +68,7 @@ src/UI/TitleMenuRenderer.cpp
 - The banner texture SRV.
 - A 1x1 fill texture for dimming and highlights.
 - `SpriteBatch` and `CommonStates`.
-- `NineSliceRenderer` for the menu panels.
-- `BattleTextRenderer` for command and slot labels.
+- `BattleTextRenderer` for the press prompt, command labels, and slot labels.
 
 It receives one `TitleMenuRenderState` per frame. The renderer does not call
 `SaveManager`, mutate gameplay systems, or perform state transitions.
@@ -82,11 +84,12 @@ data/main_menu_layout.json
 The file controls:
 
 - Banner image path.
-- Panel texture and nine-slice JSON paths.
 - Font path.
-- Main and slot panel dimensions.
-- Panel placement offsets.
+- Press-start prompt placement and blink speed.
+- Centered command-list placement.
+- Slot-list dimensions.
 - Logo pulse alpha.
+- Ambient particle alpha.
 - Row positions and spacing.
 - Flash message duration.
 
@@ -94,19 +97,24 @@ This keeps the composition adjustable without recompiling C++.
 
 ## Visual Direction
 
-The screen uses the existing `assets/e33_pixel_banner.png` as the first visual
-signal. The renderer cover-scales it to the current viewport, applies a subtle
-breathing alpha, and draws a translucent dim overlay so the command list stays
-readable.
+The target reference is a clean title composition:
 
-The command panel sits in the lower-right portion of the screen at 1280x720 so
-it does not cover the center of the logo. The load-slot picker uses a wider
-bottom panel because slot metadata needs more horizontal space.
+- Centered logo remains the primary focus.
+- No floating panel is drawn on the first screen.
+- `PRESS ANY BUTTON` appears below the logo with a slow blink.
+- Small deterministic particles drift over the title image to avoid a static
+  splash-screen feeling.
+
+After the prompt is accepted, the command list appears as centered text. The
+selected row receives only a subtle warm highlight, not a large dialog panel.
+The load-slot picker uses a dark bottom band because slot metadata needs more
+contrast, but it avoids the previous gray RPG box.
 
 ## Input
 
 Current controls:
 
+- Any common confirm/movement key: leave the press-start screen.
 - `Up` / `Down`: move the cursor.
 - `Enter`: confirm.
 - `Backspace`: return from the slot picker to the main list.

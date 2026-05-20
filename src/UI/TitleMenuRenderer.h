@@ -1,13 +1,13 @@
 // ============================================================
 // File: TitleMenuRenderer.h
-// Responsibility: Render the title screen background, command menu,
-//                 and load-slot picker.
+// Responsibility: Render the atmospheric title screen, press-start prompt,
+//                 command menu, and load-slot picker.
 //
 // Owns:
 //   ID3D11ShaderResourceView for the title banner texture.
 //   ID3D11ShaderResourceView for a 1x1 tintable fill texture.
 //   SpriteBatch and CommonStates for screen-space image/fill draws.
-//   NineSliceRenderer and BattleTextRenderer for RPG menu chrome.
+//   BattleTextRenderer for title prompt, command, and slot labels.
 //
 // Lifetime:
 //   Created in  -> MenuState::OnEnter()
@@ -25,7 +25,6 @@
 // ============================================================
 #pragma once
 
-#include "../Renderer/NineSliceRenderer.h"
 #include "BattleTextRenderer.h"
 #include <CommonStates.h>
 #include <SpriteBatch.h>
@@ -37,6 +36,7 @@
 
 enum class TitleMenuVisualPhase
 {
+    PressStart,
     MainOptions,
     LoadSlots
 };
@@ -89,25 +89,21 @@ private:
     struct Layout
     {
         std::string backgroundImagePath = "assets/e33_pixel_banner.png";
-        std::string dialogTexturePath = "assets/UI/ui-dialog-box-hd.png";
-        std::string dialogJsonPath = "assets/UI/ui-dialog-box-hd.json";
         std::string fontPath = "assets/fonts/arial_16.spritefont";
-        float mainPanelWidth = 520.0f;
-        float mainPanelHeight = 276.0f;
-        float mainPanelRight = 86.0f;
-        float mainPanelBottom = 72.0f;
         float slotPanelWidth = 760.0f;
         float slotPanelHeight = 372.0f;
         float slotPanelBottom = 64.0f;
-        float panelAlpha = 0.92f;
         float backgroundDimAlpha = 0.32f;
         float logoAlphaMin = 0.72f;
         float logoAlphaMax = 0.92f;
         float logoPulseSpeed = 0.62f;
-        float optionStartX = 88.0f;
-        float optionStartY = 84.0f;
+        float particleAlpha = 0.5f;
+        float pressPromptY = 560.0f;
+        float pressPromptScale = 1.28f;
+        float pressPromptBlinkSpeed = 3.4f;
+        float optionStartY = 514.0f;
         float optionRowHeight = 42.0f;
-        float slotStartX = 72.0f;
+        float optionTextScale = 1.08f;
         float slotStartY = 96.0f;
         float slotRowHeight = 76.0f;
         float flashDuration = 2.2f;
@@ -118,12 +114,15 @@ private:
     bool CreateFillTexture(ID3D11Device* device);
     void BindViewport(ID3D11DeviceContext* context);
     void DrawBackdrop(ID3D11DeviceContext* context, float elapsed);
+    void DrawAmbientParticles(ID3D11DeviceContext* context, float elapsed);
     void DrawFillRect(ID3D11DeviceContext* context,
                       float x,
                       float y,
                       float width,
                       float height,
                       DirectX::FXMVECTOR color);
+    void RenderPressStart(ID3D11DeviceContext* context,
+                          const TitleMenuRenderState& state);
     void RenderMainOptions(ID3D11DeviceContext* context,
                            const TitleMenuRenderState& state);
     void RenderLoadSlots(ID3D11DeviceContext* context,
@@ -143,6 +142,5 @@ private:
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFillSRV;
     std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates> mStates;
-    NineSliceRenderer mDialogBox;
     BattleTextRenderer mTextRenderer;
 };

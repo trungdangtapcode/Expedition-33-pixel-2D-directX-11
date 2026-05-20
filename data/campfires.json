@@ -1,0 +1,15 @@
+{
+  "campfires": [
+    {
+      "id": "meadow_start",
+      "texturePath": "assets/animations/campfire_checkpoint.png",
+      "jsonPath": "assets/animations/campfire_checkpoint.json",
+      "idleClip": "idle",
+      "worldX": 120.0,
+      "worldY": 80.0,
+      "contactRadius": 96.0,
+      "renderScale": 1.8,
+      "upgradeExpReward": 120
+    }
+  ]
+}

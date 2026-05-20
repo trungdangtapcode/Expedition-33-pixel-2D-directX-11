@@ -1,0 +1,6 @@
+{
+  "slotPath": "save/checkpoint_slot_0.json",
+  "autoCheckpointId": "overworld_after_battle",
+  "autoSceneId": "overworld",
+  "iconPath": "assets/UI/save_checkpoint_badge.png"
+}

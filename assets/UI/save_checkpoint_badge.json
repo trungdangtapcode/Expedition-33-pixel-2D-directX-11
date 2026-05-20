@@ -1,0 +1,18 @@
+{
+  "sprite_name": "save_checkpoint_badge",
+  "character": "ui",
+  "width": 96,
+  "height": 96,
+  "frame_width": 96,
+  "frame_height": 96,
+  "animations": [
+    {
+      "name": "idle",
+      "num_frames": 1,
+      "frame_rate": 1,
+      "loop": true,
+      "pivot": [48, 48],
+      "align": "middle-center"
+    }
+  ]
+}

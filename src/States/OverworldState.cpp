@@ -60,6 +60,33 @@
 #include <sstream>
 #include <windows.h>
 
+namespace
+{
+    bool ReadablePathExists(const std::filesystem::path& path)
+    {
+        return std::filesystem::exists(path) ||
+               std::filesystem::exists(std::filesystem::path("..") / path);
+    }
+
+    bool EnemyAssetsExist(const EnemyEncounterData& data)
+    {
+        if (!ReadablePathExists(std::filesystem::path(data.texturePath))) return false;
+        if (!ReadablePathExists(std::filesystem::path(data.jsonPath))) return false;
+
+        for (const EnemySlotData& slot : data.battleParty)
+        {
+            if (!ReadablePathExists(std::filesystem::path(slot.texturePath))) return false;
+            if (!ReadablePathExists(std::filesystem::path(slot.jsonPath))) return false;
+            if (!slot.turnViewPath.empty() &&
+                !ReadablePathExists(std::filesystem::path(slot.turnViewPath)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+}
 
 // ------------------------------------------------------------
 // Function: OnEnter
@@ -149,6 +176,13 @@ void OverworldState::OnEnter()
             EnemyEncounterData encounterData{};
             if (JsonLoader::LoadEnemyEncounterData(spawn.encounterPath, encounterData))
             {
+                if (!EnemyAssetsExist(encounterData))
+                {
+                    LOG("[OverworldState] WARNING - Spawn '%s' skipped because one or more assets are missing.",
+                        spawn.id.c_str());
+                    continue;
+                }
+
                 OverworldEnemy* enemy = mScene.Spawn<OverworldEnemy>(
                     device, context, encounterData, spawn.worldX, spawn.worldY, mCamera.get());
                 if (enemy) mOverworldEnemies.push_back(enemy);

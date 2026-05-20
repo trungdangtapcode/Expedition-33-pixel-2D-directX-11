@@ -1,0 +1,8 @@
+{
+  "moveDuration": 0.45,
+  "returnDuration": 0.4,
+  "meleeOffset": 86.0,
+  "bulletHellSupported": false,
+  "qteSupported": false,
+  "damageTakenOccurMoment": 0.5
+}

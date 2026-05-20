@@ -35,6 +35,12 @@
       "encounterPath": "data/enemies/verso_cloned.json",
       "worldX": 3260.0,
       "worldY": -1560.0
+    },
+    {
+      "id": "glass_shrine_zombie_armour",
+      "encounterPath": "data/enemies/zombie_armour.json",
+      "worldX": 1220.0,
+      "worldY": 2240.0
     }
   ]
 }

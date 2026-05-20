@@ -1,0 +1,30 @@
+{
+  "comment": "Zombie Armour solo encounter. Run tools/process_zombie_armour_asset.py before enabling this enemy in a playable map.",
+  "comment2": "Top-level fields control the overworld sprite and battle entry radius.",
+
+  "name": "Zombie Armour",
+  "texturePath": "assets/animations/zombie_armour.png",
+  "jsonPath": "assets/animations/zombie_armour.json",
+  "idleClip": "idle",
+  "contactRadius": 94.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
+
+  "battleParty": [
+    {
+      "texturePath": "assets/animations/zombie_armour.png",
+      "jsonPath": "assets/animations/zombie_armour.json",
+      "turnViewPath": "assets/UI/turn-view-zombie-armour.png",
+      "idleClip": "idle",
+      "walkClip": "walk",
+      "attackClip": "attack-1",
+      "dieClip": "die",
+      "hp": 95,
+      "atk": 16,
+      "def": 12,
+      "spd": 4,
+      "expReward": 85,
+      "attackJsonPath": "data/skills/zombie_armour_attack.json",
+      "cameraFocusOffsetY": -128.0
+    }
+  ]
+}

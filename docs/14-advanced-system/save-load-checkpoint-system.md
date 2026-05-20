@@ -35,8 +35,10 @@ It depends on:
 State classes stay thin:
 
 - `MenuState` starts a New Game by writing Slot 1.
-- `MenuState` can continue the first occupied slot with `C`.
-- `MenuState` can load a specific slot with number keys `1` through `9`.
+- `MenuState` renders a visual title menu with New Game, Continue, Load Slot,
+  and Quit commands.
+- `MenuState` can continue the first occupied slot through the Continue command.
+- `MenuState` can open a visual slot picker through the Load Slot command.
 - `CampfireState` opens explicit Save Slot and Load Slot submenus.
 - `OverworldState` keeps `F` and `C` as quick save/load shortcuts for the
   active slot while near a campfire.
@@ -179,12 +181,18 @@ The campfire menu does not parse save files directly. It asks `SaveManager` for
 
 Current title menu behavior:
 
-- `Enter`: start a new game and write Slot 1.
-- `C`: continue the first occupied slot.
-- `1` through `9`: load that specific slot if it exists.
+- The first screen uses `assets/e33_pixel_banner.png` as a full-screen title
+  banner.
+- `New Game` resets durable systems and writes Slot 1.
+- `Continue` loads the first occupied slot.
+- `Load Slot` opens a visual slot picker backed by `SaveSlotInfo`.
+- `Quit` closes the game.
 
-The title screen still has no authored visual menu renderer, so these controls
-are logged through `LOG()` until a richer menu UI is added.
+The title menu renderer is documented in:
+
+```text
+docs/14-advanced-system/title-menu-system.md
+```
 
 ## Assets
 
@@ -206,7 +214,6 @@ tools/draw_campfire_asset.py
 
 ## Future Extension Points
 
-- Add a visual title-menu slot picker.
 - Add timestamp metadata once the project has a stable wall-clock policy for
   save metadata.
 - Add `sceneState` for defeated overworld enemy ids and cutscene progress.

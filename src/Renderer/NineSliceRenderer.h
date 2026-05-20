@@ -55,6 +55,9 @@ public:
               float scale = 1.0f, DirectX::CXMMATRIX transform = DirectX::XMMatrixIdentity(),
               DirectX::XMVECTOR color = DirectX::Colors::White);
 
+    // Keep SpriteBatch's viewport in sync when a state survives a window resize.
+    void SetScreenSize(int screenW, int screenH) { mScreenW = screenW; mScreenH = screenH; }
+
     void Shutdown();
 private:
     void BindViewport(ID3D11DeviceContext* context);

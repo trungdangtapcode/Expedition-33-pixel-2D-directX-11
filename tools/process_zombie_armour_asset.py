@@ -25,6 +25,7 @@ PIVOT_Y = 122
 GROUND_Y = 120
 MAX_PACKED_WIDTH = 124
 MAX_PACKED_HEIGHT = 120
+DEFAULT_RAW_SCALE = 2
 
 
 @dataclass
@@ -467,7 +468,12 @@ def main() -> None:
     parser.add_argument("--row-gap", type=int, default=6, help="Blank scanlines tolerated inside one detected row.")
     parser.add_argument("--column-gap", type=int, default=4, help="Blank columns tolerated inside one detected frame.")
     parser.add_argument("--min-frame-pixels", type=int, default=24, help="Discard detected boxes below this pixel count.")
-    parser.add_argument("--scale", type=int, default=1, help="Nearest-neighbor scale applied before packing frames.")
+    parser.add_argument(
+        "--scale",
+        type=int,
+        default=DEFAULT_RAW_SCALE,
+        help="Nearest-neighbor scale applied before packing raw source frames.",
+    )
     args = parser.parse_args()
 
     source_path = Path(args.input)

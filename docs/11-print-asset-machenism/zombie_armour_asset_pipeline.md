@@ -96,9 +96,10 @@ These rows were chosen because they stay visually consistent with the armoured
 enemy role, use the same side-view combat silhouette as `skeleton.png`, and
 match the animation names already requested by the battle code.
 
-The default raw-sheet scale is `1`. BattleRenderer already draws combatants at
-runtime scale `2.0f`, so pre-scaling the cropped source frames would make the
-zombie armour appear much larger than the Skeleton enemy.
+The default raw-sheet scale is `2`. The raw zombie armour frames are much
+smaller inside the source sheet than the Skeleton frames, so pre-scaling before
+packing keeps both the battlefield sprite and the turn-view portrait readable.
+The packed frame still fits inside the same `128 x 128` runtime cell.
 
 ## Reference Generation Strategy
 

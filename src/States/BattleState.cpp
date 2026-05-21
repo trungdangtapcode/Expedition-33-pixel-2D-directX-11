@@ -1,6 +1,6 @@
 // ============================================================
 // File: BattleState.cpp
-// Responsibility: Turn-based battle IGameState — drives BattleManager,
+// Responsibility: Turn-based battle IGameState - drives BattleManager,
 //                handles input via a three-phase FSM, renders combatant
 //                sprites and the HP bar UI.
 // ============================================================
@@ -21,7 +21,7 @@
 #include <algorithm>
 #include <array>
 
-// Battle background — dark navy blue, distinct from the play-world color.
+// Battle background - dark navy blue, distinct from the play-world color.
 static constexpr float kBgR = 0.05f;
 static constexpr float kBgG = 0.05f;
 static constexpr float kBgB = 0.20f;
@@ -39,7 +39,7 @@ void BattleState::OnEnter()
     InitAudio();
 
     if (!JsonLoader::LoadBattleSystemConfig("data/battle_system_config.json", mSystemConfig)) {
-        LOG("%s", "[BattleState] WARNING — failed to load data/battle_system_config.json");
+        LOG("%s", "[BattleState] WARNING - failed to load data/battle_system_config.json");
     }
 
     mBattle.Initialize(mEncounter, mSystemConfig);
@@ -55,13 +55,22 @@ void BattleState::OnEnter()
       }
       mEnvRenderer.LoadEnvironment(envPath);
 
+    if (!mAmbientParticles.Initialize(mD3D.GetDevice(),
+                                      mD3D.GetContext(),
+                                      "data/battle_ambient_particles.json",
+                                      mD3D.GetWidth(),
+                                      mD3D.GetHeight()))
+    {
+        LOG("%s", "[BattleState] WARNING: Battle ambient particles failed to initialize.");
+    }
+
     if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))
     {
         mIris.StartOpen(800.0f);
     }
     else
     {
-        LOG("%s", "[BattleState] WARNING — IrisTransitionRenderer init failed.");
+        LOG("%s", "[BattleState] WARNING - IrisTransitionRenderer init failed.");
     }
 
     // Broadcast initial visual offsets for the walk-in sequence
@@ -90,7 +99,7 @@ void BattleState::InitAudio()
     }
 
     // One-shot encounter sting layered over the BGM transition.
-    // XAudio2 mixes both voices naturally — no ducking needed.
+    // XAudio2 mixes both voices naturally - no ducking needed.
     AudioManager::Get().PlaySfx("battle_start");
 }
 
@@ -99,7 +108,7 @@ void BattleState::InitBattleSlots()
     JsonLoader::FormationData formation{};
     if (!JsonLoader::LoadFormations("data/formations.json", formation))
     {
-        LOG("%s", "[BattleState] WARNING: failed to load formations.json — slots will be at origin.");
+        LOG("%s", "[BattleState] WARNING: failed to load formations.json - slots will be at origin.");
     }
 
     const float battleCenterX = 0.0f;
@@ -185,7 +194,7 @@ void BattleState::InitUIRenderers()
     // Load UI data constants so we're not hardcoding layout numbers
     if (!JsonLoader::LoadBattleMenuLayout("data/battle_menu_layout.json", mMenuLayout))
     {
-        LOG("[BattleState] WARNING — failed to load data/battle_menu_layout.json");
+        LOG("[BattleState] WARNING - failed to load data/battle_menu_layout.json");
     }
 
     const auto& party = PartyManager::Get().GetActiveParty();
@@ -217,7 +226,7 @@ void BattleState::InitUIRenderers()
             bar->SetHP(static_cast<float>(s.hp));
             mHealthBars.push_back(std::move(bar));
         } else {
-            LOG("[BattleState] WARNING — HealthBar initialization failed for %s.", party[i].name.c_str());
+            LOG("[BattleState] WARNING - HealthBar initialization failed for %s.", party[i].name.c_str());
         }
 
         auto expBar = std::make_unique<ExpBarRenderer>();
@@ -238,7 +247,7 @@ void BattleState::InitUIRenderers()
             expBar->SetExp(s.exp, nextThreshold);
             mExpBars.push_back(std::move(expBar));
         } else {
-            LOG("[BattleState] WARNING — ExpBar initialization failed for %s.", party[i].name.c_str());
+            LOG("[BattleState] WARNING - ExpBar initialization failed for %s.", party[i].name.c_str());
         }
     }
 
@@ -277,7 +286,7 @@ void BattleState::InitUIRenderers()
     // both directions until a dedicated chevron asset is authored.
     //
     // Bob speed/amplitude are tuned smaller than the target pointer's
-    // because the chevron sits next to small menu rows — a 10px bob
+    // because the chevron sits next to small menu rows - a 10px bob
     // would dwarf the row height.
     mChevronDown.Initialize(
         mD3D.GetDevice(),
@@ -371,12 +380,14 @@ void BattleState::OnExit()
     mDialogBox.Shutdown();
     mTextRenderer.Shutdown();
     mQTERenderer.Shutdown();
+    mAmbientParticles.Shutdown();
     mIris.Shutdown();
 }
 
 void BattleState::Update(float dt)
 {
     mIris.Update(dt);
+    mAmbientParticles.Update(dt);
 
     if (mPendingSafeExit)
     {
@@ -491,9 +502,9 @@ void BattleState::UpdateLogic(float dt)
             }
             else if (phaseAfter == BattlePhase::RESOLVING)
             {
-                // A combat action is playing out — keep the active player in stance.
+                // A combat action is playing out - keep the active player in stance.
                 // INTRO is now a separate phase so RESOLVING exclusively means
-                // "a player or enemy action is executing" — no guard needed here.
+                // "a player or enemy action is executing" - no guard needed here.
                 inStance = true;
             }
         }
@@ -514,7 +525,7 @@ void BattleState::CheckDeathAnimations()
         if (mEnemyWasAlive[i] && !nowAlive)
         {
             mBattleRenderer.PlayEnemyClip(i, CombatantAnim::Die);
-            LOG("[BattleState] Enemy slot %d died — playing die animation.", i);
+            LOG("[BattleState] Enemy slot %d died - playing die animation.", i);
         }
         mEnemyWasAlive[i] = nowAlive;
     }
@@ -527,7 +538,7 @@ void BattleState::CheckDeathAnimations()
         {
             mBattleRenderer.SetPlayerStanceEnabled(i, false);
             mBattleRenderer.PlayPlayerClip(i, CombatantAnim::Die);
-            LOG("[BattleState] Player slot %d died — playing die animation.", i);
+            LOG("[BattleState] Player slot %d died - playing die animation.", i);
         }
         mPlayerWasAlive[i] = nowAlive;
     }
@@ -546,8 +557,8 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         if (!mHealthBars[i]->IsInitialized()) continue;
 
         // Highlight the active player's HP bar:
-        //   No scale change — bars are packed tightly (only 4px gap) and
-        //   even 1.05× overflows into the neighbor.
+        //   No scale change - bars are packed tightly (only 4px gap) and
+        //   even 1.05x overflows into the neighbor.
         //   Vertical lift (-20px) raises the bar above its neighbors,
         //   clearly marking whose turn it is without any collision.
         const bool isActive = isPlayerTurn &&
@@ -622,7 +633,7 @@ void BattleState::CheckBattleEnd()
 
         mExitEventName = (outcome == BattleOutcome::VICTORY) ? "battle_end_victory" : "battle_end_defeat";
         mWaitingForDeathAnims = true;
-        LOG("[BattleState] Outcome detected (%s) — waiting for death animations.", mExitEventName.c_str());
+        LOG("[BattleState] Outcome detected (%s) - waiting for death animations.", mExitEventName.c_str());
     }
 
     if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
@@ -631,7 +642,7 @@ void BattleState::CheckBattleEnd()
         mExitTransitionStarted = true;
 
         mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-        LOG("[BattleState] Death animations done — starting iris close.");
+        LOG("[BattleState] Death animations done - starting iris close.");
     }
 
     if (mPendingFlee && !mExitTransitionStarted)
@@ -641,7 +652,7 @@ void BattleState::CheckBattleEnd()
         mExitEventName         = "battle_flee";
 
         mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-        LOG("%s", "[BattleState] Flee requested — closing iris.");
+        LOG("%s", "[BattleState] Flee requested - closing iris.");
     }
 }
 
@@ -650,7 +661,10 @@ void BattleState::Render()
     mD3D.BeginFrame(kBgR, kBgG, kBgB);
 
     mEnvRenderer.RenderBackground(mBattleRenderer.GetCamera());
+    mAmbientParticles.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+    mAmbientParticles.Render(mD3D.GetContext(), mBattleRenderer.GetCamera(), BattleAmbientParticleLayer::Back);
     mBattleRenderer.Render(mD3D.GetContext());
+    mAmbientParticles.Render(mD3D.GetContext(), mBattleRenderer.GetCamera(), BattleAmbientParticleLayer::Front);
     mEnvRenderer.RenderForeground(mBattleRenderer.GetCamera());
 
     // UI Render
@@ -905,7 +919,7 @@ void BattleState::Render()
             const int itemCount    = static_cast<int>(itemIds.size());
             const int hoveredIndex = mInputController.GetItemIndex();
 
-            // Scrolling window — show only kVisibleItems rows at once,
+            // Scrolling window - show only kVisibleItems rows at once,
             // centered on the cursor when possible.  Keeps menu height
             // bounded regardless of inventory size.
             constexpr int kVisibleItems = 3;
@@ -917,7 +931,7 @@ void BattleState::Render()
             const int last = (std::min)(itemCount, first + kVisibleItems);
             const int visibleCount = last - first;
 
-            // Reuse the skill layout block — items and skills look the same.
+            // Reuse the skill layout block - items and skills look the same.
             const float baseDialogWidth  = mMenuLayout.skill.width;
             const float baseDialogHeight = mMenuLayout.skill.height;
             const float itemSpacing      = mMenuLayout.skill.spacing;
@@ -957,25 +971,25 @@ void BattleState::Render()
                 {
                 case ItemEffectKind::HealHp:
                 case ItemEffectKind::FullHeal:
-                    // Green — restorative
+                    // Green - restorative
                     return DirectX::XMVectorSet(0.40f, 0.85f, 0.40f, currentAlpha);
                 case ItemEffectKind::HealMp:
-                    // Blue — mana
+                    // Blue - mana
                     return DirectX::XMVectorSet(0.40f, 0.55f, 0.95f, currentAlpha);
                 case ItemEffectKind::Revive:
-                    // Pink — revive
+                    // Pink - revive
                     return DirectX::XMVectorSet(0.95f, 0.55f, 0.75f, currentAlpha);
                 case ItemEffectKind::RestoreRage:
-                    // Orange — rage / power
+                    // Orange - rage / power
                     return DirectX::XMVectorSet(1.00f, 0.55f, 0.20f, currentAlpha);
                 case ItemEffectKind::DealDamage:
-                    // Red — offensive
+                    // Red - offensive
                     return DirectX::XMVectorSet(0.95f, 0.30f, 0.30f, currentAlpha);
                 case ItemEffectKind::StatBuff:
-                    // Yellow — buff
+                    // Yellow - buff
                     return DirectX::XMVectorSet(0.95f, 0.90f, 0.35f, currentAlpha);
                 case ItemEffectKind::Cleanse:
-                    // Cyan — cleanse
+                    // Cyan - cleanse
                     return DirectX::XMVectorSet(0.45f, 0.90f, 0.95f, currentAlpha);
                 }
                 return DirectX::XMVectorSet(0.6f, 0.6f, 0.6f, currentAlpha);
@@ -989,7 +1003,7 @@ void BattleState::Render()
             //
             // Icon: square inside the row, left-padded by iconPad.  Drawn
             // BEFORE the row background so the row's dialog box paints
-            // OVER the icon's edge — wait, we want the icon ON TOP, so
+            // OVER the icon's edge - wait, we want the icon ON TOP, so
             // draw the row background first, then the icon, then the text.
             // ------------------------------------------------------------
             const float iconPad  = baseDialogHeight * 0.18f;
@@ -1034,7 +1048,7 @@ void BattleState::Render()
                     dboxColor
                 );
 
-                // 2. Icon — colored frame always, real PNG on top when
+                // 2. Icon - colored frame always, real PNG on top when
                 //    ItemIconCache has art for this item.  The frame's
                 //    tint encodes effect kind so the player can scan the
                 //    menu by color even when art is unauthored or
@@ -1070,7 +1084,7 @@ void BattleState::Render()
                     );
                 }
 
-                // 3. Label text — shifted right to clear the icon column.
+                // 3. Label text - shifted right to clear the icon column.
                 float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier
                             + iconScaledSize + iconScaledPad;
                 float textY = dialogY + mMenuLayout.skill.textOffsetY * scaleMultiplier;
@@ -1088,7 +1102,7 @@ void BattleState::Render()
             }
 
             // ------------------------------------------------------------
-            // Up / down chevron sprites — drawn above and below the menu
+            // Up / down chevron sprites - drawn above and below the menu
             // when there are items off-screen in that direction.
             //
             // Both chevrons share one PNG (the existing pointer asset is
@@ -1096,7 +1110,7 @@ void BattleState::Render()
             // dedicated chevron art).  ScrollArrowRenderer::Draw rotates
             // the sprite 180 degrees AND inverts the bob direction when
             // flipVertical=true so the up arrow leans up and the down
-            // arrow leans down — the loop animation feels purposeful
+            // arrow leans down - the loop animation feels purposeful
             // rather than random oscillation.
             //
             // Sprite scale is computed from the row height so the
@@ -1111,7 +1125,7 @@ void BattleState::Render()
             //
             // The TARGET on-screen size is computed from the menu row
             // height, NOT from the source texture.  This means the
-            // chevron always looks proportional to the menu — and an
+            // chevron always looks proportional to the menu - and an
             // artist can drop in a 32x32, 64x64, or 256x256 PNG without
             // touching code.  The renderer reports its actual texture
             // width via GetWidth(); we divide to derive the per-draw
@@ -1167,7 +1181,7 @@ void BattleState::Render()
             }
 
             // ------------------------------------------------------------
-            // Scrollbar — track + thumb to the RIGHT of the menu.
+            // Scrollbar - track + thumb to the RIGHT of the menu.
             //
             // Track: full-height thin rectangle representing the entire
             //        inventory list.
@@ -1175,7 +1189,7 @@ void BattleState::Render()
             //        encode (first / itemCount) and (visibleCount / itemCount)
             //        respectively, just like a browser scrollbar.
             //
-            // Drawn only when there are more items than visible rows —
+            // Drawn only when there are more items than visible rows -
             // a 1-or-2 item bag has nothing to scroll, so the bar would
             // just be visual noise.
             // ------------------------------------------------------------
@@ -1187,7 +1201,7 @@ void BattleState::Render()
                 const float trackY = baseY;
                 const float trackHeight = totalHeight - itemSpacing;   // align to last row's bottom
 
-                // Track — dim grey.  The track lets the player see the
+                // Track - dim grey.  The track lets the player see the
                 // FULL extent of their inventory at a glance.
                 DirectX::XMVECTOR trackColor =
                     DirectX::XMVectorSet(0.30f, 0.30f, 0.30f, currentAlpha * 0.85f);
@@ -1200,7 +1214,7 @@ void BattleState::Render()
                     trackColor
                 );
 
-                // Thumb — bright accent.  Height proportional to the
+                // Thumb - bright accent.  Height proportional to the
                 // visible window's share of the full list; vertical
                 // position proportional to scroll progress.
                 const float ratio = static_cast<float>(visibleCount) / static_cast<float>(itemCount);
@@ -1404,7 +1418,7 @@ void BattleState::DumpStateToDebugOutput() const
 
     // ---- Inventory rows: shown during ITEM_SELECT or ITEM_TARGET_SELECT.
     // Driven from BattleInputController::GetItemIds(), which is the same
-    // snapshot the controller uses to drive cursor movement — no risk of
+    // snapshot the controller uses to drive cursor movement - no risk of
     // index drift between the menu rendering and the input handler.
     //
     // Window matches the on-screen menu (kVisibleItems = 3) so the debug

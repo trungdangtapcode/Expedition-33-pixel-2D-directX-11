@@ -1014,16 +1014,25 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 //   Parse a data/bullet_patterns/*.json file to configure multi-spawner logic.
 // ------------------------------------------------------------
 struct BulletSpawnerData {
-    std::string type = "random_edge"; // "random_edge", "spiral", "targeted", "sine"
+    std::string type = "random_edge"; // "random_edge", "spiral", "sine", "shield_wall"
     std::string texturePath = "";
     float spawnRate = 4.0f;
     float bulletSpeed = 150.0f;
     float bulletRadius = 6.0f;
     float bulletDamageScaling = 0.15f;
-    
-    // Sine spawner specifics
+
+    // Sine spawner specifics.
     float sineAmplitude = 50.0f;
     float sineFrequency = 5.0f;
+
+    // Shield-wall spawner specifics.  A wall is one timed wave made of
+    // lane bullets, with a configurable safe gap for the player to read.
+    int laneCount = 6;
+    int gapLaneCount = 1;
+    int gapStep = 1;
+    float lanePadding = 16.0f;
+    std::string gapMode = "track_heart";
+    std::string wallDirection = "alternate";
 };
 
 struct BulletHellPatternData {
@@ -1083,6 +1092,15 @@ inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPattern
         
         sd.sineAmplitude = detail::ParseFloat(detail::ValueOf(obj, "sineAmplitude"), 50.0f);
         sd.sineFrequency = detail::ParseFloat(detail::ValueOf(obj, "sineFrequency"), 5.0f);
+
+        sd.laneCount = detail::ParseInt(detail::ValueOf(obj, "laneCount"), 6);
+        sd.gapLaneCount = detail::ParseInt(detail::ValueOf(obj, "gapLaneCount"), 1);
+        sd.gapStep = detail::ParseInt(detail::ValueOf(obj, "gapStep"), 1);
+        sd.lanePadding = detail::ParseFloat(detail::ValueOf(obj, "lanePadding"), 16.0f);
+        sd.gapMode = detail::CleanString(detail::ValueOf(obj, "gapMode"));
+        if (sd.gapMode.empty()) sd.gapMode = "track_heart";
+        sd.wallDirection = detail::CleanString(detail::ValueOf(obj, "wallDirection"));
+        if (sd.wallDirection.empty()) sd.wallDirection = "alternate";
         
         out.spawners.push_back(sd);
     }

@@ -9,6 +9,7 @@
 #include "RandomEdgeSpawner.h"
 #include "SpiralSpawner.h"
 #include "SineSpawner.h"
+#include "ShieldWallSpawner.h"
 #include <cmath>
 #include <random>
 
@@ -59,7 +60,9 @@ BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const
         }
 
         // Instantiate specific spawner
-        if (spawnerConfig.type == "spiral") {
+        if (spawnerConfig.type == "shield_wall") {
+            mSpawners.push_back(std::make_unique<ShieldWallSpawner>(spawnerConfig, texIndex));
+        } else if (spawnerConfig.type == "spiral") {
             mSpawners.push_back(std::make_unique<SpiralSpawner>(spawnerConfig, texIndex));
         } else if (spawnerConfig.type == "sine") {
             mSpawners.push_back(std::make_unique<SineSpawner>(spawnerConfig, texIndex));

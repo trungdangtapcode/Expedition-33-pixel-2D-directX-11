@@ -1,0 +1,10 @@
+{
+	"width": 2754,
+	"height": 1536,
+	"background": "assets/environments/battle-paris-view-background.png",
+	"foreground": "assets/environments/battle-paris-view-front-layer.png",
+	"ambientParticleConfig": "data/battle_ambient_particles.json",
+	"zoomLevel": 1.75,
+	"offsetX": 0.0,
+	"offsetY": -320.0
+}

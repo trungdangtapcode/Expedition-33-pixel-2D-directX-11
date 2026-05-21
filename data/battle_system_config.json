@@ -5,5 +5,6 @@
   "qteCameraZoom": 1.2,
   "introWalkDuration": 2.5,
   "introWalkDistance": 500.0,
-  "introWalkAnim": "walk"
+  "introWalkAnim": "walk",
+  "defaultEnvironmentPath": "assets/environments/battle-paris-view.json"
 }

@@ -51,17 +51,20 @@ void BattleState::OnEnter()
       mEnvRenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext());
       std::string envPath = mEncounter.environmentPath;
       if (envPath.empty()) {
-          envPath = "assets/environments/battle-paris-view.json"; // Default
+          envPath = mSystemConfig.defaultEnvironmentPath;
       }
-      mEnvRenderer.LoadEnvironment(envPath);
+      const bool environmentLoaded = !envPath.empty() && mEnvRenderer.LoadEnvironment(envPath);
 
-    if (!mAmbientParticles.Initialize(mD3D.GetDevice(),
-                                      mD3D.GetContext(),
-                                      "data/battle_ambient_particles.json",
-                                      mD3D.GetWidth(),
-                                      mD3D.GetHeight()))
+    if (environmentLoaded && !mEnvRenderer.GetAmbientParticleConfigPath().empty())
     {
-        LOG("%s", "[BattleState] WARNING: Battle ambient particles failed to initialize.");
+        if (!mAmbientParticles.Initialize(mD3D.GetDevice(),
+                                          mD3D.GetContext(),
+                                          mEnvRenderer.GetAmbientParticleConfigPath(),
+                                          mD3D.GetWidth(),
+                                          mD3D.GetHeight()))
+        {
+            LOG("%s", "[BattleState] WARNING: Battle ambient particles failed to initialize.");
+        }
     }
 
     if (mIris.Initialize(mD3D.GetDevice(), mD3D.GetWidth(), mD3D.GetHeight()))

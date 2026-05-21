@@ -146,11 +146,23 @@ bool BattleAmbientParticleRenderer::Initialize(ID3D11Device* device,
     mScreenW = screenW;
     mScreenH = screenH;
     mElapsed = 0.0f;
+    mConfig = Config{};
 
-    LoadConfig(configPath);
+    if (!LoadConfig(configPath))
+    {
+        Shutdown();
+        return false;
+    }
 
     mSpriteBatch = std::make_unique<DirectX::SpriteBatch>(context);
     mStates = std::make_unique<DirectX::CommonStates>(device);
+
+    if (!mConfig.enabled)
+    {
+        mInitialized = true;
+        LOG("[BattleAmbientParticleRenderer] Config '%s' is disabled.", configPath.c_str());
+        return true;
+    }
 
     if (!LoadTexture(device, context))
     {
@@ -178,7 +190,7 @@ bool BattleAmbientParticleRenderer::LoadConfig(const std::string& configPath)
     std::string src;
     if (!ReadTextFile(configPath, src))
     {
-        LOG("[BattleAmbientParticleRenderer] Config '%s' missing; using defaults.",
+        LOG("[BattleAmbientParticleRenderer] Config '%s' missing.",
             configPath.c_str());
         return false;
     }
@@ -210,10 +222,12 @@ bool BattleAmbientParticleRenderer::LoadConfig(const std::string& configPath)
 
     if (mConfig.worldRight <= mConfig.worldLeft)
     {
+        LOG("%s", "[BattleAmbientParticleRenderer] Invalid world bounds in config.");
         mConfig.worldRight = mConfig.worldLeft + 1.0f;
     }
     if (mConfig.worldBottom <= mConfig.worldTop)
     {
+        LOG("%s", "[BattleAmbientParticleRenderer] Invalid vertical bounds in config.");
         mConfig.worldBottom = mConfig.worldTop + 1.0f;
     }
     if (mConfig.maxFallSpeed < mConfig.minFallSpeed)
@@ -252,6 +266,12 @@ bool BattleAmbientParticleRenderer::LoadTexture(ID3D11Device* device,
 {
     ComPtr<ID3D11Resource> resource;
     const std::wstring path = ToWidePath(mConfig.texturePath);
+
+    if (mConfig.texturePath.empty())
+    {
+        LOG("%s", "[BattleAmbientParticleRenderer] Config is enabled but texturePath is empty.");
+        return false;
+    }
 
     const HRESULT hr = DirectX::CreateWICTextureFromFileEx(
         device,

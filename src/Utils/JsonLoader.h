@@ -40,7 +40,7 @@
 namespace JsonLoader {
 
 // ============================================================
-// Internal helpers — not part of the public API
+// Internal helpers - not part of the public API
 // ============================================================
 namespace detail {
 
@@ -165,7 +165,7 @@ inline std::string CleanString(const std::string& raw)
 // ------------------------------------------------------------
 inline SpriteAlign ParseAlign(const std::string& raw)
 {
-    // raw still has surrounding quotes from ValueOf() — strip them.
+    // raw still has surrounding quotes from ValueOf() - strip them.
     std::string s = raw;
     if (s.size() >= 2 && s.front() == '"') s = s.substr(1, s.size() - 2);
 
@@ -297,7 +297,7 @@ inline std::vector<std::string> ExtractObjectsFromArray(
                 if (src[i] == '}') --depth;
                 ++i;
             }
-            // i now points one past the closing '}' — include the whole block.
+            // i now points one past the closing '}' - include the whole block.
             objects.push_back(src.substr(objStart, i - objStart));
         }
         else
@@ -320,11 +320,11 @@ inline std::vector<std::string> ExtractObjectsFromArray(
 //   Read a JSON sprite sheet descriptor from disk and populate
 //   a SpriteSheet struct.
 // Parameters:
-//   path  — path to the .json file (UTF-8, relative or absolute)
-//   sheet — output struct; overwritten on success
+//   path  - path to the .json file (UTF-8, relative or absolute)
+//   sheet - output struct; overwritten on success
 // Returns:
-//   true  — all required fields parsed successfully
-//   false — file not found or required fields missing
+//   true  - all required fields parsed successfully
+//   false - file not found or required fields missing
 // ------------------------------------------------------------
 inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
 {
@@ -403,8 +403,8 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
         // Each clip occupies its own row in the atlas.
         // The i-th clip in the animations array lives on row i (0-based).
         // This convention means the atlas layout must match the JSON order:
-        //   animations[0] → row 0 (top row)
-        //   animations[1] → row 1
+        //   animations[0] -> row 0 (top row)
+        //   animations[1] -> row 1
         //   ...
         clip.startRow = clipIndex;
 
@@ -429,7 +429,7 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
 // Formation data structures
 // ============================================================
 
-// One slot entry inside a formation —
+// One slot entry inside a formation -
 //   offsetX/offsetY are world-space units relative to the battle center.
 //   Positive Y is downward (screen convention).  Represents the ground
 //   contact point (feet) of the character assigned to this slot.
@@ -460,8 +460,8 @@ struct FormationData
 //     worldY = battleCenterY + slot.offsetY
 //
 // Parameters:
-//   path — path to the JSON file (e.g. "data/formations.json")
-//   out  — populated on success; left unchanged on failure
+//   path - path to the JSON file (e.g. "data/formations.json")
+//   out  - populated on success; left unchanged on failure
 // Returns:
 //   true on success, false if the file cannot be opened.
 // ------------------------------------------------------------
@@ -638,20 +638,20 @@ inline bool LoadDeadOverlayConfig(const std::string& path, DeadOverlayConfig& ou
 //   texture, stats, and animation as the overworld entity.
 //
 // JSON schema (all fields required):
-//   name              — display name string
-//   texturePath       — narrow ASCII path, converted to wstring internally
-//   jsonPath          — sprite sheet JSON path
-//   idleClip          — starting animation clip name
-//   hp / atk / def / spd     — battle stats (integers)
-//   contactRadius     — overworld collision radius in world pixels (float)
-//   cameraFocusOffsetY — battle camera focus correction in world pixels (float)
+//   name              - display name string
+//   texturePath       - narrow ASCII path, converted to wstring internally
+//   jsonPath          - sprite sheet JSON path
+//   idleClip          - starting animation clip name
+//   hp / atk / def / spd     - battle stats (integers)
+//   contactRadius     - overworld collision radius in world pixels (float)
+//   cameraFocusOffsetY - battle camera focus correction in world pixels (float)
 //
 // Parameters:
-//   path  — path to the enemy .json file
-//   out   — populated struct on success; left unchanged on failure
+//   path  - path to the enemy .json file
+//   out   - populated struct on success; left unchanged on failure
 // Returns:
-//   true  — all required fields parsed
-//   false — file not found or required fields are default-zero
+//   true  - all required fields parsed
+//   false - file not found or required fields are default-zero
 // ------------------------------------------------------------
 inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& out)
 {
@@ -672,7 +672,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     };
 
     // Helper: convert a narrow ASCII path string to std::wstring.
-    // All asset paths in this project are 7-bit ASCII — no multibyte handling needed.
+    // All asset paths in this project are 7-bit ASCII - no multibyte handling needed.
     auto toWide = [](const std::string& s) -> std::wstring {
         return std::wstring(s.begin(), s.end());
     };
@@ -693,7 +693,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         return false;
     }
 
-    // Parse the battleParty array — defines each enemy combatant in battle.
+    // Parse the battleParty array - defines each enemy combatant in battle.
     // Each object maps to one EnemySlotData (texture, stats, camera offset).
     // A missing array is not a fatal error: BattleState falls back to a
     // hardcoded skeleton when battleParty is empty.
@@ -883,6 +883,7 @@ struct BattleSystemConfig {
     float introWalkDuration = 1.2f;
     float introWalkDistance = 600.0f;
     std::string introWalkAnim = "walk";
+    std::string defaultEnvironmentPath;
 };
 
 inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& out)
@@ -920,6 +921,11 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     std::string walkVal = detail::ValueOf(src, "introWalkAnim");
     if (!walkVal.empty()) {
         out.introWalkAnim = detail::ParseString(walkVal, 0);
+    }
+
+    std::string defaultEnv = detail::ValueOf(src, "defaultEnvironmentPath");
+    if (!defaultEnv.empty()) {
+        out.defaultEnvironmentPath = detail::CleanString(defaultEnv);
     }
 
     LOG("[JsonLoader] Loaded BattleSystemConfig from '%s'.", path.c_str());
@@ -1083,6 +1089,7 @@ struct EnvironmentConfig {
     float height = 0.0f;
     std::wstring background;
     std::wstring foreground;
+    std::string ambientParticleConfig;
     float zoomLevel = 1.0f;
     float offsetX = 0.0f;
     float offsetY = 0.0f;
@@ -1117,6 +1124,12 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
     
     std::string fg = detail::ValueOf(src, "foreground");
     if (!fg.empty() && fg != "null") out.foreground = toWide(stripQ(fg));
+
+    std::string ambientParticleConfig = detail::ValueOf(src, "ambientParticleConfig");
+    if (!ambientParticleConfig.empty() && ambientParticleConfig != "null")
+        out.ambientParticleConfig = stripQ(ambientParticleConfig);
+    else
+        out.ambientParticleConfig.clear();
 
     out.zoomLevel = detail::ParseFloat(detail::ValueOf(src, "zoomLevel"), 1.0f);
     out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);

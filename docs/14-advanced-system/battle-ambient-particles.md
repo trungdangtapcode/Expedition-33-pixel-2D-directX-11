@@ -13,6 +13,24 @@ This order lets leaves pass both behind and in front of characters while the env
 
 `BattleState` owns one `BattleAmbientParticleRenderer`.
 
+`BattleState` does not name a particle config directly. It loads the selected
+battle environment first, then reads the optional environment field:
+
+```json
+"ambientParticleConfig": "data/battle_ambient_particles.json"
+```
+
+If the field is missing or `null`, that battle environment has no ambient
+particles. This keeps the visual treatment data-driven per battle scene.
+
+The fallback battle environment is also data-driven through:
+
+```json
+"defaultEnvironmentPath": "assets/environments/battle-paris-view.json"
+```
+
+in `data/battle_system_config.json`.
+
 The renderer owns only visual resources:
 
 - `SpriteBatch`
@@ -38,7 +56,13 @@ This is a draw-order solution instead of a depth-buffer solution. The project al
 
 ## Data
 
-The feature is configured in:
+The Paris battle environment selects the current config from:
+
+```text
+assets/environments/battle-paris-view.json
+```
+
+That environment points to:
 
 ```text
 data/battle_ambient_particles.json
@@ -58,7 +82,7 @@ Important fields:
 - `windX`: Shared horizontal wind drift.
 - `rotationSpeed`: Maximum spin rate.
 
-The renderer clamps unsafe values and swaps min/max pairs when authored backwards, so a bad config does not crash the battle state.
+The renderer clamps unsafe values and swaps min/max pairs when authored backwards, so a bad config does not crash the battle state. It does not provide a built-in texture path or density fallback; visible particles come from the environment-selected JSON file.
 
 ## Asset Pipeline
 
@@ -101,7 +125,8 @@ Do not pass `GetViewProjectionMatrix()` here. That matrix is already projected a
 To make ash, snow, embers, or magical dust:
 
 1. Generate or author a new transparent texture.
-2. Point `texturePath` at the new texture.
-3. Tune the JSON values for density, speed, sway, scale, and alpha.
+2. Create a new particle JSON file.
+3. Point that battle environment's `ambientParticleConfig` at the new JSON.
+4. Tune the JSON values for density, speed, sway, scale, and alpha.
 
 If multiple simultaneous particle types are needed later, prefer adding an array of effect configs to the renderer rather than creating battle-specific branches in `BattleState`.

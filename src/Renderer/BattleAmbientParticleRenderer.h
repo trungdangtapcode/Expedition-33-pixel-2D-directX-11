@@ -15,7 +15,7 @@
 //   - This renderer never mutates battle simulation state.
 //   - Render() must be called twice by the owning state: once behind
 //     combatants and once in front of combatants.
-//   - All tuning comes from data/battle_ambient_particles.json.
+//   - All tuning comes from the environment-selected particle JSON file.
 //
 // Common mistakes:
 //   1. Passing Camera2D::GetViewProjectionMatrix() -> double projection.
@@ -61,28 +61,28 @@ public:
 private:
     struct Config
     {
-        bool enabled = true;
-        std::string texturePath = "assets/environments/leaf_particle.png";
-        int backCount = 30;
-        int frontCount = 18;
-        float worldLeft = -1120.0f;
-        float worldRight = 1120.0f;
-        float worldTop = -540.0f;
-        float worldBottom = 460.0f;
-        float minFallSpeed = 20.0f;
-        float maxFallSpeed = 58.0f;
-        float minDriftSpeed = 0.30f;
-        float maxDriftSpeed = 0.95f;
-        float minSway = 20.0f;
-        float maxSway = 88.0f;
-        float backMinScale = 0.34f;
-        float backMaxScale = 0.78f;
-        float frontMinScale = 0.76f;
-        float frontMaxScale = 1.40f;
-        float backAlpha = 0.40f;
-        float frontAlpha = 0.78f;
-        float windX = -24.0f;
-        float rotationSpeed = 1.10f;
+        bool enabled = false;
+        std::string texturePath;
+        int backCount = 0;
+        int frontCount = 0;
+        float worldLeft = 0.0f;
+        float worldRight = 0.0f;
+        float worldTop = 0.0f;
+        float worldBottom = 0.0f;
+        float minFallSpeed = 0.0f;
+        float maxFallSpeed = 0.0f;
+        float minDriftSpeed = 0.0f;
+        float maxDriftSpeed = 0.0f;
+        float minSway = 0.0f;
+        float maxSway = 0.0f;
+        float backMinScale = 0.0f;
+        float backMaxScale = 0.0f;
+        float frontMinScale = 0.0f;
+        float frontMaxScale = 0.0f;
+        float backAlpha = 0.0f;
+        float frontAlpha = 0.0f;
+        float windX = 0.0f;
+        float rotationSpeed = 0.0f;
     };
 
     struct Particle

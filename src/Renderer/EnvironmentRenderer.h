@@ -23,13 +23,16 @@ public:
     // Init the renderer, providing GPU context
     void Initialize(ID3D11Device* device, ID3D11DeviceContext* context);
 
-    // Load an environment configuration from JSON (e.g. assets/environments/battle-paris-view.json)
+    // Load an environment configuration from the path selected by data.
     bool LoadEnvironment(const std::string& jsonPath);
 
     // Render the environment using the active camera's transform.
     // Call RenderBackground() BEFORE drawing sprites, and RenderForeground() AFTER.
     void RenderBackground(const Camera2D& camera);
     void RenderForeground(const Camera2D& camera);
+
+    // Return the optional ambient-particle config selected by the environment JSON.
+    const std::string& GetAmbientParticleConfigPath() const { return mConfig.ambientParticleConfig; }
 
 private:
     Microsoft::WRL::ComPtr<ID3D11Device> mDevice;

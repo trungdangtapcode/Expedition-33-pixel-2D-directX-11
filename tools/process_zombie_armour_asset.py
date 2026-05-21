@@ -26,6 +26,11 @@ GROUND_Y = 120
 MAX_PACKED_WIDTH = 124
 MAX_PACKED_HEIGHT = 120
 DEFAULT_RAW_SCALE = 2
+DEFAULT_RAW_FLIP_X = True
+TURN_VIEW_WIDTH = 256
+TURN_VIEW_HEIGHT = 128
+TURN_VIEW_BODY_RATIO = 0.74
+TURN_VIEW_TARGET_HEIGHT = 122
 
 
 @dataclass
@@ -143,8 +148,8 @@ def build_default_plan(rows: list[list[Rect]]) -> list[AnimationPlan]:
 
     if len(rows) >= 30:
         return [
-            AnimationPlan("idle", 8, safe_count(8, 9), 8, True),
-            AnimationPlan("fight-state", 8, safe_count(8, 9), 8, True),
+            AnimationPlan("idle", 4, 1, 8, True),
+            AnimationPlan("fight-state", 4, 1, 8, True),
             AnimationPlan("ready", 12, safe_count(12, 6), 10, False),
             AnimationPlan("unready", 14, safe_count(14, 6), 10, False),
             AnimationPlan("walk", 26, safe_count(26, 5), 10, True),
@@ -190,10 +195,12 @@ def load_plan(path: Path | None, rows: list[list[Rect]]) -> list[AnimationPlan]:
     return plans
 
 
-def extract_frame(source: Image.Image, rect: Rect, scale: int) -> Image.Image:
+def extract_frame(source: Image.Image, rect: Rect, scale: int, flip_x: bool) -> Image.Image:
     frame = source.crop((rect.left, rect.top, rect.right + 1, rect.bottom + 1)).convert("RGBA")
     if scale != 1:
         frame = frame.resize((frame.width * scale, frame.height * scale), Image.Resampling.NEAREST)
+    if flip_x:
+        frame = frame.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
     fit_scale = min(1.0, MAX_PACKED_WIDTH / frame.width, MAX_PACKED_HEIGHT / frame.height)
     if fit_scale < 1.0:
         frame = frame.resize(
@@ -214,7 +221,8 @@ def paste_centered(cell: Image.Image, frame: Image.Image) -> None:
 def build_atlas(source: Image.Image,
                 rows: list[list[Rect]],
                 plans: list[AnimationPlan],
-                scale: int) -> Image.Image:
+                scale: int,
+                flip_x: bool) -> Image.Image:
     max_frames = max(plan.frame_count for plan in plans)
     atlas = Image.new("RGBA", (FRAME_SIZE * max_frames, FRAME_SIZE * len(plans)), (0, 0, 0, 0))
 
@@ -228,7 +236,7 @@ def build_atlas(source: Image.Image,
 
         for frame_index in range(plan.frame_count):
             rect = source_row[min(frame_index, len(source_row) - 1)]
-            frame = extract_frame(source, rect, scale)
+            frame = extract_frame(source, rect, scale, flip_x)
             cell = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
             paste_centered(cell, frame)
             atlas.alpha_composite(cell, (frame_index * FRAME_SIZE, out_row * FRAME_SIZE))
@@ -443,8 +451,32 @@ def write_sprite_json(path: Path, atlas: Image.Image, plans: list[AnimationPlan]
 
 def write_turn_view(path: Path, atlas: Image.Image) -> None:
     first_frame = atlas.crop((0, 0, FRAME_SIZE, FRAME_SIZE))
-    portrait = Image.new("RGBA", (256, 128), (0, 0, 0, 0))
-    portrait.alpha_composite(first_frame, (64, 0))
+    alpha_bounds = first_frame.getchannel("A").getbbox()
+    portrait = Image.new("RGBA", (TURN_VIEW_WIDTH, TURN_VIEW_HEIGHT), (0, 0, 0, 0))
+    if alpha_bounds is None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        portrait.save(path)
+        return
+
+    left, top, right, bottom = alpha_bounds
+    sprite_height = max(1, bottom - top)
+    crop_bottom = min(bottom, top + max(1, int(sprite_height * TURN_VIEW_BODY_RATIO)))
+    crop_left = max(0, left - 8)
+    crop_right = min(FRAME_SIZE, right + 8)
+    portrait_src = first_frame.crop((crop_left, top, crop_right, crop_bottom))
+
+    scale = TURN_VIEW_TARGET_HEIGHT / max(1, portrait_src.height)
+    scaled = portrait_src.resize(
+        (
+            max(1, int(portrait_src.width * scale)),
+            max(1, int(portrait_src.height * scale)),
+        ),
+        Image.Resampling.NEAREST,
+    )
+
+    paste_x = (TURN_VIEW_WIDTH - scaled.width) // 2
+    paste_y = TURN_VIEW_HEIGHT - scaled.height
+    portrait.alpha_composite(scaled, (paste_x, paste_y))
     path.parent.mkdir(parents=True, exist_ok=True)
     portrait.save(path)
 
@@ -474,6 +506,11 @@ def main() -> None:
         default=DEFAULT_RAW_SCALE,
         help="Nearest-neighbor scale applied before packing raw source frames.",
     )
+    parser.add_argument(
+        "--no-raw-flip-x",
+        action="store_true",
+        help="Do not mirror raw frames before packing. The game expects enemy sheets to face right before runtime flipping.",
+    )
     args = parser.parse_args()
 
     source_path = Path(args.input)
@@ -493,7 +530,7 @@ def main() -> None:
             min_frame_pixels=args.min_frame_pixels,
         )
         plans = load_plan(Path(args.recipe) if args.recipe else None, rows)
-        atlas = build_atlas(source, rows, plans, max(1, args.scale))
+        atlas = build_atlas(source, rows, plans, max(1, args.scale), DEFAULT_RAW_FLIP_X and not args.no_raw_flip_x)
         mode_note = f"processed {len(rows)} detected source row(s)"
     else:
         reference_atlas_path = Path(args.reference_atlas)

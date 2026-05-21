@@ -80,8 +80,8 @@ walk and run cycles that are better saved for a future plain zombie enemy.
 Current shipped clips:
 
 ```text
-idle          source row 8   9 frames  loop
-fight-state   source row 8   9 frames  loop
+idle          source row 4   1 frame   loop
+fight-state   source row 4   1 frame   loop
 ready         source row 12  6 frames  one-shot
 unready       source row 14  6 frames  one-shot
 walk          source row 26  5 frames  loop
@@ -96,10 +96,26 @@ These rows were chosen because they stay visually consistent with the armoured
 enemy role, use the same side-view combat silhouette as `skeleton.png`, and
 match the animation names already requested by the battle code.
 
+The raw sheet contains several side-view walk cycles. Row 8 looks like a
+reasonable armed side view at first glance, but it is actually a walking cycle,
+so it must not be used for `idle` or `fight-state`. Those clips use a single
+stable frame from row 4 instead.
+
+Raw zombie armour side-view frames are mirrored before packing. The battle and
+overworld enemy renderers flip enemy sprites at runtime because project enemy
+sheets are authored facing right by convention. Mirroring during processing
+keeps Zombie Armour consistent with `skeleton.png`, so the runtime flip makes it
+face left toward the player party.
+
 The default raw-sheet scale is `2`. The raw zombie armour frames are much
 smaller inside the source sheet than the Skeleton frames, so pre-scaling before
-packing keeps both the battlefield sprite and the turn-view portrait readable.
-The packed frame still fits inside the same `128 x 128` runtime cell.
+packing keeps the battlefield sprite readable. The packed frame still fits
+inside the same `128 x 128` runtime cell.
+
+The turn-view image is generated as a close upper-body portrait from the first
+idle frame, not as a full-body copy. This matches the visual density of
+`assets/UI/turn-view-skeleton.png` and prevents the enemy from appearing tiny in
+the timeline.
 
 ## Reference Generation Strategy
 
@@ -130,8 +146,9 @@ The raw-sheet path:
 4. Scans columns inside each row band to find individual frame boxes.
 5. Crops each detected frame.
 6. Scales frames with nearest-neighbor sampling.
-7. Pastes each frame into a transparent `128 x 128` cell.
-8. Writes project-format sprite-sheet JSON.
+7. Mirrors raw side-view frames to the project enemy-facing convention.
+8. Pastes each frame into a transparent `128 x 128` cell.
+9. Writes project-format sprite-sheet JSON.
 
 Default raw-sheet packing for generic sheets:
 
@@ -151,9 +168,9 @@ For precise animation mapping, create a recipe JSON:
 ```json
 {
   "animations": [
-    { "name": "idle", "sourceRow": 8, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "idle", "sourceRow": 4, "frames": 1, "frameRate": 8, "loop": true },
     { "name": "walk", "sourceRow": 26, "frames": 5, "frameRate": 10, "loop": true },
-    { "name": "fight-state", "sourceRow": 8, "frames": 9, "frameRate": 8, "loop": true },
+    { "name": "fight-state", "sourceRow": 4, "frames": 1, "frameRate": 8, "loop": true },
     { "name": "attack-1", "sourceRow": 6, "frames": 6, "frameRate": 12, "loop": false },
     { "name": "hurt", "sourceRow": 36, "frames": 3, "frameRate": 8, "loop": false },
     { "name": "die", "sourceRow": 19, "frames": 6, "frameRate": 6, "loop": false }

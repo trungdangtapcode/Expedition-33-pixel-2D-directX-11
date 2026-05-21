@@ -100,6 +100,7 @@ The file controls:
 
 - Banner image path.
 - Font path.
+- Title BGM track id.
 - Press-start prompt placement and blink speed.
 - Centered command-list placement.
 - Slot-list dimensions.
@@ -111,6 +112,16 @@ The file controls:
 
 This keeps the composition adjustable without recompiling C++.
 
+Current title BGM tuning:
+
+```json
+"bgmTrackId": "menu"
+```
+
+The track id is resolved through `data/audio/bgm.json`, where `menu` currently
+maps to `assets/sound/OST/alicia_menu.mp3`. Changing the title music should
+only require data edits.
+
 Current transition tuning:
 
 ```json
@@ -119,6 +130,17 @@ Current transition tuning:
 
 The value is in seconds and is read by `TitleMenuRenderer`, then exposed to
 `MenuState` through `GetTransitionFadeOutDuration()`.
+
+## Audio Contract
+
+The title menu does not hardcode audio file paths. The split is:
+
+- `data/audio/bgm.json` maps stable track ids to audio files.
+- `data/main_menu_layout.json` selects the title screen track with
+  `bgmTrackId`.
+- `TitleMenuRenderer` loads that track id as layout data.
+- `MenuState` broadcasts the generic `bgm_play` event using the loaded id.
+- `AudioManager` remains the only system that loads and plays BGM files.
 
 ## Visual Direction
 

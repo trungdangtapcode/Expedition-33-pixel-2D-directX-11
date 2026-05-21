@@ -1,6 +1,7 @@
 {
   "backgroundImagePath": "assets/e33_pixel_banner.png",
   "fontPath": "assets/fonts/arial_16.spritefont",
+  "bgmTrackId": "menu",
   "backgroundDimAlpha": 0.18,
   "logoAlphaMin": 0.86,
   "logoAlphaMax": 1.0,

@@ -200,6 +200,7 @@ bool TitleMenuRenderer::LoadLayout(const std::string& layoutPath)
 
     mLayout.backgroundImagePath = ReadJsonString(src, "backgroundImagePath", mLayout.backgroundImagePath);
     mLayout.fontPath = ReadJsonString(src, "fontPath", mLayout.fontPath);
+    mLayout.bgmTrackId = ReadJsonString(src, "bgmTrackId", mLayout.bgmTrackId);
     mLayout.slotPanelWidth = ReadJsonFloat(src, "slotPanelWidth", mLayout.slotPanelWidth);
     mLayout.slotPanelHeight = ReadJsonFloat(src, "slotPanelHeight", mLayout.slotPanelHeight);
     mLayout.slotPanelBottom = ReadJsonFloat(src, "slotPanelBottom", mLayout.slotPanelBottom);

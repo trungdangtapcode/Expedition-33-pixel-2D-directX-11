@@ -17,6 +17,7 @@
 //   - MenuState owns input and save/load transitions.
 //   - This renderer only observes prepared view data.
 //   - Layout values are loaded from data/main_menu_layout.json.
+//   - The title BGM track id is layout data; audio files stay in bgm.json.
 //
 // Common mistakes:
 //   1. Loading save files here -> bypasses SaveManager validation.
@@ -87,12 +88,14 @@ public:
     bool IsInitialized() const { return mInitialized; }
     float GetFlashDuration() const { return mLayout.flashDuration; }
     float GetTransitionFadeOutDuration() const { return mLayout.transitionFadeOutDuration; }
+    const std::string& GetBgmTrackId() const { return mLayout.bgmTrackId; }
 
 private:
     struct Layout
     {
         std::string backgroundImagePath = "assets/e33_pixel_banner.png";
         std::string fontPath = "assets/fonts/arial_16.spritefont";
+        std::string bgmTrackId;
         float slotPanelWidth = 760.0f;
         float slotPanelHeight = 372.0f;
         float slotPanelBottom = 64.0f;

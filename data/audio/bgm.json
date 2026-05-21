@@ -1,9 +1,13 @@
 {
-  "comment": "BGM track configuration — maps track IDs to audio file paths.",
+  "comment": "BGM track configuration - maps track IDs to audio file paths.",
   "comment2": "AudioManager loads this at Initialize() and preloads all voices.",
   "comment3": "Supports .wav (WavLoader) and .mp3/.wma/.aac/.flac (MediaLoader).",
-  "comment4": "To change a BGM file, edit 'path' here — no recompile needed.",
+  "comment4": "To change a BGM file, edit 'path' here - no recompile needed.",
   "tracks": [
+    {
+      "id":   "menu",
+      "path": "assets/sound/OST/alicia_menu.mp3"
+    },
     {
       "id":   "overworld",
       "path": "assets/sound/OST/lumiere_a_laube.wav"

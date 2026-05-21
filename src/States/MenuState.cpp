@@ -25,6 +25,7 @@
 #include "OverworldState.h"
 #include "StateManager.h"
 #include "../Audio/AudioManager.h"
+#include "../Events/EventManager.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/GameProgress.h"
 #include "../Systems/Inventory.h"
@@ -111,6 +112,16 @@ void MenuState::OnEnter()
                          kLayoutPath,
                          d3d.GetWidth(),
                          d3d.GetHeight());
+
+    const std::string& bgmTrackId = mRenderer.GetBgmTrackId();
+    if (!bgmTrackId.empty())
+    {
+        // EventData still stores payload as void*, while AudioManager treats
+        // "bgm_play" payloads as read-only const char* track ids.
+        EventData event{};
+        event.payload = const_cast<char*>(bgmTrackId.c_str());
+        EventManager::Get().Broadcast("bgm_play", event);
+    }
 
     mPhase = Phase::PressStart;
     mCursor = SaveManager::Get().FindFirstExistingSlot() >= 0

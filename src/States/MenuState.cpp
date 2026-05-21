@@ -5,8 +5,8 @@
 // Transitions:
 //   Press Any Button -> reveal the command list.
 //   New Game  -> choose a slot, reset durable systems, write that slot,
-//                then enter overworld.
-//   Continue  -> load the first occupied slot, then enter overworld.
+//                then fade to black before entering overworld.
+//   Continue  -> load the first occupied slot, then fade to black.
 //   Load Slot -> open a visual slot picker backed by SaveManager metadata.
 //   Quit      -> request process shutdown through the Win32 message queue.
 //
@@ -125,6 +125,9 @@ void MenuState::OnEnter()
     mElapsed = 0.0f;
     mFlashTimer = 0.0f;
     mFlashMessage.clear();
+    mPendingTransition = PendingSceneTransition::None;
+    mTransitionTimer = 0.0f;
+    mTransitionDuration = 0.0f;
     mUpWasDown = false;
     mDownWasDown = false;
     mEnterWasDown = false;
@@ -327,9 +330,14 @@ void MenuState::StartNewGame(int slotIndex)
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ResetToDefaults();
     GameProgress::Get().Reset();
-    SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game");
+    if (!SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game"))
+    {
+        AudioManager::Get().PlaySfx("battle_no_ap");
+        Flash("Could not create save slot.");
+        return;
+    }
 
-    StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+    BeginGameplayTransition();
 }
 
 // ------------------------------------------------------------
@@ -372,14 +380,67 @@ bool MenuState::LoadSlot(int slotIndex)
     }
 
     AudioManager::Get().PlaySfx("ui_confirm");
-    if (sceneId != "overworld")
+    if (sceneId != SaveManager::Get().GetConfig().autoSceneId)
     {
         LOG("[MenuState] Save scene '%s' is not implemented yet; loading overworld fallback.",
             sceneId.c_str());
     }
 
-    StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+    BeginGameplayTransition();
     return true;
+}
+
+// ------------------------------------------------------------
+// Function: BeginGameplayTransition
+// Purpose:
+//   Start the title-menu fade-to-black before entering gameplay.
+// Why:
+//   Deferring ChangeState until the screen is black prevents the overworld
+//   from popping in abruptly after a menu command.
+// ------------------------------------------------------------
+void MenuState::BeginGameplayTransition()
+{
+    mPendingTransition = PendingSceneTransition::Overworld;
+    mTransitionTimer = 0.0f;
+    mTransitionDuration = mRenderer.GetTransitionFadeOutDuration();
+}
+
+// ------------------------------------------------------------
+// Function: CompleteSceneTransition
+// Purpose:
+//   Perform the deferred scene change after the black fade completes.
+// Why:
+//   StateManager::ChangeState destroys MenuState, so it should only run once
+//   the title renderer has fully hidden the old scene.
+// ------------------------------------------------------------
+void MenuState::CompleteSceneTransition()
+{
+    const PendingSceneTransition target = mPendingTransition;
+    mPendingTransition = PendingSceneTransition::None;
+
+    if (target == PendingSceneTransition::Overworld)
+    {
+        StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+    }
+}
+
+// ------------------------------------------------------------
+// Function: ComputeTransitionAlpha
+// Purpose:
+//   Convert the active transition timer into black overlay opacity.
+// Why:
+//   MenuState owns transition time, while TitleMenuRenderer only consumes
+//   prepared view data.
+// ------------------------------------------------------------
+float MenuState::ComputeTransitionAlpha() const
+{
+    if (mPendingTransition == PendingSceneTransition::None) return 0.0f;
+    if (mTransitionDuration <= 0.0f) return 1.0f;
+
+    float t = mTransitionTimer / mTransitionDuration;
+    if (t < 0.0f) t = 0.0f;
+    if (t > 1.0f) t = 1.0f;
+    return t * t * (3.0f - 2.0f * t);
 }
 
 // ------------------------------------------------------------
@@ -463,6 +524,16 @@ void MenuState::Update(float dt)
         {
             mFlashTimer = 0.0f;
         }
+    }
+
+    if (mPendingTransition != PendingSceneTransition::None)
+    {
+        mTransitionTimer += dt;
+        if (mTransitionTimer >= mTransitionDuration)
+        {
+            CompleteSceneTransition();
+        }
+        return;
     }
 
     const bool backPressed = Pressed(VK_BACK, mBackWasDown);
@@ -650,6 +721,7 @@ TitleMenuRenderState MenuState::BuildRenderState() const
     state.slotCursor = mSlotCursor;
     state.elapsed = mElapsed;
     state.flashMessage = mFlashMessage;
+    state.transitionAlpha = ComputeTransitionAlpha();
 
     if (mFlashTimer > 0.0f)
     {

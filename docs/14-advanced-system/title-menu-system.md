@@ -29,6 +29,10 @@ The project already had reusable UI primitives:
 
 The new design keeps those responsibilities intact.
 
+The direct gameplay hand-off was also replaced with a deferred transition.
+Menu commands now prepare save/load state first, then fade the title screen to
+black before `StateManager::ChangeState()` swaps into the overworld.
+
 ## Runtime Flow
 
 `MenuState` owns input and transitions. It has three phases:
@@ -58,6 +62,12 @@ title screen instead of being forced into Slot 1.
 
 `Load Slot` opens a slot picker using `SaveSlotInfo` converted into renderer
 view data. Empty slots stay visible and play the unavailable SFX if confirmed.
+
+When `New Game`, `Continue`, or an occupied `Load Slot` succeeds, `MenuState`
+starts a pending gameplay transition instead of changing state immediately.
+While this transition is active, input is ignored, the black overlay alpha
+advances with `dt`, and the state change runs only after the fade duration is
+complete.
 
 ## Rendering Split
 
@@ -97,8 +107,18 @@ The file controls:
 - Ambient particle alpha.
 - Row positions and spacing.
 - Flash message duration.
+- Gameplay transition fade-out duration.
 
 This keeps the composition adjustable without recompiling C++.
+
+Current transition tuning:
+
+```json
+"transitionFadeOutDuration": 1.55
+```
+
+The value is in seconds and is read by `TitleMenuRenderer`, then exposed to
+`MenuState` through `GetTransitionFadeOutDuration()`.
 
 ## Visual Direction
 
@@ -144,6 +164,18 @@ The global `Escape` handling in `GameApp` still exits the process.
 
 The renderer receives only display strings and booleans. It never parses save
 files directly.
+
+## Transition Contract
+
+The title-to-overworld transition has a strict split:
+
+- `MenuState` owns the timer, target scene, and input lock.
+- `TitleMenuRenderer` owns drawing the black full-screen overlay.
+- `TitleMenuRenderState::transitionAlpha` is the only data passed between them.
+- `data/main_menu_layout.json` owns the transition duration.
+
+This keeps `StateManager` generic and avoids adding title-specific animation
+state to global scene-stack code.
 
 ## Build Integration
 

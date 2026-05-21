@@ -66,6 +66,7 @@ struct TitleMenuRenderState
     float elapsed = 0.0f;
     std::string flashMessage;
     float flashAlpha = 0.0f;
+    float transitionAlpha = 0.0f;
 };
 
 class TitleMenuRenderer
@@ -85,6 +86,7 @@ public:
 
     bool IsInitialized() const { return mInitialized; }
     float GetFlashDuration() const { return mLayout.flashDuration; }
+    float GetTransitionFadeOutDuration() const { return mLayout.transitionFadeOutDuration; }
 
 private:
     struct Layout
@@ -108,6 +110,7 @@ private:
         float slotStartY = 96.0f;
         float slotRowHeight = 76.0f;
         float flashDuration = 2.2f;
+        float transitionFadeOutDuration = 0.0f;
     };
 
     bool LoadLayout(const std::string& layoutPath);
@@ -122,6 +125,7 @@ private:
                       float width,
                       float height,
                       DirectX::FXMVECTOR color);
+    void DrawTransitionOverlay(ID3D11DeviceContext* context, float alpha);
     void RenderPressStart(ID3D11DeviceContext* context,
                           const TitleMenuRenderState& state);
     void RenderMainOptions(ID3D11DeviceContext* context,

@@ -6,6 +6,7 @@
 //   1. Draw the title banner as a cover-scaled full-screen image.
 //   2. Apply a subtle dark fill and drifting particles.
 //   3. Draw either the press-start prompt, centered command list, or slots.
+//   4. Draw the optional black transition overlay last.
 //
 // Common mistakes:
 //   1. Passing a camera matrix to this renderer -> title UI is screen-space.
@@ -216,6 +217,9 @@ bool TitleMenuRenderer::LoadLayout(const std::string& layoutPath)
     mLayout.slotStartY = ReadJsonFloat(src, "slotStartY", mLayout.slotStartY);
     mLayout.slotRowHeight = ReadJsonFloat(src, "slotRowHeight", mLayout.slotRowHeight);
     mLayout.flashDuration = ReadJsonFloat(src, "flashDuration", mLayout.flashDuration);
+    mLayout.transitionFadeOutDuration = ReadJsonFloat(src,
+                                                       "transitionFadeOutDuration",
+                                                       mLayout.transitionFadeOutDuration);
 
     if (mLayout.logoAlphaMax < mLayout.logoAlphaMin)
     {
@@ -488,6 +492,29 @@ void TitleMenuRenderer::DrawFillRect(ID3D11DeviceContext* context,
 }
 
 // ------------------------------------------------------------
+// Function: DrawTransitionOverlay
+// Purpose:
+//   Draw the full-screen black fade used when leaving the title menu.
+// Why:
+//   MenuState decides when the scene hand-off is allowed, while the renderer
+//   remains the only class that knows how to draw screen-space title quads.
+// Parameters:
+//   alpha - Black overlay opacity in [0, 1].
+// ------------------------------------------------------------
+void TitleMenuRenderer::DrawTransitionOverlay(ID3D11DeviceContext* context, float alpha)
+{
+    const float clampedAlpha = Clamp01(alpha);
+    if (clampedAlpha <= 0.0f) return;
+
+    DrawFillRect(context,
+                 0.0f,
+                 0.0f,
+                 static_cast<float>(mScreenW),
+                 static_cast<float>(mScreenH),
+                 DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, clampedAlpha));
+}
+
+// ------------------------------------------------------------
 // Function: Render
 // Purpose:
 //   Draw the current title-menu visual phase.
@@ -506,17 +533,18 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
     if (state.phase == TitleMenuVisualPhase::PressStart)
     {
         RenderPressStart(context, state);
-        return;
     }
-
-    if (state.phase == TitleMenuVisualPhase::NewGameSlots ||
-        state.phase == TitleMenuVisualPhase::LoadSlots)
+    else if (state.phase == TitleMenuVisualPhase::NewGameSlots ||
+             state.phase == TitleMenuVisualPhase::LoadSlots)
     {
         RenderLoadSlots(context, state);
-        return;
+    }
+    else
+    {
+        RenderMainOptions(context, state);
     }
 
-    RenderMainOptions(context, state);
+    DrawTransitionOverlay(context, state.transitionAlpha);
 }
 
 // ------------------------------------------------------------

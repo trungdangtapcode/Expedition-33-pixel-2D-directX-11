@@ -44,6 +44,12 @@ private:
         Count
     };
 
+    enum class PendingSceneTransition
+    {
+        None,
+        Overworld
+    };
+
     bool Pressed(int vk, bool& wasDown);
     bool AnyStartPressed();
     void CaptureInputLatches();
@@ -56,6 +62,9 @@ private:
     void ContinueFirstSlot();
     bool LoadSlot(int slotIndex);
     int FindPreferredNewGameSlot() const;
+    void BeginGameplayTransition();
+    void CompleteSceneTransition();
+    float ComputeTransitionAlpha() const;
     void Flash(const std::string& message);
     TitleMenuRenderState BuildRenderState() const;
     std::vector<TitleMenuOptionView> BuildOptionViews() const;
@@ -70,6 +79,9 @@ private:
     float mElapsed = 0.0f;
     float mFlashTimer = 0.0f;
     std::string mFlashMessage;
+    PendingSceneTransition mPendingTransition = PendingSceneTransition::None;
+    float mTransitionTimer = 0.0f;
+    float mTransitionDuration = 0.0f;
 
     bool mUpWasDown = false;
     bool mDownWasDown = false;

@@ -17,5 +17,6 @@
   "slotPanelBottom": 52.0,
   "slotStartY": 98.0,
   "slotRowHeight": 76.0,
-  "flashDuration": 2.2
+  "flashDuration": 2.2,
+  "transitionFadeOutDuration": 1.55
 }

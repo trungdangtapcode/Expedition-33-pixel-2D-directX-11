@@ -35,6 +35,7 @@ The new design keeps those responsibilities intact.
 
 - `PressStart`
 - `MainOptions`
+- `NewGameSlots`
 - `LoadSlots`
 
 `PressStart` is the first screen. It keeps the logo unobstructed and waits for
@@ -50,6 +51,10 @@ Main options:
 `Continue` and `Load Slot` are disabled until at least one save slot exists.
 Cursor movement skips disabled entries so the player does not land on commands
 that cannot be activated.
+
+`New Game` opens a slot picker first. The cursor defaults to the first empty
+slot when one exists, so players can create Slot 2 or Slot 3 directly from the
+title screen instead of being forced into Slot 1.
 
 `Load Slot` opens a slot picker using `SaveSlotInfo` converted into renderer
 view data. Empty slots stay visible and play the unavailable SFX if confirmed.
@@ -126,9 +131,10 @@ The global `Escape` handling in `GameApp` still exits the process.
 
 `MenuState` still delegates all persistence work:
 
-- New Game calls `PartyManager::ResetToDefaults()`,
+- New Game first opens the slot picker, then calls
+  `PartyManager::ResetToDefaults()`,
   `Inventory::ResetToDefaults()`, `GameProgress::Reset()`, then
-  `SaveManager::SaveCheckpointToSlot(0, "new_game")`.
+  `SaveManager::SaveCheckpointToSlot(slotIndex, "new_game")`.
 - Continue calls `SaveManager::FindFirstExistingSlot()` and then loads that
   slot.
 - Load Slot calls `SaveManager::LoadCheckpointFromSlot(slotIndex, &sceneId)`.

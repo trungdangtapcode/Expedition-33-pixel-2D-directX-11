@@ -38,6 +38,7 @@ enum class TitleMenuVisualPhase
 {
     PressStart,
     MainOptions,
+    NewGameSlots,
     LoadSlots
 };
 

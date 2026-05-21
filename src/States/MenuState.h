@@ -31,6 +31,7 @@ private:
     {
         PressStart,
         MainOptions,
+        NewGameSlots,
         LoadSlots
     };
 
@@ -51,9 +52,10 @@ private:
     void MoveSlotCursor(int direction);
     void ActivateMainSelection();
     void ActivateSlotSelection();
-    void StartNewGame();
+    void StartNewGame(int slotIndex);
     void ContinueFirstSlot();
     bool LoadSlot(int slotIndex);
+    int FindPreferredNewGameSlot() const;
     void Flash(const std::string& message);
     TitleMenuRenderState BuildRenderState() const;
     std::vector<TitleMenuOptionView> BuildOptionViews() const;

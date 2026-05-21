@@ -509,7 +509,8 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
         return;
     }
 
-    if (state.phase == TitleMenuVisualPhase::LoadSlots)
+    if (state.phase == TitleMenuVisualPhase::NewGameSlots ||
+        state.phase == TitleMenuVisualPhase::LoadSlots)
     {
         RenderLoadSlots(context, state);
         return;
@@ -616,13 +617,15 @@ void TitleMenuRenderer::RenderMainOptions(ID3D11DeviceContext* context,
 // ------------------------------------------------------------
 // Function: RenderLoadSlots
 // Purpose:
-//   Draw the load-slot selection screen.
+//   Draw the new-game or load-game slot selection screen.
 // Why:
-//   Save-slot metadata should be visible before the player commits to a load.
+//   Save-slot metadata should be visible before the player creates or loads
+//   a save file.
 // ------------------------------------------------------------
 void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
                                         const TitleMenuRenderState& state)
 {
+    const bool choosingNewGame = (state.phase == TitleMenuVisualPhase::NewGameSlots);
     const float screenW = static_cast<float>(mScreenW);
     const float screenH = static_cast<float>(mScreenH);
     const float panelW = std::min(mLayout.slotPanelWidth, screenW - kPanelMargin * 2.0f);
@@ -646,13 +649,15 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
     }
 
     mTextRenderer.BeginBatch(context);
-    mTextRenderer.DrawStringCenteredRaw("Load Game",
+    mTextRenderer.DrawStringCenteredRaw(choosingNewGame ? "New Game Slot" : "Load Game",
                                         panelX + panelW * 0.5f,
                                         panelY + 18.0f,
                                         DirectX::Colors::White,
                                         1.22f,
                                         true);
-    mTextRenderer.DrawStringCenteredRaw("Select a save slot.",
+    mTextRenderer.DrawStringCenteredRaw(choosingNewGame
+                                            ? "Choose a slot to create or overwrite."
+                                            : "Select a save slot.",
                                         panelX + panelW * 0.5f,
                                         panelY + 48.0f,
                                         DirectX::Colors::Silver);
@@ -663,7 +668,7 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
         const TitleMenuSlotView& slot = state.slots[static_cast<size_t>(i)];
         const bool selected = (i == state.slotCursor);
         const float currentY = rowY + static_cast<float>(i) * mLayout.slotRowHeight;
-        const DirectX::XMVECTOR primaryColor = !slot.exists
+        const DirectX::XMVECTOR primaryColor = (!slot.exists && !choosingNewGame)
             ? DirectX::Colors::Gray
             : (selected
                 ? DirectX::XMVectorSet(1.0f, 0.92f, 0.58f, 1.0f)

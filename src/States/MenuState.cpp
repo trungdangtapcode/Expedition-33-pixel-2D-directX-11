@@ -4,7 +4,8 @@
 //
 // Transitions:
 //   Press Any Button -> reveal the command list.
-//   New Game  -> reset durable systems, write Slot 1, then enter overworld.
+//   New Game  -> choose a slot, reset durable systems, write that slot,
+//                then enter overworld.
 //   Continue  -> load the first occupied slot, then enter overworld.
 //   Load Slot -> open a visual slot picker backed by SaveManager metadata.
 //   Quit      -> request process shutdown through the Win32 message queue.
@@ -289,21 +290,44 @@ void MenuState::Flash(const std::string& message)
 }
 
 // ------------------------------------------------------------
+// Function: FindPreferredNewGameSlot
+// Purpose:
+//   Pick the first empty save slot for the New Game slot picker.
+// Why:
+//   A slot system should encourage creating a new save in an empty slot
+//   instead of always overwriting Slot 1.
+// ------------------------------------------------------------
+int MenuState::FindPreferredNewGameSlot() const
+{
+    const int slotCount = SaveManager::Get().GetSlotCount();
+    for (int i = 0; i < slotCount; ++i)
+    {
+        if (!SaveManager::Get().SlotExists(i))
+        {
+            return i;
+        }
+    }
+
+    const int activeSlot = SaveManager::Get().GetActiveSlotIndex();
+    return (activeSlot >= 0 && activeSlot < slotCount) ? activeSlot : 0;
+}
+
+// ------------------------------------------------------------
 // Function: StartNewGame
 // Purpose:
-//   Reset durable systems and create the first save slot.
+//   Reset durable systems and create the selected save slot.
 // Why:
 //   New Game should start from a clean party, inventory, and world-progress
 //   baseline before entering the overworld.
 // ------------------------------------------------------------
-void MenuState::StartNewGame()
+void MenuState::StartNewGame(int slotIndex)
 {
     AudioManager::Get().PlaySfx("ui_confirm");
 
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ResetToDefaults();
     GameProgress::Get().Reset();
-    SaveManager::Get().SaveCheckpointToSlot(0, "new_game");
+    SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game");
 
     StateManager::Get().ChangeState(std::make_unique<OverworldState>());
 }
@@ -378,7 +402,9 @@ void MenuState::ActivateMainSelection()
     switch (option)
     {
     case MainOption::NewGame:
-        StartNewGame();
+        mPhase = Phase::NewGameSlots;
+        mSlotCursor = FindPreferredNewGameSlot();
+        AudioManager::Get().PlaySfx("ui_confirm");
         break;
     case MainOption::Continue:
         ContinueFirstSlot();
@@ -404,13 +430,19 @@ void MenuState::ActivateMainSelection()
 // ------------------------------------------------------------
 // Function: ActivateSlotSelection
 // Purpose:
-//   Load the currently highlighted save slot.
+//   Create or load the currently highlighted save slot.
 // Why:
 //   Slot metadata can be displayed by the renderer, but loading stays in
 //   MenuState through SaveManager.
 // ------------------------------------------------------------
 void MenuState::ActivateSlotSelection()
 {
+    if (mPhase == Phase::NewGameSlots)
+    {
+        StartNewGame(mSlotCursor);
+        return;
+    }
+
     LoadSlot(mSlotCursor);
 }
 
@@ -446,7 +478,8 @@ void MenuState::Update(float dt)
         return;
     }
 
-    if ((backPressed || escapePressed) && mPhase == Phase::LoadSlots)
+    if ((backPressed || escapePressed) &&
+        (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots))
     {
         mPhase = Phase::MainOptions;
         AudioManager::Get().PlaySfx("ui_back");
@@ -591,6 +624,10 @@ TitleMenuRenderState MenuState::BuildRenderState() const
     else if (mPhase == Phase::MainOptions)
     {
         state.phase = TitleMenuVisualPhase::MainOptions;
+    }
+    else if (mPhase == Phase::NewGameSlots)
+    {
+        state.phase = TitleMenuVisualPhase::NewGameSlots;
     }
     else
     {

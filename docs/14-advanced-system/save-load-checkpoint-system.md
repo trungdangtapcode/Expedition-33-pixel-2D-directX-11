@@ -34,7 +34,8 @@ It depends on:
 
 State classes stay thin:
 
-- `MenuState` starts a New Game by writing Slot 1.
+- `MenuState` starts a New Game by opening a slot picker and writing the
+  selected slot.
 - `MenuState` renders a visual title menu with New Game, Continue, Load Slot,
   and Quit commands.
 - `MenuState` can continue the first occupied slot through the Continue command.
@@ -184,7 +185,8 @@ Current title menu behavior:
 - The first screen uses `assets/e33_pixel_banner.png` as a full-screen title
   banner with a `PRESS ANY BUTTON` prompt.
 - Pressing a common confirm or movement key reveals the command list.
-- `New Game` resets durable systems and writes Slot 1.
+- `New Game` opens a slot picker, then resets durable systems and writes the
+  selected slot.
 - `Continue` loads the first occupied slot.
 - `Load Slot` opens a visual slot picker backed by `SaveSlotInfo`.
 - `Quit` closes the game.

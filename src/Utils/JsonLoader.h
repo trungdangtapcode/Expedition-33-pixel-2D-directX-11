@@ -1028,8 +1028,12 @@ struct BulletSpawnerData {
 
 struct BulletHellPatternData {
     float durationSec = 5.0f;
+    float boxCenterX = 640.0f;
+    float boxCenterY = 480.0f;
     float boxWidth = 550.0f;
     float boxHeight = 250.0f;
+    float heartRadius = 6.0f;
+    float heartSpeed = 250.0f;
     float invincibilityDuration = 1.0f;
     std::vector<BulletSpawnerData> spawners;
 };
@@ -1055,8 +1059,12 @@ inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPattern
     detail::WarnIfUTF16(src, path);
 
     out.durationSec = detail::ParseFloat(detail::ValueOf(src, "durationSec"), 5.0f);
+    out.boxCenterX = detail::ParseFloat(detail::ValueOf(src, "boxCenterX"), 640.0f);
+    out.boxCenterY = detail::ParseFloat(detail::ValueOf(src, "boxCenterY"), 480.0f);
     out.boxWidth = detail::ParseFloat(detail::ValueOf(src, "boxWidth"), 550.0f);
     out.boxHeight = detail::ParseFloat(detail::ValueOf(src, "boxHeight"), 250.0f);
+    out.heartRadius = detail::ParseFloat(detail::ValueOf(src, "heartRadius"), 6.0f);
+    out.heartSpeed = detail::ParseFloat(detail::ValueOf(src, "heartSpeed"), 250.0f);
     out.invincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "invincibilityDuration"), 1.0f);
 
     auto objects = detail::ExtractObjectsFromArray(src, "spawners");

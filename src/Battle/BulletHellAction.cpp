@@ -17,8 +17,8 @@ static constexpr int VK_A_KEY = 0x41;
 static constexpr int VK_S_KEY = 0x53;
 static constexpr int VK_D_KEY = 0x44;
 
-BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath)
-    : mAttacker(attacker), mDefender(defender), mElapsed(0.0f), mHitsTaken(0)
+BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath, const BattleContext* context)
+    : mAttacker(attacker), mDefender(defender), mContext(context), mElapsed(0.0f), mHitsTaken(0)
 {
     JsonLoader::BulletHellPatternData patternData;
     if (!JsonLoader::LoadBulletHellPatternData(patternPath, patternData)) {
@@ -26,17 +26,18 @@ BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const
     }
 
     mDuration = patternData.durationSec;
+    mBoxCx = patternData.boxCenterX;
+    mBoxCy = patternData.boxCenterY;
     mBoxW = patternData.boxWidth;
     mBoxH = patternData.boxHeight;
+    mHeartRadius = patternData.heartRadius;
+    mHeartSpeed = patternData.heartSpeed;
     mInvincibilityDuration = patternData.invincibilityDuration;
 
-    // Configure standard rendering boundaries
-    mBoxCx = 640.0f; // Screen width 1280 (Center layout)
-    mBoxCy = 480.0f; // Middle-lower section
-
+    // Start the player hitbox in the configured arena center so each
+    // pattern can choose its own readable dodge space without C++ edits.
     mHeartX = mBoxCx;
     mHeartY = mBoxCy;
-    mHeartRadius = 6.0f;
     mInvincibilityTimer = 0.0f;
 
     LOG("[BulletHellAction] Dodge phase begun for %.2f seconds", mDuration);
@@ -69,7 +70,7 @@ BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const
     }
 }
 
-void BulletHellAction::ApplyDamage(const BattleContext& ctx, float overrideScaling)
+void BulletHellAction::ApplyDamage(float overrideScaling)
 {
     DefaultDamageCalculator calc;
     DamageRequest req;
@@ -78,9 +79,13 @@ void BulletHellAction::ApplyDamage(const BattleContext& ctx, float overrideScali
     req.type = DamageType::Physical;
     req.skillMultiplier = 1.0f;
 
-    DamageResult res = calc.Calculate(req, ctx);
+    const BattleContext fallbackContext;
+    const BattleContext& damageContext = mContext ? *mContext : fallbackContext;
+    DamageResult res = calc.Calculate(req, damageContext);
 
-    // Apply reduced proportional UI damage since this is a barrage
+    // Bullet pattern data stores each projectile as a fraction of the
+    // attack's normal damage, so dense barrages can hurt without acting
+    // like many full-strength melee strikes.
     res.effectiveDamage = (int)(res.effectiveDamage * overrideScaling);
     if (res.effectiveDamage < 1) res.effectiveDamage = 1;
 
@@ -91,7 +96,8 @@ void BulletHellAction::ApplyDamage(const BattleContext& ctx, float overrideScali
     ed.payload = &payload;
     EventManager::Get().Broadcast("damage_taken", ed);
 
-    // Sync Attacker animation natively pushing visual feedback exactly alongside the UI
+    // Keep the enemy sprite reacting when the bullet actually connects,
+    // which ties the dodge minigame feedback back to the battle scene.
     PlayAnimPayload animPayload{ mAttacker, CombatantAnim::Attack };
     EventData edAnim;
     edAnim.payload = &animPayload;
@@ -101,8 +107,8 @@ void BulletHellAction::ApplyDamage(const BattleContext& ctx, float overrideScali
 bool BulletHellAction::Execute(float dt)
 {
     mElapsed += dt;
-    // Input polling statically linked bypassing the Turn system input freeze!
-    float speedSq = 250.0f;
+    // The dodge phase owns movement input while the queued action is
+    // active.  The configured speed keeps pattern difficulty data-driven.
     InputManager& input = InputManager::Get();
     float dx = 0; float dy = 0;
     
@@ -116,8 +122,8 @@ bool BulletHellAction::Execute(float dt)
         dx /= norm; dy /= norm;
     }
 
-    mHeartX += dx * speedSq * dt;
-    mHeartY += dy * speedSq * dt;
+    mHeartX += dx * mHeartSpeed * dt;
+    mHeartY += dy * mHeartSpeed * dt;
 
     // Extent bounding logic (clamping inside UI rect)
     float minX = mBoxCx - mBoxW / 2.0f + mHeartRadius;
@@ -137,8 +143,6 @@ bool BulletHellAction::Execute(float dt)
     if (mInvincibilityTimer > 0.0f) {
         mInvincibilityTimer -= dt;
     }
-
-    BattleContext dummyCtx; 
 
     // Update bullets intersecting loops
     for (auto it = mBullets.begin(); it != mBullets.end(); ) {
@@ -169,7 +173,7 @@ bool BulletHellAction::Execute(float dt)
             if (mInvincibilityTimer <= 0.0f) {
                 mInvincibilityTimer = mInvincibilityDuration; 
                 mHitsTaken++;
-                ApplyDamage(dummyCtx, it->damageScaling / 100.0f);
+                ApplyDamage(it->damageScaling / 100.0f);
             }
             it = mBullets.erase(it);
         } else {

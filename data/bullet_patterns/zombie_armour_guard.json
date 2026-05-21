@@ -1,0 +1,31 @@
+{
+    "comment": "Zombie Armour guard pattern. A slower, heavier skeleton-style dodge phase tuned independently from the base skeleton.",
+    "durationSec": 4.5,
+    "boxCenterX": 640.0,
+    "boxCenterY": 480.0,
+    "boxWidth": 550.0,
+    "boxHeight": 250.0,
+    "heartRadius": 6.0,
+    "heartSpeed": 240.0,
+    "invincibilityDuration": 1.0,
+    "spawners": [
+        {
+            "type": "random_edge",
+            "texturePath": "assets/UI/crystal_bullet.png",
+            "bulletRadius": 16.0,
+            "bulletSpeed": 135.0,
+            "spawnRate": 6.0,
+            "bulletDamageScaling": 0.85
+        },
+        {
+            "type": "sine",
+            "texturePath": "assets/UI/round_bullet.png",
+            "bulletRadius": 9.0,
+            "bulletSpeed": 150.0,
+            "spawnRate": 4.0,
+            "bulletDamageScaling": 0.65,
+            "sineAmplitude": 22.0,
+            "sineFrequency": 3.0
+        }
+    ]
+}

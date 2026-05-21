@@ -2,7 +2,8 @@
   "moveDuration": 0.45,
   "returnDuration": 0.4,
   "meleeOffset": 86.0,
-  "bulletHellSupported": false,
+  "bulletHellSupported": true,
+  "bulletHellPatternPath": "data/bullet_patterns/zombie_armour_guard.json",
   "qteSupported": false,
   "damageTakenOccurMoment": 0.5
 }

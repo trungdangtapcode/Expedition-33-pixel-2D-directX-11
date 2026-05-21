@@ -48,6 +48,7 @@
 #include "LineupState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
+#include "../Systems/GameProgress.h"
 #include "../Systems/SaveManager.h"
 #include "../Core/TimeSystem.h"
 #include "../Events/EventManager.h"
@@ -100,6 +101,7 @@ namespace
 //   7. Initialize PincushionDistortionFilter for the battle transition.
 //   8. Subscribe to window_resized to keep Camera2D in sync.
 //   9. Subscribe to battle_end_victory to remove defeated enemies.
+//   10. Subscribe to checkpoint_loaded so campfire slot loads rebuild the map.
 // ------------------------------------------------------------
 void OverworldState::OnEnter()
 {
@@ -139,13 +141,23 @@ void OverworldState::OnEnter()
         return;
     }
 
+    const OverworldProgressSnapshot savedWorld =
+        GameProgress::Get().CaptureOverworldSnapshot();
+    const SaveCheckpointConfig& saveConfig = SaveManager::Get().GetConfig();
+    const float startX = savedWorld.hasPlayerPosition
+        ? savedWorld.playerX
+        : saveConfig.defaultPlayerX;
+    const float startY = savedWorld.hasPlayerPosition
+        ? savedWorld.playerY
+        : saveConfig.defaultPlayerY;
+
     // --- Spawn player character ---
     mPlayer = mScene.Spawn<ControllableCharacter>(
         device, context,
         L"assets/animations/verso.png",
         sheet,
         std::string("idle"),
-        0.0f, 0.0f,
+        startX, startY,
         mCamera.get(),
         &mTileMap.GetData().colliders
     );
@@ -173,6 +185,14 @@ void OverworldState::OnEnter()
     {
         for (const OverworldEnemySpawnData& spawn : enemySpawns)
         {
+            const std::string defeatedFlag = "enemy_defeated:" + spawn.id;
+            if (GameProgress::Get().HasFlag(defeatedFlag))
+            {
+                LOG("[OverworldState] Spawn '%s' skipped because it is already defeated.",
+                    spawn.id.c_str());
+                continue;
+            }
+
             EnemyEncounterData encounterData{};
             if (JsonLoader::LoadEnemyEncounterData(spawn.encounterPath, encounterData))
             {
@@ -185,7 +205,11 @@ void OverworldState::OnEnter()
 
                 OverworldEnemy* enemy = mScene.Spawn<OverworldEnemy>(
                     device, context, encounterData, spawn.worldX, spawn.worldY, mCamera.get());
-                if (enemy) mOverworldEnemies.push_back(enemy);
+                if (enemy)
+                {
+                    mOverworldEnemies.push_back(enemy);
+                    mEnemySpawnIds[enemy] = spawn.id;
+                }
             }
             else
             {
@@ -241,6 +265,20 @@ void OverworldState::OnEnter()
         {
             if (mPendingEnemySource)
             {
+                if (!mPendingEnemySpawnId.empty())
+                {
+                    GameProgress::Get().SetFlag("enemy_defeated:" + mPendingEnemySpawnId);
+                }
+                if (mPlayer)
+                {
+                    const std::string battleCheckpoint = mPendingEnemySpawnId.empty()
+                        ? std::string("after_battle")
+                        : ("after_battle:" + mPendingEnemySpawnId);
+                    UpdateSavedOverworldSnapshot(battleCheckpoint,
+                                                  mPlayer->GetX(),
+                                                  mPlayer->GetY());
+                }
+
                 // Mark the entity dead so SceneGraph::PurgeDead() frees it next frame.
                 mPendingEnemySource->MarkDefeated();
 
@@ -251,10 +289,19 @@ void OverworldState::OnEnter()
                                 mOverworldEnemies.end(),
                                 mPendingEnemySource),
                     mOverworldEnemies.end());
+                mEnemySpawnIds.erase(mPendingEnemySource);
 
                 LOG("[OverworldState] battle_end_victory -> enemy defeated and removed from overworld.");
+                SaveManager::Get().SaveCheckpoint("battle_victory");
                 mPendingEnemySource = nullptr;
+                mPendingEnemySpawnId.clear();
             }
+        });
+
+    mCheckpointLoadedListenerID = EventManager::Get().Subscribe("checkpoint_loaded",
+        [this](const EventData&)
+        {
+            mReloadFromCheckpoint = true;
         });
 }
 
@@ -277,11 +324,13 @@ void OverworldState::OnExit()
 
     EventManager::Get().Unsubscribe("window_resized", mResizeListenerID);
     EventManager::Get().Unsubscribe("battle_end_victory", mVictoryListenerID);
+    EventManager::Get().Unsubscribe("checkpoint_loaded", mCheckpointLoadedListenerID);
 
     // Clear the source pointer regardless of whether a battle was in progress.
     // Prevents any stale pointer dereference if OnExit() is called mid-battle
     // (e.g., a forced state change that bypasses the normal victory path).
     mPendingEnemySource = nullptr;
+    mPendingEnemySpawnId.clear();
 
     mCircleRenderer.Shutdown();
     mTileMap.Shutdown();
@@ -302,6 +351,7 @@ void OverworldState::OnExit()
     // Accessing these pointers after Clear() is a use-after-free.
     mPlayer = nullptr;
     mOverworldEnemies.clear();
+    mEnemySpawnIds.clear();
     mCampfires.clear();
 
     // Destroy all SceneGraph entities (ControllableCharacter, OverworldEnemy, etc.).
@@ -314,6 +364,7 @@ void OverworldState::OnExit()
     mFWasDown = false;
     mCWasDown = false;
     mUWasDown = false;
+    mReloadFromCheckpoint = false;
 }
 
 bool OverworldState::LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const
@@ -564,6 +615,25 @@ void OverworldState::UpdateStoryRegion(float px, float py)
     mCurrentObjective = mDefaultObjective;
 }
 
+// ------------------------------------------------------------
+// Function: UpdateSavedOverworldSnapshot
+// Purpose:
+//   Store the current overworld restore point in GameProgress.
+// Why:
+//   SaveManager is intentionally state-neutral; OverworldState owns the live
+//   player position and must publish it before a slot is written.
+// ------------------------------------------------------------
+void OverworldState::UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py)
+{
+    OverworldProgressSnapshot snapshot{};
+    snapshot.sceneId = SaveManager::Get().GetConfig().autoSceneId;
+    snapshot.checkpointId = checkpointId;
+    snapshot.playerX = px;
+    snapshot.playerY = py;
+    snapshot.hasPlayerPosition = true;
+    GameProgress::Get().SetOverworldSnapshot(snapshot);
+}
+
 bool OverworldState::HandleCampfireInput(float px, float py)
 {
     const bool fDown = (GetAsyncKeyState('F') & 0x8000) != 0;
@@ -602,6 +672,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
 
     if (fPressed)
     {
+        UpdateSavedOverworldSnapshot("campfire:" + data.id, px, py);
         SaveManager::Get().SaveCheckpoint("campfire_save:" + data.id);
         LOG("[OverworldState] Campfire '%s' saved the active slot.", data.id.c_str());
         return false;
@@ -616,7 +687,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
             return false;
         }
 
-        if (sceneId != "overworld")
+        if (sceneId != SaveManager::Get().GetConfig().autoSceneId)
         {
             LOG("[OverworldState] Loaded scene '%s' is not implemented; using overworld.",
                 sceneId.c_str());
@@ -629,7 +700,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
     if (uPressed)
     {
         StateManager::Get().PushState(
-            std::make_unique<CampfireState>(data.id, data.upgradeExpReward));
+            std::make_unique<CampfireState>(data.id, data.upgradeExpReward, px, py));
         LOG("[OverworldState] Campfire '%s' opened the campfire menu.", data.id.c_str());
         return true;
     }
@@ -670,6 +741,13 @@ bool OverworldState::HandleCampfireInput(float px, float py)
 // ------------------------------------------------------------
 void OverworldState::Update(float dt)
 {
+    if (mReloadFromCheckpoint)
+    {
+        TimeSystem::Get().SetSlowMotion(1.0f);
+        StateManager::Get().ChangeState(std::make_unique<OverworldState>());
+        return;
+    }
+
     if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
         // Restore normal time scale before leaving, in case transition was active.
         TimeSystem::Get().SetSlowMotion(1.0f);
@@ -744,6 +822,8 @@ void OverworldState::Update(float dt)
             // it might have been purged by the time the callback fires.
             mPendingEncounter   = target->GetEncounterData();
             mPendingEnemySource = target;
+            const auto idIt = mEnemySpawnIds.find(target);
+            mPendingEnemySpawnId = (idIt != mEnemySpawnIds.end()) ? idIt->second : "";
 
             // Start the transition phase: slow gameplay and begin distortion ramp.
             mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;

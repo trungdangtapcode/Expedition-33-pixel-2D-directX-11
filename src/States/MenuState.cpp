@@ -589,10 +589,21 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
             const char* reason = info.reason.empty()
                 ? "saved game"
                 : info.reason.c_str();
+            const char* checkpoint = info.checkpointId.empty()
+                ? reason
+                : info.checkpointId.c_str();
 
             char secondary[192]{};
-            std::snprintf(secondary, sizeof(secondary), "%s Lv %d - %s",
-                          lead, info.leadLevel, reason);
+            if (info.hasPlayerPosition)
+            {
+                std::snprintf(secondary, sizeof(secondary), "%s Lv %d - %s - %.0f, %.0f",
+                              lead, info.leadLevel, checkpoint, info.playerX, info.playerY);
+            }
+            else
+            {
+                std::snprintf(secondary, sizeof(secondary), "%s Lv %d - %s",
+                              lead, info.leadLevel, checkpoint);
+            }
             view.secondary = secondary;
         }
         else

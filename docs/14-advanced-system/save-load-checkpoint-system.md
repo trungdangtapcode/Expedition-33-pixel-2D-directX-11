@@ -10,7 +10,8 @@ The system still persists only durable gameplay authority data:
 - Party member base stats, current resources, level, EXP, growth, and equipment.
 - Inventory item counts.
 - One-time world flags from `GameProgress`.
-- The scene id that should be restored after loading.
+- The scene id, checkpoint id, and overworld player position that should be
+  restored after loading.
 
 It does not serialize live state instances, battle action queues, renderer
 state, GPU resources, transient input state, or event listeners.
@@ -64,6 +65,9 @@ Current config:
   "defaultSlotIndex": 0,
   "autoCheckpointId": "overworld_after_battle",
   "autoSceneId": "overworld",
+  "defaultCheckpointId": "new_game",
+  "defaultPlayerX": 120.0,
+  "defaultPlayerY": 80.0,
   "iconPath": "assets/UI/save_checkpoint_badge.png"
 }
 ```
@@ -123,6 +127,9 @@ struct SaveSlotInfo
     std::string reason;
     std::string leadMemberId;
     int leadLevel;
+    float playerX;
+    float playerY;
+    bool hasPlayerPosition;
 };
 ```
 
@@ -149,6 +156,8 @@ Each slot writes the same schema as the earlier checkpoint file, plus
   "slotIndex": 0,
   "checkpointId": "overworld_after_battle",
   "sceneId": "overworld",
+  "playerX": 120.0,
+  "playerY": 80.0,
   "reason": "campfire_save:meadow_start",
   "party": [],
   "flags": [],
@@ -167,6 +176,11 @@ Near a campfire:
 - `F` quick-saves the active slot.
 - `C` quick-loads the active slot.
 - `L` opens lineup/equipment.
+
+Campfire saves now write an explicit checkpoint id (`campfire:<id>`) and the
+player's overworld coordinates into the selected slot. Loading from the
+campfire menu restores the saved managers, closes the menu, and asks the
+underlying overworld state to rebuild itself from the loaded snapshot.
 
 Inside the campfire menu:
 
@@ -220,4 +234,7 @@ tools/draw_campfire_asset.py
 - Add timestamp metadata once the project has a stable wall-clock policy for
   save metadata.
 - Add `sceneState` for defeated overworld enemy ids and cutscene progress.
+- Promote the current `enemy_defeated:<spawnId>` flags into a dedicated
+  structured scene-state array if the world grows beyond simple one-time
+  overworld enemies.
 - Add migration functions keyed by `schemaVersion`.

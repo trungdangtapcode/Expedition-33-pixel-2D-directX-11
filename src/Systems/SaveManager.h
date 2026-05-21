@@ -10,6 +10,7 @@
 // Does not own:
 //   - Party stats or equipment. PartyManager is the authority.
 //   - Item counts. Inventory is the authority.
+//   - Live overworld entities. GameProgress carries only restore metadata.
 //   - Active state transitions. MenuState decides where to go after load.
 //
 // Lifetime:
@@ -31,6 +32,9 @@ struct SaveCheckpointConfig
     int defaultSlotIndex = 0;
     std::string autoCheckpointId = "overworld_after_battle";
     std::string autoSceneId = "overworld";
+    std::string defaultCheckpointId = "new_game";
+    float defaultPlayerX = 0.0f;
+    float defaultPlayerY = 0.0f;
     std::string iconPath = "assets/UI/save_checkpoint_badge.png";
 };
 
@@ -45,6 +49,9 @@ struct SaveSlotInfo
     std::string reason;
     std::string leadMemberId;
     int leadLevel = 1;
+    float playerX = 0.0f;
+    float playerY = 0.0f;
+    bool hasPlayerPosition = false;
 };
 
 class SaveManager

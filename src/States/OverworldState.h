@@ -12,6 +12,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include <memory>
 #include <string>
+#include <unordered_map>
 #include <vector>
 #include "../Renderer/TileMapRenderer.h"
 
@@ -161,6 +162,14 @@ private:
     // Used to call MarkDefeated() so the enemy disappears after a win.
     OverworldEnemy* mPendingEnemySource = nullptr;
 
+    // Stable spawn id for the pending enemy; saved as enemy_defeated:<id>
+    // after battle victory so the enemy does not respawn on load.
+    std::string mPendingEnemySpawnId;
+
+    // Maps live SceneGraph-owned enemies back to data/overworld_spawns.json ids.
+    // The map is cleared before SceneGraph destroys the entities.
+    std::unordered_map<OverworldEnemy*, std::string> mEnemySpawnIds;
+
     // One-press B key tracking - member variable (no static local) for clean
     // lifecycle management (reset to false in OnExit via destruction).
     bool mBWasDown = false;
@@ -198,12 +207,18 @@ private:
     // as defeated so SceneGraph::PurgeDead() removes it on the next frame.
     int mVictoryListenerID = -1;
 
+    // ListenerID for "checkpoint_loaded" - campfire slot loads mutate managers
+    // first, then this state rebuilds itself from the loaded snapshot.
+    int mCheckpointLoadedListenerID = -1;
+    bool mReloadFromCheckpoint = false;
+
     bool LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const;
     bool LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const;
     bool LoadStoryData();
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
+    void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);
     void RenderStoryOverlay();
     bool HandleCampfireInput(float px, float py);
 };

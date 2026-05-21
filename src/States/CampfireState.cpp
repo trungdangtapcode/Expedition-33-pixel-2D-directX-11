@@ -19,6 +19,7 @@
 #include "LineupState.h"
 #include "StateManager.h"
 #include "../Audio/AudioManager.h"
+#include "../Events/EventManager.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/GameProgress.h"
 #include "../Systems/PartyManager.h"
@@ -47,10 +48,16 @@ namespace
 // Why:
 //   The overworld campfire object remains SceneGraph-owned, so this state
 //   should only receive immutable data needed for menu actions.
+// Parameters:
+//   campfireId        - Stable id from data/campfires.json.
+//   upgradeExpReward - One-time training reward attached to this campfire.
+//   playerX/playerY  - Player position to persist if this menu saves a slot.
 // ------------------------------------------------------------
-CampfireState::CampfireState(std::string campfireId, int upgradeExpReward)
+CampfireState::CampfireState(std::string campfireId, int upgradeExpReward, float playerX, float playerY)
     : mCampfireId(std::move(campfireId))
     , mUpgradeExpReward(upgradeExpReward)
+    , mPlayerX(playerX)
+    , mPlayerY(playerY)
 {
 }
 
@@ -139,6 +146,25 @@ void CampfireState::Flash(const std::string& message)
     LOG("[CampfireState] %s", message.c_str());
 }
 
+// ------------------------------------------------------------
+// Function: UpdateSavedOverworldSnapshot
+// Purpose:
+//   Capture this campfire as the current save/load restore point.
+// Why:
+//   CampfireState is an overlay, so it cannot rebuild the overworld itself;
+//   it writes the stable snapshot that SaveManager serializes into the slot.
+// ------------------------------------------------------------
+void CampfireState::UpdateSavedOverworldSnapshot()
+{
+    OverworldProgressSnapshot snapshot{};
+    snapshot.sceneId = SaveManager::Get().GetConfig().autoSceneId;
+    snapshot.checkpointId = "campfire:" + mCampfireId;
+    snapshot.playerX = mPlayerX;
+    snapshot.playerY = mPlayerY;
+    snapshot.hasPlayerPosition = true;
+    GameProgress::Get().SetOverworldSnapshot(snapshot);
+}
+
 const char* CampfireState::OptionLabel(MenuOption option)
 {
     switch (option)
@@ -168,6 +194,7 @@ void CampfireState::ActivateSelection()
     {
     case MenuOption::Rest:
         PartyManager::Get().RestoreFullHP();
+        UpdateSavedOverworldSnapshot();
         SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
         Flash("Party restored. Active slot saved.");
         AudioManager::Get().PlaySfx("ui_confirm");
@@ -194,6 +221,7 @@ void CampfireState::ActivateSelection()
         {
             PartyManager::Get().AddExp(mUpgradeExpReward);
             GameProgress::Get().SetFlag(flag);
+            UpdateSavedOverworldSnapshot();
             SaveManager::Get().SaveCheckpoint("campfire_upgrade:" + mCampfireId);
 
             char buffer[128]{};
@@ -203,6 +231,7 @@ void CampfireState::ActivateSelection()
         }
         else
         {
+            UpdateSavedOverworldSnapshot();
             SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
             Flash("Training claimed. Active slot saved.");
             AudioManager::Get().PlaySfx("battle_no_ap");
@@ -237,6 +266,7 @@ void CampfireState::ActivateSlotSelection()
 {
     if (mPhase == Phase::SaveSlotSelect)
     {
+        UpdateSavedOverworldSnapshot();
         if (SaveManager::Get().SaveCheckpointToSlot(
                 mSlotCursor, "campfire_save:" + mCampfireId))
         {
@@ -263,7 +293,9 @@ void CampfireState::ActivateSlotSelection()
             std::snprintf(buffer, sizeof(buffer), "Loaded Slot %d.", mSlotCursor + 1);
             Flash(buffer);
             AudioManager::Get().PlaySfx("ui_confirm");
-            mPhase = Phase::MainMenu;
+            EventManager::Get().Broadcast("checkpoint_loaded", {});
+            StateManager::Get().PopState();
+            return;
         }
         else
         {
@@ -409,11 +441,27 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
         char label[192]{};
         if (info.exists)
         {
-            std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s",
-                          i + 1,
-                          info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
-                          info.leadLevel,
-                          info.reason.empty() ? "saved game" : info.reason.c_str());
+            const char* checkpoint = info.checkpointId.empty()
+                ? (info.reason.empty() ? "saved game" : info.reason.c_str())
+                : info.checkpointId.c_str();
+            if (info.hasPlayerPosition)
+            {
+                std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s - %.0f, %.0f",
+                              i + 1,
+                              info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
+                              info.leadLevel,
+                              checkpoint,
+                              info.playerX,
+                              info.playerY);
+            }
+            else
+            {
+                std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s",
+                              i + 1,
+                              info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
+                              info.leadLevel,
+                              checkpoint);
+            }
         }
         else
         {

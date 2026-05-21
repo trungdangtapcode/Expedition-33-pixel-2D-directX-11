@@ -138,6 +138,9 @@ The global `Escape` handling in `GameApp` still exits the process.
 - Continue calls `SaveManager::FindFirstExistingSlot()` and then loads that
   slot.
 - Load Slot calls `SaveManager::LoadCheckpointFromSlot(slotIndex, &sceneId)`.
+  `SaveManager` also restores the saved overworld checkpoint id and player
+  coordinates into `GameProgress`, so entering `OverworldState` places the
+  player at the saved location instead of the map default.
 
 The renderer receives only display strings and booleans. It never parses save
 files directly.

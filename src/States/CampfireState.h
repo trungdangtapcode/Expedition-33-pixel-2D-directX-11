@@ -22,7 +22,7 @@
 class CampfireState : public IGameState
 {
 public:
-    CampfireState(std::string campfireId, int upgradeExpReward);
+    CampfireState(std::string campfireId, int upgradeExpReward, float playerX, float playerY);
 
     void OnEnter() override;
     void OnExit() override;
@@ -53,6 +53,7 @@ private:
     void ActivateSelection();
     void ActivateSlotSelection();
     void Flash(const std::string& message);
+    void UpdateSavedOverworldSnapshot();
 
     static const char* OptionLabel(MenuOption option);
     static int OptionCount()
@@ -65,6 +66,8 @@ private:
 
     std::string mCampfireId;
     int mUpgradeExpReward = 0;
+    float mPlayerX = 0.0f;
+    float mPlayerY = 0.0f;
 
     NineSliceRenderer mDialogBox;
     BattleTextRenderer mTextRenderer;

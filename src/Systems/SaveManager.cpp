@@ -127,6 +127,19 @@ namespace
         return JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, key), fallback);
     }
 
+    float ReadJsonFloat(const std::string& src, const std::string& key, float fallback = 0.0f)
+    {
+        return JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, key), fallback);
+    }
+
+    // ------------------------------------------------------------
+    // Function: BuildSlotPath
+    // Purpose:
+    //   Compose a numbered slot path from save config fields.
+    // Why:
+    //   Keeping the pattern data-driven lets the UI expose more slots without
+    //   hardcoding each file name in C++.
+    // ------------------------------------------------------------
     std::string BuildSlotPath(const SaveCheckpointConfig& config, int slotIndex)
     {
         std::ostringstream path;
@@ -200,6 +213,95 @@ namespace
         equipped[SlotIndex(EquipSlot::Accessory)] = ReadJsonString(src, "equipAccessory");
         return equipped;
     }
+
+    // ------------------------------------------------------------
+    // Function: CampfireIdFromReason
+    // Purpose:
+    //   Recover a campfire id from older reason-only campfire saves.
+    // Why:
+    //   Slots created before playerX/playerY existed can still be migrated
+    //   to the correct restore position by looking up data/campfires.json.
+    // ------------------------------------------------------------
+    std::string CampfireIdFromReason(const std::string& reason)
+    {
+        static constexpr const char* kPrefixes[] =
+        {
+            "campfire_save:",
+            "campfire_rest:",
+            "campfire_upgrade:"
+        };
+
+        for (const char* prefix : kPrefixes)
+        {
+            const std::string token(prefix);
+            if (reason.rfind(token, 0) == 0)
+            {
+                return reason.substr(token.size());
+            }
+        }
+
+        return "";
+    }
+
+    // ------------------------------------------------------------
+    // Function: FindCampfirePosition
+    // Purpose:
+    //   Look up a campfire's overworld coordinates by stable id.
+    // Why:
+    //   Older save files only stored a campfire reason string, so migration
+    //   needs the data file as the source of truth for restore coordinates.
+    // ------------------------------------------------------------
+    bool FindCampfirePosition(const std::string& campfireId, float& outX, float& outY)
+    {
+        if (campfireId.empty()) return false;
+
+        std::string src;
+        const std::filesystem::path path = ResolveReadablePath("data/campfires.json");
+        if (!ReadTextFile(path, src)) return false;
+
+        const std::vector<std::string> objects =
+            JsonLoader::detail::ExtractObjectsFromArray(src, "campfires");
+        for (const std::string& objectSrc : objects)
+        {
+            const std::string id = ReadJsonString(objectSrc, "id");
+            if (id != campfireId) continue;
+
+            outX = ReadJsonFloat(objectSrc, "worldX");
+            outY = ReadJsonFloat(objectSrc, "worldY");
+            return true;
+        }
+
+        return false;
+    }
+
+    // ------------------------------------------------------------
+    // Function: ResolveWorldSnapshot
+    // Purpose:
+    //   Fill missing world restore metadata with configured defaults.
+    // Why:
+    //   Save/load must remain robust for new-game saves, migrated old slots,
+    //   and any future caller that saves before OverworldState has published.
+    // ------------------------------------------------------------
+    OverworldProgressSnapshot ResolveWorldSnapshot(const OverworldProgressSnapshot& current,
+                                                   const SaveCheckpointConfig& config)
+    {
+        OverworldProgressSnapshot world = current;
+        if (world.sceneId.empty())
+        {
+            world.sceneId = config.autoSceneId;
+        }
+        if (world.checkpointId.empty())
+        {
+            world.checkpointId = config.defaultCheckpointId;
+        }
+        if (!world.hasPlayerPosition)
+        {
+            world.playerX = config.defaultPlayerX;
+            world.playerY = config.defaultPlayerY;
+            world.hasPlayerPosition = true;
+        }
+        return world;
+    }
 }
 
 SaveManager& SaveManager::Get()
@@ -237,6 +339,9 @@ void SaveManager::LoadConfig()
     }
     mConfig.autoCheckpointId = ReadJsonString(src, "autoCheckpointId", mConfig.autoCheckpointId);
     mConfig.autoSceneId = ReadJsonString(src, "autoSceneId", mConfig.autoSceneId);
+    mConfig.defaultCheckpointId = ReadJsonString(src, "defaultCheckpointId", mConfig.defaultCheckpointId);
+    mConfig.defaultPlayerX = ReadJsonFloat(src, "defaultPlayerX", mConfig.defaultPlayerX);
+    mConfig.defaultPlayerY = ReadJsonFloat(src, "defaultPlayerY", mConfig.defaultPlayerY);
     mConfig.iconPath = ReadJsonString(src, "iconPath", mConfig.iconPath);
     mConfig.slotPath = BuildSlotPath(mConfig, mConfig.defaultSlotIndex);
     mActiveSlotIndex = mConfig.defaultSlotIndex;
@@ -308,6 +413,29 @@ SaveSlotInfo SaveManager::GetSlotInfo(int slotIndex) const
     info.checkpointId = ReadJsonString(src, "checkpointId");
     info.sceneId = ReadJsonString(src, "sceneId");
     info.reason = ReadJsonString(src, "reason");
+    info.playerX = ReadJsonFloat(src, "playerX", mConfig.defaultPlayerX);
+    info.playerY = ReadJsonFloat(src, "playerY", mConfig.defaultPlayerY);
+    info.hasPlayerPosition = !JsonLoader::detail::ValueOf(src, "playerX").empty() &&
+                             !JsonLoader::detail::ValueOf(src, "playerY").empty();
+    if (!info.hasPlayerPosition)
+    {
+        const std::string campfireId = CampfireIdFromReason(info.reason);
+        if (FindCampfirePosition(campfireId, info.playerX, info.playerY))
+        {
+            info.checkpointId = "campfire:" + campfireId;
+            info.hasPlayerPosition = true;
+        }
+        else if (info.reason == "new_game")
+        {
+            info.checkpointId = mConfig.defaultCheckpointId;
+        }
+    }
+    if (!info.hasPlayerPosition)
+    {
+        info.playerX = mConfig.defaultPlayerX;
+        info.playerY = mConfig.defaultPlayerY;
+        info.hasPlayerPosition = true;
+    }
 
     const std::vector<std::string> partyObjects =
         JsonLoader::detail::ExtractObjectsFromArray(src, "party");
@@ -349,6 +477,9 @@ bool SaveManager::SaveCheckpointToSlot(int slotIndex, const std::string& reason)
     const std::vector<PartyMemberProgress> party = PartyManager::Get().CaptureProgress();
     const std::vector<InventoryEntry> inventory = Inventory::Get().CaptureEntries();
     const std::vector<std::string> flags = GameProgress::Get().CaptureFlags();
+    const OverworldProgressSnapshot world =
+        ResolveWorldSnapshot(GameProgress::Get().CaptureOverworldSnapshot(), mConfig);
+    GameProgress::Get().ReplaceOverworldSnapshot(world);
 
     const std::string slotPath = GetSlotPath(slotIndex);
     const fs::path finalPath = ResolveWritablePath(slotPath);
@@ -377,8 +508,10 @@ bool SaveManager::SaveCheckpointToSlot(int slotIndex, const std::string& reason)
     file << "{\n";
     file << "  \"schemaVersion\": " << kSaveSchemaVersion << ",\n";
     file << "  \"slotIndex\": " << slotIndex << ",\n";
-    file << "  \"checkpointId\": " << JsonString(mConfig.autoCheckpointId) << ",\n";
-    file << "  \"sceneId\": " << JsonString(mConfig.autoSceneId) << ",\n";
+    file << "  \"checkpointId\": " << JsonString(world.checkpointId) << ",\n";
+    file << "  \"sceneId\": " << JsonString(world.sceneId) << ",\n";
+    file << "  \"playerX\": " << world.playerX << ",\n";
+    file << "  \"playerY\": " << world.playerY << ",\n";
     file << "  \"reason\": " << JsonString(reason) << ",\n";
     file << "  \"party\": [\n";
 
@@ -468,6 +601,31 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
         return false;
     }
 
+    const std::string reason = ReadJsonString(src, "reason");
+    OverworldProgressSnapshot world{};
+    world.sceneId = ReadJsonString(src, "sceneId", mConfig.autoSceneId);
+    world.checkpointId = ReadJsonString(src, "checkpointId", mConfig.defaultCheckpointId);
+    world.hasPlayerPosition = !JsonLoader::detail::ValueOf(src, "playerX").empty() &&
+                              !JsonLoader::detail::ValueOf(src, "playerY").empty();
+    world.playerX = ReadJsonFloat(src, "playerX", mConfig.defaultPlayerX);
+    world.playerY = ReadJsonFloat(src, "playerY", mConfig.defaultPlayerY);
+
+    if (!world.hasPlayerPosition)
+    {
+        const std::string campfireId = CampfireIdFromReason(reason);
+        if (FindCampfirePosition(campfireId, world.playerX, world.playerY))
+        {
+            world.checkpointId = "campfire:" + campfireId;
+            world.hasPlayerPosition = true;
+        }
+        else if (reason == "new_game")
+        {
+            world.checkpointId = mConfig.defaultCheckpointId;
+        }
+    }
+
+    world = ResolveWorldSnapshot(world, mConfig);
+
     std::vector<PartyMemberProgress> partyProgress;
     const std::vector<std::string> partyObjects = JsonLoader::detail::ExtractObjectsFromArray(src, "party");
     for (const std::string& objectSrc : partyObjects)
@@ -506,13 +664,13 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ReplaceAll(entries);
     GameProgress::Get().ReplaceFlags(flags);
+    GameProgress::Get().ReplaceOverworldSnapshot(world);
     PartyManager::Get().ApplyProgress(partyProgress);
 
-    const std::string sceneId = ReadJsonString(src, "sceneId", mConfig.autoSceneId);
-    if (outSceneId) *outSceneId = sceneId;
+    if (outSceneId) *outSceneId = world.sceneId;
 
     mActiveSlotIndex = slotIndex;
     LOG("[SaveManager] Slot %d loaded from '%s'. Scene: %s.",
-        slotIndex + 1, path.string().c_str(), sceneId.c_str());
+        slotIndex + 1, path.string().c_str(), world.sceneId.c_str());
     return true;
 }

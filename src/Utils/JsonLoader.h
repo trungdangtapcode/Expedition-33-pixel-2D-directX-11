@@ -29,6 +29,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <vector>
 #include "Log.h"
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/StatModifier.h"
@@ -152,6 +153,47 @@ inline std::string CleanString(const std::string& raw)
     std::string s = raw;
     if (s.size() >= 2 && s.front() == '"') s = s.substr(1, s.size() - 2);
     return s;
+}
+
+// ------------------------------------------------------------
+// Extract a shallow array of JSON strings from a named field.
+// Used for data files that need a small list of asset paths without
+// pulling in a full JSON dependency.
+// ------------------------------------------------------------
+inline std::vector<std::string> ExtractStringArray(const std::string& src, const std::string& key)
+{
+    std::vector<std::string> values;
+    const std::string searchKey = "\"" + key + "\"";
+    const size_t keyPos = src.find(searchKey);
+    if (keyPos == std::string::npos) return values;
+
+    const size_t openBracket = src.find('[', keyPos + searchKey.size());
+    if (openBracket == std::string::npos) return values;
+
+    int depth = 1;
+    size_t cursor = openBracket + 1;
+    while (cursor < src.size() && depth > 0) {
+        if (src[cursor] == '[') ++depth;
+        if (src[cursor] == ']') --depth;
+        ++cursor;
+    }
+
+    if (depth != 0 || cursor <= openBracket + 1) return values;
+
+    const std::string body = src.substr(openBracket + 1, cursor - openBracket - 2);
+    size_t scan = 0;
+    while (scan < body.size()) {
+        const size_t quoteStart = body.find('"', scan);
+        if (quoteStart == std::string::npos) break;
+
+        const size_t quoteEnd = body.find('"', quoteStart + 1);
+        if (quoteEnd == std::string::npos) break;
+
+        values.push_back(body.substr(quoteStart + 1, quoteEnd - quoteStart - 1));
+        scan = quoteEnd + 1;
+    }
+
+    return values;
 }
 
 // ------------------------------------------------------------
@@ -943,6 +985,8 @@ struct SkillData {
     bool qteSupported = false;
     bool bulletHellSupported = false;
     std::string bulletHellPatternPath = "";
+    std::vector<std::string> bulletHellPatternPaths;
+    std::string bulletHellPatternSelection = "fixed";
     float qteStartMoment = 0.3f;
     float qtePerfectMultiplier = 1.5f;
     float qteGoodMultiplier = 1.2f;
@@ -990,6 +1034,12 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
     out.bulletHellSupported = detail::ParseBool(detail::ValueOf(src, "bulletHellSupported"), false);
     out.bulletHellPatternPath = detail::CleanString(detail::ValueOf(src, "bulletHellPatternPath"));
+    out.bulletHellPatternPaths = detail::ExtractStringArray(src, "bulletHellPatternPaths");
+    if (out.bulletHellPatternPaths.empty() && !out.bulletHellPatternPath.empty()) {
+        out.bulletHellPatternPaths.push_back(out.bulletHellPatternPath);
+    }
+    std::string patternSelection = detail::CleanString(detail::ValueOf(src, "bulletHellPatternSelection"));
+    out.bulletHellPatternSelection = patternSelection.empty() ? "fixed" : patternSelection;
     out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
     out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
     out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);

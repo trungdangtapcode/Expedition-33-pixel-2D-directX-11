@@ -1,0 +1,29 @@
+{
+    "comment": "Skeleton crossfire pattern. Alternates aimed bones with a slow spiral so repeat skeleton turns do not feel identical.",
+    "durationSec": 4.8,
+    "boxCenterX": 640.0,
+    "boxCenterY": 480.0,
+    "boxWidth": 550.0,
+    "boxHeight": 250.0,
+    "heartRadius": 6.0,
+    "heartSpeed": 250.0,
+    "invincibilityDuration": 1.0,
+    "spawners": [
+        {
+            "type": "random_edge",
+            "texturePath": "assets/UI/crystal_bullet.png",
+            "bulletRadius": 13.0,
+            "bulletSpeed": 175.0,
+            "spawnRate": 7.0,
+            "bulletDamageScaling": 0.75
+        },
+        {
+            "type": "spiral",
+            "texturePath": "assets/UI/round_bullet.png",
+            "bulletRadius": 8.0,
+            "bulletSpeed": 95.0,
+            "spawnRate": 4.0,
+            "bulletDamageScaling": 0.45
+        }
+    ]
+}

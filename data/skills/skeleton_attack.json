@@ -4,5 +4,11 @@
     "meleeOffset": 80.0,
     "bulletHellSupported": true,
     "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
+    "bulletHellPatternSelection": "random_no_repeat",
+    "bulletHellPatternPaths": [
+        "data/bullet_patterns/skeleton_bones.json",
+        "data/bullet_patterns/skeleton_crossfire.json",
+        "data/bullet_patterns/sine_wave.json"
+    ],
     "damageTakenOccurMoment": 0.4
 }

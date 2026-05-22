@@ -12,8 +12,9 @@ The issue was data configuration, not an enemy-name branch in C++. `data/skills/
 2. `EnemyCombatant` loads that skill file through `JsonLoader::LoadSkillData`.
 3. `AttackSkill::Execute` checks the loaded `SkillData`.
 4. If `bulletHellSupported` is true, it queues `BulletHellAction`.
-5. `BulletHellAction` loads the configured pattern from `bulletHellPatternPath`.
-6. The action broadcasts `verso_bullet_hell_state` so `BattleBulletHellRenderer` can draw the dodge arena, heart, and bullets.
+5. `AttackSkill` selects one configured pattern from `bulletHellPatternPaths`, falling back to `bulletHellPatternPath` for older data.
+6. `BulletHellAction` loads the selected pattern path.
+7. The action broadcasts `verso_bullet_hell_state` so `BattleBulletHellRenderer` can draw the dodge arena, heart, and bullets.
 
 ## Zombie Armour Data
 
@@ -22,11 +23,18 @@ Zombie Armour now uses:
 ```json
 {
   "bulletHellSupported": true,
-  "bulletHellPatternPath": "data/bullet_patterns/zombie_armour_guard.json"
+  "bulletHellPatternPath": "data/bullet_patterns/zombie_armour_guard.json",
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/zombie_armour_guard.json",
+    "data/bullet_patterns/zombie_armour_lockstep.json",
+    "data/bullet_patterns/archer_pattern.json"
+  ]
 }
 ```
 
-The dedicated pattern keeps Zombie Armour tunable without changing skeleton patterns or adding C++ conditionals.
+The dedicated pattern list keeps Zombie Armour tunable without changing skeleton patterns or adding C++ conditionals.
+The pattern list gives the enemy multiple defensive attack reads across a longer battle.
 
 ## Attack Style
 
@@ -68,6 +76,12 @@ Additional fields:
 - `lanePadding`: Top and bottom padding before lane centers are calculated.
 
 For `shield_wall`, `spawnRate` means wall waves per second. Other spawners still interpret `spawnRate` as projectile emissions per second.
+
+## Pattern Variants
+
+- `zombie_armour_guard.json`: Heavy alternating shield walls that track the heart lane.
+- `zombie_armour_lockstep.json`: Marching shield walls with a cycling safe gap.
+- `archer_pattern.json`: Faster pressure borrowed as a rare off-rhythm variant.
 
 ## No-Hardcode Boundary
 

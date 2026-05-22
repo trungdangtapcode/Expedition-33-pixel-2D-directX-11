@@ -125,7 +125,12 @@ and optional minigame integration.
   "meleeOffset": 80.0,
   "damageTakenOccurMoment": 0.5,
   "bulletHellSupported": true,
-  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json"
+  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/skeleton_bones.json",
+    "data/bullet_patterns/skeleton_crossfire.json"
+  ]
 }
 ```
 
@@ -136,7 +141,9 @@ and optional minigame integration.
 | `meleeOffset` | float | Pixel offset from target at melee range |
 | `damageTakenOccurMoment` | float | Normalised [0,1] moment damage applies during attack anim |
 | `bulletHellSupported` | bool | Enable bullet-hell dodge phase for player |
-| `bulletHellPatternPath` | string | Path to bullet pattern JSON |
+| `bulletHellPatternPath` | string | Single-pattern fallback path |
+| `bulletHellPatternPaths` | string array | Optional list of bullet pattern JSON files |
+| `bulletHellPatternSelection` | string | `fixed`, `random`, `random_no_repeat`, or `cycle` |
 | `qteSupported` | bool | Enable QTE (player attacks only) |
 
 ---
@@ -243,7 +250,12 @@ Create `data/skills/my_enemy_attack.json`:
   "meleeOffset": 80.0,
   "damageTakenOccurMoment": 0.5,
   "bulletHellSupported": true,
-  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json"
+  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/skeleton_bones.json",
+    "data/bullet_patterns/skeleton_crossfire.json"
+  ]
 }
 ```
 

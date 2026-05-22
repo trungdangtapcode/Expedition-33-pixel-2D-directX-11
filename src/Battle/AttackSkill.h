@@ -1,6 +1,6 @@
 // ============================================================
 // File: AttackSkill.h
-// Responsibility: Basic attack — deals (atk - def) damage; grants rage to both sides.
+// Responsibility: Basic attack - deals (atk - def) damage; grants rage to both sides.
 //
 // Rage formula (handled inside Combatant::TakeDamage):
 //   Attacker rage += effective / 4
@@ -9,18 +9,23 @@
 #pragma once
 #include "ISkill.h"
 #include "../Utils/JsonLoader.h"
+#include <string>
 
 
 class AttackSkill : public ISkill
 {
 private:
     JsonLoader::SkillData mData;
+    mutable int mLastBulletHellPatternIndex = -1;
+    mutable int mNextBulletHellPatternIndex = 0;
+
+    std::string SelectBulletHellPatternPath() const;
 public:
     AttackSkill(const JsonLoader::SkillData& data) : mData(data) {}
     const char* GetName()        const override { return "Attack"; }
     const char* GetDescription() const override { return "Strike the enemy."; }
 
-    // Always available — basic attack has no resource cost.
+    // Always available because the basic attack has no resource cost.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
     // Produces: LogAction + DamageAction

@@ -2,7 +2,9 @@
 // File: BattleManager.cpp
 // Responsibility: Drive the turn-based combat FSM and action resolution.
 // ============================================================
+#define NOMINMAX
 #include "BattleManager.h"
+#include "BattleEvents.h"
 #include "LogAction.h"
 #include "BuildItemActions.h"
 #include "ItemRegistry.h"
@@ -11,7 +13,6 @@
 #include "../Systems/LocalizationManager.h"
 
 #include "EnemyEncounterData.h"
-#define NOMINMAX
 #include <algorithm>
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
@@ -297,11 +298,57 @@ void BattleManager::HandleEnemyTurn(float /*dt*/)
 }
 
 // ------------------------------------------------------------
+// ClearBulletHellOverlay: publish an inactive dodge-state payload.
+// Why:
+//   BattleBulletHellRenderer keeps the latest payload until it receives a
+//   replacement.  If defeat interrupts the action queue, the active
+//   BulletHellAction is destroyed before it can send its normal clear event.
+// ------------------------------------------------------------
+void BattleManager::ClearBulletHellOverlay() const
+{
+    BulletHellPayload payload;
+    payload.isActive = false;
+
+    EventData eventData;
+    eventData.payload = &payload;
+    EventManager::Get().Broadcast("verso_bullet_hell_state", eventData);
+}
+
+// ------------------------------------------------------------
+// FinishDefeat: stop the active action chain and expose a terminal outcome.
+// Why:
+//   Long-running actions can apply lethal damage before they complete.  The
+//   battle must stop immediately instead of waiting for queued follow-up
+//   animations, waits, or dodge patterns.
+// ------------------------------------------------------------
+void BattleManager::FinishDefeat()
+{
+    if (mOutcome != BattleOutcome::NONE) return;
+
+    mQueue.Clear();
+    ClearBulletHellOverlay();
+
+    Log(LocalizationManager::Get().Text("battle.log.defeat"));
+    mOutcome = BattleOutcome::DEFEAT;
+    mPhase   = BattlePhase::LOSE;
+}
+
+// ------------------------------------------------------------
 // HandleResolving: drain the queue; check win/lose after each action.
 // ------------------------------------------------------------
 void BattleManager::HandleResolving(float dt)
 {
     mQueue.Update(dt);
+
+    // Lethal bullet-hell hits occur inside BulletHellAction::Execute while
+    // the action can still have seconds left on its timer.  Check the party
+    // immediately after the front action ticks so defeat is not delayed until
+    // the entire queue empties.
+    if (AllPlayersDefeated())
+    {
+        FinishDefeat();
+        return;
+    }
 
     if (!mQueue.IsEmpty()) return;  // still executing actions
 
@@ -342,9 +389,7 @@ void BattleManager::HandleResolving(float dt)
     }
     if (AllPlayersDefeated())
     {
-        Log(LocalizationManager::Get().Text("battle.log.defeat"));
-        mOutcome = BattleOutcome::DEFEAT;
-        mPhase   = BattlePhase::LOSE;
+        FinishDefeat();
         return;
     }
 

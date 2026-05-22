@@ -39,4 +39,5 @@ private:
     int mHitsTaken;
 
     void ApplyDamage(float overrideScaling);
+    void PublishState(bool isActive) const;
 };

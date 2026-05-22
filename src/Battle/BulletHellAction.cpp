@@ -107,8 +107,48 @@ void BulletHellAction::ApplyDamage(float overrideScaling)
     EventManager::Get().Broadcast("battler_play_anim", edAnim);
 }
 
+// ------------------------------------------------------------
+// PublishState: send the current dodge overlay snapshot to the UI.
+// Why:
+//   The renderer is event-driven and keeps the last payload.  Publishing an
+//   inactive payload is the shared clear path for natural completion and
+//   early interruption after lethal damage.
+// ------------------------------------------------------------
+void BulletHellAction::PublishState(bool isActive) const
+{
+    BulletHellPayload outPayload;
+    outPayload.isActive = isActive;
+    outPayload.boxCenterX = mBoxCx;
+    outPayload.boxCenterY = mBoxCy;
+    outPayload.boxWidth = mBoxW;
+    outPayload.boxHeight = mBoxH;
+    outPayload.heartX = mHeartX;
+    outPayload.heartY = mHeartY;
+    outPayload.heartRadius = mHeartRadius;
+    outPayload.invincibilityTimer = mInvincibilityTimer;
+
+    if (isActive)
+    {
+        for (const auto& b : mBullets)
+        {
+            outPayload.bullets.push_back({ b.x, b.y, b.radius, b.angle, b.textureIndex });
+        }
+        outPayload.texturePaths = mTexturePaths;
+    }
+
+    EventData ed;
+    ed.payload = &outPayload;
+    EventManager::Get().Broadcast("verso_bullet_hell_state", ed);
+}
+
 bool BulletHellAction::Execute(float dt)
 {
+    if (!mDefender || !mDefender->IsAlive())
+    {
+        PublishState(false);
+        return true;
+    }
+
     mElapsed += dt;
     // The dodge phase owns movement input while the queued action is
     // active.  The configured speed keeps pattern difficulty data-driven.
@@ -177,6 +217,12 @@ bool BulletHellAction::Execute(float dt)
                 mInvincibilityTimer = mInvincibilityDuration; 
                 mHitsTaken++;
                 ApplyDamage(it->damageScaling / 100.0f);
+                if (!mDefender->IsAlive())
+                {
+                    LOG("[BulletHellAction] Dodge phase ended because the defender was defeated.");
+                    PublishState(false);
+                    return true;
+                }
             }
             it = mBullets.erase(it);
         } else {
@@ -189,31 +235,12 @@ bool BulletHellAction::Execute(float dt)
         }
     }
 
-    // Publish state payload explicitly!
-    BulletHellPayload outPayload;
-    outPayload.isActive = true;
-    outPayload.boxCenterX = mBoxCx;
-    outPayload.boxCenterY = mBoxCy;
-    outPayload.boxWidth = mBoxW;
-    outPayload.boxHeight = mBoxH;
-    outPayload.heartX = mHeartX;
-    outPayload.heartY = mHeartY;
-    outPayload.heartRadius = mHeartRadius;
-    for (const auto& b : mBullets) {
-        outPayload.bullets.push_back({b.x, b.y, b.radius, b.angle, b.textureIndex});
-    }
-    outPayload.texturePaths = mTexturePaths;
-    outPayload.invincibilityTimer = mInvincibilityTimer;
-
-    EventData ed;
-    ed.payload = &outPayload;
-    EventManager::Get().Broadcast("verso_bullet_hell_state", ed);
+    PublishState(true);
 
     // End Condition structurally mapped
     if (mElapsed >= mDuration) {
         LOG("[BulletHellAction] Dodge phase ended cleanly.");
-        outPayload.isActive = false; // Final clear payload
-        EventManager::Get().Broadcast("verso_bullet_hell_state", ed);
+        PublishState(false);
         return true; 
     }
     return false;

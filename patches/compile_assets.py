@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import math
 import random
 from pathlib import Path
 from typing import Iterable
@@ -67,46 +68,77 @@ def solid_tile(
     return tile
 
 
+def channel_noise(x: int, y: int, seed: int) -> int:
+    value = (x * 374761393 + y * 668265263 + seed * 2246822519) & 0xFFFFFFFF
+    value = ((value ^ (value >> 13)) * 1274126177) & 0xFFFFFFFF
+    return (value ^ (value >> 16)) & 0xFF
+
+
+def clamp(value: float, lo: float, hi: float) -> float:
+    return max(lo, min(hi, value))
+
+
 def road_tile(mask: int, seed: int) -> Image.Image:
     tile = Image.new("RGBA", (TILE, TILE), (0, 0, 0, 0))
+    pixels = tile.load()
+    base = rgba("#6a4930")
+    warm = rgba("#7c5737")
+    dark = rgba("#4c3323")
+    grit = rgba("#9a7544")
+    connected_n = (mask & 1) != 0
+    connected_e = (mask & 2) != 0
+    connected_s = (mask & 4) != 0
+    connected_w = (mask & 8) != 0
+
+    for y in range(TILE):
+        for x in range(TILE):
+            alpha = 255.0
+            edge_width = 13.0
+
+            if not connected_n:
+                alpha = min(alpha, clamp((y - 2.0 + (channel_noise(x, 0, seed) - 128) * 0.035) / edge_width, 0.0, 1.0) * 255.0)
+            if not connected_e:
+                alpha = min(alpha, clamp((TILE - 3.0 - x + (channel_noise(63, y, seed + 1) - 128) * 0.035) / edge_width, 0.0, 1.0) * 255.0)
+            if not connected_s:
+                alpha = min(alpha, clamp((TILE - 3.0 - y + (channel_noise(x, 63, seed + 2) - 128) * 0.035) / edge_width, 0.0, 1.0) * 255.0)
+            if not connected_w:
+                alpha = min(alpha, clamp((x - 2.0 + (channel_noise(0, y, seed + 3) - 128) * 0.035) / edge_width, 0.0, 1.0) * 255.0)
+
+            if alpha <= 0.0:
+                continue
+
+            noise = channel_noise(x, y, seed + 9)
+            wave = math.sin((x * 0.21) + (y * 0.13) + seed * 0.01) * 7.0
+            mix = clamp((noise + wave - 82.0) / 145.0, 0.0, 1.0)
+            r = int(base[0] * (1.0 - mix) + warm[0] * mix)
+            g = int(base[1] * (1.0 - mix) + warm[1] * mix)
+            b = int(base[2] * (1.0 - mix) + warm[2] * mix)
+
+            if noise < 24:
+                r = int(r * 0.78 + dark[0] * 0.22)
+                g = int(g * 0.78 + dark[1] * 0.22)
+                b = int(b * 0.78 + dark[2] * 0.22)
+            elif noise > 226:
+                r = int(r * 0.76 + grit[0] * 0.24)
+                g = int(g * 0.76 + grit[1] * 0.24)
+                b = int(b * 0.76 + grit[2] * 0.24)
+
+            if alpha < 235.0:
+                r = int(r * 0.78 + dark[0] * 0.22)
+                g = int(g * 0.78 + dark[1] * 0.22)
+                b = int(b * 0.78 + dark[2] * 0.22)
+
+            pixels[x, y] = (r, g, b, int(alpha))
+
     draw = ImageDraw.Draw(tile)
-    edge = rgba("#4a3123", 220)
-    dirt = rgba("#6e4930", 248)
-    light = rgba("#8a613d", 220)
-    connections = sum(1 for bit in (1, 2, 4, 8) if mask & bit)
-
-    if mask == 15:
-        draw.rectangle([0, 0, 63, 63], fill=dirt)
-    elif connections >= 3:
-        draw.rectangle([5, 5, 58, 58], fill=edge)
-        draw.rectangle([9, 9, 54, 54], fill=dirt)
-    else:
-        draw.ellipse([11, 11, 53, 53], fill=edge)
-        draw.ellipse([16, 16, 48, 48], fill=dirt)
-
-    if mask & 1:
-        draw.rectangle([20, 0, 44, 35], fill=edge)
-        draw.rectangle([24, 0, 40, 39], fill=dirt)
-    if mask & 2:
-        draw.rectangle([29, 20, 63, 44], fill=edge)
-        draw.rectangle([25, 24, 63, 40], fill=dirt)
-    if mask & 4:
-        draw.rectangle([20, 29, 44, 63], fill=edge)
-        draw.rectangle([24, 25, 40, 63], fill=dirt)
-    if mask & 8:
-        draw.rectangle([0, 20, 35, 44], fill=edge)
-        draw.rectangle([0, 24, 39, 40], fill=dirt)
-
-    if (mask & 1) and (mask & 2):
-        draw.rectangle([32, 0, 63, 32], fill=dirt)
-    if (mask & 2) and (mask & 4):
-        draw.rectangle([32, 32, 63, 63], fill=dirt)
-    if (mask & 4) and (mask & 8):
-        draw.rectangle([0, 32, 32, 63], fill=dirt)
-    if (mask & 8) and (mask & 1):
-        draw.rectangle([0, 0, 32, 32], fill=dirt)
-
-    draw_noise(draw, (4, 4, 60, 60), seed, [light, rgba("#503622", 210)], 38, 2)
+    rng = random.Random(seed)
+    for _ in range(26):
+        x = rng.randrange(4, 60)
+        y = rng.randrange(4, 60)
+        if tile.getpixel((x, y))[3] < 220:
+            continue
+        color = rng.choice([rgba("#8f6b3f"), rgba("#493222"), rgba("#b18a4e")])
+        draw.rectangle([x, y, x + 1, y + 1], fill=color)
     return tile
 
 
@@ -147,14 +179,14 @@ def detail_tile(kind: str, seed: int) -> Image.Image:
 
 def make_ground_atlas() -> Image.Image:
     atlas = Image.new("RGBA", (COLS * TILE, 4 * TILE), (0, 0, 0, 0))
-    grass = [rgba("#4f7547"), rgba("#4b7043"), rgba("#53794a"), rgba("#486c42")]
+    grass = [rgba("#4f7247"), rgba("#507146"), rgba("#4d7046"), rgba("#517348")]
     for i, base in enumerate(grass):
-        paste_tile(atlas, i, solid_tile(base, 100 + i, [rgba("#628650"), rgba("#3d633c"), rgba("#6a8b55")], 145))
+        paste_tile(atlas, i, solid_tile(base, 100 + i, [rgba("#5e7d4f"), rgba("#466a40"), rgba("#668453")], 115))
 
-    wild = [rgba("#4b6d41"), rgba("#526f43"), rgba("#476a3f"), rgba("#577647")]
+    wild = [rgba("#4d6f43"), rgba("#506f44"), rgba("#4b6e42"), rgba("#527247")]
     for local_id, base in enumerate(wild, start=4):
-        tile = solid_tile(base, 200 + local_id, [rgba("#67884d"), rgba("#384f34"), rgba("#7b7941")], 175)
-        draw_noise(ImageDraw.Draw(tile), (0, 0, TILE, TILE), 500 + local_id, [rgba("#9a7840", 150)], 24, 3)
+        tile = solid_tile(base, 200 + local_id, [rgba("#607f4e"), rgba("#425f3b"), rgba("#6d7647")], 130)
+        draw_noise(ImageDraw.Draw(tile), (0, 0, TILE, TILE), 500 + local_id, [rgba("#8c7540")], 18, 2)
         paste_tile(atlas, local_id, tile)
 
     for mask in range(16):

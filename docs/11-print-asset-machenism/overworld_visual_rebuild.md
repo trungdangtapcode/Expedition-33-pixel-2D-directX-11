@@ -46,6 +46,23 @@ be force-added when committing:
 git add -f assets\environments\overworld_tiles_v2.png assets\environments\overworld_objects_v2.png
 ```
 
+## Dirt Road Style
+
+Road tiles are alpha overlays on top of grass. They should read as worn soil,
+not as hard-edged wooden planks or stamped rectangles.
+
+`patches/compile_assets.py` generates each road tile from the road connection
+mask with:
+
+- Full-opacity dirt in connected directions.
+- Noisy alpha falloff on unconnected edges.
+- Darker pixels only near the fade edge.
+- Opaque ground speckles so grass tiles never darken toward black.
+
+If a future pass makes roads look tiled again, fix the generator first and then
+regenerate the atlas. Do not hand-paint only the committed PNG, because the next
+generator run would reintroduce the artifact.
+
 ## Tiled Layer Rules
 
 Use tile layers for art that does not need individual Y-sorting:

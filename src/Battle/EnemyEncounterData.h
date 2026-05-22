@@ -70,6 +70,7 @@ struct EnemySlotData
 
     // ---- Leveling Rewards ----
     int expReward = 0;
+    int coinReward = 0;
 
     // ---- Battle camera ----
     // Lifts ACTOR_FOCUS / TARGET_FOCUS from feet-anchor to chest.

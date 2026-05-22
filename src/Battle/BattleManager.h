@@ -140,6 +140,7 @@ private:
 
     std::vector<std::string> mBattleLog;
     int mTotalExpPool = 0;
+    int mTotalCoinPool = 0;
 
     // Live battle context refreshed at the top of Update each frame.
     // Systems that need to read live state (skills, damage calculator,

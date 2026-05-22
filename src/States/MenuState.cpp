@@ -33,6 +33,7 @@
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Systems/SettingsManager.h"
+#include "../Systems/Wallet.h"
 #include "../Utils/Log.h"
 #include <Windows.h>
 #include <cstdio>
@@ -358,6 +359,7 @@ void MenuState::StartNewGame(int slotIndex)
 
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ResetToDefaults();
+    Wallet::Get().ResetToDefaults();
     GameProgress::Get().Reset();
     if (!SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game"))
     {

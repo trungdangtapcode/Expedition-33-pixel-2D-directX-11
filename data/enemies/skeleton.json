@@ -22,6 +22,7 @@
       "def": 5,
       "spd": 5,
       "expReward": 45,
+      "coinReward": 12,
       "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     }

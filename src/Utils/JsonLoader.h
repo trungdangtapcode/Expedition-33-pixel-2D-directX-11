@@ -753,6 +753,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
         slot.expReward         = detail::ParseInt  (detail::ValueOf(slotSrc, "expReward"), 0);
+        slot.coinReward        = detail::ParseInt  (detail::ValueOf(slotSrc, "coinReward"), 0);
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
         
         std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));

@@ -49,6 +49,7 @@ struct SaveSlotInfo
     std::string reason;
     std::string leadMemberId;
     int leadLevel = 1;
+    int coins = 0;
     float playerX = 0.0f;
     float playerY = 0.0f;
     bool hasPlayerPosition = false;

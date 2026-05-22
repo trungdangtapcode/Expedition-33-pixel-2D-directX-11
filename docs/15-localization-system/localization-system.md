@@ -135,6 +135,7 @@ The first pass localizes:
 - Battle commands, skill labels/descriptions, item names/descriptions, and
   primary battle log messages.
 - Inventory and lineup item/equipment text.
+- Currency HUD labels and battle coin rewards.
 - Overworld story area names and objectives.
 
 Build verification:

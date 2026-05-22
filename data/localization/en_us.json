@@ -11,6 +11,8 @@
   "common.none": "(none)",
   "common.missing_registry": "(missing registry entry)",
 
+  "currency.coins": "Coins: {amount}",
+
   "party.member.Verso": "Verso",
   "party.member.verso": "Verso",
   "party.member.Maelle": "Maelle",
@@ -75,6 +77,7 @@
   "battle.log.cannot_use_skill": "{actor} cannot use that skill!",
   "battle.log.victory": "--- VICTORY! ---",
   "battle.log.exp_earned": "Earned {exp} EXP!",
+  "battle.log.coins_earned": "Found {amount} coins!",
   "battle.log.defeat": "--- DEFEAT ---",
   "battle.log.reenter": "{actor} re-enters the fight!",
   "battle.log.turn": "--- {actor}'s turn ---",

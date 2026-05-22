@@ -11,6 +11,8 @@
   "common.none": "(không có)",
   "common.missing_registry": "(thiếu dữ liệu vật phẩm)",
 
+  "currency.coins": "Xu: {amount}",
+
   "party.member.Verso": "Verso",
   "party.member.verso": "Verso",
   "party.member.Maelle": "Maelle",
@@ -75,6 +77,7 @@
   "battle.log.cannot_use_skill": "{actor} không thể dùng kỹ năng đó!",
   "battle.log.victory": "--- CHIẾN THẮNG! ---",
   "battle.log.exp_earned": "Nhận {exp} EXP!",
+  "battle.log.coins_earned": "Nhặt được {amount} xu!",
   "battle.log.defeat": "--- THẤT BẠI ---",
   "battle.log.reenter": "{actor} quay lại trận đấu!",
   "battle.log.turn": "--- Lượt của {actor} ---",

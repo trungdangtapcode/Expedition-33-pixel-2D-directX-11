@@ -25,6 +25,7 @@
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
+#include "../Systems/Wallet.h"
 #include "../Utils/Log.h"
 #include <DirectXColors.h>
 #include <Windows.h>
@@ -84,6 +85,10 @@ void CampfireState::OnEnter()
         d3d.GetDevice(), d3d.GetContext(),
         std::wstring(fontPath.begin(), fontPath.end()),
         d3d.GetWidth(), d3d.GetHeight());
+    mCurrencyHud.Initialize(
+        d3d.GetDevice(), d3d.GetContext(),
+        std::wstring(fontPath.begin(), fontPath.end()),
+        d3d.GetWidth(), d3d.GetHeight());
 
     mCursor = 0;
     mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
@@ -114,6 +119,7 @@ void CampfireState::OnEnter()
 void CampfireState::OnExit()
 {
     LOG("[CampfireState] Closed campfire menu for '%s'.", mCampfireId.c_str());
+    mCurrencyHud.Shutdown();
     mTextRenderer.Shutdown();
     mDialogBox.Shutdown();
 }
@@ -532,6 +538,8 @@ void CampfireState::Render()
 
     mDialogBox.Draw(ctx, 0.0f, 0.0f, screenW, screenH, 1.0f, identity, dim);
     mDialogBox.Draw(ctx, panelX, panelY, kPanelW, kPanelH, 1.0f, identity, panelColor);
+    mCurrencyHud.SetScreenSize(d3d.GetWidth(), d3d.GetHeight());
+    mCurrencyHud.RenderCampfirePanel(ctx, Wallet::Get().GetCoins(), panelX, panelY);
 
     mTextRenderer.BeginBatch(ctx);
     const std::string title = LocalizationManager::Get().Text("campfire.title");

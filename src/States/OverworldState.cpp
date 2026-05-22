@@ -51,6 +51,7 @@
 #include "../Systems/GameProgress.h"
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/SaveManager.h"
+#include "../Systems/Wallet.h"
 #include "../Core/TimeSystem.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
@@ -129,6 +130,10 @@ void OverworldState::OnEnter()
 
     const std::string storyFontPath = LocalizationManager::Get().GetCurrentFontPath();
     mStoryTextRenderer.Initialize(
+        device, context,
+        std::wstring(storyFontPath.begin(), storyFontPath.end()),
+        W, H);
+    mCurrencyHud.Initialize(
         device, context,
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
@@ -249,6 +254,7 @@ void OverworldState::OnEnter()
             if (mCamera) mCamera->SetScreenSize(nW, nH);
             if (mTransitionController) mTransitionController->OnResize(nW, nH);
             mStoryTextRenderer.SetScreenSize(nW, nH);
+            mCurrencyHud.SetScreenSize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -338,6 +344,7 @@ void OverworldState::OnExit()
     mTileMap.Shutdown();
     mDebugView.Shutdown();
     mStoryTextRenderer.Shutdown();
+    mCurrencyHud.Shutdown();
 
     // Release transition controller GPU resources.
     if (mTransitionController)
@@ -945,6 +952,12 @@ void OverworldState::RenderStoryOverlay()
     mStoryTextRenderer.EndBatch();
 }
 
+void OverworldState::RenderCurrencyOverlay()
+{
+    ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
+    mCurrencyHud.RenderTopRight(ctx, Wallet::Get().GetCoins());
+}
+
 // ------------------------------------------------------------
 // Function: Render
 // Purpose:
@@ -1003,4 +1016,5 @@ void OverworldState::Render()
     }
 
     RenderStoryOverlay();
+    RenderCurrencyOverlay();
 }

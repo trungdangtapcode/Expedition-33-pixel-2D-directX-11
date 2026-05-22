@@ -10,6 +10,7 @@
 #include "../Battle/EnemyEncounterData.h"
 #include "../Debug/DebugTextureViewer.h"
 #include "../UI/BattleTextRenderer.h"
+#include "../UI/CurrencyHudRenderer.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -196,6 +197,7 @@ private:
     // Story objective text is data-driven by overworld_story.json so the map
     // can communicate player motivation without hardcoding text in rendering.
     BattleTextRenderer mStoryTextRenderer;
+    CurrencyHudRenderer mCurrencyHud;
     std::vector<OverworldStoryRegion> mStoryRegions;
     std::string mDefaultArea = "Ashen Meadow";
     std::string mDefaultObjective = "Follow the dirt road to the eastern gate.";
@@ -222,5 +224,6 @@ private:
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);
     void RenderStoryOverlay();
+    void RenderCurrencyOverlay();
     bool HandleCampfireInput(float px, float py);
 };

@@ -24,6 +24,7 @@
       "def": 12,
       "spd": 4,
       "expReward": 85,
+      "coinReward": 24,
       "attackJsonPath": "data/skills/zombie_armour_attack.json",
       "cameraFocusOffsetY": -128.0
     }

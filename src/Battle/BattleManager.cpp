@@ -11,6 +11,7 @@
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/LocalizationManager.h"
+#include "../Systems/Wallet.h"
 
 #include "EnemyEncounterData.h"
 #include <algorithm>
@@ -38,6 +39,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
 {
     mContext.config = config;
     mTotalExpPool   = 0;
+    mTotalCoinPool  = 0;
 
     // -- Spawn player party natively pulling from PartyManager arrays! --
     auto& activeParty = PartyManager::Get().GetActiveParty();
@@ -66,6 +68,7 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         // mp=0 and maxMp=0: enemies do not use MP in the current design.
         // rage=0 and maxRage=0: rage resource is player-only.
         mTotalExpPool += sd.expReward;
+        mTotalCoinPool += sd.coinReward;
         BattlerStats stats{};
         stats.hp     = sd.hp;
         stats.maxHp  = sd.hp;
@@ -382,6 +385,13 @@ void BattleManager::HandleResolving(float dt)
             { "exp", std::to_string(mTotalExpPool) }
         }));
         PartyManager::Get().AddExp(mTotalExpPool);
+        if (mTotalCoinPool > 0)
+        {
+            Wallet::Get().AddCoins(mTotalCoinPool);
+            Log(LocalizationManager::Get().Format("battle.log.coins_earned", {
+                { "amount", std::to_string(mTotalCoinPool) }
+            }));
+        }
 
         mOutcome = BattleOutcome::VICTORY;
         mPhase   = BattlePhase::WIN;

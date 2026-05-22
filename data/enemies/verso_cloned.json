@@ -23,6 +23,7 @@
       "def": 8,
       "spd": 10,
       "expReward": 200,
+      "coinReward": 75,
       "attackJsonPath": "data/skills/verso_cloned_attack.json",
       "cameraFocusOffsetY": -128.0
     }

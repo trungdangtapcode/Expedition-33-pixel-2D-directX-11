@@ -1,9 +1,17 @@
 {
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
   "comment": "Verso Cloned attack -- aggressive melee with bullet hell dodge phase.",
   "moveDuration": 0.35,
   "returnDuration": 0.3,
   "meleeOffset": 80.0,
   "damageTakenOccurMoment": 0.5,
   "bulletHellSupported": true,
-  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json"
+  "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/skeleton_bones.json",
+    "data/bullet_patterns/skeleton_crossfire.json",
+    "data/bullet_patterns/archer_pattern.json"
+  ]
 }

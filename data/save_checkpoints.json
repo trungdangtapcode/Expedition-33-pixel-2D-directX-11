@@ -1,0 +1,14 @@
+{
+  "slotPath": "save/checkpoint_slot_0.json",
+  "slotDirectory": "save",
+  "slotFilePrefix": "checkpoint_slot_",
+  "slotFileExtension": ".json",
+  "slotCount": 3,
+  "defaultSlotIndex": 0,
+  "autoCheckpointId": "overworld_after_battle",
+  "autoSceneId": "overworld",
+  "defaultCheckpointId": "new_game",
+  "defaultPlayerX": 120.0,
+  "defaultPlayerY": 80.0,
+  "iconPath": "assets/UI/save_checkpoint_badge.png"
+}

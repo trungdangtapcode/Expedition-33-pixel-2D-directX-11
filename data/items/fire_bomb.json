@@ -1,5 +1,7 @@
 {
   "id": "fire_bomb",
+  "nameKey": "item.fire_bomb.name",
+  "descriptionKey": "item.fire_bomb.description",
   "name": "Fire Bomb",
   "description": "Engulfs every enemy in flames for 80 damage.",
   "iconPath": "assets/items/fire_bomb.png",

@@ -1,5 +1,7 @@
 {
   "id": "power_tonic",
+  "nameKey": "item.power_tonic.name",
+  "descriptionKey": "item.power_tonic.description",
   "name": "Power Tonic",
   "description": "Boosts an ally's ATK by 30% for 3 turns.",
   "iconPath": "assets/items/power_tonic.png",

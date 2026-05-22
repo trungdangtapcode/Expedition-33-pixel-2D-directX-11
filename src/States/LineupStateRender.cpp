@@ -26,8 +26,25 @@
 #include "../Battle/ItemRegistry.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Utils/Log.h"
+
+namespace
+{
+    std::string LocalizedSlotLabel(EquipSlot slot)
+    {
+        switch (slot)
+        {
+        case EquipSlot::Weapon:    return LocalizationManager::Get().Text("equip.slot.weapon");
+        case EquipSlot::Body:      return LocalizationManager::Get().Text("equip.slot.body");
+        case EquipSlot::Head:      return LocalizationManager::Get().Text("equip.slot.head");
+        case EquipSlot::Accessory: return LocalizationManager::Get().Text("equip.slot.accessory");
+        case EquipSlot::None:      return LocalizationManager::Get().Text("equip.slot.none");
+        }
+        return LocalizationManager::Get().Text("equip.slot.none");
+    }
+}
 
 // ============================================================
 //  LINEUP VIEW — cinematic character showcase
@@ -153,7 +170,8 @@ void LineupState::RenderLineupView()
         // Subtitle
         {
             DirectX::XMMATRIX t = DirectX::XMMatrixScaling(fSmall, fSmall, 1.0f);
-            mTextRenderer.DrawString(ctx, "Party Lineup",
+            const std::string title = LocalizationManager::Get().Text("lineup.title");
+            mTextRenderer.DrawString(ctx, title.c_str(),
                 30.0f / fSmall, (22.0f + fTitle * 22.0f) / fSmall,
                 DirectX::XMVectorSet(0.45f, 0.42f, 0.4f, sceneAlpha), t);
         }
@@ -221,7 +239,7 @@ void LineupState::RenderLineupView()
         {
             DirectX::XMMATRIX ht = DirectX::XMMatrixScaling(fSmall, fSmall, 1.0f);
             mTextRenderer.DrawStringCentered(ctx,
-                "Left/Right: Select       Enter: Equipment       Esc: Close",
+                LocalizationManager::Get().Text("lineup.hint.overview").c_str(),
                 (fW * 0.5f) / fSmall, (fH - 22.0f) / fSmall,
                 DirectX::XMVectorSet(0.3f, 0.28f, 0.26f, sceneAlpha * 0.8f), ht);
         }
@@ -346,7 +364,8 @@ void LineupState::RenderCharacterView()
     // Section header
     {
         DirectX::XMMATRIX tt = DirectX::XMMatrixScaling(fSection, fSection, 1.0f);
-        mTextRenderer.DrawString(ctx, "EQUIPMENT",
+        const std::string equipmentTitle = LocalizationManager::Get().Text("lineup.equipment");
+        mTextRenderer.DrawString(ctx, equipmentTitle.c_str(),
             slotX / fSection, (slotY - 30.0f) / fSection,
             DirectX::XMVectorSet(0.75f, 0.68f, 0.45f, 1.0f), tt);
     }
@@ -368,7 +387,8 @@ void LineupState::RenderCharacterView()
             DirectX::XMVECTOR labelColor = (isSelected || isPickerSlot)
                 ? DirectX::XMVectorSet(0.85f, 0.75f, 0.45f, 1.0f)
                 : DirectX::XMVectorSet(0.4f, 0.38f, 0.35f, 1.0f);
-            mTextRenderer.DrawString(ctx, SlotLabel(slotOrder[s]),
+            const std::string slotLabel = LocalizedSlotLabel(slotOrder[s]);
+            mTextRenderer.DrawString(ctx, slotLabel.c_str(),
                 slotX / fBody, rowY / fBody, labelColor, labelT);
 
             // Cursor indicator
@@ -384,14 +404,14 @@ void LineupState::RenderCharacterView()
 
             // Equipped item name
             std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberCursor, slotOrder[s]);
-            const char* itemName = "- empty -";
+            std::string itemName = LocalizationManager::Get().Text("lineup.empty");
             DirectX::XMVECTOR itemColor = DirectX::XMVectorSet(0.3f, 0.28f, 0.25f, 0.6f);
 
             if (!equippedId.empty())
             {
                 const ItemData* item = ItemRegistry::Get().Find(equippedId);
                 if (item) {
-                    itemName = item->name.c_str();
+                    itemName = item->name;
                     itemColor = (isSelected || isPickerSlot)
                         ? DirectX::XMVectorSet(1.0f, 0.98f, 0.92f, 1.0f)
                         : DirectX::XMVectorSet(0.65f, 0.62f, 0.58f, 1.0f);
@@ -399,7 +419,7 @@ void LineupState::RenderCharacterView()
             }
 
             DirectX::XMMATRIX itemT = DirectX::XMMatrixScaling(fBody, fBody, 1.0f);
-            mTextRenderer.DrawString(ctx, itemName,
+            mTextRenderer.DrawString(ctx, itemName.c_str(),
                 slotX / fBody, (rowY + 22.0f) / fBody,
                 itemColor, itemT);
         }
@@ -414,19 +434,19 @@ void LineupState::RenderCharacterView()
 
     // --- HINT FOOTER (centered bottom) ---
     {
-        const char* hintText = "";
+        std::string hintText;
         switch (mPhase)
         {
         case Phase::SlotSelect:
-            hintText = "Up/Down: Slot    Left/Right: Character    Enter: Change    Esc: Back";
+            hintText = LocalizationManager::Get().Text("lineup.hint.slot");
             break;
         case Phase::EquipPicker:
-            hintText = "Up/Down: Item    Enter: Equip    Esc: Cancel";
+            hintText = LocalizationManager::Get().Text("lineup.hint.picker");
             break;
         default: break;
         }
         DirectX::XMMATRIX ht = DirectX::XMMatrixScaling(fSmall, fSmall, 1.0f);
-        mTextRenderer.DrawStringCentered(ctx, hintText,
+        mTextRenderer.DrawStringCentered(ctx, hintText.c_str(),
             (fW * 0.5f) / fSmall, (fH - 22.0f) / fSmall,
             DirectX::XMVectorSet(0.3f, 0.28f, 0.26f, 1.0f), ht);
     }
@@ -467,7 +487,8 @@ void LineupState::RenderEquipPickerText()
     // Section header
     {
         DirectX::XMMATRIX ht = DirectX::XMMatrixScaling(fSection, fSection, 1.0f);
-        mTextRenderer.DrawString(ctx, "SELECT ITEM",
+        const std::string selectItemTitle = LocalizationManager::Get().Text("lineup.select_item");
+        mTextRenderer.DrawString(ctx, selectItemTitle.c_str(),
             pX / fSection, (pY - 28.0f) / fSection,
             DirectX::XMVectorSet(0.75f, 0.68f, 0.45f, 1.0f), ht);
     }
@@ -494,7 +515,8 @@ void LineupState::RenderEquipPickerText()
             DirectX::XMVECTOR uC = isCursor
                 ? DirectX::XMVectorSet(1.0f, 0.4f, 0.35f, 1.0f)
                 : DirectX::XMVectorSet(0.4f, 0.25f, 0.22f, 0.7f);
-            mTextRenderer.DrawString(ctx, "(unequip)",
+            const std::string unequipText = LocalizationManager::Get().Text("lineup.unequip");
+            mTextRenderer.DrawString(ctx, unequipText.c_str(),
                 pX / fBody, rowY / fBody, uC, tt);
         }
         else
@@ -560,7 +582,8 @@ void LineupState::RenderStatPanelText(float x, float y, bool showPreview)
     // Section title
     {
         DirectX::XMMATRIX tt = DirectX::XMMatrixScaling(fSection, fSection, 1.0f);
-        mTextRenderer.DrawString(ctx, "STATS",
+        const std::string statsTitle = LocalizationManager::Get().Text("lineup.stats");
+        mTextRenderer.DrawString(ctx, statsTitle.c_str(),
             (x + 10.0f) / fSection, (y - 28.0f) / fSection,
             DirectX::XMVectorSet(0.75f, 0.68f, 0.45f, 1.0f), tt);
     }

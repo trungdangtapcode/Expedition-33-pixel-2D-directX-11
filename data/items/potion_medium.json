@@ -1,5 +1,7 @@
 {
   "id": "potion_medium",
+  "nameKey": "item.potion_medium.name",
+  "descriptionKey": "item.potion_medium.description",
   "name": "Medium Potion",
   "description": "Restores 75 HP to one ally.",
   "iconPath": "assets/items/potion_medium.png",

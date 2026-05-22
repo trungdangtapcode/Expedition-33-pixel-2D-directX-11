@@ -1,0 +1,17 @@
+{
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
+  "moveDuration": 0.45,
+  "returnDuration": 0.4,
+  "meleeOffset": 86.0,
+  "bulletHellSupported": true,
+  "bulletHellPatternPath": "data/bullet_patterns/zombie_armour_guard.json",
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/zombie_armour_guard.json",
+    "data/bullet_patterns/zombie_armour_lockstep.json",
+    "data/bullet_patterns/archer_pattern.json"
+  ],
+  "qteSupported": false,
+  "damageTakenOccurMoment": 0.5
+}

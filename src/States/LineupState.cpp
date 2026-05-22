@@ -30,6 +30,7 @@
 #include "../Battle/ItemRegistry.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
@@ -129,8 +130,9 @@ void LineupState::OnEnter()
 
     // Initialize renderers.
     mGlow.Initialize(device);
+    const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(device, context,
-        L"assets/fonts/arial_16.spritefont", W, H);
+        std::wstring(fontPath.begin(), fontPath.end()), W, H);
 
     // Camera controller — starts in ENTERING phase (zoomed out + black).
     mCameraCtrl.Initialize(W, H, mCameraConfig);
@@ -529,7 +531,14 @@ void LineupState::HandlePickerInput()
             {
                 PartyManager::Get().UnequipItem(memberIdx, mPickerSlot);
                 const ItemData* item = ItemRegistry::Get().Find(equippedId);
-                mFlashMessage = std::string("Unequipped ") + (item ? item->name : equippedId);
+                mFlashMessage = LocalizationManager::Get().Format("lineup.flash.unequipped", {
+                    { "item", item ? item->name : equippedId }
+                });
+                mFlashTimer = kFlashDuration;
+            }
+            else
+            {
+                mFlashMessage = LocalizationManager::Get().Text("lineup.flash.nothing_to_unequip");
                 mFlashTimer = kFlashDuration;
             }
         }
@@ -539,12 +548,14 @@ void LineupState::HandlePickerInput()
             if (PartyManager::Get().EquipItem(memberIdx, mPickerSlot, itemId))
             {
                 const ItemData* item = ItemRegistry::Get().Find(itemId);
-                mFlashMessage = std::string("Equipped ") + (item ? item->name : itemId);
+                mFlashMessage = LocalizationManager::Get().Format("lineup.flash.equipped", {
+                    { "item", item ? item->name : itemId }
+                });
                 mFlashTimer = kFlashDuration;
             }
             else
             {
-                mFlashMessage = "Could not equip that item.";
+                mFlashMessage = LocalizationManager::Get().Text("lineup.flash.could_not_equip");
                 mFlashTimer = kFlashDuration;
             }
         }

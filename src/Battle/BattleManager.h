@@ -171,6 +171,16 @@ private:
     bool AllPlayersDefeated() const;
     bool AllEnemiesDefeated()  const;
 
+    // Terminal defeat is centralized so long-running actions, such as
+    // bullet-hell dodges, cannot keep the battle simulation alive after
+    // the player party has already reached zero HP.
+    void FinishDefeat();
+
+    // Bullet-hell rendering is driven by a sticky state payload.  When the
+    // battle ends before BulletHellAction reaches its natural duration, the
+    // manager sends one inactive payload so the overlay is removed that frame.
+    void ClearBulletHellOverlay() const;
+
     void HandleIntro(float dt);      // drain walk-in queue, then advance to first turn
     void HandlePlayerTurn(float dt);
     void HandleEnemyTurn(float dt);

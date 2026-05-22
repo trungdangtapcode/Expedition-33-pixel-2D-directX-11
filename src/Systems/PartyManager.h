@@ -1,43 +1,41 @@
 // ============================================================
 // File: PartyManager.h
-// Responsibility: Persist the player party's BattlerStats AND
-//                 equipment slots across multiple BattleState
-//                 instances and overworld traversal.
+// Responsibility: Persist player party stats and equipment across
+//                 battles, overworld traversal, and save/load.
 //
 // Problem solved:
 //   BattleState and BattleManager are destroyed and recreated for every
-//   encounter.  Without a persistent store, Verso's HP would reset to
-//   full at the start of every battle and equipment would be lost on
-//   transition.  PartyManager holds Verso's BASE stats and equipment
-//   slots between battles so wounds and gear carry forward.
+//   encounter. Without a persistent store, party HP, MP, EXP, levels, and
+//   equipment would reset whenever a battle ends.
 //
-// Two stat planes — IMPORTANT:
-//   1. BASE stats          (mVersoStats):
-//        Hardcoded seeds — atk/def/maxHp/etc are character-intrinsic
-//        values that only change via leveling (not implemented yet).
-//        hp/mp/rage are CURRENT resources that change every battle.
-//   2. EFFECTIVE stats     (GetEffectiveStats(index)):
-//        Base stats with all currently-equipped item bonuses folded
-//        in.  This is what BattleManager seeds the PlayerCombatant
-//        with at battle start.
+// Stat planes:
+//   1. Base stats:
+//      Character-intrinsic values loaded from data/characters/*.json and
+//      advanced by the leveling system. Current HP, MP, and rage live here
+//      because they must survive across battles.
+//   2. Effective stats:
+//      Base stats plus equipped item bonuses. BattleManager seeds
+//      PlayerCombatant instances from this folded view.
 //
-// SetMemberStats semantics — IMPORTANT:
-//   The new SetMemberStats saves ONLY hp/mp/rage from the input — 
-//   all other fields are ignored to prevent base mutation.
+// Save/load:
+//   PartyManager exposes PartyMemberProgress snapshots so SaveManager can
+//   serialize durable progress without knowing how party metadata, sprite
+//   paths, or equipment folding work internally.
 //
 // Equipment ownership:
-//   Each equipped item is moved OUT of Inventory into a member's slot.
-//   Unequip moves it back.  This prevents the player from "duping"
-//   an item by equipping it and then using the inventory copy.
+//   Equipped items are moved out of Inventory into a member slot. Unequip
+//   returns the item to Inventory, preventing duplicated usable copies.
 //
 // Lifetime:
-//   Created on first Get() call (Meyers' singleton).
-//   Destroyed at program exit (static storage duration).
+//   Created on first Get() call as a Meyers singleton.
+//   Destroyed at program exit by static storage duration cleanup.
 // ============================================================
 #pragma once
+
 #include "../Battle/BattlerStats.h"
-#include "../Battle/ItemData.h"   // ItemKind, EquipSlot, kEquipSlotCount, SlotIndex
+#include "../Battle/ItemData.h"
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -53,79 +51,120 @@ struct PartyMember
     std::array<std::string, kEquipSlotCount> equipped;
 };
 
+struct PartyMemberProgress
+{
+    std::string id;
+    BattlerStats baseStats;
+    std::array<std::string, kEquipSlotCount> equipped;
+};
+
 class PartyManager
 {
 public:
     // ------------------------------------------------------------
-    // Get: Meyers' Singleton accessor.
-    // Thread-safe in C++11+ (magic statics).
+    // Function: Get
+    // Purpose:
+    //   Return the single process-wide party manager.
+    // Why:
+    //   Game states are short-lived, but party progress must survive state
+    //   pushes, pops, and full scene changes.
     // ------------------------------------------------------------
     static PartyManager& Get();
 
     // ------------------------------------------------------------
-    // GetActiveParty: return the entire party vector securely.
+    // Function: ResetToDefaults
+    // Purpose:
+    //   Rebuild party members from character data files.
+    // Why:
+    //   New Game and failed save loads need a clean, data-driven baseline
+    //   without restarting the process.
     // ------------------------------------------------------------
+    void ResetToDefaults();
+
     const std::vector<PartyMember>& GetActiveParty() const { return mActiveParty; }
     std::vector<PartyMember>& GetActiveParty() { return mActiveParty; }
 
-    // ------------------------------------------------------------
-    // GetMemberStats: return BASE stats for an index.
-    // ------------------------------------------------------------
     const BattlerStats& GetMemberStats(size_t index) const { return mActiveParty[index].baseStats; }
 
     // ------------------------------------------------------------
-    // GetEffectiveStats: BASE + every equipped item's bonuses for member.
+    // Function: GetEffectiveStats
+    // Purpose:
+    //   Return base stats plus equipped item bonuses for one member.
+    // Why:
+    //   Battle and UI surfaces need the same folded stat view, and the
+    //   folding rule must stay centralized.
     // ------------------------------------------------------------
     BattlerStats GetEffectiveStats(size_t index) const;
 
-    // ------------------------------------------------------------
-    // PreviewEffectiveStats: layout hypothetical effective stats.
-    // ------------------------------------------------------------
     BattlerStats PreviewEffectiveStats(size_t index, EquipSlot slot, const std::string& itemId) const;
 
     // ------------------------------------------------------------
-    // SetMemberStats: persist member's CURRENT resources at battle end.
-    // Only hp / mp are saved (base stats remain untouched).
+    // Function: SetMemberStats
+    // Purpose:
+    //   Persist current battle resources after an encounter.
+    // Why:
+    //   PlayerCombatant is temporary, while PartyManager is the durable
+    //   authority for HP and MP between battles.
+    // Caveats:
+    //   - Only HP, MP, and rage are read from stats.
+    //   - Base attack, defense, level, and EXP are intentionally left alone.
     // ------------------------------------------------------------
     void SetMemberStats(size_t index, const BattlerStats& stats);
 
     // ------------------------------------------------------------
-    // RestoreFullHP: heal Verso to full and reset rage.
-    // Used at rest sites and post-game-over screens.
+    // Function: RestoreFullHP
+    // Purpose:
+    //   Heal every active member and reset rage.
+    // Why:
+    //   Rest sites, game-over recovery, and debug flows need one durable
+    //   party-wide recovery hook.
     // ------------------------------------------------------------
     void RestoreFullHP();
 
     // ------------------------------------------------------------
-    // AddExp: Grants cumulative EXP to active party members triggering level ups.
+    // Function: AddExp
+    // Purpose:
+    //   Grant cumulative EXP to active party members and apply level-ups.
+    // Why:
+    //   PartyManager owns persistent character progression, so the level
+    //   curve and stat growth should not live in BattleManager.
     // ------------------------------------------------------------
     void AddExp(int amount);
 
-    // ============================================================
-    //  Equipment API
-    // ============================================================
+    // ------------------------------------------------------------
+    // Function: CaptureProgress
+    // Purpose:
+    //   Return a save-friendly snapshot of durable party progress.
+    // Why:
+    //   SaveManager should not reach into PartyMember internals or serialize
+    //   render metadata that can be reloaded from data files.
+    // ------------------------------------------------------------
+    std::vector<PartyMemberProgress> CaptureProgress() const;
 
     // ------------------------------------------------------------
+    // Function: ApplyProgress
+    // Purpose:
+    //   Overlay saved stats and equipment onto the current data-loaded party.
+    // Why:
+    //   Save files store stable member ids, while the game still owns current
+    //   metadata such as sprite paths and UI frame paths.
+    // ------------------------------------------------------------
+    void ApplyProgress(const std::vector<PartyMemberProgress>& progress);
+
     bool EquipItem(size_t index, EquipSlot slot, const std::string& itemId);
-
-    // ------------------------------------------------------------
-    // UnequipItem: remove the item in `slot` and return it to Inventory.
-    // No-op if the slot is empty.
-    // ------------------------------------------------------------
     bool UnequipItem(size_t index, EquipSlot slot);
-    
-    // ------------------------------------------------------------
     std::string GetEquippedItem(size_t index, EquipSlot slot) const;
 
 private:
-    static int GetExpCurve(int level) {
-        // Curve mapping: 100 * (Level ^ 1.5). Level 2 = 282, 3 = 519, 4 = 800
+    static int GetExpCurve(int level)
+    {
+        // The threshold scales faster than linearly so early levels arrive
+        // quickly while later progression stretches out.
         return static_cast<int>(100.0f * std::pow(level, 1.5f));
     }
 
-    // Private constructor — only Get() may create the instance.
     PartyManager();
 
-    // Non-copyable / non-movable — singleton must not be duplicated.
     PartyManager(const PartyManager&)            = delete;
     PartyManager& operator=(const PartyManager&) = delete;
 

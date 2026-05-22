@@ -8,7 +8,18 @@
 #include "WeakenEffect.h"
 #include "LogAction.h"
 #include "BattleContext.h"
+#include "../Systems/LocalizationManager.h"
 #include <memory>
+
+std::string WeakenSkill::GetName() const
+{
+    return LocalizationManager::Get().Text("skill.weaken.name");
+}
+
+std::string WeakenSkill::GetDescription() const
+{
+    return LocalizationManager::Get().Text("skill.weaken.description");
+}
 
 bool WeakenSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
 {
@@ -28,7 +39,10 @@ std::vector<std::unique_ptr<IAction>> WeakenSkill::Execute(
 
     actions.push_back(std::make_unique<LogAction>(
         nullptr,
-        caster.GetName() + " weakens " + target->GetName() + "! (-15 ATK, -10 DEF for 2 turns)"
+        LocalizationManager::Get().Format("battle.log.weaken", {
+            { "actor", caster.GetName() },
+            { "target", target->GetName() }
+        })
     ));
 
     // Tuning values: 2 turns, 15 ATK reduction, 10 DEF reduction.

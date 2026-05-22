@@ -1,5 +1,7 @@
 {
   "id": "elixir",
+  "nameKey": "item.elixir.name",
+  "descriptionKey": "item.elixir.description",
   "name": "Elixir",
   "description": "Fully restores HP and MP of one ally.",
   "iconPath": "assets/items/elixir.png",

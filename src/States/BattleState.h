@@ -3,33 +3,33 @@
 // Responsibility: IGameState wrapper for a turn-based battle session.
 //
 // Owns:
-//   BattleManager     — the full battle simulation
-//   HealthBarRenderer — three-layer HP bar UI widget (background, fill, frame)
-//   BattleRenderer    — renders all combatant sprites at fixed screen slots
-//   IBattleCommand[]  — data-driven list of top-level menu options
-//   IrisTransitionRenderer — iris circle overlay for enter/exit transitions
+//   BattleManager     - the full battle simulation
+//   HealthBarRenderer - three-layer HP bar UI widget (background, fill, frame)
+//   BattleRenderer    - renders all combatant sprites at fixed screen slots
+//   IBattleCommand[]  - data-driven list of top-level menu options
+//   IrisTransitionRenderer - iris circle overlay for enter/exit transitions
 //
 // Construction:
-//   BattleState(d3d, encounter) — encounter carries the overworld enemy's
+//   BattleState(d3d, encounter) - encounter carries the overworld enemy's
 //   sprite paths and stats.  enemySlots[0] is populated from this data
 //   instead of hardcoded paths.  If encounter.name is empty (default),
 //   the fallback skeleton data is used (preserves backwards compatibility
 //   when BattleState is pushed without an OverworldEnemy context).
 //
 // Player Input FSM (PlayerInputPhase):
-//   COMMAND_SELECT  — player picks a top-level action (Fight / Flee / …)
-//   SKILL_SELECT    — player picks which skill to use  (1 / 2 / 3)
-//   TARGET_SELECT   — player picks which enemy to target (Tab / Enter)
+//   COMMAND_SELECT  - player picks a top-level action (Fight / Flee / ...)
+//   SKILL_SELECT    - player picks which skill to use  (1 / 2 / 3)
+//   TARGET_SELECT   - player picks which enemy to target (Tab / Enter)
 //
 //   Navigating COMMAND_SELECT: Up/Down arrow to move cursor, Enter to confirm.
 //   Adding a new command: create a class implementing IBattleCommand, append
-//   it to mCommands in BuildCommandList() — zero other changes needed.
+//   it to mCommands in BuildCommandList() - zero other changes needed.
 //
 // Iris transition:
-//   OnEnter  → iris.Initialize() + iris.StartOpen() (reveals the battle from black).
-//   WIN/LOSE → iris.StartClose(callback) — when black, sets mPendingSafeExit flag.
-//   Flee     → same pattern as WIN/LOSE.
-//   End of Update(): if mPendingSafeExit → broadcast event + PopState().
+//   OnEnter  -> iris.Initialize() + iris.StartOpen() (reveals the battle from black).
+//   WIN/LOSE -> iris.StartClose(callback) - when black, sets mPendingSafeExit flag.
+//   Flee     -> same pattern as WIN/LOSE.
+//   End of Update(): if mPendingSafeExit -> broadcast event + PopState().
 //
 //   The deferred-exit pattern (mPendingSafeExit flag) prevents use-after-free:
 //   StateManager::PopState() destroys BattleState immediately.  Any member
@@ -69,6 +69,7 @@
 #include "../UI/BattleBulletHellRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Renderer/ItemIconRenderer.h"
+#include "../Renderer/BattleAmbientParticleRenderer.h"
 #include "../Utils/JsonLoader.h"
 #include "../Renderer/EnvironmentRenderer.h"
 #include <vector>
@@ -82,12 +83,12 @@ public:
     // Constructor
     // Purpose:
     //   Store D3DContext reference and encounter data.
-    //   Actual GPU initialization is deferred to OnEnter() — the D3D
+    //   Actual GPU initialization is deferred to OnEnter() - the D3D
     //   device must be valid before any resource creation.
     //
     // Parameters:
-    //   d3d       — D3D11 device/context/RTV facade (owned by GameApp)
-    //   encounter — overworld enemy data package.  If encounter.name is
+    //   d3d       - D3D11 device/context/RTV facade (owned by GameApp)
+    //   encounter - overworld enemy data package.  If encounter.name is
     //               empty, OnEnter() falls back to the hardcoded skeleton.
     //               This preserves backwards compatibility for legacy callers.
     // ------------------------------------------------------------
@@ -102,7 +103,7 @@ public:
     // Public API used by IBattleCommand implementations or BattleInputController.
     void SetInputPhase(PlayerInputPhase phase) { mInputController.SetInputPhase(phase); }
 
-    // RequestFlee: called by FleeCommand — deferred exit pattern.
+    // RequestFlee: called by FleeCommand - deferred exit pattern.
     // See mPendingFlee comment and BattleState.h header for full rationale.
     void RequestFlee() { mPendingFlee = true; }
 
@@ -124,7 +125,7 @@ private:
     // Scroll-direction chevrons drawn above/below the item menu when
     // there are off-screen items in that direction.  Both share the
     // same texture (the existing pointer asset is reused as a placeholder
-    // until dedicated chevron art lands — see idea/asset-todo.md).
+    // until dedicated chevron art lands - see idea/asset-todo.md).
     // mChevronUp draws with vertical flip + inverted bob direction.
     ScrollArrowRenderer    mChevronUp;
     ScrollArrowRenderer    mChevronDown;
@@ -134,7 +135,10 @@ private:
     // returns nullptr the colored placeholder is the only visual
     // (no regression for items lacking authored art yet).
     ItemIconRenderer       mItemIconRenderer;
-    BattleTextRenderer     mTextRenderer;      EnvironmentRenderer    mEnvRenderer;    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
+    BattleTextRenderer     mTextRenderer;
+    EnvironmentRenderer    mEnvRenderer;
+    BattleAmbientParticleRenderer mAmbientParticles;
+    IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
     BattleInputController  mInputController;
 
     JsonLoader::BattleMenuLayout mMenuLayout;
@@ -158,7 +162,7 @@ private:
     bool mExitTransitionStarted = false;
 
     // mPendingSafeExit: set to true by the iris-close callback.
-    //   Checked at the END of Update() — after all handlers have returned —
+    //   Checked at the END of Update() - after all handlers have returned -
     //   so PopState() is called when no BattleState code is on the call stack.
     bool mPendingSafeExit = false;
 
@@ -166,7 +170,7 @@ private:
     std::string mExitEventName;
 
     // mPendingFlee: set by FleeCommand::Execute() (legacy one-frame-deferred pop).
-    //   StartClose replaces the direct PopState() — checked each frame.
+    //   StartClose replaces the direct PopState() - checked each frame.
     bool mPendingFlee = false;
 
     void InitAudio();

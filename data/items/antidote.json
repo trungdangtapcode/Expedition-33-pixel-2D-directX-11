@@ -1,5 +1,7 @@
 {
   "id": "antidote",
+  "nameKey": "item.antidote.name",
+  "descriptionKey": "item.antidote.description",
   "name": "Antidote",
   "description": "Removes all status effects from one ally.",
   "iconPath": "assets/items/antidote.png",

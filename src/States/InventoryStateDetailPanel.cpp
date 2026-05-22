@@ -29,7 +29,24 @@
 #include "../Battle/ItemRegistry.h"
 #include "../Battle/ItemIconCache.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
+
+namespace
+{
+    std::string LocalizedSlotLabel(EquipSlot slot)
+    {
+        switch (slot)
+        {
+        case EquipSlot::Weapon:    return LocalizationManager::Get().Text("equip.slot.weapon");
+        case EquipSlot::Body:      return LocalizationManager::Get().Text("equip.slot.body");
+        case EquipSlot::Head:      return LocalizationManager::Get().Text("equip.slot.head");
+        case EquipSlot::Accessory: return LocalizationManager::Get().Text("equip.slot.accessory");
+        case EquipSlot::None:      return LocalizationManager::Get().Text("equip.slot.none");
+        }
+        return LocalizationManager::Get().Text("equip.slot.none");
+    }
+}
 
 void InventoryState::RenderDetailPanel(float rightX, float rightY,
                                          float rightW, float rightH)
@@ -52,7 +69,8 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     {
         if (mConsumables.empty())
         {
-            mTextRenderer.DrawString(ctx, "Pick up items in the world",
+            const std::string text = LocalizationManager::Get().Text("inventory.no_items");
+            mTextRenderer.DrawString(ctx, text.c_str(),
                                       rightX + kPad, lineY, DirectX::Colors::Gray);
             return;
         }
@@ -84,10 +102,10 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
 
         // Owned count beneath the name so the player can see at a glance
         // how many they have without going back to the grid.
-        char ownText[32];
-        _snprintf_s(ownText, sizeof(ownText), _TRUNCATE, "Owned: %d",
-                    Inventory::Get().GetCount(id));
-        mTextRenderer.DrawString(ctx, ownText,
+        const std::string ownText = LocalizationManager::Get().Format("common.owned", {
+            { "count", std::to_string(Inventory::Get().GetCount(id)) }
+        });
+        mTextRenderer.DrawString(ctx, ownText.c_str(),
                                   rightX + kPad + bigIcon + 14.0f, lineY + 24.0f,
                                   DirectX::Colors::White);
 
@@ -105,7 +123,8 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     // ===========================================================
     if (mPhase == Phase::EquipmentPicker)
     {
-        mTextRenderer.DrawString(ctx, "STAT PREVIEW",
+        const std::string statPreview = LocalizationManager::Get().Text("inventory.stat_preview");
+        mTextRenderer.DrawString(ctx, statPreview.c_str(),
                                   rightX + kPad, lineY, DirectX::Colors::Yellow);
         nextLine(28.0f);
 
@@ -168,7 +187,8 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         }
         else if (PickerCursorIsUnequip())
         {
-            mTextRenderer.DrawString(ctx, "Removes the current item.",
+            const std::string removesText = LocalizationManager::Get().Text("inventory.removes_current_item");
+            mTextRenderer.DrawString(ctx, removesText.c_str(),
                                       rightX + kPad, lineY, DirectX::Colors::Gray);
         }
         return;
@@ -184,18 +204,21 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     const std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, slot);
     const ItemData*   item = equippedId.empty() ? nullptr : ItemRegistry::Get().Find(equippedId);
 
-    char slotHeader[64];
-    _snprintf_s(slotHeader, sizeof(slotHeader), _TRUNCATE, "Slot: %s", SlotLabel(slot));
-    mTextRenderer.DrawString(ctx, slotHeader, rightX + kPad, lineY,
+    const std::string slotHeader = LocalizationManager::Get().Format("inventory.slot_header", {
+        { "slot", LocalizedSlotLabel(slot) }
+    });
+    mTextRenderer.DrawString(ctx, slotHeader.c_str(), rightX + kPad, lineY,
                               DirectX::Colors::Yellow);
     nextLine(28.0f);
 
     if (!item)
     {
-        mTextRenderer.DrawString(ctx, "(nothing equipped)",
+        const std::string emptyText = LocalizationManager::Get().Text("inventory.nothing_equipped");
+        mTextRenderer.DrawString(ctx, emptyText.c_str(),
                                   rightX + kPad, lineY, DirectX::Colors::Gray);
         nextLine();
-        mTextRenderer.DrawString(ctx, "Press Enter to choose an item.",
+        const std::string chooseText = LocalizationManager::Get().Text("inventory.choose_item");
+        mTextRenderer.DrawString(ctx, chooseText.c_str(),
                                   rightX + kPad, lineY, DirectX::Colors::Gray);
         return;
     }

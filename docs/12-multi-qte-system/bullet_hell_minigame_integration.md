@@ -10,6 +10,9 @@ The Bullet-Hell system is entirely Data-Driven. By modifying individual `SkillDa
 
 The parsed `SkillData` properties mapped natively:
 - **`bulletHellSupported`**: (bool) The core toggle configuring whether the sub-game phase natively initializes.
+- **`bulletHellPatternPath`**: (string) Compatibility fallback for a single bullet-hell pattern.
+- **`bulletHellPatternPaths`**: (string array) Optional list of bullet-hell patterns a skill can choose from.
+- **`bulletHellPatternSelection`**: (string) Pattern selection policy: `fixed`, `random`, `random_no_repeat`, or `cycle`.
 - **`bulletTexturePath`**: (string) Dynamically changes bullet appearances (i.e. `assets/UI/crystal_bullet.png`). 
 - **`bulletRadius`**: (float) Controls collision bounds AND sprite rendering scales uniformly.
 - **`bulletSpeed`**: (float) Base directional physics velocity natively (randomized up to 20%).
@@ -24,7 +27,7 @@ The `BulletHellAction` encapsulates the physics logic decoupled cleanly from Tur
 Previously locking onto grid axes mappings natively heavily restricted patterns. 
 The updated `SpawnBullet()` algorithm utilizes pure Math mapping:
 1. Identifying the location of the Heart coordinate natively (`mHeartX`, `mHeartY`).
-2. Adding a randomized ± jitter constant forcing intersecting curves over pure tracking.
+2. Adding a randomized +/- jitter constant forcing intersecting curves over pure tracking.
 3. Calculating directional velocity natively using: 
    ```cpp
    float dx = targetX - b.x;

@@ -1,19 +1,108 @@
-#pragma once
-#include "IGameState.h"
-
 // ============================================================
-// MenuState - State màn hình chính (Main Menu)
+// File: MenuState.h
+// Responsibility: Entry state that routes title-menu commands to gameplay.
 //
-// Đây là State đầu tiên được push vào stack khi game khởi động.
-// Khi người dùng bắt đầu chơi, MenuState sẽ gọi:
-//   StateManager::Get().ChangeState(std::make_unique<PlayState>());
+// Lifetime:
+//   Pushed by GameApp after DirectX and audio are initialized.
+//   Replaced by OverworldState when the player starts or loads a game.
+//
+// Save/load:
+//   MenuState does not serialize data itself. It delegates save-slot work
+//   to SaveManager and only owns the high-level state transition decision.
 // ============================================================
-class MenuState : public IGameState {
+#pragma once
+
+#include "IGameState.h"
+#include "../UI/TitleMenuRenderer.h"
+#include <string>
+#include <vector>
+
+class MenuState : public IGameState
+{
 public:
-    void OnEnter() override; 
-    // override in C++ meanings this function is meant to override a virtual function in the base class (IGameState).
-    void OnExit()  override;
+    void OnEnter() override;
+    void OnExit() override;
     void Update(float dt) override;
-    void Render()  override;
+    void Render() override;
     const char* GetName() const override { return "MenuState"; }
+
+private:
+    enum class Phase
+    {
+        PressStart,
+        MainOptions,
+        Options,
+        NewGameSlots,
+        LoadSlots
+    };
+
+    enum class MainOption
+    {
+        NewGame,
+        Continue,
+        LoadSlot,
+        Options,
+        Quit,
+        Count
+    };
+
+    enum class OptionsOption
+    {
+        Language,
+        Back,
+        Count
+    };
+
+    enum class PendingSceneTransition
+    {
+        None,
+        Overworld
+    };
+
+    bool Pressed(int vk, bool& wasDown);
+    bool AnyStartPressed();
+    void CaptureInputLatches();
+    bool IsMainOptionEnabled(MainOption option) const;
+    void MoveMainCursor(int direction);
+    void MoveOptionsCursor(int direction);
+    void MoveSlotCursor(int direction);
+    void ActivateMainSelection();
+    void ActivateOptionsSelection();
+    void ActivateSlotSelection();
+    void CycleLanguage(int direction);
+    void StartNewGame(int slotIndex);
+    void ContinueFirstSlot();
+    bool LoadSlot(int slotIndex);
+    int FindPreferredNewGameSlot() const;
+    void BeginGameplayTransition();
+    void CompleteSceneTransition();
+    float ComputeTransitionAlpha() const;
+    void Flash(const std::string& message);
+    TitleMenuRenderState BuildRenderState() const;
+    std::vector<TitleMenuOptionView> BuildOptionViews() const;
+    std::vector<TitleMenuOptionView> BuildOptionsViews() const;
+    std::vector<TitleMenuSlotView> BuildSlotViews() const;
+    static std::string MainOptionLabel(MainOption option);
+    static int MainOptionCount();
+    static int OptionsOptionCount();
+
+    TitleMenuRenderer mRenderer;
+    Phase mPhase = Phase::PressStart;
+    int mCursor = 0;
+    int mSlotCursor = 0;
+    float mElapsed = 0.0f;
+    float mFlashTimer = 0.0f;
+    std::string mFlashMessage;
+    PendingSceneTransition mPendingTransition = PendingSceneTransition::None;
+    float mTransitionTimer = 0.0f;
+    float mTransitionDuration = 0.0f;
+
+    bool mUpWasDown = false;
+    bool mDownWasDown = false;
+    bool mEnterWasDown = false;
+    bool mBackWasDown = false;
+    bool mEscapeWasDown = false;
+    bool mLeftWasDown = false;
+    bool mRightWasDown = false;
+    bool mAnyStartWasDown = false;
 };

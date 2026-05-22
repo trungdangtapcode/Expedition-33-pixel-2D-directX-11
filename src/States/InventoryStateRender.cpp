@@ -19,7 +19,24 @@
 #include "../Battle/ItemRegistry.h"
 #include "../Battle/ItemIconCache.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
+
+namespace
+{
+    std::string LocalizedSlotLabel(EquipSlot slot)
+    {
+        switch (slot)
+        {
+        case EquipSlot::Weapon:    return LocalizationManager::Get().Text("equip.slot.weapon");
+        case EquipSlot::Body:      return LocalizationManager::Get().Text("equip.slot.body");
+        case EquipSlot::Head:      return LocalizationManager::Get().Text("equip.slot.head");
+        case EquipSlot::Accessory: return LocalizationManager::Get().Text("equip.slot.accessory");
+        case EquipSlot::None:      return LocalizationManager::Get().Text("equip.slot.none");
+        }
+        return LocalizationManager::Get().Text("equip.slot.none");
+    }
+}
 
 // ------------------------------------------------------------
 // IconTintFor (static, defined here so InventoryStateDetailPanel.cpp
@@ -80,7 +97,10 @@ void InventoryState::RenderTabs(float panelX, float panelY, float panelW)
     const     float startX   = panelX + 24.0f;
     const     float startY   = panelY + 8.0f;
 
-    const char* labels[] = { "Items", "Equipment" };
+    const std::string labels[] = {
+        LocalizationManager::Get().Text("inventory.tab.items"),
+        LocalizationManager::Get().Text("inventory.tab.equipment")
+    };
     const Tab   tabs[]   = { Tab::Items, Tab::Equipment };
 
     for (int i = 0; i < 2; ++i)
@@ -98,12 +118,13 @@ void InventoryState::RenderTabs(float panelX, float panelY, float panelW)
         DirectX::XMVECTOR textColor = active
             ? DirectX::Colors::Black
             : DirectX::Colors::White;
-        mTextRenderer.DrawString(ctx, labels[i],
+        mTextRenderer.DrawString(ctx, labels[i].c_str(),
                                   tabX + 36.0f, startY + 8.0f, textColor);
     }
 
     // "Tab to switch" hint, top-right of the tab bar.
-    mTextRenderer.DrawString(ctx, "[Tab] Switch",
+    const std::string switchHint = LocalizationManager::Get().Text("inventory.tab.switch");
+    mTextRenderer.DrawString(ctx, switchHint.c_str(),
                               panelX + panelW - 140.0f, startY + 12.0f,
                               DirectX::Colors::Gray);
 }
@@ -368,7 +389,8 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
             }
             else
             {
-                mTextRenderer.DrawString(ctx, "(unequip slot)",
+                const std::string unequipLabel = LocalizationManager::Get().Text("inventory.unequip_slot");
+                mTextRenderer.DrawString(ctx, unequipLabel.c_str(),
                                           leftX + 12.0f, rowY + 8.0f,
                                           hovered ? DirectX::Colors::White : DirectX::Colors::Gray);
             }
@@ -421,9 +443,10 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
     const auto& party = PartyManager::Get().GetActiveParty();
     const char* memberName = (mMemberIndex < static_cast<int>(party.size()))
         ? party[mMemberIndex].name.c_str() : "???";
-    char eqHeader[64];
-    _snprintf_s(eqHeader, sizeof(eqHeader), _TRUNCATE, "%s  - Equipment", memberName);
-    mTextRenderer.DrawString(ctx, eqHeader, leftX, leftY,
+    const std::string eqHeader = LocalizationManager::Get().Format("inventory.member_equipment", {
+        { "member", memberName }
+    });
+    mTextRenderer.DrawString(ctx, eqHeader.c_str(), leftX, leftY,
                               DirectX::Colors::Yellow);
 
     const float rowH = 56.0f;
@@ -445,14 +468,17 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
 
         // Slot label
         char slotText[64];
-        _snprintf_s(slotText, sizeof(slotText), _TRUNCATE, "%s:", SlotLabel(order[i]));
+        const std::string slotLabel = LocalizedSlotLabel(order[i]);
+        _snprintf_s(slotText, sizeof(slotText), _TRUNCATE, "%s:", slotLabel.c_str());
         mTextRenderer.DrawString(ctx, slotText,
                                   leftX + 12.0f, rowY + 8.0f,
                                   hovered ? DirectX::Colors::Black : DirectX::Colors::White);
 
         // Equipped item name (or "(empty)")
-        const char* itemName = item ? item->name.c_str() : "(empty)";
-        mTextRenderer.DrawString(ctx, itemName,
+        const std::string itemName = item
+            ? item->name
+            : LocalizationManager::Get().Text("inventory.empty_slot");
+        mTextRenderer.DrawString(ctx, itemName.c_str(),
                                   leftX + 130.0f, rowY + 8.0f,
                                   hovered ? DirectX::Colors::Black : DirectX::Colors::Gray);
 
@@ -525,22 +551,22 @@ void InventoryState::RenderHintFooter(float panelX, float footerY,
         return;
     }
 
-    const char* hint = nullptr;
+    std::string hint;
     switch (mPhase)
     {
     case Phase::ItemsGrid:
-        hint = "Arrows: navigate   Enter: use   Q/E: member   Tab: tab   Esc: close";
+        hint = LocalizationManager::Get().Text("inventory.hint.items");
         break;
     case Phase::EquipmentSlots:
-        hint = "Up/Down: slot   Left/Right: member   Enter: change   Tab: tab   Esc: close";
+        hint = LocalizationManager::Get().Text("inventory.hint.equipment");
         break;
     case Phase::EquipmentPicker:
-        hint = "Up/Down: pick item   Enter: equip   Esc/Backspace: cancel";
+        hint = LocalizationManager::Get().Text("inventory.hint.picker");
         break;
     }
-    if (hint)
+    if (!hint.empty())
     {
-        mTextRenderer.DrawString(ctx, hint,
+        mTextRenderer.DrawString(ctx, hint.c_str(),
                                   panelX + 24.0f, footerY + footerH * 0.20f,
                                   DirectX::Colors::Gray);
     }

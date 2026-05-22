@@ -1,5 +1,7 @@
 {
   "id": "village_clothes",
+  "nameKey": "item.village_clothes.name",
+  "descriptionKey": "item.village_clothes.description",
   "name": "Village Clothes",
   "description": "Plain woven garments worn by villagers. Better than nothing.",
   "iconPath": "assets/items/village_clothes.png",

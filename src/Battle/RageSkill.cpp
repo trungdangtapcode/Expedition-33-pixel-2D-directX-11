@@ -7,6 +7,17 @@
 #include "DamageAction.h"
 #include "LogAction.h"
 #include "BattleContext.h"
+#include "../Systems/LocalizationManager.h"
+
+std::string RageSkill::GetName() const
+{
+    return LocalizationManager::Get().Text("skill.rage_burst.name");
+}
+
+std::string RageSkill::GetDescription() const
+{
+    return LocalizationManager::Get().Text("skill.rage_burst.description");
+}
 
 bool RageSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
@@ -33,7 +44,10 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
 
     actions.push_back(std::make_unique<LogAction>(
         nullptr,
-        caster.GetName() + " unleashes RAGE BURST on " + target->GetName() + "!"
+        LocalizationManager::Get().Format("battle.log.rage_burst", {
+            { "actor", caster.GetName() },
+            { "target", target->GetName() }
+        })
     ));
 
     // Pass &ctx so the calculator reads the attacker's buffed ATK at execution.

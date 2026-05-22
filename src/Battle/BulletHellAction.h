@@ -11,13 +11,14 @@
 class BulletHellAction : public IAction
 {
 public:
-    BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath);
+    BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath, const BattleContext* context);
 
     bool Execute(float dt) override;
 
 private:
     IBattler* mAttacker;
     IBattler* mDefender;
+    const BattleContext* mContext;
 
     // Phase management
     float mDuration;
@@ -26,6 +27,7 @@ private:
     // Simulation mapping
     float mBoxCx, mBoxCy, mBoxW, mBoxH;
     float mHeartX, mHeartY, mHeartRadius;
+    float mHeartSpeed;
 
     std::vector<PhysicsBullet> mBullets;
     std::vector<std::unique_ptr<IBulletSpawner>> mSpawners;
@@ -36,5 +38,6 @@ private:
     float mInvincibilityDuration;
     int mHitsTaken;
 
-    void ApplyDamage(const BattleContext& ctx, float overrideScaling);
+    void ApplyDamage(float overrideScaling);
+    void PublishState(bool isActive) const;
 };

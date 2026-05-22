@@ -1,0 +1,74 @@
+{
+  "defaultAreaKey": "story.default_area",
+  "defaultArea": "Ashen Meadow",
+  "defaultObjectiveKey": "story.default_objective",
+  "defaultObjective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
+  "regions": [
+    {
+      "id": "meadow_wake",
+      "nameKey": "story.region.meadow_wake.name",
+      "name": "Meadow Wake",
+      "objectiveKey": "story.region.meadow_wake.objective",
+      "objective": "The first campfire is alive. Follow the eastern road and find what broke the village.",
+      "minX": -720.0,
+      "minY": -560.0,
+      "maxX": 760.0,
+      "maxY": 640.0
+    },
+    {
+      "id": "silent_market",
+      "nameKey": "story.region.silent_market.name",
+      "name": "Silent Market",
+      "objectiveKey": "story.region.silent_market.objective",
+      "objective": "The market is empty, but the road still points east. Push through the ruins.",
+      "minX": -900.0,
+      "minY": -1900.0,
+      "maxX": 900.0,
+      "maxY": -760.0
+    },
+    {
+      "id": "western_watch",
+      "nameKey": "story.region.western_watch.name",
+      "name": "Western Watch",
+      "objectiveKey": "story.region.western_watch.objective",
+      "objective": "A side path leads to an old watch post. Claim the campfire before returning to the main road.",
+      "minX": -3200.0,
+      "minY": -1280.0,
+      "maxX": -1700.0,
+      "maxY": 260.0
+    },
+    {
+      "id": "pilgrim_crossing",
+      "nameKey": "story.region.pilgrim_crossing.name",
+      "name": "Pilgrim Crossing",
+      "objectiveKey": "story.region.pilgrim_crossing.objective",
+      "objective": "The road splits around an enemy patrol. Win the crossing and the mirror gate will come into view.",
+      "minX": 1320.0,
+      "minY": -1280.0,
+      "maxX": 2380.0,
+      "maxY": -520.0
+    },
+    {
+      "id": "glass_shrine",
+      "nameKey": "story.region.glass_shrine.name",
+      "name": "Glass Shrine",
+      "objectiveKey": "story.region.glass_shrine.objective",
+      "objective": "The shrine campfire offers one last recovery. Gather strength before the eastern road.",
+      "minX": -120.0,
+      "minY": 1560.0,
+      "maxX": 1280.0,
+      "maxY": 2760.0
+    },
+    {
+      "id": "mirror_gate",
+      "nameKey": "story.region.mirror_gate.name",
+      "name": "Mirror Gate",
+      "objectiveKey": "story.region.mirror_gate.objective",
+      "objective": "The clone waits beyond the gate. Defeat it to prove Verso is more than an echo.",
+      "minX": 2840.0,
+      "minY": -2100.0,
+      "maxX": 3960.0,
+      "maxY": -940.0
+    }
+  ]
+}

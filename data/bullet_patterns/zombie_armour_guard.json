@@ -1,0 +1,36 @@
+{
+    "comment": "Zombie Armour rust guard pattern. Heavy shield-wall sweeps create readable safe lanes while small debris pressures the player.",
+    "durationSec": 5.2,
+    "boxCenterX": 640.0,
+    "boxCenterY": 480.0,
+    "boxWidth": 550.0,
+    "boxHeight": 250.0,
+    "heartRadius": 6.0,
+    "heartSpeed": 235.0,
+    "invincibilityDuration": 1.0,
+    "spawners": [
+        {
+            "type": "shield_wall",
+            "texturePath": "assets/UI/crystal_bullet.png",
+            "bulletRadius": 14.0,
+            "bulletSpeed": 155.0,
+            "spawnRate": 0.85,
+            "bulletDamageScaling": 0.85,
+            "laneCount": 6,
+            "gapLaneCount": 2,
+            "gapMode": "track_heart",
+            "wallDirection": "alternate",
+            "lanePadding": 18.0
+        },
+        {
+            "type": "sine",
+            "texturePath": "assets/UI/round_bullet.png",
+            "bulletRadius": 8.0,
+            "bulletSpeed": 120.0,
+            "spawnRate": 3.0,
+            "bulletDamageScaling": 0.45,
+            "sineAmplitude": 18.0,
+            "sineFrequency": 2.6
+        }
+    ]
+}

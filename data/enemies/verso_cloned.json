@@ -3,6 +3,7 @@
   "comment2": "Solo encounter.  Uses Verso's sprite sheet and animations.",
   "comment3": "Stat budget is roughly 2x base Verso to feel like a mid-game boss.",
 
+  "nameKey": "enemy.verso_cloned.name",
   "name": "Verso Cloned",
   "texturePath": "assets/animations/verso.png",
   "jsonPath": "assets/animations/verso.json",

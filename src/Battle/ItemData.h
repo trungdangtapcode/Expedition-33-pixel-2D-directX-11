@@ -116,6 +116,8 @@ struct ItemData
 {
     // Identity
     std::string id;            // stable key used by Inventory and saves
+    std::string nameKey;       // localization key; falls back to name
+    std::string descriptionKey;// localization key; falls back to description
     std::string name;          // displayed in menu
     std::string description;   // tooltip / flavor text
     std::string iconPath;      // "assets/items/xxx.png" — may not exist yet

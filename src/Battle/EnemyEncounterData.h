@@ -97,6 +97,7 @@ struct EnemyEncounterData
 {
     // ---- Overworld identity + sprite ----
     std::string  name;             // display name (e.g. "Skeleton Scout")
+    std::string  nameKey;          // localization key; falls back to name
     std::wstring texturePath;      // overworld sprite  L"assets/animations/skeleton.png"
     std::string  jsonPath;         // overworld sprite sheet JSON
     std::string  idleClip;         // overworld idle clip name

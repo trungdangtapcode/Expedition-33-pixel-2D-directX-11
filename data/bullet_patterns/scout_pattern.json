@@ -1,7 +1,11 @@
 {
     "durationSec": 4.0,
+    "boxCenterX": 640.0,
+    "boxCenterY": 480.0,
     "boxWidth": 550.0,
     "boxHeight": 250.0,
+    "heartRadius": 6.0,
+    "heartSpeed": 250.0,
     "invincibilityDuration": 1.0,
     "spawners": [
         {

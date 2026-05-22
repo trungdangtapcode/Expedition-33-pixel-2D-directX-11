@@ -13,6 +13,52 @@
 #include "CameraPhaseAction.h"
 #include "BulletHellAction.h"
 #include "BattleContext.h"
+#include "../Systems/LocalizationManager.h"
+#include <random>
+
+std::string AttackSkill::GetName() const
+{
+    return LocalizationManager::Get().TextOrFallback(mData.nameKey, "Attack");
+}
+
+std::string AttackSkill::GetDescription() const
+{
+    return LocalizationManager::Get().TextOrFallback(
+        mData.descriptionKey,
+        "Strike the enemy.");
+}
+
+std::string AttackSkill::SelectBulletHellPatternPath() const
+{
+    const std::vector<std::string>& patterns = mData.bulletHellPatternPaths;
+    if (patterns.empty()) return mData.bulletHellPatternPath;
+
+    if (patterns.size() == 1) {
+        mLastBulletHellPatternIndex = 0;
+        return patterns[0];
+    }
+
+    int selectedIndex = 0;
+    const int patternCount = static_cast<int>(patterns.size());
+    if (mData.bulletHellPatternSelection == "cycle") {
+        selectedIndex = mNextBulletHellPatternIndex % patternCount;
+        mNextBulletHellPatternIndex = (selectedIndex + 1) % patternCount;
+    } else if (mData.bulletHellPatternSelection == "random_no_repeat") {
+        static std::mt19937 rng{ std::random_device{}() };
+        std::uniform_int_distribution<int> distribution(0, patternCount - 1);
+        selectedIndex = distribution(rng);
+        if (selectedIndex == mLastBulletHellPatternIndex) {
+            selectedIndex = (selectedIndex + 1) % patternCount;
+        }
+    } else if (mData.bulletHellPatternSelection == "random") {
+        static std::mt19937 rng{ std::random_device{}() };
+        std::uniform_int_distribution<int> distribution(0, patternCount - 1);
+        selectedIndex = distribution(rng);
+    }
+
+    mLastBulletHellPatternIndex = selectedIndex;
+    return patterns[selectedIndex];
+}
 
 bool AttackSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
 {
@@ -39,7 +85,10 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     // Log message first so it appears before the damage number.
     actions.push_back(std::make_unique<LogAction>(
         nullptr,    // BattleManager injects the log pointer when enqueuing
-        caster.GetName() + " attacks " + target->GetName() + "!"
+        LocalizationManager::Get().Format("battle.log.attack", {
+            { "actor", caster.GetName() },
+            { "target", target->GetName() }
+        })
     ));
 
     // 1. Enter fight state
@@ -53,7 +102,14 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
 
     // 4. Play attack animation and apply damage simultaneously.
     if (mData.bulletHellSupported) {
-        actions.push_back(std::make_unique<BulletHellAction>(&caster, target, mData.bulletHellPatternPath));
+        const std::string patternPath = SelectBulletHellPatternPath();
+        if (!patternPath.empty()) {
+            actions.push_back(std::make_unique<BulletHellAction>(&caster, target, patternPath, &ctx));
+        } else {
+            actions.push_back(std::make_unique<AnimDamageAction>(
+                req, CombatantAnim::Attack, mData.damageTakenOccurMoment, &ctx
+            ));
+        }
     } else if (mData.qteSupported) {
         actions.push_back(std::make_unique<QteAnimDamageAction>(
             req, CombatantAnim::Attack, mData.qteStartMoment, mData.damageTakenOccurMoment, ctx.config.qteSlowMoScale,

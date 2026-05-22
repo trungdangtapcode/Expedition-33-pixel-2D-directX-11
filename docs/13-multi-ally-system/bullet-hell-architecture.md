@@ -26,8 +26,11 @@ Instead of `mDynamicBulletTex`, the renderer now implements a `std::unordered_ma
 The single `BulletHellAction` runtime loop was gutted. Behavior logic was shifted down into dedicated class units implementing the `IBulletSpawner` interface.
 Three concrete configurations presently exist in the active engine:
 1. `RandomEdgeSpawner.cpp`: Computes outer bound trajectory vectors to randomly spray uniform crystal rain.
-2. `SpiralSpawner.cpp`: Maintains isolated rotational trackers (`mCurrentAngle`) independent from explicit framerate deltas to spawn mathematically precise Fibonacci distributions.
-3. `SineSpawner.cpp`: Harnesses specialized structural `BulletBehavior` enum implementations tracking `startX/startY` coordinate pairs natively to evaluate orthogonal displacement algorithms against base movement velocities.
+2. `SpiralSpawner.cpp`: Maintains isolated rotational trackers (`mCurrentAngle`) independent from explicit framerate deltas to spawn rotating distributions.
+3. `SineSpawner.cpp`: Uses `BulletBehavior::Sine` plus `startX/startY` state to add orthogonal wave displacement to a base trajectory.
+4. `ShieldWallSpawner.cpp`: Emits timed lane walls with configurable safe gaps for heavier enemies that should test positioning instead of random dodging.
+
+`ShieldWallSpawner` treats `spawnRate` as wall waves per second. Its additional JSON fields are `laneCount`, `gapLaneCount`, `gapMode`, `gapStep`, `wallDirection`, and `lanePadding`.
 
 ### Struct Integration (`PhysicsBullet`)
 To intercept and allow decoupled Spawners to command intricate trajectory offsets internally without sacrificing performance overhead out of C++ vector copies...

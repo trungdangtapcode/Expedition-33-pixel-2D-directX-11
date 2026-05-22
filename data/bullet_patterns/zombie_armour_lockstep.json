@@ -1,0 +1,35 @@
+{
+    "comment": "Zombie Armour lockstep pattern. Predictable marching walls with a cycling gap make the armored enemy feel deliberate.",
+    "durationSec": 5.4,
+    "boxCenterX": 640.0,
+    "boxCenterY": 480.0,
+    "boxWidth": 550.0,
+    "boxHeight": 250.0,
+    "heartRadius": 6.0,
+    "heartSpeed": 235.0,
+    "invincibilityDuration": 1.0,
+    "spawners": [
+        {
+            "type": "shield_wall",
+            "texturePath": "assets/UI/crystal_bullet.png",
+            "bulletRadius": 13.0,
+            "bulletSpeed": 145.0,
+            "spawnRate": 0.95,
+            "bulletDamageScaling": 0.8,
+            "laneCount": 7,
+            "gapLaneCount": 2,
+            "gapMode": "cycle",
+            "gapStep": 2,
+            "wallDirection": "left_to_right",
+            "lanePadding": 16.0
+        },
+        {
+            "type": "random_edge",
+            "texturePath": "assets/UI/round_bullet.png",
+            "bulletRadius": 7.0,
+            "bulletSpeed": 105.0,
+            "spawnRate": 2.5,
+            "bulletDamageScaling": 0.35
+        }
+    ]
+}

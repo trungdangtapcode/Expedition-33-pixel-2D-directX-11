@@ -44,7 +44,7 @@ public:
     //   Used by DumpStateToDebugOutput — all UI lives in the debug console
     //   until a real on-screen menu is implemented.
     // ------------------------------------------------------------
-    virtual const char* GetLabel() const = 0;
+    virtual std::string GetLabel() const = 0;
 
     // ------------------------------------------------------------
     // Execute: respond to the player pressing Enter on this command.

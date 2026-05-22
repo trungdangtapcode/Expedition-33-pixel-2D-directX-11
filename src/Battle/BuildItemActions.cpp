@@ -9,6 +9,7 @@
 #include "LogAction.h"
 #include "IBattler.h"
 #include "BattleManager.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Utils/Log.h"
 
 namespace
@@ -86,7 +87,10 @@ std::vector<std::unique_ptr<IAction>> BuildItemActions::Build(
     //    skill-built LogActions are upgraded.
     actions.push_back(std::make_unique<LogAction>(
         nullptr,
-        user.GetName() + " uses " + item.name + "!"));
+        LocalizationManager::Get().Format("battle.log.item_use", {
+            { "actor", user.GetName() },
+            { "item", item.name }
+        })));
 
     // 2. One ItemEffectAction per resolved target.  ItemData is value-copied
     //    into each action so the action is self-contained — safe even if

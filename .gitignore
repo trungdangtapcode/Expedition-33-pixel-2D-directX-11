@@ -17,8 +17,22 @@ vc140.pdb
 # log*.txt e.g. log2024-06-01.txt
 log*.txt
 *log.txt
+save/
 CLAUDE.md
 AGENTS.md
 
 __pycache__/**
 __pycache__/
+
+# do not ignore banner, assets\e33_pixel_banner.png
+!assets\e33_pixel_banner.png
+!assets/UI/
+assets/UI/*
+!assets/UI/save_checkpoint_badge.png
+!assets/UI/save_checkpoint_badge.json
+!assets/UI/turn-view-zombie-armour.png
+!assets/animations/campfire_checkpoint.png
+!assets/animations/campfire_checkpoint.json
+!assets/animations/zombie_armour.png
+!assets/animations/zombie_armour.json
+!source_assets/zombie_armour_raw.png

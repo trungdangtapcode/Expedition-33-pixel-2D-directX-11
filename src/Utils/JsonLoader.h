@@ -29,6 +29,7 @@
 #include <fstream>
 #include <sstream>
 #include <filesystem>
+#include <vector>
 #include "Log.h"
 #include "../Renderer/SpriteSheet.h"
 #include "../Battle/StatModifier.h"
@@ -40,7 +41,7 @@
 namespace JsonLoader {
 
 // ============================================================
-// Internal helpers — not part of the public API
+// Internal helpers - not part of the public API
 // ============================================================
 namespace detail {
 
@@ -155,6 +156,47 @@ inline std::string CleanString(const std::string& raw)
 }
 
 // ------------------------------------------------------------
+// Extract a shallow array of JSON strings from a named field.
+// Used for data files that need a small list of asset paths without
+// pulling in a full JSON dependency.
+// ------------------------------------------------------------
+inline std::vector<std::string> ExtractStringArray(const std::string& src, const std::string& key)
+{
+    std::vector<std::string> values;
+    const std::string searchKey = "\"" + key + "\"";
+    const size_t keyPos = src.find(searchKey);
+    if (keyPos == std::string::npos) return values;
+
+    const size_t openBracket = src.find('[', keyPos + searchKey.size());
+    if (openBracket == std::string::npos) return values;
+
+    int depth = 1;
+    size_t cursor = openBracket + 1;
+    while (cursor < src.size() && depth > 0) {
+        if (src[cursor] == '[') ++depth;
+        if (src[cursor] == ']') --depth;
+        ++cursor;
+    }
+
+    if (depth != 0 || cursor <= openBracket + 1) return values;
+
+    const std::string body = src.substr(openBracket + 1, cursor - openBracket - 2);
+    size_t scan = 0;
+    while (scan < body.size()) {
+        const size_t quoteStart = body.find('"', scan);
+        if (quoteStart == std::string::npos) break;
+
+        const size_t quoteEnd = body.find('"', quoteStart + 1);
+        if (quoteEnd == std::string::npos) break;
+
+        values.push_back(body.substr(quoteStart + 1, quoteEnd - quoteStart - 1));
+        scan = quoteEnd + 1;
+    }
+
+    return values;
+}
+
+// ------------------------------------------------------------
 // Parse the "align" string from a JSON clip object into a SpriteAlign enum.
 // Supported values match the nine standard anchor points:
 //   "top-left"      "top-center"      "top-right"
@@ -165,7 +207,7 @@ inline std::string CleanString(const std::string& raw)
 // ------------------------------------------------------------
 inline SpriteAlign ParseAlign(const std::string& raw)
 {
-    // raw still has surrounding quotes from ValueOf() — strip them.
+    // raw still has surrounding quotes from ValueOf() - strip them.
     std::string s = raw;
     if (s.size() >= 2 && s.front() == '"') s = s.substr(1, s.size() - 2);
 
@@ -297,7 +339,7 @@ inline std::vector<std::string> ExtractObjectsFromArray(
                 if (src[i] == '}') --depth;
                 ++i;
             }
-            // i now points one past the closing '}' — include the whole block.
+            // i now points one past the closing '}' - include the whole block.
             objects.push_back(src.substr(objStart, i - objStart));
         }
         else
@@ -320,11 +362,11 @@ inline std::vector<std::string> ExtractObjectsFromArray(
 //   Read a JSON sprite sheet descriptor from disk and populate
 //   a SpriteSheet struct.
 // Parameters:
-//   path  — path to the .json file (UTF-8, relative or absolute)
-//   sheet — output struct; overwritten on success
+//   path  - path to the .json file (UTF-8, relative or absolute)
+//   sheet - output struct; overwritten on success
 // Returns:
-//   true  — all required fields parsed successfully
-//   false — file not found or required fields missing
+//   true  - all required fields parsed successfully
+//   false - file not found or required fields missing
 // ------------------------------------------------------------
 inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
 {
@@ -403,8 +445,8 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
         // Each clip occupies its own row in the atlas.
         // The i-th clip in the animations array lives on row i (0-based).
         // This convention means the atlas layout must match the JSON order:
-        //   animations[0] → row 0 (top row)
-        //   animations[1] → row 1
+        //   animations[0] -> row 0 (top row)
+        //   animations[1] -> row 1
         //   ...
         clip.startRow = clipIndex;
 
@@ -429,7 +471,7 @@ inline bool LoadSpriteSheet(const std::string& path, SpriteSheet& sheet)
 // Formation data structures
 // ============================================================
 
-// One slot entry inside a formation —
+// One slot entry inside a formation -
 //   offsetX/offsetY are world-space units relative to the battle center.
 //   Positive Y is downward (screen convention).  Represents the ground
 //   contact point (feet) of the character assigned to this slot.
@@ -460,8 +502,8 @@ struct FormationData
 //     worldY = battleCenterY + slot.offsetY
 //
 // Parameters:
-//   path — path to the JSON file (e.g. "data/formations.json")
-//   out  — populated on success; left unchanged on failure
+//   path - path to the JSON file (e.g. "data/formations.json")
+//   out  - populated on success; left unchanged on failure
 // Returns:
 //   true on success, false if the file cannot be opened.
 // ------------------------------------------------------------
@@ -638,20 +680,20 @@ inline bool LoadDeadOverlayConfig(const std::string& path, DeadOverlayConfig& ou
 //   texture, stats, and animation as the overworld entity.
 //
 // JSON schema (all fields required):
-//   name              — display name string
-//   texturePath       — narrow ASCII path, converted to wstring internally
-//   jsonPath          — sprite sheet JSON path
-//   idleClip          — starting animation clip name
-//   hp / atk / def / spd     — battle stats (integers)
-//   contactRadius     — overworld collision radius in world pixels (float)
-//   cameraFocusOffsetY — battle camera focus correction in world pixels (float)
+//   name              - display name string
+//   texturePath       - narrow ASCII path, converted to wstring internally
+//   jsonPath          - sprite sheet JSON path
+//   idleClip          - starting animation clip name
+//   hp / atk / def / spd     - battle stats (integers)
+//   contactRadius     - overworld collision radius in world pixels (float)
+//   cameraFocusOffsetY - battle camera focus correction in world pixels (float)
 //
 // Parameters:
-//   path  — path to the enemy .json file
-//   out   — populated struct on success; left unchanged on failure
+//   path  - path to the enemy .json file
+//   out   - populated struct on success; left unchanged on failure
 // Returns:
-//   true  — all required fields parsed
-//   false — file not found or required fields are default-zero
+//   true  - all required fields parsed
+//   false - file not found or required fields are default-zero
 // ------------------------------------------------------------
 inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& out)
 {
@@ -672,7 +714,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     };
 
     // Helper: convert a narrow ASCII path string to std::wstring.
-    // All asset paths in this project are 7-bit ASCII — no multibyte handling needed.
+    // All asset paths in this project are 7-bit ASCII - no multibyte handling needed.
     auto toWide = [](const std::string& s) -> std::wstring {
         return std::wstring(s.begin(), s.end());
     };
@@ -680,6 +722,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     // Parse the overworld identity and sprite fields (top-level).
     // These are used by OverworldEnemy for its own world-space rendering.
     out.name         = stripQ(detail::ValueOf(src, "name"));
+    out.nameKey      = stripQ(detail::ValueOf(src, "nameKey"));
     out.texturePath  = toWide(stripQ(detail::ValueOf(src, "texturePath")));
     out.jsonPath     = stripQ(detail::ValueOf(src, "jsonPath"));
     out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
@@ -693,7 +736,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         return false;
     }
 
-    // Parse the battleParty array — defines each enemy combatant in battle.
+    // Parse the battleParty array - defines each enemy combatant in battle.
     // Each object maps to one EnemySlotData (texture, stats, camera offset).
     // A missing array is not a fatal error: BattleState falls back to a
     // hardcoded skeleton when battleParty is empty.
@@ -883,6 +926,7 @@ struct BattleSystemConfig {
     float introWalkDuration = 1.2f;
     float introWalkDistance = 600.0f;
     std::string introWalkAnim = "walk";
+    std::string defaultEnvironmentPath;
 };
 
 inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& out)
@@ -922,12 +966,19 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
         out.introWalkAnim = detail::ParseString(walkVal, 0);
     }
 
+    std::string defaultEnv = detail::ValueOf(src, "defaultEnvironmentPath");
+    if (!defaultEnv.empty()) {
+        out.defaultEnvironmentPath = detail::CleanString(defaultEnv);
+    }
+
     LOG("[JsonLoader] Loaded BattleSystemConfig from '%s'.", path.c_str());
     return true;
 }
 
 
 struct SkillData {
+    std::string nameKey;
+    std::string descriptionKey;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
@@ -937,6 +988,8 @@ struct SkillData {
     bool qteSupported = false;
     bool bulletHellSupported = false;
     std::string bulletHellPatternPath = "";
+    std::vector<std::string> bulletHellPatternPaths;
+    std::string bulletHellPatternSelection = "fixed";
     float qteStartMoment = 0.3f;
     float qtePerfectMultiplier = 1.5f;
     float qteGoodMultiplier = 1.2f;
@@ -974,6 +1027,8 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 
     detail::WarnIfUTF16(src, path);
 
+    out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
+    out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);
@@ -984,6 +1039,12 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.qteSupported = detail::ParseBool(detail::ValueOf(src, "qteSupported"), false);
     out.bulletHellSupported = detail::ParseBool(detail::ValueOf(src, "bulletHellSupported"), false);
     out.bulletHellPatternPath = detail::CleanString(detail::ValueOf(src, "bulletHellPatternPath"));
+    out.bulletHellPatternPaths = detail::ExtractStringArray(src, "bulletHellPatternPaths");
+    if (out.bulletHellPatternPaths.empty() && !out.bulletHellPatternPath.empty()) {
+        out.bulletHellPatternPaths.push_back(out.bulletHellPatternPath);
+    }
+    std::string patternSelection = detail::CleanString(detail::ValueOf(src, "bulletHellPatternSelection"));
+    out.bulletHellPatternSelection = patternSelection.empty() ? "fixed" : patternSelection;
     out.qteStartMoment = detail::ParseFloat(detail::ValueOf(src, "qteStartMoment"), 0.3f);
     out.qtePerfectMultiplier = detail::ParseFloat(detail::ValueOf(src, "qtePerfectMultiplier"), 1.5f);
     out.qteGoodMultiplier = detail::ParseFloat(detail::ValueOf(src, "qteGoodMultiplier"), 1.2f);
@@ -1008,22 +1069,35 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 //   Parse a data/bullet_patterns/*.json file to configure multi-spawner logic.
 // ------------------------------------------------------------
 struct BulletSpawnerData {
-    std::string type = "random_edge"; // "random_edge", "spiral", "targeted", "sine"
+    std::string type = "random_edge"; // "random_edge", "spiral", "sine", "shield_wall"
     std::string texturePath = "";
     float spawnRate = 4.0f;
     float bulletSpeed = 150.0f;
     float bulletRadius = 6.0f;
     float bulletDamageScaling = 0.15f;
-    
-    // Sine spawner specifics
+
+    // Sine spawner specifics.
     float sineAmplitude = 50.0f;
     float sineFrequency = 5.0f;
+
+    // Shield-wall spawner specifics.  A wall is one timed wave made of
+    // lane bullets, with a configurable safe gap for the player to read.
+    int laneCount = 6;
+    int gapLaneCount = 1;
+    int gapStep = 1;
+    float lanePadding = 16.0f;
+    std::string gapMode = "track_heart";
+    std::string wallDirection = "alternate";
 };
 
 struct BulletHellPatternData {
     float durationSec = 5.0f;
+    float boxCenterX = 640.0f;
+    float boxCenterY = 480.0f;
     float boxWidth = 550.0f;
     float boxHeight = 250.0f;
+    float heartRadius = 6.0f;
+    float heartSpeed = 250.0f;
     float invincibilityDuration = 1.0f;
     std::vector<BulletSpawnerData> spawners;
 };
@@ -1049,8 +1123,12 @@ inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPattern
     detail::WarnIfUTF16(src, path);
 
     out.durationSec = detail::ParseFloat(detail::ValueOf(src, "durationSec"), 5.0f);
+    out.boxCenterX = detail::ParseFloat(detail::ValueOf(src, "boxCenterX"), 640.0f);
+    out.boxCenterY = detail::ParseFloat(detail::ValueOf(src, "boxCenterY"), 480.0f);
     out.boxWidth = detail::ParseFloat(detail::ValueOf(src, "boxWidth"), 550.0f);
     out.boxHeight = detail::ParseFloat(detail::ValueOf(src, "boxHeight"), 250.0f);
+    out.heartRadius = detail::ParseFloat(detail::ValueOf(src, "heartRadius"), 6.0f);
+    out.heartSpeed = detail::ParseFloat(detail::ValueOf(src, "heartSpeed"), 250.0f);
     out.invincibilityDuration = detail::ParseFloat(detail::ValueOf(src, "invincibilityDuration"), 1.0f);
 
     auto objects = detail::ExtractObjectsFromArray(src, "spawners");
@@ -1069,6 +1147,15 @@ inline bool LoadBulletHellPatternData(const std::string& path, BulletHellPattern
         
         sd.sineAmplitude = detail::ParseFloat(detail::ValueOf(obj, "sineAmplitude"), 50.0f);
         sd.sineFrequency = detail::ParseFloat(detail::ValueOf(obj, "sineFrequency"), 5.0f);
+
+        sd.laneCount = detail::ParseInt(detail::ValueOf(obj, "laneCount"), 6);
+        sd.gapLaneCount = detail::ParseInt(detail::ValueOf(obj, "gapLaneCount"), 1);
+        sd.gapStep = detail::ParseInt(detail::ValueOf(obj, "gapStep"), 1);
+        sd.lanePadding = detail::ParseFloat(detail::ValueOf(obj, "lanePadding"), 16.0f);
+        sd.gapMode = detail::CleanString(detail::ValueOf(obj, "gapMode"));
+        if (sd.gapMode.empty()) sd.gapMode = "track_heart";
+        sd.wallDirection = detail::CleanString(detail::ValueOf(obj, "wallDirection"));
+        if (sd.wallDirection.empty()) sd.wallDirection = "alternate";
         
         out.spawners.push_back(sd);
     }
@@ -1083,6 +1170,7 @@ struct EnvironmentConfig {
     float height = 0.0f;
     std::wstring background;
     std::wstring foreground;
+    std::string ambientParticleConfig;
     float zoomLevel = 1.0f;
     float offsetX = 0.0f;
     float offsetY = 0.0f;
@@ -1118,6 +1206,12 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
     std::string fg = detail::ValueOf(src, "foreground");
     if (!fg.empty() && fg != "null") out.foreground = toWide(stripQ(fg));
 
+    std::string ambientParticleConfig = detail::ValueOf(src, "ambientParticleConfig");
+    if (!ambientParticleConfig.empty() && ambientParticleConfig != "null")
+        out.ambientParticleConfig = stripQ(ambientParticleConfig);
+    else
+        out.ambientParticleConfig.clear();
+
     out.zoomLevel = detail::ParseFloat(detail::ValueOf(src, "zoomLevel"), 1.0f);
     out.offsetX = detail::ParseFloat(detail::ValueOf(src, "offsetX"), 0.0f);
     out.offsetY = detail::ParseFloat(detail::ValueOf(src, "offsetY"), 0.0f);
@@ -1132,9 +1226,15 @@ inline bool LoadEnvironmentConfig(const std::string& path, EnvironmentConfig& ou
 struct TilesetInfo {
     int firstGid = 1;
     std::wstring texturePath;
+    int tileWidth = 0;
+    int tileHeight = 0;
 };
 
 struct TileLayer {
+    std::string name;
+    int cols = 0;
+    int rows = 0;
+    bool visible = true;
     std::vector<int> tiles;
 };
 
@@ -1158,6 +1258,10 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
     std::ostringstream buf;
     buf << file.rdbuf();
     std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    const std::filesystem::path mapPath(path);
+    const std::filesystem::path mapDir = mapPath.parent_path();
 
     auto stripQ = [](const std::string& s) -> std::string {
         std::string t = detail::Trim(s);
@@ -1170,32 +1274,82 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
         return std::wstring(s.begin(), s.end());
     };
 
+    auto normalizeSlashes = [](std::string s) -> std::string {
+        for (char& c : s) {
+            if (c == '\\') c = '/';
+        }
+        return s;
+    };
+
+    auto readTextFile = [](const std::filesystem::path& p, std::string& outText) -> bool {
+        std::ifstream in(p);
+        if (!in.is_open()) return false;
+
+        std::ostringstream buffer;
+        buffer << in.rdbuf();
+        outText = buffer.str();
+        return true;
+    };
+
+    auto resolveRelativePath = [&](const std::filesystem::path& baseDir,
+                                   const std::string& rawPath) -> std::filesystem::path {
+        const std::string normalized = normalizeSlashes(rawPath);
+        std::filesystem::path candidate(normalized);
+        if (candidate.is_absolute()) return candidate;
+
+        const std::filesystem::path fromBase = baseDir.empty()
+            ? candidate
+            : (baseDir / candidate);
+        if (std::filesystem::exists(fromBase)) return fromBase;
+
+        return fromBase;
+    };
+
     // Tiled map dimensions
     out.cols = detail::ParseInt(detail::ValueOf(src, "width"), 0);
     out.rows = detail::ParseInt(detail::ValueOf(src, "height"), 0);
     out.tileWidth = detail::ParseInt(detail::ValueOf(src, "tilewidth"), 64);
     out.tileHeight = detail::ParseInt(detail::ValueOf(src, "tileheight"), 64);
 
-    // Tilesets
+    // Tilesets.  Tiled supports embedded tilesets and external JSON
+    // tileset references.  The map entry owns firstgid; an external
+    // tileset file owns the image and tile dimensions.
     std::vector<std::string> tilesets = detail::ExtractObjectsFromArray(src, "tilesets");
     for (const auto& ts : tilesets) {
         TilesetInfo info;
         info.firstGid = detail::ParseInt(detail::ValueOf(ts, "firstgid"), 1);
+
+        std::string tilesetSrc = ts;
+        std::filesystem::path tilesetBaseDir = mapDir;
+        const std::string sourcePath = stripQ(detail::ValueOf(ts, "source"));
+        if (!sourcePath.empty() && sourcePath != "null") {
+            const std::filesystem::path resolvedSource = resolveRelativePath(mapDir, sourcePath);
+            std::string externalSrc;
+            if (readTextFile(resolvedSource, externalSrc)) {
+                detail::WarnIfUTF16(externalSrc, resolvedSource.string());
+                tilesetSrc = externalSrc;
+                tilesetBaseDir = resolvedSource.parent_path();
+            } else {
+                LOG("[JsonLoader] WARNING: Could not read external tileset '%s' for map '%s'.",
+                    resolvedSource.string().c_str(), path.c_str());
+            }
+        }
+
+        info.tileWidth = detail::ParseInt(detail::ValueOf(tilesetSrc, "tilewidth"), out.tileWidth);
+        info.tileHeight = detail::ParseInt(detail::ValueOf(tilesetSrc, "tileheight"), out.tileHeight);
         
-        std::string tp = detail::ValueOf(ts, "image");
+        std::string tp = detail::ValueOf(tilesetSrc, "image");
         if (!tp.empty() && tp != "null") {
             tp = stripQ(tp);
-            // Replace backward slashes with forward slashes for unified parsing
-            for (char& c : tp) if (c == '\\') c = '/';
-            // Tiled paths are relative to the json file. We'll strip the path and assume it's in assets/environments.
-            size_t slash = tp.find_last_of('/');
-            if (slash != std::string::npos) tp = tp.substr(slash + 1);
-            info.texturePath = toWide("assets/environments/" + tp);
+            const std::filesystem::path resolvedImage = resolveRelativePath(tilesetBaseDir, tp);
+            info.texturePath = toWide(normalizeSlashes(resolvedImage.generic_string()));
         }
         out.tilesets.push_back(info);
     }
 
-    // Layers (find tilelayers and objectgroups)
+    // Layers: render visible tile layers and load object groups as
+    // collision data.  Tile layers keep their own dimensions so a real
+    // Tiled save with per-layer width/height remains valid.
     std::vector<std::string> layers = detail::ExtractObjectsFromArray(src, "layers");
     
     // Compute bounds offset based on map size so colliders match rendered tiles
@@ -1205,7 +1359,14 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
     for (const auto& layer : layers) {
         std::string type = stripQ(detail::ValueOf(layer, "type"));
         if (type == "tilelayer") {
+            const bool visible = detail::ParseBool(detail::ValueOf(layer, "visible"), true);
+            if (!visible) continue;
+
             TileLayer tileLayer;
+            tileLayer.name = stripQ(detail::ValueOf(layer, "name"));
+            tileLayer.cols = detail::ParseInt(detail::ValueOf(layer, "width"), out.cols);
+            tileLayer.rows = detail::ParseInt(detail::ValueOf(layer, "height"), out.rows);
+            tileLayer.visible = visible;
             size_t kpos = layer.find("\"data\"");
             if (kpos != std::string::npos) {
                 size_t bracket = layer.find('[', kpos);
@@ -1231,6 +1392,10 @@ inline bool LoadTileMapData(const std::string& path, TileMapData& out)
                         start = comma + 1;
                     }
                 }
+            }
+            const size_t expected = static_cast<size_t>(tileLayer.cols) * static_cast<size_t>(tileLayer.rows);
+            if (tileLayer.tiles.size() < expected) {
+                tileLayer.tiles.resize(expected, 0);
             }
             out.layers.push_back(tileLayer);
         } else if (type == "objectgroup") {

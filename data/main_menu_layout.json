@@ -1,0 +1,23 @@
+{
+  "backgroundImagePath": "assets/e33_pixel_banner.png",
+  "fontPath": "assets/fonts/arial_16.spritefont",
+  "bgmTrackId": "menu",
+  "backgroundDimAlpha": 0.18,
+  "logoAlphaMin": 0.86,
+  "logoAlphaMax": 1.0,
+  "logoPulseSpeed": 0.35,
+  "particleAlpha": 0.54,
+  "pressPromptY": 560.0,
+  "pressPromptScale": 1.28,
+  "pressPromptBlinkSpeed": 3.4,
+  "optionStartY": 514.0,
+  "optionRowHeight": 38.0,
+  "optionTextScale": 1.08,
+  "slotPanelWidth": 780.0,
+  "slotPanelHeight": 328.0,
+  "slotPanelBottom": 52.0,
+  "slotStartY": 98.0,
+  "slotRowHeight": 76.0,
+  "flashDuration": 2.2,
+  "transitionFadeOutDuration": 1.55
+}

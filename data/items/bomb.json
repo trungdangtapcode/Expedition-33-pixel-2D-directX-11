@@ -1,5 +1,7 @@
 {
   "id": "bomb",
+  "nameKey": "item.bomb.name",
+  "descriptionKey": "item.bomb.description",
   "name": "Bomb",
   "description": "Hurls a bomb dealing 60 damage to one enemy.",
   "iconPath": "assets/items/bomb.png",

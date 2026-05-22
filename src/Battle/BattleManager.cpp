@@ -2,15 +2,17 @@
 // File: BattleManager.cpp
 // Responsibility: Drive the turn-based combat FSM and action resolution.
 // ============================================================
+#define NOMINMAX
 #include "BattleManager.h"
+#include "BattleEvents.h"
 #include "LogAction.h"
 #include "BuildItemActions.h"
 #include "ItemRegistry.h"
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 
 #include "EnemyEncounterData.h"
-#define NOMINMAX
 #include <algorithm>
 #include "../Utils/Log.h"
 #include "../Events/EventManager.h"
@@ -48,13 +50,16 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
     // append " A", " B", " C" so the HUD can distinguish them.
+    const std::string encounterName = LocalizationManager::Get().TextOrFallback(
+        encounter.nameKey,
+        encounter.name);
     const bool multipleEnemies = encounter.battleParty.size() > 1;
     for (int i = 0; i < static_cast<int>(encounter.battleParty.size()); ++i)
     {
         const EnemySlotData& sd = encounter.battleParty[i];
 
         // Build a name: "Skeleton" for single, "Skeleton A" for multi.
-        std::string slotName = encounter.name;
+        std::string slotName = encounterName;
         if (multipleEnemies) { slotName += ' '; slotName += static_cast<char>('A' + i); }
 
         // Build BattlerStats from JSON-sourced values.
@@ -77,9 +82,21 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, sd.turnViewPath, stats, sd.attackJsonPath));
     }
 
-    Log("--- BATTLE START ---");
-    for (auto& p : mPlayers) Log(p->GetName() + " HP:" + std::to_string(p->GetStats().hp));
-    for (auto& e : mEnemies) Log(e->GetName() + " HP:" + std::to_string(e->GetStats().hp));
+    Log(LocalizationManager::Get().Text("battle.log.start"));
+    for (auto& p : mPlayers)
+    {
+        Log(LocalizationManager::Get().Format("battle.log.hp_line", {
+            { "name", p->GetName() },
+            { "hp", std::to_string(p->GetStats().hp) }
+        }));
+    }
+    for (auto& e : mEnemies)
+    {
+        Log(LocalizationManager::Get().Format("battle.log.hp_line", {
+            { "name", e->GetName() },
+            { "hp", std::to_string(e->GetStats().hp) }
+        }));
+    }
 
     BuildTurnOrder();
 }
@@ -222,7 +239,10 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         // multiple items were used in the same turn (defensive check).
         if (Inventory::Get().GetCount(itemId) <= 0)
         {
-            Log(player->GetName() + " has no " + itemId + " left!");
+            Log(LocalizationManager::Get().Format("battle.log.no_item_left", {
+                { "actor", player->GetName() },
+                { "item", itemId }
+            }));
         }
         else
         {
@@ -241,7 +261,9 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         }
         else
         {
-            Log(player->GetName() + " cannot use that skill!");
+            Log(LocalizationManager::Get().Format("battle.log.cannot_use_skill", {
+                { "actor", player->GetName() }
+            }));
         }
     }
 
@@ -276,11 +298,57 @@ void BattleManager::HandleEnemyTurn(float /*dt*/)
 }
 
 // ------------------------------------------------------------
+// ClearBulletHellOverlay: publish an inactive dodge-state payload.
+// Why:
+//   BattleBulletHellRenderer keeps the latest payload until it receives a
+//   replacement.  If defeat interrupts the action queue, the active
+//   BulletHellAction is destroyed before it can send its normal clear event.
+// ------------------------------------------------------------
+void BattleManager::ClearBulletHellOverlay() const
+{
+    BulletHellPayload payload;
+    payload.isActive = false;
+
+    EventData eventData;
+    eventData.payload = &payload;
+    EventManager::Get().Broadcast("verso_bullet_hell_state", eventData);
+}
+
+// ------------------------------------------------------------
+// FinishDefeat: stop the active action chain and expose a terminal outcome.
+// Why:
+//   Long-running actions can apply lethal damage before they complete.  The
+//   battle must stop immediately instead of waiting for queued follow-up
+//   animations, waits, or dodge patterns.
+// ------------------------------------------------------------
+void BattleManager::FinishDefeat()
+{
+    if (mOutcome != BattleOutcome::NONE) return;
+
+    mQueue.Clear();
+    ClearBulletHellOverlay();
+
+    Log(LocalizationManager::Get().Text("battle.log.defeat"));
+    mOutcome = BattleOutcome::DEFEAT;
+    mPhase   = BattlePhase::LOSE;
+}
+
+// ------------------------------------------------------------
 // HandleResolving: drain the queue; check win/lose after each action.
 // ------------------------------------------------------------
 void BattleManager::HandleResolving(float dt)
 {
     mQueue.Update(dt);
+
+    // Lethal bullet-hell hits occur inside BulletHellAction::Execute while
+    // the action can still have seconds left on its timer.  Check the party
+    // immediately after the front action ticks so defeat is not delayed until
+    // the entire queue empties.
+    if (AllPlayersDefeated())
+    {
+        FinishDefeat();
+        return;
+    }
 
     if (!mQueue.IsEmpty()) return;  // still executing actions
 
@@ -309,8 +377,10 @@ void BattleManager::HandleResolving(float dt)
     // All actions done — check outcome before advancing turn.
     if (AllEnemiesDefeated())
     {
-        Log("--- VICTORY! ---");
-        Log("Earned " + std::to_string(mTotalExpPool) + " EXP!");
+        Log(LocalizationManager::Get().Text("battle.log.victory"));
+        Log(LocalizationManager::Get().Format("battle.log.exp_earned", {
+            { "exp", std::to_string(mTotalExpPool) }
+        }));
         PartyManager::Get().AddExp(mTotalExpPool);
 
         mOutcome = BattleOutcome::VICTORY;
@@ -319,9 +389,7 @@ void BattleManager::HandleResolving(float dt)
     }
     if (AllPlayersDefeated())
     {
-        Log("--- DEFEAT ---");
-        mOutcome = BattleOutcome::DEFEAT;
-        mPhase   = BattlePhase::LOSE;
+        FinishDefeat();
         return;
     }
 
@@ -362,7 +430,9 @@ void BattleManager::AdvanceTurn()
         node.baseAgility = spd;
         node.currentAV   = kActionGauge / spd;
         mTimeline.push_back(node);
-        Log(b->GetName() + " re-enters the fight!");
+        Log(LocalizationManager::Get().Format("battle.log.reenter", {
+            { "actor", b->GetName() }
+        }));
     };
     for (auto& p : mPlayers) reinsertIfMissing(p.get());
     for (auto& e : mEnemies) reinsertIfMissing(e.get());
@@ -392,7 +462,9 @@ void BattleManager::AdvanceTurn()
     if (!next) return;
 
     next->OnTurnStart();
-    Log("--- " + next->GetName() + "'s turn ---");
+    Log(LocalizationManager::Get().Format("battle.log.turn", {
+        { "actor", next->GetName() }
+    }));
 
     if (next->IsPlayerControlled())
         mPhase = BattlePhase::PLAYER_TURN;
@@ -466,13 +538,19 @@ void BattleManager::EnqueueItemActions(IBattler& user,
     const ItemData* item = ItemRegistry::Get().Find(itemId);
     if (!item)
     {
-        Log(user.GetName() + " has no such item: " + itemId);
+        Log(LocalizationManager::Get().Format("battle.log.no_such_item", {
+            { "actor", user.GetName() },
+            { "item", itemId }
+        }));
         return;
     }
 
     if (Inventory::Get().GetCount(itemId) <= 0)
     {
-        Log(user.GetName() + " is out of " + item->name + ".");
+        Log(LocalizationManager::Get().Format("battle.log.out_of_item", {
+            { "actor", user.GetName() },
+            { "item", item->name }
+        }));
         return;
     }
 
@@ -480,7 +558,10 @@ void BattleManager::EnqueueItemActions(IBattler& user,
     if (actions.empty())
     {
         // Targeting failed — log and let the player choose again next turn.
-        Log(user.GetName() + " could not aim " + item->name + ".");
+        Log(LocalizationManager::Get().Format("battle.log.could_not_aim_item", {
+            { "actor", user.GetName() },
+            { "item", item->name }
+        }));
         return;
     }
 

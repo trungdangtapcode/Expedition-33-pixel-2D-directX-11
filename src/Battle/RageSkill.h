@@ -11,8 +11,8 @@
 class RageSkill : public ISkill
 {
 public:
-    const char* GetName()        const override { return "Rage Burst"; }
-    const char* GetDescription() const override { return "Unleash full rage for massive damage."; }
+    std::string GetName()        const override;
+    std::string GetDescription() const override;
 
     // Only usable when rage bar is completely full.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;

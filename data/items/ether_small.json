@@ -1,5 +1,7 @@
 {
   "id": "ether_small",
+  "nameKey": "item.ether_small.name",
+  "descriptionKey": "item.ether_small.description",
   "name": "Small Ether",
   "description": "Restores 20 MP to one ally.",
   "iconPath": "assets/items/ether_small.png",

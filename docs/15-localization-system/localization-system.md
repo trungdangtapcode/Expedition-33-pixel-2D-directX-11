@@ -39,6 +39,7 @@ Each language has a flat UTF-8 string table:
 
 ```text
 data/localization/en_us.json
+data/localization/fr_fr.json
 data/localization/vi_vn.json
 ```
 
@@ -86,7 +87,9 @@ tools\MakeSpriteFont.exe "Arial" assets\fonts\arial_16_vietnamese.spritefont /Fo
 ```
 
 The extra `0x180-0x24F` range is required for the horned O and horned U
-codepoints used by Vietnamese text.
+codepoints used by Vietnamese text. French uses the same extended font because
+its accented Latin glyphs are already covered by the Latin-1 and extended
+regions.
 
 ## Menu Options
 
@@ -118,6 +121,12 @@ data is being migrated. Never store language settings inside save slots; slots
 remain gameplay snapshots only.
 
 ## Verified Coverage
+
+The current shipped language tables are:
+
+- English (`en_us`)
+- French (`fr_fr`)
+- Vietnamese (`vi_vn`)
 
 The first pass localizes:
 

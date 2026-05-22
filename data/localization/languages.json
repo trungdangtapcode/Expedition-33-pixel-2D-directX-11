@@ -10,6 +10,11 @@
       "id": "vi_vn",
       "nameKey": "language.vietnamese",
       "fontPath": "assets/fonts/arial_16_vietnamese.spritefont"
+    },
+    {
+      "id": "fr_fr",
+      "nameKey": "language.french",
+      "fontPath": "assets/fonts/arial_16_vietnamese.spritefont"
     }
   ]
 }

@@ -1,0 +1,77 @@
+{
+  "defaultThemeId": "ashen_meadow",
+  "themes": [
+    {
+      "id": "ashen_meadow",
+      "tintR": 1.00,
+      "tintG": 0.98,
+      "tintB": 0.93,
+      "tintStrength": 0.05,
+      "saturation": 0.96,
+      "contrast": 1.03,
+      "brightness": 0.00,
+      "vignetteStrength": 0.04,
+      "blendSeconds": 1.20
+    },
+    {
+      "id": "silent_market",
+      "tintR": 0.93,
+      "tintG": 0.96,
+      "tintB": 1.00,
+      "tintStrength": 0.08,
+      "saturation": 0.90,
+      "contrast": 1.07,
+      "brightness": -0.01,
+      "vignetteStrength": 0.08,
+      "blendSeconds": 1.35
+    },
+    {
+      "id": "western_watch",
+      "tintR": 1.00,
+      "tintG": 0.93,
+      "tintB": 0.86,
+      "tintStrength": 0.08,
+      "saturation": 0.95,
+      "contrast": 1.06,
+      "brightness": 0.00,
+      "vignetteStrength": 0.06,
+      "blendSeconds": 1.25
+    },
+    {
+      "id": "pilgrim_crossing",
+      "tintR": 0.95,
+      "tintG": 1.00,
+      "tintB": 0.92,
+      "tintStrength": 0.06,
+      "saturation": 0.98,
+      "contrast": 1.04,
+      "brightness": 0.00,
+      "vignetteStrength": 0.05,
+      "blendSeconds": 1.15
+    },
+    {
+      "id": "glass_shrine",
+      "tintR": 0.88,
+      "tintG": 0.96,
+      "tintB": 1.00,
+      "tintStrength": 0.12,
+      "saturation": 0.92,
+      "contrast": 1.08,
+      "brightness": 0.01,
+      "vignetteStrength": 0.10,
+      "blendSeconds": 1.45
+    },
+    {
+      "id": "mirror_gate",
+      "tintR": 1.00,
+      "tintG": 0.90,
+      "tintB": 0.96,
+      "tintStrength": 0.11,
+      "saturation": 0.88,
+      "contrast": 1.10,
+      "brightness": -0.01,
+      "vignetteStrength": 0.12,
+      "blendSeconds": 1.50
+    }
+  ]
+}

@@ -44,8 +44,9 @@ The generator creates:
 - A southern shrine route.
 - A diagonal eastern road into the mirror gate.
 - Landmark clearings large enough to read on camera.
-- Object-layer houses, tables, rocks, and mirror-gate pillars.
-- Collision rectangles matching those objects.
+- Low object-layer tables, rocks, walls, and signs.
+- Data-driven static props for ruins, tents, shrines, and the mirror gate.
+- Collision rectangles matching low objects and static props.
 
 ## Story Data
 
@@ -59,6 +60,7 @@ The file contains:
 
 - `defaultArea`
 - `defaultObjective`
+- `defaultThemeId`
 - `regions[]`
 
 Each region uses world-space bounds:
@@ -66,6 +68,7 @@ Each region uses world-space bounds:
 ```json
 {
   "id": "mirror_gate",
+  "themeId": "mirror_gate",
   "name": "Mirror Gate",
   "objective": "The clone waits beyond the gate. Defeat it to prove Verso is more than an echo.",
   "minX": 2840.0,
@@ -77,6 +80,8 @@ Each region uses world-space bounds:
 
 `OverworldState` checks the player's world position against these regions and
 renders the active area title plus objective through `BattleTextRenderer`.
+The optional `themeId` field selects a blended world color grade from
+`data/overworld_themes.json`.
 
 This is deliberately smaller than a full quest system. It gives the player
 short-term motivation while keeping the current architecture simple.
@@ -177,7 +182,9 @@ python patches/generate_map.py
 
 3. Open `assets/environments/overworld_map.json` in Tiled to inspect the result.
 4. Update `data/campfires.json`, `data/overworld_spawns.json`, and
-   `data/overworld_story.json` if the route landmarks move.
+   `data/overworld_story.json` if the route landmarks move. Update
+   `data/overworld_props.json` only through the generator unless hand-authoring
+   a temporary prop experiment.
 5. Build:
 
 ```bat

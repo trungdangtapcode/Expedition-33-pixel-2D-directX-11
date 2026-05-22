@@ -15,10 +15,10 @@ code path so better authored maps can create depth with ordinary Tiled layers.
 `OverworldState::Render` now draws the world in this order:
 
 1. Background tile-map pass.
-2. World-space debug/landmark draws.
-3. `SceneGraph` entities sorted by layer and world Y.
-4. Foreground tile-map pass.
-5. Post-process transition output.
+2. `SceneGraph` entities sorted by layer and world Y.
+3. Foreground tile-map pass.
+4. World-only color grade output.
+5. Post-process battle transition output when active.
 6. Screen-space story and currency UI.
 
 This keeps the existing entity Y-sort while giving the tile map a clean place
@@ -73,9 +73,9 @@ tiles at the corners.
   shadows in foreground layers.
 - Do not put collision intent into the layer name. Collision remains controlled
   by the Tiled object group and `JsonLoader::LoadTileMapData`.
-- For objects that need true per-object Y-sorting against the player, create an
-  `IGameObject` entity instead of a foreground tile. Foreground layers are for
-  always-above art.
+- For objects that need true per-object Y-sorting against the player, place a
+  record in `data/overworld_props.json` so `OverworldStaticProp` can render it
+  as an `IGameObject`. Foreground layers are for always-above art.
 
 ## Validation
 
@@ -96,4 +96,6 @@ In game, verify:
 - Existing background map layers still appear.
 - Player, campfires, and enemies still render above normal map art.
 - A test layer named `ForegroundCanopy` renders above the player.
+- Static props sort against the player by their authored `worldY` and
+  `sortYOffset`.
 - Camera movement does not reveal missing tiles at screen edges.

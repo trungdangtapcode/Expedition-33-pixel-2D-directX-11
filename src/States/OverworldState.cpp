@@ -962,15 +962,17 @@ void OverworldState::RenderCurrencyOverlay()
 // Function: Render
 // Purpose:
 //   1. If pincushion filter is active: redirect scene draws to offscreen RT.
-//   2. Draw the static blue circle (world-space SDF, CPU WorldToScreen).
-//   3. Call SceneGraph::Render(ctx) - draws all entities in layer order.
-//   4. If pincushion filter is active: restore back buffer, apply warp.
-//   5. Draw the iris transition overlay on top of everything.
+//   2. Draw background map layers behind SceneGraph entities.
+//   3. Call SceneGraph::Render(ctx) - draws entities in layer and Y order.
+//   4. Draw foreground map layers that should occlude entities.
+//   5. If pincushion filter is active: restore back buffer, apply warp.
 //
 // Draw order:
 //   [BeginCapture if filter active]
-//   Blue circle      -> background landmark (world-space)
-//   SceneGraph       -> ascending layer order (enemies @48, player @50)
+//   TileMap background -> ground, roads, normal static map objects
+//   Blue circle        -> background landmark (world-space)
+//   SceneGraph         -> ascending layer order (enemies @48, player @50)
+//   TileMap foreground -> canopies, roofs, and above-player map overlays
 //   [EndCapture + Render filter if active - replaces back buffer with warped scene]
 //
 // No iris in OverworldState - BattleState owns its own iris that opens on entry.
@@ -998,7 +1000,7 @@ void OverworldState::Render()
 
     mDebugView.Draw(ctx, W, H, { true });
 
-    mTileMap.Render(ctx, *mCamera);
+    mTileMap.RenderBackground(ctx, *mCamera);
 
     mCircleRenderer.Draw(ctx,
         blueScreen.x, blueScreen.y, zoomedBlueRadius,
@@ -1007,6 +1009,9 @@ void OverworldState::Render()
 
     // --- All SceneGraph entities (sorted by layer, self-rendering) ---
     mScene.Render(ctx);
+
+    // --- Above-player map layers ---
+    mTileMap.RenderForeground(ctx, *mCamera);
 
     // --- Restore back buffer and apply pincushion distortion ---
     // EndCapture restores the saved RTV; Render draws the warped scene quad.

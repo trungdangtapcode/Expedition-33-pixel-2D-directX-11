@@ -50,6 +50,12 @@ because they keep the whole sample easy to inspect in one file.
 internally, so passing a view-projection matrix would double-project the
 tiles and make them disappear.
 
+The renderer now supports two map passes. Normal visible tile layers render
+behind `SceneGraph` entities. Layers whose names include `foreground`, `front`,
+`above`, `canopy`, `roof`, or `overlay` render after entities, so authored maps
+can place canopies, roof edges, and gate tops above the player without changing
+C++.
+
 The loader clears Tiled flip flag bits before atlas lookup. Flipped tile
 rendering itself is not implemented yet, so avoid relying on flipped
 tiles for authored content.
@@ -80,3 +86,5 @@ Related data files:
 - `data/campfires.json` places the recovery and checkpoint campfires.
 - `data/overworld_spawns.json` places overworld enemy encounters.
 - `data/overworld_story.json` defines area names and objective text.
+- `docs/11-print-asset-machenism/overworld_render_pipeline.md` documents the
+  runtime render pass and foreground layer naming contract.

@@ -1,5 +1,7 @@
 {
   "id": "iron_draft",
+  "nameKey": "item.iron_draft.name",
+  "descriptionKey": "item.iron_draft.description",
   "name": "Iron Draft",
   "description": "Boosts an ally's DEF by 30% for 3 turns.",
   "iconPath": "assets/items/iron_draft.png",

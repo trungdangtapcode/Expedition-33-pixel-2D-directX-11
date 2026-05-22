@@ -1,5 +1,7 @@
 {
   "id": "potion_small",
+  "nameKey": "item.potion_small.name",
+  "descriptionKey": "item.potion_small.description",
   "name": "Small Potion",
   "description": "Restores 30 HP to one ally.",
   "iconPath": "assets/items/potion_small.png",

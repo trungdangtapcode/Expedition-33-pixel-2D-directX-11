@@ -55,7 +55,7 @@ private:
     void Flash(const std::string& message);
     void UpdateSavedOverworldSnapshot();
 
-    static const char* OptionLabel(MenuOption option);
+    static std::string OptionLabel(MenuOption option);
     static int OptionCount()
     {
         return static_cast<int>(MenuOption::Count);

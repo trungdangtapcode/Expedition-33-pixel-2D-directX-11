@@ -4,6 +4,12 @@
 #include "FightCommand.h"
 #include "../States/BattleState.h"   // needs full type to call SetInputPhase
 #include "../Audio/AudioManager.h"
+#include "../Systems/LocalizationManager.h"
+
+std::string FightCommand::GetLabel() const
+{
+    return LocalizationManager::Get().Text("battle.command.fight");
+}
 
 void FightCommand::Execute(BattleState& state) const
 {

@@ -4,6 +4,7 @@
 //                 file into an ItemData, and warn on missing icon art.
 // ============================================================
 #include "ItemRegistry.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"      // reuse detail::ValueOf / ParseInt / ParseFloat
 
@@ -178,6 +179,8 @@ bool ItemRegistry::LoadFile(const std::string& path)
 
     ItemData data;
     data.id          = StripQuotes(JsonLoader::detail::ValueOf(src, "id"));
+    data.nameKey     = StripQuotes(JsonLoader::detail::ValueOf(src, "nameKey"));
+    data.descriptionKey = StripQuotes(JsonLoader::detail::ValueOf(src, "descriptionKey"));
     data.name        = StripQuotes(JsonLoader::detail::ValueOf(src, "name"));
     data.description = StripQuotes(JsonLoader::detail::ValueOf(src, "description"));
     data.iconPath    = StripQuotes(JsonLoader::detail::ValueOf(src, "iconPath"));
@@ -187,6 +190,13 @@ bool ItemRegistry::LoadFile(const std::string& path)
         LOG("[ItemRegistry] '%s' has no 'id' field — skipping.", path.c_str());
         return false;
     }
+
+    data.name = LocalizationManager::Get().TextOrFallback(
+        data.nameKey,
+        data.name.empty() ? data.id : data.name);
+    data.description = LocalizationManager::Get().TextOrFallback(
+        data.descriptionKey,
+        data.description);
 
     data.targeting = ParseTargeting(JsonLoader::detail::ValueOf(src, "targeting"));
     data.effect    = ParseEffect   (JsonLoader::detail::ValueOf(src, "effect"));

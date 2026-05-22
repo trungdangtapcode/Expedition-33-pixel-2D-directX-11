@@ -22,6 +22,7 @@
 #include "../Events/EventManager.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/GameProgress.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Utils/Log.h"
@@ -78,9 +79,10 @@ void CampfireState::OnEnter()
         "assets/UI/ui-dialog-box-hd.json",
         d3d.GetWidth(), d3d.GetHeight());
 
+    const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(
         d3d.GetDevice(), d3d.GetContext(),
-        L"assets/fonts/arial_16.spritefont",
+        std::wstring(fontPath.begin(), fontPath.end()),
         d3d.GetWidth(), d3d.GetHeight());
 
     mCursor = 0;
@@ -165,16 +167,16 @@ void CampfireState::UpdateSavedOverworldSnapshot()
     GameProgress::Get().SetOverworldSnapshot(snapshot);
 }
 
-const char* CampfireState::OptionLabel(MenuOption option)
+std::string CampfireState::OptionLabel(MenuOption option)
 {
     switch (option)
     {
-    case MenuOption::Rest:     return "Rest";
-    case MenuOption::Save:     return "Save Slot";
-    case MenuOption::Load:     return "Load Slot";
-    case MenuOption::Training: return "Upgrade Party";
-    case MenuOption::Lineup:   return "Lineup";
-    case MenuOption::Exit:     return "Exit";
+    case MenuOption::Rest:     return LocalizationManager::Get().Text("campfire.rest");
+    case MenuOption::Save:     return LocalizationManager::Get().Text("campfire.save_slot");
+    case MenuOption::Load:     return LocalizationManager::Get().Text("campfire.load_slot");
+    case MenuOption::Training: return LocalizationManager::Get().Text("campfire.upgrade_party");
+    case MenuOption::Lineup:   return LocalizationManager::Get().Text("campfire.lineup");
+    case MenuOption::Exit:     return LocalizationManager::Get().Text("campfire.exit");
     default:                   return "";
     }
 }
@@ -196,7 +198,7 @@ void CampfireState::ActivateSelection()
         PartyManager::Get().RestoreFullHP();
         UpdateSavedOverworldSnapshot();
         SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
-        Flash("Party restored. Active slot saved.");
+        Flash(LocalizationManager::Get().Text("campfire.flash.party_restored"));
         AudioManager::Get().PlaySfx("ui_confirm");
         break;
 
@@ -225,15 +227,17 @@ void CampfireState::ActivateSelection()
             SaveManager::Get().SaveCheckpoint("campfire_upgrade:" + mCampfireId);
 
             char buffer[128]{};
-            std::snprintf(buffer, sizeof(buffer), "Party upgraded. +%d EXP.", mUpgradeExpReward);
-            Flash(buffer);
+            std::snprintf(buffer, sizeof(buffer), "%d", mUpgradeExpReward);
+            Flash(LocalizationManager::Get().Format(
+                "campfire.flash.party_upgraded",
+                { { "exp", buffer } }));
             AudioManager::Get().PlaySfx("ui_confirm");
         }
         else
         {
             UpdateSavedOverworldSnapshot();
             SaveManager::Get().SaveCheckpoint("campfire_rest:" + mCampfireId);
-            Flash("Training claimed. Active slot saved.");
+            Flash(LocalizationManager::Get().Text("campfire.flash.training_claimed"));
             AudioManager::Get().PlaySfx("battle_no_ap");
         }
         break;
@@ -271,14 +275,16 @@ void CampfireState::ActivateSlotSelection()
                 mSlotCursor, "campfire_save:" + mCampfireId))
         {
             char buffer[96]{};
-            std::snprintf(buffer, sizeof(buffer), "Saved to Slot %d.", mSlotCursor + 1);
-            Flash(buffer);
+            std::snprintf(buffer, sizeof(buffer), "%d", mSlotCursor + 1);
+            Flash(LocalizationManager::Get().Format(
+                "campfire.flash.saved_slot",
+                { { "index", buffer } }));
             AudioManager::Get().PlaySfx("ui_confirm");
             mPhase = Phase::MainMenu;
         }
         else
         {
-            Flash("Save failed.");
+            Flash(LocalizationManager::Get().Text("campfire.flash.save_failed"));
             AudioManager::Get().PlaySfx("battle_no_ap");
         }
         return;
@@ -290,8 +296,10 @@ void CampfireState::ActivateSlotSelection()
         if (SaveManager::Get().LoadCheckpointFromSlot(mSlotCursor, &sceneId))
         {
             char buffer[96]{};
-            std::snprintf(buffer, sizeof(buffer), "Loaded Slot %d.", mSlotCursor + 1);
-            Flash(buffer);
+            std::snprintf(buffer, sizeof(buffer), "%d", mSlotCursor + 1);
+            Flash(LocalizationManager::Get().Format(
+                "campfire.flash.loaded_slot",
+                { { "index", buffer } }));
             AudioManager::Get().PlaySfx("ui_confirm");
             EventManager::Get().Broadcast("checkpoint_loaded", {});
             StateManager::Get().PopState();
@@ -299,7 +307,7 @@ void CampfireState::ActivateSlotSelection()
         }
         else
         {
-            Flash("That slot is empty.");
+            Flash(LocalizationManager::Get().Text("campfire.flash.slot_empty"));
             AudioManager::Get().PlaySfx("battle_no_ap");
         }
     }
@@ -408,12 +416,14 @@ void CampfireState::RenderMainMenu(float panelX, float panelY)
         {
             const float pulse = 0.86f + 0.14f * std::sin(mElapsed * 7.0f);
             const DirectX::XMVECTOR color = DirectX::XMVectorSet(1.0f, pulse, 0.45f, 1.0f);
+            const std::string label = OptionLabel(static_cast<MenuOption>(i));
             mTextRenderer.DrawStringRaw(">", listX - 34.0f, rowY, color);
-            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY, color);
+            mTextRenderer.DrawStringRaw(label.c_str(), listX, rowY, color);
         }
         else
         {
-            mTextRenderer.DrawStringRaw(OptionLabel(static_cast<MenuOption>(i)), listX, rowY,
+            const std::string label = OptionLabel(static_cast<MenuOption>(i));
+            mTextRenderer.DrawStringRaw(label.c_str(), listX, rowY,
                                         DirectX::Colors::LightGray);
         }
     }
@@ -441,31 +451,46 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
         char label[192]{};
         if (info.exists)
         {
-            const char* checkpoint = info.checkpointId.empty()
-                ? (info.reason.empty() ? "saved game" : info.reason.c_str())
-                : info.checkpointId.c_str();
+            const std::string checkpoint = info.checkpointId.empty()
+                ? (info.reason.empty() ? LocalizationManager::Get().Text("menu.saved_game") : info.reason)
+                : info.checkpointId;
+            const std::string lead = info.leadMemberId.empty()
+                ? LocalizationManager::Get().Text("common.party")
+                : LocalizationManager::Get().TextOrFallback("party.member." + info.leadMemberId, info.leadMemberId);
             if (info.hasPlayerPosition)
             {
-                std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s - %.0f, %.0f",
-                              i + 1,
-                              info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
-                              info.leadLevel,
-                              checkpoint,
-                              info.playerX,
-                              info.playerY);
+                char position[64]{};
+                std::snprintf(position, sizeof(position), "%.0f, %.0f", info.playerX, info.playerY);
+                const std::string text = LocalizationManager::Get().Format(
+                    "campfire.slot_with_position",
+                    {
+                        { "index", std::to_string(i + 1) },
+                        { "lead", lead },
+                        { "level", std::to_string(info.leadLevel) },
+                        { "checkpoint", checkpoint },
+                        { "position", position }
+                    });
+                std::snprintf(label, sizeof(label), "%s", text.c_str());
             }
             else
             {
-                std::snprintf(label, sizeof(label), "Slot %d - %s Lv %d - %s",
-                              i + 1,
-                              info.leadMemberId.empty() ? "party" : info.leadMemberId.c_str(),
-                              info.leadLevel,
-                              checkpoint);
+                const std::string text = LocalizationManager::Get().Format(
+                    "campfire.slot",
+                    {
+                        { "index", std::to_string(i + 1) },
+                        { "lead", lead },
+                        { "level", std::to_string(info.leadLevel) },
+                        { "checkpoint", checkpoint }
+                    });
+                std::snprintf(label, sizeof(label), "%s", text.c_str());
             }
         }
         else
         {
-            std::snprintf(label, sizeof(label), "Slot %d - Empty", i + 1);
+            const std::string text = LocalizationManager::Get().Format(
+                "campfire.slot_empty",
+                { { "index", std::to_string(i + 1) } });
+            std::snprintf(label, sizeof(label), "%s", text.c_str());
         }
 
         if (selected)
@@ -509,12 +534,13 @@ void CampfireState::Render()
     mDialogBox.Draw(ctx, panelX, panelY, kPanelW, kPanelH, 1.0f, identity, panelColor);
 
     mTextRenderer.BeginBatch(ctx);
-    mTextRenderer.DrawStringCenteredRaw("Campfire", panelX + kPanelW * 0.5f, panelY + 34.0f,
+    const std::string title = LocalizationManager::Get().Text("campfire.title");
+    mTextRenderer.DrawStringCenteredRaw(title.c_str(), panelX + kPanelW * 0.5f, panelY + 34.0f,
                                         DirectX::Colors::White, 1.35f, true);
-    const char* subtitle = "Rest, save, train, or manage the party.";
-    if (mPhase == Phase::SaveSlotSelect) subtitle = "Choose a slot to overwrite.";
-    if (mPhase == Phase::LoadSlotSelect) subtitle = "Choose a slot to load.";
-    mTextRenderer.DrawStringCenteredRaw(subtitle,
+    std::string subtitle = LocalizationManager::Get().Text("campfire.subtitle_main");
+    if (mPhase == Phase::SaveSlotSelect) subtitle = LocalizationManager::Get().Text("campfire.subtitle_save");
+    if (mPhase == Phase::LoadSlotSelect) subtitle = LocalizationManager::Get().Text("campfire.subtitle_load");
+    mTextRenderer.DrawStringCenteredRaw(subtitle.c_str(),
                                         panelX + kPanelW * 0.5f, panelY + 76.0f,
                                         DirectX::Colors::LightGray);
 
@@ -535,10 +561,10 @@ void CampfireState::Render()
                                             DirectX::Colors::PaleGreen);
     }
 
-    const char* hint = (mPhase == Phase::MainMenu)
-        ? "Up/Down: choose   Enter: confirm   Esc/U: close"
-        : "Up/Down: choose slot   Enter: confirm   Esc: back   U: close";
-    mTextRenderer.DrawStringCenteredRaw(hint,
+    const std::string hint = (mPhase == Phase::MainMenu)
+        ? LocalizationManager::Get().Text("campfire.hint_main")
+        : LocalizationManager::Get().Text("campfire.hint_slot");
+    mTextRenderer.DrawStringCenteredRaw(hint.c_str(),
                                         panelX + kPanelW * 0.5f,
                                         panelY + kPanelH - 34.0f,
                                         DirectX::Colors::Silver);

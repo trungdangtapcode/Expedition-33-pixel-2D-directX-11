@@ -1,5 +1,7 @@
 {
   "id": "rage_gem",
+  "nameKey": "item.rage_gem.name",
+  "descriptionKey": "item.rage_gem.description",
   "name": "Rage Gem",
   "description": "Fills the user's rage gauge by 100.",
   "iconPath": "assets/items/rage_gem.png",

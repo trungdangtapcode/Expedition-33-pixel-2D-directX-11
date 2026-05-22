@@ -13,7 +13,20 @@
 #include "CameraPhaseAction.h"
 #include "BulletHellAction.h"
 #include "BattleContext.h"
+#include "../Systems/LocalizationManager.h"
 #include <random>
+
+std::string AttackSkill::GetName() const
+{
+    return LocalizationManager::Get().TextOrFallback(mData.nameKey, "Attack");
+}
+
+std::string AttackSkill::GetDescription() const
+{
+    return LocalizationManager::Get().TextOrFallback(
+        mData.descriptionKey,
+        "Strike the enemy.");
+}
 
 std::string AttackSkill::SelectBulletHellPatternPath() const
 {
@@ -72,7 +85,10 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     // Log message first so it appears before the damage number.
     actions.push_back(std::make_unique<LogAction>(
         nullptr,    // BattleManager injects the log pointer when enqueuing
-        caster.GetName() + " attacks " + target->GetName() + "!"
+        LocalizationManager::Get().Format("battle.log.attack", {
+            { "actor", caster.GetName() },
+            { "target", target->GetName() }
+        })
     ));
 
     // 1. Enter fight state

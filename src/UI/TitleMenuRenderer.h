@@ -39,6 +39,7 @@ enum class TitleMenuVisualPhase
 {
     PressStart,
     MainOptions,
+    Options,
     NewGameSlots,
     LoadSlots
 };
@@ -80,6 +81,7 @@ public:
                     int screenH);
 
     void SetScreenSize(int screenW, int screenH);
+    bool ReloadFont(ID3D11Device* device, ID3D11DeviceContext* context);
 
     void Render(ID3D11DeviceContext* context, const TitleMenuRenderState& state);
 

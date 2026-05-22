@@ -13,7 +13,7 @@
 class FightCommand : public IBattleCommand
 {
 public:
-    const char* GetLabel() const override { return "Fight"; }
+    std::string GetLabel() const override;
 
     // Advance the BattleState input phase to SKILL_SELECT.
     void Execute(BattleState& state) const override;

@@ -15,6 +15,7 @@
 // ============================================================
 #define NOMINMAX
 #include "TitleMenuRenderer.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
 #include <DirectXColors.h>
@@ -165,7 +166,8 @@ bool TitleMenuRenderer::Initialize(ID3D11Device* device,
     mSpriteBatch = std::make_unique<DirectX::SpriteBatch>(context);
     mStates = std::make_unique<DirectX::CommonStates>(device);
 
-    const std::wstring fontPath = ToWidePath(mLayout.fontPath);
+    const std::string activeFontPath = LocalizationManager::Get().GetCurrentFontPath();
+    const std::wstring fontPath = ToWidePath(activeFontPath.empty() ? mLayout.fontPath : activeFontPath);
     if (!mTextRenderer.Initialize(device, context,
                                   fontPath,
                                   mScreenW, mScreenH))
@@ -176,6 +178,13 @@ bool TitleMenuRenderer::Initialize(ID3D11Device* device,
     mInitialized = true;
     LOG("[TitleMenuRenderer] Initialized with '%s'.", layoutPath.c_str());
     return true;
+}
+
+bool TitleMenuRenderer::ReloadFont(ID3D11Device* device, ID3D11DeviceContext* context)
+{
+    const std::string activeFontPath = LocalizationManager::Get().GetCurrentFontPath();
+    const std::wstring fontPath = ToWidePath(activeFontPath.empty() ? mLayout.fontPath : activeFontPath);
+    return mTextRenderer.Initialize(device, context, fontPath, mScreenW, mScreenH);
 }
 
 // ------------------------------------------------------------
@@ -565,8 +574,10 @@ void TitleMenuRenderer::RenderPressStart(ID3D11DeviceContext* context,
     const float pulse = (std::sin(state.elapsed * mLayout.pressPromptBlinkSpeed) + 1.0f) * 0.5f;
     const float alpha = 0.36f + pulse * 0.64f;
 
+    const std::string prompt = LocalizationManager::Get().Text("menu.press_any_button");
+
     mTextRenderer.BeginBatch(context);
-    mTextRenderer.DrawStringCenteredRaw("PRESS ANY BUTTON",
+    mTextRenderer.DrawStringCenteredRaw(prompt.c_str(),
                                         screenW * 0.5f,
                                         y,
                                         DirectX::XMVectorSet(1.0f, 0.95f, 0.86f, alpha),
@@ -677,16 +688,21 @@ void TitleMenuRenderer::RenderLoadSlots(ID3D11DeviceContext* context,
                      DirectX::XMVectorSet(0.78f, 0.54f, 0.28f, pulse));
     }
 
+    const std::string heading = choosingNewGame
+        ? LocalizationManager::Get().Text("menu.new_game_slot")
+        : LocalizationManager::Get().Text("menu.load_game");
+    const std::string subtitle = choosingNewGame
+        ? LocalizationManager::Get().Text("menu.choose_new_game_slot")
+        : LocalizationManager::Get().Text("menu.choose_load_slot");
+
     mTextRenderer.BeginBatch(context);
-    mTextRenderer.DrawStringCenteredRaw(choosingNewGame ? "New Game Slot" : "Load Game",
+    mTextRenderer.DrawStringCenteredRaw(heading.c_str(),
                                         panelX + panelW * 0.5f,
                                         panelY + 18.0f,
                                         DirectX::Colors::White,
                                         1.22f,
                                         true);
-    mTextRenderer.DrawStringCenteredRaw(choosingNewGame
-                                            ? "Choose a slot to create or overwrite."
-                                            : "Select a save slot.",
+    mTextRenderer.DrawStringCenteredRaw(subtitle.c_str(),
                                         panelX + panelW * 0.5f,
                                         panelY + 48.0f,
                                         DirectX::Colors::Silver);

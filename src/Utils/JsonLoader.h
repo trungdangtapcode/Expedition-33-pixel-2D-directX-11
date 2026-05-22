@@ -722,6 +722,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     // Parse the overworld identity and sprite fields (top-level).
     // These are used by OverworldEnemy for its own world-space rendering.
     out.name         = stripQ(detail::ValueOf(src, "name"));
+    out.nameKey      = stripQ(detail::ValueOf(src, "nameKey"));
     out.texturePath  = toWide(stripQ(detail::ValueOf(src, "texturePath")));
     out.jsonPath     = stripQ(detail::ValueOf(src, "jsonPath"));
     out.idleClip     = stripQ(detail::ValueOf(src, "idleClip"));
@@ -976,6 +977,8 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
 
 
 struct SkillData {
+    std::string nameKey;
+    std::string descriptionKey;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
@@ -1024,6 +1027,8 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 
     detail::WarnIfUTF16(src, path);
 
+    out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
+    out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);

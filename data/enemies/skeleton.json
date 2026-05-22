@@ -3,6 +3,7 @@
   "comment2": "Top-level fields: overworld sprite + collision radius.",
   "comment3": "battleParty: single entry = 1-on-1 fight.",
 
+  "nameKey": "enemy.skeleton.name",
   "name": "Skeleton",
   "texturePath": "assets/animations/skeleton.png",
   "jsonPath": "assets/animations/skeleton.json",

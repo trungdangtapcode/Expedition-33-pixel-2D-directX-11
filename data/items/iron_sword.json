@@ -1,5 +1,7 @@
 {
   "id": "iron_sword",
+  "nameKey": "item.iron_sword.name",
+  "descriptionKey": "item.iron_sword.description",
   "name": "Iron Sword",
   "description": "A heavier blade. Hits harder but slows the wielder.",
   "iconPath": "assets/items/iron_sword.png",

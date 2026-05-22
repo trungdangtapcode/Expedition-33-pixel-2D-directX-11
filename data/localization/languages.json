@@ -1,0 +1,15 @@
+{
+  "defaultLanguage": "en_us",
+  "languages": [
+    {
+      "id": "en_us",
+      "nameKey": "language.english",
+      "fontPath": "assets/fonts/arial_16.spritefont"
+    },
+    {
+      "id": "vi_vn",
+      "nameKey": "language.vietnamese",
+      "fontPath": "assets/fonts/arial_16_vietnamese.spritefont"
+    }
+  ]
+}

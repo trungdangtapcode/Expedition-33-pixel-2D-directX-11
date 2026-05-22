@@ -10,8 +10,8 @@
 class WeakenSkill : public ISkill
 {
 public:
-    const char* GetName()        const override { return "Weaken"; }
-    const char* GetDescription() const override { return "Reduce target ATK and DEF for 2 turns."; }
+    std::string GetName()        const override;
+    std::string GetDescription() const override;
 
     // Always available — no MP cost in MVP.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;

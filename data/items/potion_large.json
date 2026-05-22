@@ -1,5 +1,7 @@
 {
   "id": "potion_large",
+  "nameKey": "item.potion_large.name",
+  "descriptionKey": "item.potion_large.description",
   "name": "Large Potion",
   "description": "Restores 200 HP to one ally.",
   "iconPath": "assets/items/potion_large.png",

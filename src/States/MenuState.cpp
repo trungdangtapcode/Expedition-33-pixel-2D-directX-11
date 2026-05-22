@@ -29,8 +29,10 @@
 #include "../Renderer/D3DContext.h"
 #include "../Systems/GameProgress.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
+#include "../Systems/SettingsManager.h"
 #include "../Utils/Log.h"
 #include <Windows.h>
 #include <cstdio>
@@ -94,6 +96,11 @@ int MenuState::MainOptionCount()
     return static_cast<int>(MainOption::Count);
 }
 
+int MenuState::OptionsOptionCount()
+{
+    return static_cast<int>(OptionsOption::Count);
+}
+
 // ------------------------------------------------------------
 // Function: OnEnter
 // Purpose:
@@ -144,6 +151,8 @@ void MenuState::OnEnter()
     mEnterWasDown = false;
     mBackWasDown = false;
     mEscapeWasDown = false;
+    mLeftWasDown = false;
+    mRightWasDown = false;
     mAnyStartWasDown = IsStartKeyDown();
 
     LOG("[MenuState] OnEnter. Press-start title menu ready.");
@@ -209,6 +218,8 @@ void MenuState::CaptureInputLatches()
     mEnterWasDown = (GetAsyncKeyState(VK_RETURN) & 0x8000) != 0;
     mBackWasDown = (GetAsyncKeyState(VK_BACK) & 0x8000) != 0;
     mEscapeWasDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    mLeftWasDown = (GetAsyncKeyState(VK_LEFT) & 0x8000) != 0;
+    mRightWasDown = (GetAsyncKeyState(VK_RIGHT) & 0x8000) != 0;
 }
 
 // ------------------------------------------------------------
@@ -218,14 +229,15 @@ void MenuState::CaptureInputLatches()
 // Why:
 //   Input and rendering use the same enum order.
 // ------------------------------------------------------------
-const char* MenuState::MainOptionLabel(MainOption option)
+std::string MenuState::MainOptionLabel(MainOption option)
 {
     switch (option)
     {
-    case MainOption::NewGame:  return "New Game";
-    case MainOption::Continue: return "Continue";
-    case MainOption::LoadSlot: return "Load Slot";
-    case MainOption::Quit:     return "Quit";
+    case MainOption::NewGame:  return LocalizationManager::Get().Text("menu.new_game");
+    case MainOption::Continue: return LocalizationManager::Get().Text("menu.continue");
+    case MainOption::LoadSlot: return LocalizationManager::Get().Text("menu.load_slot");
+    case MainOption::Options:  return LocalizationManager::Get().Text("menu.options");
+    case MainOption::Quit:     return LocalizationManager::Get().Text("menu.quit");
     default:                   return "";
     }
 }
@@ -246,6 +258,7 @@ bool MenuState::IsMainOptionEnabled(MainOption option) const
     case MainOption::LoadSlot:
         return hasSave;
     case MainOption::NewGame:
+    case MainOption::Options:
     case MainOption::Quit:
         return true;
     default:
@@ -273,6 +286,11 @@ void MenuState::MoveMainCursor(int direction)
             return;
         }
     }
+}
+
+void MenuState::MoveOptionsCursor(int direction)
+{
+    mCursor = WrapIndex(mCursor + direction, OptionsOptionCount());
 }
 
 // ------------------------------------------------------------
@@ -344,7 +362,7 @@ void MenuState::StartNewGame(int slotIndex)
     if (!SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game"))
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
-        Flash("Could not create save slot.");
+        Flash(LocalizationManager::Get().Text("menu.flash.create_save_failed"));
         return;
     }
 
@@ -365,7 +383,7 @@ void MenuState::ContinueFirstSlot()
     if (firstSlot < 0)
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
-        Flash("No save slot exists.");
+        Flash(LocalizationManager::Get().Text("menu.flash.no_save_slot"));
         return;
     }
 
@@ -386,7 +404,7 @@ bool MenuState::LoadSlot(int slotIndex)
     if (!SaveManager::Get().LoadCheckpointFromSlot(slotIndex, &sceneId))
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
-        Flash("That slot is empty.");
+        Flash(LocalizationManager::Get().Text("menu.flash.slot_empty"));
         return false;
     }
 
@@ -467,7 +485,7 @@ void MenuState::ActivateMainSelection()
     if (!IsMainOptionEnabled(option))
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
-        Flash("No save slot exists.");
+        Flash(LocalizationManager::Get().Text("menu.flash.no_save_slot"));
         return;
     }
 
@@ -490,9 +508,61 @@ void MenuState::ActivateMainSelection()
         }
         AudioManager::Get().PlaySfx("ui_confirm");
         break;
+    case MainOption::Options:
+        mPhase = Phase::Options;
+        mCursor = 0;
+        AudioManager::Get().PlaySfx("ui_confirm");
+        break;
     case MainOption::Quit:
         AudioManager::Get().PlaySfx("ui_back");
         PostQuitMessage(0);
+        break;
+    default:
+        break;
+    }
+}
+
+void MenuState::CycleLanguage(int direction)
+{
+    const std::vector<LanguageInfo>& languages = LocalizationManager::Get().GetLanguages();
+    if (languages.empty()) return;
+
+    int currentIndex = 0;
+    const std::string currentId = LocalizationManager::Get().GetCurrentLanguageId();
+    for (int i = 0; i < static_cast<int>(languages.size()); ++i)
+    {
+        if (languages[static_cast<size_t>(i)].id == currentId)
+        {
+            currentIndex = i;
+            break;
+        }
+    }
+
+    const int nextIndex = WrapIndex(currentIndex + direction, static_cast<int>(languages.size()));
+    const std::string nextId = languages[static_cast<size_t>(nextIndex)].id;
+    if (LocalizationManager::Get().SetLanguage(nextId))
+    {
+        SettingsManager::Get().SetLanguageId(nextId);
+
+        auto& d3d = D3DContext::Get();
+        mRenderer.ReloadFont(d3d.GetDevice(), d3d.GetContext());
+        Flash(LocalizationManager::Get().Text("menu.flash.language_saved"));
+        AudioManager::Get().PlaySfx("ui_confirm");
+    }
+}
+
+void MenuState::ActivateOptionsSelection()
+{
+    const OptionsOption option = static_cast<OptionsOption>(mCursor);
+    switch (option)
+    {
+    case OptionsOption::Language:
+        CycleLanguage(1);
+        break;
+    case OptionsOption::Back:
+        mPhase = Phase::MainOptions;
+        mCursor = static_cast<int>(MainOption::Options);
+        AudioManager::Get().PlaySfx("ui_back");
         break;
     default:
         break;
@@ -561,9 +631,14 @@ void MenuState::Update(float dt)
     }
 
     if ((backPressed || escapePressed) &&
-        (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots))
+        (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots || mPhase == Phase::Options))
     {
+        const bool wasOptions = (mPhase == Phase::Options);
         mPhase = Phase::MainOptions;
+        if (wasOptions)
+        {
+            mCursor = static_cast<int>(MainOption::Options);
+        }
         AudioManager::Get().PlaySfx("ui_back");
         return;
     }
@@ -582,6 +657,10 @@ void MenuState::Update(float dt)
         {
             MoveMainCursor(-1);
         }
+        else if (mPhase == Phase::Options)
+        {
+            MoveOptionsCursor(-1);
+        }
         else
         {
             MoveSlotCursor(-1);
@@ -595,6 +674,10 @@ void MenuState::Update(float dt)
         {
             MoveMainCursor(1);
         }
+        else if (mPhase == Phase::Options)
+        {
+            MoveOptionsCursor(1);
+        }
         else
         {
             MoveSlotCursor(1);
@@ -602,11 +685,27 @@ void MenuState::Update(float dt)
         AudioManager::Get().PlaySfx("ui_navigate");
     }
 
+    if (mPhase == Phase::Options && mCursor == static_cast<int>(OptionsOption::Language))
+    {
+        if (Pressed(VK_LEFT, mLeftWasDown))
+        {
+            CycleLanguage(-1);
+        }
+        if (Pressed(VK_RIGHT, mRightWasDown))
+        {
+            CycleLanguage(1);
+        }
+    }
+
     if (Pressed(VK_RETURN, mEnterWasDown))
     {
         if (mPhase == Phase::MainOptions)
         {
             ActivateMainSelection();
+        }
+        else if (mPhase == Phase::Options)
+        {
+            ActivateOptionsSelection();
         }
         else
         {
@@ -624,6 +723,11 @@ void MenuState::Update(float dt)
 // ------------------------------------------------------------
 std::vector<TitleMenuOptionView> MenuState::BuildOptionViews() const
 {
+    if (mPhase == Phase::Options)
+    {
+        return BuildOptionsViews();
+    }
+
     std::vector<TitleMenuOptionView> options;
     options.reserve(static_cast<size_t>(MainOptionCount()));
     for (int i = 0; i < MainOptionCount(); ++i)
@@ -634,6 +738,37 @@ std::vector<TitleMenuOptionView> MenuState::BuildOptionViews() const
         view.enabled = IsMainOptionEnabled(option);
         options.push_back(view);
     }
+    return options;
+}
+
+std::vector<TitleMenuOptionView> MenuState::BuildOptionsViews() const
+{
+    std::vector<TitleMenuOptionView> options;
+    options.reserve(static_cast<size_t>(OptionsOptionCount()));
+
+    const std::vector<LanguageInfo>& languages = LocalizationManager::Get().GetLanguages();
+    std::string languageName = LocalizationManager::Get().GetCurrentLanguageId();
+    for (const LanguageInfo& language : languages)
+    {
+        if (language.id == LocalizationManager::Get().GetCurrentLanguageId())
+        {
+            languageName = LocalizationManager::Get().TextOrFallback(language.nameKey, language.id);
+            break;
+        }
+    }
+
+    TitleMenuOptionView language{};
+    language.label = LocalizationManager::Get().Format(
+        "menu.option_language",
+        { { "language", languageName } });
+    language.enabled = true;
+    options.push_back(language);
+
+    TitleMenuOptionView back{};
+    back.label = LocalizationManager::Get().Text("menu.back");
+    back.enabled = true;
+    options.push_back(back);
+
     return options;
 }
 
@@ -655,42 +790,58 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
     {
         TitleMenuSlotView view{};
 
-        char primary[64]{};
-        std::snprintf(primary, sizeof(primary), "Slot %d%s",
-                      info.slotIndex + 1,
-                      info.slotIndex == activeSlot ? "  Active" : "");
-        view.primary = primary;
+        const std::string activeSuffix = (info.slotIndex == activeSlot)
+            ? LocalizationManager::Get().Text("menu.slot_active_suffix")
+            : "";
+        view.primary = LocalizationManager::Get().Format(
+            "menu.slot_primary",
+            {
+                { "index", std::to_string(info.slotIndex + 1) },
+                { "active", activeSuffix }
+            });
         view.exists = info.exists;
         view.active = (info.slotIndex == activeSlot);
 
         if (info.exists)
         {
-            const char* lead = info.leadMemberId.empty()
-                ? "Party"
-                : info.leadMemberId.c_str();
-            const char* reason = info.reason.empty()
-                ? "saved game"
-                : info.reason.c_str();
-            const char* checkpoint = info.checkpointId.empty()
+            const std::string lead = info.leadMemberId.empty()
+                ? LocalizationManager::Get().Text("common.party")
+                : LocalizationManager::Get().TextOrFallback("party.member." + info.leadMemberId, info.leadMemberId);
+            const std::string reason = info.reason.empty()
+                ? LocalizationManager::Get().Text("menu.saved_game")
+                : info.reason;
+            const std::string checkpoint = info.checkpointId.empty()
                 ? reason
-                : info.checkpointId.c_str();
+                : info.checkpointId;
 
             char secondary[192]{};
             if (info.hasPlayerPosition)
             {
-                std::snprintf(secondary, sizeof(secondary), "%s Lv %d - %s - %.0f, %.0f",
-                              lead, info.leadLevel, checkpoint, info.playerX, info.playerY);
+                std::snprintf(secondary, sizeof(secondary), "%.0f, %.0f",
+                              info.playerX, info.playerY);
+                view.secondary = LocalizationManager::Get().Format(
+                    "menu.slot_secondary_with_position",
+                    {
+                        { "lead", lead },
+                        { "level", std::to_string(info.leadLevel) },
+                        { "checkpoint", checkpoint },
+                        { "position", secondary }
+                    });
             }
             else
             {
-                std::snprintf(secondary, sizeof(secondary), "%s Lv %d - %s",
-                              lead, info.leadLevel, checkpoint);
+                view.secondary = LocalizationManager::Get().Format(
+                    "menu.slot_secondary",
+                    {
+                        { "lead", lead },
+                        { "level", std::to_string(info.leadLevel) },
+                        { "checkpoint", checkpoint }
+                    });
             }
-            view.secondary = secondary;
         }
         else
         {
-            view.secondary = "Empty";
+            view.secondary = LocalizationManager::Get().Text("menu.slot_empty");
         }
 
         slots.push_back(view);
@@ -717,6 +868,10 @@ TitleMenuRenderState MenuState::BuildRenderState() const
     else if (mPhase == Phase::MainOptions)
     {
         state.phase = TitleMenuVisualPhase::MainOptions;
+    }
+    else if (mPhase == Phase::Options)
+    {
+        state.phase = TitleMenuVisualPhase::Options;
     }
     else if (mPhase == Phase::NewGameSlots)
     {

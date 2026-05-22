@@ -92,21 +92,24 @@ void BattleInputController::HandleCommandSelect()
     {
         mCommandIndex = (mCommandIndex - 1 + cmdCount) % cmdCount;
         AudioManager::Get().PlaySfx("ui_navigate");
-        LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
+        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        LOG("[BattleState] Command cursor -> %s", label.c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
         mCommandIndex = (mCommandIndex + 1) % cmdCount;
         AudioManager::Get().PlaySfx("ui_navigate");
-        LOG("[BattleState] Command cursor -> %s", mCommands[mCommandIndex]->GetLabel());
+        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        LOG("[BattleState] Command cursor -> %s", label.c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
     {
         // Each IBattleCommand plays its own SFX (e.g. battle_skill_open,
         // battle_item_open, battle_flee) — no generic ui_confirm here.
-        LOG("[BattleState] Command confirmed: %s", mCommands[mCommandIndex]->GetLabel());
+        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        LOG("[BattleState] Command confirmed: %s", label.c_str());
         mCommands[mCommandIndex]->Execute(mState);
         mState.DumpStateToDebugOutput();
     }
@@ -133,7 +136,7 @@ void BattleInputController::HandleSkillSelect()
         mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
@@ -141,7 +144,7 @@ void BattleInputController::HandleSkillSelect()
         mSkillIndex = (mSkillIndex + 1) % skillCount;
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName());
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
@@ -156,7 +159,7 @@ void BattleInputController::HandleSkillSelect()
             return;
         }
         AudioManager::Get().PlaySfx("ui_confirm");
-        LOG("[BattleState] Skill confirmed: %s — now pick a target", skill->GetName());
+        LOG("[BattleState] Skill confirmed: %s - now pick a target", skill->GetName().c_str());
         SetInputPhase(PlayerInputPhase::TARGET_SELECT);
     }
     if (pressed(VK_BACK, mBackWasDown))
@@ -237,7 +240,7 @@ void BattleInputController::ConfirmSkillAndTarget()
 
     AudioManager::Get().PlaySfx("ui_confirm");
     LOG("[BattleState] Action confirmed: %s -> %s",
-        skill->GetName(), target->GetName().c_str());
+        skill->GetName().c_str(), target->GetName().c_str());
 
     SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
 }

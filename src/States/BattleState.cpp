@@ -11,6 +11,7 @@
 #include "../Battle/ItemData.h"
 #include "../States/StateManager.h"
 #include "../Events/EventManager.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/Inventory.h"
 #include "../UI/BattleDebugHUD.h"
@@ -327,10 +328,11 @@ void BattleState::InitUIRenderers()
         mD3D.GetWidth(),  mD3D.GetHeight());
     ItemIconCache::Get().Initialize(mD3D.GetDevice(), mD3D.GetContext());
 
+    const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
-        L"assets/fonts/arial_16.spritefont",
+        std::wstring(fontPath.begin(), fontPath.end()),
         mD3D.GetWidth(),
         mD3D.GetHeight()
     );
@@ -794,9 +796,10 @@ void BattleState::Render()
             textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
 
             // Draw Text (SCREEN SPACE)
+            const std::string commandLabel = commands[i]->GetLabel();
             mTextRenderer.DrawString(
                 mD3D.GetContext(),
-                commands[i]->GetLabel(),
+                commandLabel.c_str(),
                 textX, textY,
                 textColor,
                 identityMatrix
@@ -883,9 +886,10 @@ void BattleState::Render()
                 textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
 
                 // Draw Text inside the dialog box (WORLD SPACE)
+                const std::string skillName = skill->GetName();
                 mTextRenderer.DrawString(
                     mD3D.GetContext(),
-                    skill->GetName(),
+                    skillName.c_str(),
                     textX, textY,
                     textColor,
                     cameraMatrix
@@ -1407,15 +1411,24 @@ void BattleState::DumpStateToDebugOutput() const
         const auto enemies = mBattle.GetAliveEnemies();
         if (mInputController.GetTargetIndex() < static_cast<int>(enemies.size()))
         {
-            snap.infoLines.push_back({ "Target", enemies[mInputController.GetTargetIndex()]->GetName() });
-            snap.infoLines.push_back({ "Hint", "Tab / Down = next target  Up = prev target  Enter = confirm  Esc = back" });
+            snap.infoLines.push_back({
+                LocalizationManager::Get().Text("battle.info.target"),
+                enemies[mInputController.GetTargetIndex()]->GetName()
+            });
+            snap.infoLines.push_back({
+                LocalizationManager::Get().Text("battle.info.hint"),
+                LocalizationManager::Get().Text("battle.hint.target_select")
+            });
         }
 
         const PlayerCombatant* player = mBattle.GetActivePlayer();
         if (player)
         {
             const ISkill* skill = player->GetSkill(mInputController.GetSkillIndex());
-            snap.infoLines.push_back({ "Skill", skill ? skill->GetName() : "(none)" });
+            snap.infoLines.push_back({
+                LocalizationManager::Get().Text("battle.info.skill"),
+                skill ? skill->GetName() : LocalizationManager::Get().Text("battle.info.none")
+            });
         }
     }
 
@@ -1447,7 +1460,9 @@ void BattleState::DumpStateToDebugOutput() const
             BattleHUDSnapshot::ItemRow row;
             row.slot        = i + 1;
             row.name        = item ? item->name        : ids[i];
-            row.description = item ? item->description : "(missing registry entry)";
+            row.description = item
+                ? item->description
+                : LocalizationManager::Get().Text("common.missing_registry");
             row.count       = Inventory::Get().GetCount(ids[i]);
             row.selected    = (i == hovered);
             snap.itemRows.push_back(row);
@@ -1455,13 +1470,17 @@ void BattleState::DumpStateToDebugOutput() const
 
         if (inputPhase == PlayerInputPhase::ITEM_TARGET_SELECT)
         {
-            snap.infoLines.push_back({ "Hint",
-                "Up/Down = pick target   Enter = confirm   Esc = back" });
+            snap.infoLines.push_back({
+                LocalizationManager::Get().Text("battle.info.hint"),
+                LocalizationManager::Get().Text("battle.hint.item_target")
+            });
         }
         else
         {
-            snap.infoLines.push_back({ "Hint",
-                "Up/Down = browse items  Enter = use   Esc = back to commands" });
+            snap.infoLines.push_back({
+                LocalizationManager::Get().Text("battle.info.hint"),
+                LocalizationManager::Get().Text("battle.hint.item_select")
+            });
         }
     }
 

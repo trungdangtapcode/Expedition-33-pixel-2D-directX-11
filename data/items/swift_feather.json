@@ -1,5 +1,7 @@
 {
   "id": "swift_feather",
+  "nameKey": "item.swift_feather.name",
+  "descriptionKey": "item.swift_feather.description",
   "name": "Swift Feather",
   "description": "Boosts an ally's SPD by 50% for 3 turns.",
   "iconPath": "assets/items/swift_feather.png",

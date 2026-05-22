@@ -17,7 +17,7 @@
 class ItemCommand : public IBattleCommand
 {
 public:
-    const char* GetLabel() const override { return "Item"; }
+    std::string GetLabel() const override;
 
     // Advances BattleState input phase to ITEM_SELECT.
     void Execute(BattleState& state) const override;

@@ -1,5 +1,7 @@
 {
   "id": "short_sword",
+  "nameKey": "item.short_sword.name",
+  "descriptionKey": "item.short_sword.description",
   "name": "Short Sword",
   "description": "A simple iron blade. Reliable and quick.",
   "iconPath": "assets/items/short_sword.png",

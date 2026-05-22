@@ -1,5 +1,7 @@
 {
   "id": "ice_shard",
+  "nameKey": "item.ice_shard.name",
+  "descriptionKey": "item.ice_shard.description",
   "name": "Ice Shard",
   "description": "Pierces one enemy for 45 damage.",
   "iconPath": "assets/items/ice_shard.png",

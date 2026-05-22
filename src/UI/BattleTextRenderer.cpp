@@ -47,6 +47,8 @@ bool BattleTextRenderer::Initialize(ID3D11Device*       device,
                                     const std::wstring& fontPath,
                                     int screenW, int screenH)
 {
+    Shutdown();
+
     mScreenW = screenW;
     mScreenH = screenH;
 

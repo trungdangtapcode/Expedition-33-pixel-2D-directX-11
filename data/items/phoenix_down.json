@@ -1,5 +1,7 @@
 {
   "id": "phoenix_down",
+  "nameKey": "item.phoenix_down.name",
+  "descriptionKey": "item.phoenix_down.description",
   "name": "Phoenix Down",
   "description": "Revives a fallen ally with 50 HP.",
   "iconPath": "assets/items/phoenix_down.png",

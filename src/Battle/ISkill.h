@@ -32,8 +32,8 @@ class ISkill
 public:
     virtual ~ISkill() = default;
 
-    virtual const char* GetName()        const = 0;
-    virtual const char* GetDescription() const = 0;
+    virtual std::string GetName()        const = 0;
+    virtual std::string GetDescription() const = 0;
 
     // ------------------------------------------------------------
     // CanUse: return false to grey out the skill in UI.

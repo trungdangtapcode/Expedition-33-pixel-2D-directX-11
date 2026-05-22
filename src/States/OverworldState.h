@@ -74,7 +74,9 @@ struct OverworldStoryRegion
 {
     std::string id;
     std::string name;
+    std::string nameKey;
     std::string objective;
+    std::string objectiveKey;
     float minX = 0.0f;
     float minY = 0.0f;
     float maxX = 0.0f;

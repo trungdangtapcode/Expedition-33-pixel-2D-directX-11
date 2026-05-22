@@ -49,6 +49,7 @@
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Core/TimeSystem.h"
 #include "../Events/EventManager.h"
@@ -126,9 +127,10 @@ void OverworldState::OnEnter()
     // --- Camera ---
     mCamera = std::make_unique<Camera2D>(W, H);
 
+    const std::string storyFontPath = LocalizationManager::Get().GetCurrentFontPath();
     mStoryTextRenderer.Initialize(
         device, context,
-        L"assets/fonts/arial_16.spritefont",
+        std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
     LoadStoryData();
     mCurrentArea = mDefaultArea;
@@ -526,13 +528,25 @@ bool OverworldState::LoadStoryData()
     const std::string src = buffer.str();
     JsonLoader::detail::WarnIfUTF16(src, path.string());
 
+    const std::string defaultAreaKey = JsonLoader::detail::CleanString(
+        JsonLoader::detail::ValueOf(src, "defaultAreaKey"));
     const std::string defaultArea = JsonLoader::detail::CleanString(
         JsonLoader::detail::ValueOf(src, "defaultArea"));
-    if (!defaultArea.empty()) mDefaultArea = defaultArea;
+    if (!defaultArea.empty() || !defaultAreaKey.empty())
+    {
+        mDefaultArea = LocalizationManager::Get().TextOrFallback(defaultAreaKey, defaultArea);
+    }
 
+    const std::string defaultObjectiveKey = JsonLoader::detail::CleanString(
+        JsonLoader::detail::ValueOf(src, "defaultObjectiveKey"));
     const std::string defaultObjective = JsonLoader::detail::CleanString(
         JsonLoader::detail::ValueOf(src, "defaultObjective"));
-    if (!defaultObjective.empty()) mDefaultObjective = defaultObjective;
+    if (!defaultObjective.empty() || !defaultObjectiveKey.empty())
+    {
+        mDefaultObjective = LocalizationManager::Get().TextOrFallback(
+            defaultObjectiveKey,
+            defaultObjective);
+    }
 
     mStoryRegions.clear();
     const std::vector<std::string> objects =
@@ -545,8 +559,16 @@ bool OverworldState::LoadStoryData()
             JsonLoader::detail::ValueOf(objectSrc, "id"));
         region.name = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "name"));
+        region.nameKey = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "nameKey"));
         region.objective = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "objective"));
+        region.objectiveKey = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "objectiveKey"));
+        region.name = LocalizationManager::Get().TextOrFallback(region.nameKey, region.name);
+        region.objective = LocalizationManager::Get().TextOrFallback(
+            region.objectiveKey,
+            region.objective);
         region.minX = JsonLoader::detail::ParseFloat(
             JsonLoader::detail::ValueOf(objectSrc, "minX"), 0.0f);
         region.minY = JsonLoader::detail::ParseFloat(

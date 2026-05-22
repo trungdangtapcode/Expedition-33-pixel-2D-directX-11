@@ -8,6 +8,7 @@
 #include "ItemRegistry.h"
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 
 #include "EnemyEncounterData.h"
 #define NOMINMAX
@@ -48,13 +49,16 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
     // append " A", " B", " C" so the HUD can distinguish them.
+    const std::string encounterName = LocalizationManager::Get().TextOrFallback(
+        encounter.nameKey,
+        encounter.name);
     const bool multipleEnemies = encounter.battleParty.size() > 1;
     for (int i = 0; i < static_cast<int>(encounter.battleParty.size()); ++i)
     {
         const EnemySlotData& sd = encounter.battleParty[i];
 
         // Build a name: "Skeleton" for single, "Skeleton A" for multi.
-        std::string slotName = encounter.name;
+        std::string slotName = encounterName;
         if (multipleEnemies) { slotName += ' '; slotName += static_cast<char>('A' + i); }
 
         // Build BattlerStats from JSON-sourced values.
@@ -77,9 +81,21 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, sd.turnViewPath, stats, sd.attackJsonPath));
     }
 
-    Log("--- BATTLE START ---");
-    for (auto& p : mPlayers) Log(p->GetName() + " HP:" + std::to_string(p->GetStats().hp));
-    for (auto& e : mEnemies) Log(e->GetName() + " HP:" + std::to_string(e->GetStats().hp));
+    Log(LocalizationManager::Get().Text("battle.log.start"));
+    for (auto& p : mPlayers)
+    {
+        Log(LocalizationManager::Get().Format("battle.log.hp_line", {
+            { "name", p->GetName() },
+            { "hp", std::to_string(p->GetStats().hp) }
+        }));
+    }
+    for (auto& e : mEnemies)
+    {
+        Log(LocalizationManager::Get().Format("battle.log.hp_line", {
+            { "name", e->GetName() },
+            { "hp", std::to_string(e->GetStats().hp) }
+        }));
+    }
 
     BuildTurnOrder();
 }
@@ -222,7 +238,10 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         // multiple items were used in the same turn (defensive check).
         if (Inventory::Get().GetCount(itemId) <= 0)
         {
-            Log(player->GetName() + " has no " + itemId + " left!");
+            Log(LocalizationManager::Get().Format("battle.log.no_item_left", {
+                { "actor", player->GetName() },
+                { "item", itemId }
+            }));
         }
         else
         {
@@ -241,7 +260,9 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         }
         else
         {
-            Log(player->GetName() + " cannot use that skill!");
+            Log(LocalizationManager::Get().Format("battle.log.cannot_use_skill", {
+                { "actor", player->GetName() }
+            }));
         }
     }
 
@@ -309,8 +330,10 @@ void BattleManager::HandleResolving(float dt)
     // All actions done — check outcome before advancing turn.
     if (AllEnemiesDefeated())
     {
-        Log("--- VICTORY! ---");
-        Log("Earned " + std::to_string(mTotalExpPool) + " EXP!");
+        Log(LocalizationManager::Get().Text("battle.log.victory"));
+        Log(LocalizationManager::Get().Format("battle.log.exp_earned", {
+            { "exp", std::to_string(mTotalExpPool) }
+        }));
         PartyManager::Get().AddExp(mTotalExpPool);
 
         mOutcome = BattleOutcome::VICTORY;
@@ -319,7 +342,7 @@ void BattleManager::HandleResolving(float dt)
     }
     if (AllPlayersDefeated())
     {
-        Log("--- DEFEAT ---");
+        Log(LocalizationManager::Get().Text("battle.log.defeat"));
         mOutcome = BattleOutcome::DEFEAT;
         mPhase   = BattlePhase::LOSE;
         return;
@@ -362,7 +385,9 @@ void BattleManager::AdvanceTurn()
         node.baseAgility = spd;
         node.currentAV   = kActionGauge / spd;
         mTimeline.push_back(node);
-        Log(b->GetName() + " re-enters the fight!");
+        Log(LocalizationManager::Get().Format("battle.log.reenter", {
+            { "actor", b->GetName() }
+        }));
     };
     for (auto& p : mPlayers) reinsertIfMissing(p.get());
     for (auto& e : mEnemies) reinsertIfMissing(e.get());
@@ -392,7 +417,9 @@ void BattleManager::AdvanceTurn()
     if (!next) return;
 
     next->OnTurnStart();
-    Log("--- " + next->GetName() + "'s turn ---");
+    Log(LocalizationManager::Get().Format("battle.log.turn", {
+        { "actor", next->GetName() }
+    }));
 
     if (next->IsPlayerControlled())
         mPhase = BattlePhase::PLAYER_TURN;
@@ -466,13 +493,19 @@ void BattleManager::EnqueueItemActions(IBattler& user,
     const ItemData* item = ItemRegistry::Get().Find(itemId);
     if (!item)
     {
-        Log(user.GetName() + " has no such item: " + itemId);
+        Log(LocalizationManager::Get().Format("battle.log.no_such_item", {
+            { "actor", user.GetName() },
+            { "item", itemId }
+        }));
         return;
     }
 
     if (Inventory::Get().GetCount(itemId) <= 0)
     {
-        Log(user.GetName() + " is out of " + item->name + ".");
+        Log(LocalizationManager::Get().Format("battle.log.out_of_item", {
+            { "actor", user.GetName() },
+            { "item", item->name }
+        }));
         return;
     }
 
@@ -480,7 +513,10 @@ void BattleManager::EnqueueItemActions(IBattler& user,
     if (actions.empty())
     {
         // Targeting failed — log and let the player choose again next turn.
-        Log(user.GetName() + " could not aim " + item->name + ".");
+        Log(LocalizationManager::Get().Format("battle.log.could_not_aim_item", {
+            { "actor", user.GetName() },
+            { "item", item->name }
+        }));
         return;
     }
 

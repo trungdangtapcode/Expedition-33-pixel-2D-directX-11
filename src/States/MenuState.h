@@ -31,6 +31,7 @@ private:
     {
         PressStart,
         MainOptions,
+        Options,
         NewGameSlots,
         LoadSlots
     };
@@ -40,7 +41,15 @@ private:
         NewGame,
         Continue,
         LoadSlot,
+        Options,
         Quit,
+        Count
+    };
+
+    enum class OptionsOption
+    {
+        Language,
+        Back,
         Count
     };
 
@@ -55,9 +64,12 @@ private:
     void CaptureInputLatches();
     bool IsMainOptionEnabled(MainOption option) const;
     void MoveMainCursor(int direction);
+    void MoveOptionsCursor(int direction);
     void MoveSlotCursor(int direction);
     void ActivateMainSelection();
+    void ActivateOptionsSelection();
     void ActivateSlotSelection();
+    void CycleLanguage(int direction);
     void StartNewGame(int slotIndex);
     void ContinueFirstSlot();
     bool LoadSlot(int slotIndex);
@@ -68,9 +80,11 @@ private:
     void Flash(const std::string& message);
     TitleMenuRenderState BuildRenderState() const;
     std::vector<TitleMenuOptionView> BuildOptionViews() const;
+    std::vector<TitleMenuOptionView> BuildOptionsViews() const;
     std::vector<TitleMenuSlotView> BuildSlotViews() const;
-    static const char* MainOptionLabel(MainOption option);
+    static std::string MainOptionLabel(MainOption option);
     static int MainOptionCount();
+    static int OptionsOptionCount();
 
     TitleMenuRenderer mRenderer;
     Phase mPhase = Phase::PressStart;
@@ -88,5 +102,7 @@ private:
     bool mEnterWasDown = false;
     bool mBackWasDown = false;
     bool mEscapeWasDown = false;
+    bool mLeftWasDown = false;
+    bool mRightWasDown = false;
     bool mAnyStartWasDown = false;
 };

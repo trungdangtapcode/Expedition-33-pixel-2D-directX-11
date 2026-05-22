@@ -24,6 +24,8 @@
 #include "../States/MenuState.h"
 #include "../Events/EventManager.h"
 #include "../Audio/AudioManager.h"
+#include "../Systems/LocalizationManager.h"
+#include "../Systems/SettingsManager.h"
 #include "TimeSystem.h"
 #include "InputManager.h"
 #include "../Utils/Log.h"
@@ -120,6 +122,11 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
     if (!InitWindow(hInstance)) return false;
 
     if (!D3DContext::Get().Initialize(mHwnd, mWidth, mHeight)) return false;
+
+    SettingsManager::Get().Initialize();
+    LocalizationManager::Get().Initialize(
+        "data/localization/languages.json",
+        SettingsManager::Get().GetLanguageId());
 
     // Initialise the audio engine AFTER D3D so COM is already set up.
     // A failure here is non-fatal: the game runs silently if XAudio2 is

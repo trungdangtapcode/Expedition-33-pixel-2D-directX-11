@@ -1,4 +1,6 @@
 {
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
   "moveDuration": 0.45,
   "returnDuration": 0.4,
   "meleeOffset": 86.0,

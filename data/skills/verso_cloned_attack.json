@@ -1,4 +1,6 @@
 {
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
   "comment": "Verso Cloned attack -- aggressive melee with bullet hell dodge phase.",
   "moveDuration": 0.35,
   "returnDuration": 0.3,

@@ -22,8 +22,8 @@ private:
     std::string SelectBulletHellPatternPath() const;
 public:
     AttackSkill(const JsonLoader::SkillData& data) : mData(data) {}
-    const char* GetName()        const override { return "Attack"; }
-    const char* GetDescription() const override { return "Strike the enemy."; }
+    std::string GetName()        const override;
+    std::string GetDescription() const override;
 
     // Always available because the basic attack has no resource cost.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;

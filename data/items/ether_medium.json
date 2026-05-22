@@ -1,5 +1,7 @@
 {
   "id": "ether_medium",
+  "nameKey": "item.ether_medium.name",
+  "descriptionKey": "item.ether_medium.description",
   "name": "Medium Ether",
   "description": "Restores 50 MP to one ally.",
   "iconPath": "assets/items/ether_medium.png",

@@ -4,7 +4,13 @@
 #include "FleeCommand.h"
 #include "../States/BattleState.h"
 #include "../Audio/AudioManager.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Utils/Log.h"
+
+std::string FleeCommand::GetLabel() const
+{
+    return LocalizationManager::Get().Text("battle.command.flee");
+}
 
 void FleeCommand::Execute(BattleState& state) const
 {

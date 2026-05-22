@@ -26,6 +26,7 @@
 #include "../Battle/ItemIconCache.h"
 #include "../Battle/ItemData.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
@@ -54,9 +55,10 @@ void InventoryState::OnEnter()
         "assets/UI/ui-dialog-box-hd.json",
         d3d.GetWidth(), d3d.GetHeight());
 
+    const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(
         d3d.GetDevice(), d3d.GetContext(),
-        L"assets/fonts/arial_16.spritefont",
+        std::wstring(fontPath.begin(), fontPath.end()),
         d3d.GetWidth(), d3d.GetHeight());
 
     // Scroll chevrons — placeholder pointer texture (see asset-todo.md).
@@ -181,43 +183,66 @@ void InventoryState::Flash(const std::string& msg)
 bool InventoryState::TryUseItem(const std::string& id)
 {
     const ItemData* item = ItemRegistry::Get().Find(id);
-    if (!item) { Flash("Unknown item: " + id); return false; }
+    if (!item)
+    {
+        Flash(LocalizationManager::Get().Format("inventory.flash.unknown_item", {
+            { "item", id }
+        }));
+        return false;
+    }
     BattlerStats copy = PartyManager::Get().GetMemberStats(mMemberIndex);
     const int hpBefore = copy.hp;
     const int mpBefore = copy.mp;
-    char buf[128]{};
+    std::string message;
 
     switch (item->effect)
     {
     case ItemEffectKind::HealHp:
-        if (copy.hp >= copy.maxHp) { Flash("HP is already full."); return false; }
+        if (copy.hp >= copy.maxHp)
+        {
+            Flash(LocalizationManager::Get().Text("inventory.flash.hp_full"));
+            return false;
+        }
         copy.hp += item->amount;
         copy.ClampHp();
-        _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d HP)",
-                    item->name.c_str(), copy.hp - hpBefore);
+        message = LocalizationManager::Get().Format("inventory.flash.used_hp", {
+            { "item", item->name },
+            { "amount", std::to_string(copy.hp - hpBefore) }
+        });
         break;
     case ItemEffectKind::HealMp:
-        if (copy.mp >= copy.maxMp) { Flash("MP is already full."); return false; }
+        if (copy.mp >= copy.maxMp)
+        {
+            Flash(LocalizationManager::Get().Text("inventory.flash.mp_full"));
+            return false;
+        }
         copy.mp += item->amount;
         if (copy.mp > copy.maxMp) copy.mp = copy.maxMp;
-        _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (+%d MP)",
-                    item->name.c_str(), copy.mp - mpBefore);
+        message = LocalizationManager::Get().Format("inventory.flash.used_mp", {
+            { "item", item->name },
+            { "amount", std::to_string(copy.mp - mpBefore) }
+        });
         break;
     case ItemEffectKind::FullHeal:
         if (copy.hp >= copy.maxHp && copy.mp >= copy.maxMp)
-        { Flash("HP and MP are already full."); return false; }
+        {
+            Flash(LocalizationManager::Get().Text("inventory.flash.hp_mp_full"));
+            return false;
+        }
         copy.hp = copy.maxHp;
         copy.mp = copy.maxMp;
-        _snprintf_s(buf, sizeof(buf), _TRUNCATE, "Used %s (full restore)", item->name.c_str());
+        message = LocalizationManager::Get().Format("inventory.flash.used_full", {
+            { "item", item->name }
+        });
         break;
     case ItemEffectKind::RestoreRage:
-        Flash("Rage only matters during battle.");
+        Flash(LocalizationManager::Get().Text("inventory.flash.rage_battle_only"));
         return false;
     case ItemEffectKind::Revive:
     case ItemEffectKind::DealDamage:
     case ItemEffectKind::StatBuff:
     case ItemEffectKind::Cleanse:
-        Flash("Cannot use this outside of battle.");
+        Flash(LocalizationManager::Get().Text("inventory.flash.cannot_use_outside_battle"));
         return false;
     }
 
@@ -225,7 +250,7 @@ bool InventoryState::TryUseItem(const std::string& id)
     // the player healed but with the item intact (favors the player).
     PartyManager::Get().SetMemberStats(mMemberIndex, copy);
     Inventory::Get().Remove(id, 1);
-    Flash(buf);
+    Flash(message);
     RefreshConsumables();
     return true;
 }
@@ -235,20 +260,28 @@ bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
     if (PartyManager::Get().EquipItem(mMemberIndex, slot, itemId))
     {
         const ItemData* item = ItemRegistry::Get().Find(itemId);
-        Flash(std::string("Equipped ") + (item ? item->name : itemId));
+        Flash(LocalizationManager::Get().Format("inventory.flash.equipped", {
+            { "item", item ? item->name : itemId }
+        }));
         return true;
     }
-    Flash("Could not equip that item.");
+    Flash(LocalizationManager::Get().Text("inventory.flash.could_not_equip"));
     return false;
 }
 
 void InventoryState::TryUnequip(EquipSlot slot)
 {
     std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, slot);
-    if (equippedId.empty()) { Flash("Nothing to unequip."); return; }
+    if (equippedId.empty())
+    {
+        Flash(LocalizationManager::Get().Text("inventory.flash.nothing_to_unequip"));
+        return;
+    }
     PartyManager::Get().UnequipItem(mMemberIndex, slot);
     const ItemData* item = ItemRegistry::Get().Find(equippedId);
-    Flash(std::string("Unequipped ") + (item ? item->name : equippedId));
+    Flash(LocalizationManager::Get().Format("inventory.flash.unequipped", {
+        { "item", item ? item->name : equippedId }
+    }));
 }
 
 // ============================================================
@@ -318,14 +351,18 @@ void InventoryState::Update(float dt)
                 mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
                 AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
-                Flash(std::string("Target: ") + party[mMemberIndex].name);
+                Flash(LocalizationManager::Get().Format("inventory.flash.target", {
+                    { "member", party[mMemberIndex].name }
+                }));
             }
             if (ePressed)
             {
                 mMemberIndex = (mMemberIndex + 1) % partySize;
                 AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
-                Flash(std::string("Target: ") + party[mMemberIndex].name);
+                Flash(LocalizationManager::Get().Format("inventory.flash.target", {
+                    { "member", party[mMemberIndex].name }
+                }));
             }
         }
     }
@@ -423,14 +460,18 @@ void InventoryState::HandleSlotsInput()
                 mMemberIndex = (mMemberIndex - 1 + partySize) % partySize;
                 AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
-                Flash(std::string("Target: ") + party[mMemberIndex].name);
+                Flash(LocalizationManager::Get().Format("inventory.flash.target", {
+                    { "member", party[mMemberIndex].name }
+                }));
             }
             if (pressed(VK_RIGHT, mRightWasDown))
             {
                 mMemberIndex = (mMemberIndex + 1) % partySize;
                 AudioManager::Get().PlaySfx("ui_navigate");
                 const auto& party = PartyManager::Get().GetActiveParty();
-                Flash(std::string("Target: ") + party[mMemberIndex].name);
+                Flash(LocalizationManager::Get().Format("inventory.flash.target", {
+                    { "member", party[mMemberIndex].name }
+                }));
             }
         }
     }

@@ -70,6 +70,11 @@ bool BattleResultRenderer::Initialize(ID3D11Device* device,
     mStates = std::make_unique<CommonStates>(device);
     if (!CreateFillTexture(device)) return false;
 
+    LoadArtTexture(device, context, mLayout.defeatSigilTexturePath, mDefeatSigilSRV);
+    LoadArtTexture(device, context, mLayout.promptPanelTexturePath, mPromptPanelSRV);
+    LoadArtTexture(device, context, mLayout.vignetteTexturePath, mVignetteSRV);
+    LoadArtTexture(device, context, mLayout.victoryFlourishTexturePath, mVictoryFlourishSRV);
+
     if (!mPromptPanel.Initialize(
         device,
         context,
@@ -88,6 +93,10 @@ void BattleResultRenderer::Shutdown()
 {
     mPortraits.clear();
     mPromptPanel.Shutdown();
+    mDefeatSigilSRV.Reset();
+    mPromptPanelSRV.Reset();
+    mVignetteSRV.Reset();
+    mVictoryFlourishSRV.Reset();
     mFillSRV.Reset();
     mStates.reset();
     mSpriteBatch.reset();
@@ -154,6 +163,13 @@ void BattleResultRenderer::RenderVictory(ID3D11DeviceContext* context,
 
     BeginRects(context);
     DrawBackdrop(alpha);
+    DrawTextureRect(
+        mVictoryFlourishSRV.Get(),
+        mLayout.victoryFlourishX * (static_cast<float>(mScreenW) / 1280.0f),
+        mLayout.victoryFlourishY * (static_cast<float>(mScreenH) / 720.0f),
+        mLayout.victoryFlourishW * (static_cast<float>(mScreenW) / 1280.0f),
+        mLayout.victoryFlourishH * (static_cast<float>(mScreenH) / 720.0f),
+        XMVectorSet(1.0f, 1.0f, 1.0f, 0.86f * alpha));
     DrawDecorativeFrame(
         mLayout.partyPanelX * (static_cast<float>(mScreenW) / 1280.0f),
         mLayout.partyPanelY * (static_cast<float>(mScreenH) / 720.0f),
@@ -177,7 +193,7 @@ void BattleResultRenderer::RenderDefeatSplash(ID3D11DeviceContext* context,
 
     BeginRects(context);
     DrawBackdrop(alpha);
-    DrawDefeatGlyph(mScreenW * 0.5f, mScreenH * 0.45f, alpha);
+    DrawDefeatSigil(alpha);
     EndRects();
 
     text.BeginBatch(context);
@@ -204,7 +220,7 @@ void BattleResultRenderer::RenderDefeatPrompt(ID3D11DeviceContext* context,
 
     BeginRects(context);
     DrawBackdrop(1.0f);
-    DrawDefeatGlyph(mScreenW * 0.5f, mScreenH * 0.45f, 0.42f);
+    DrawDefeatSigil(0.42f);
     EndRects();
 
     const float panelX = mLayout.promptX * sx;
@@ -212,15 +228,30 @@ void BattleResultRenderer::RenderDefeatPrompt(ID3D11DeviceContext* context,
     const float panelW = mLayout.promptW * sx;
     const float panelH = mLayout.promptH * sy;
 
-    mPromptPanel.Draw(
-        context,
-        panelX,
-        panelY,
-        panelW,
-        panelH,
-        0.35f * ss,
-        XMMatrixIdentity(),
-        XMVectorSet(0.95f, 0.95f, 0.95f, alpha));
+    if (mPromptPanelSRV.Get())
+    {
+        BeginRects(context);
+        DrawTextureRect(
+            mPromptPanelSRV.Get(),
+            panelX,
+            panelY,
+            panelW,
+            panelH,
+            XMVectorSet(1.0f, 1.0f, 1.0f, alpha));
+        EndRects();
+    }
+    else
+    {
+        mPromptPanel.Draw(
+            context,
+            panelX,
+            panelY,
+            panelW,
+            panelH,
+            0.35f * ss,
+            XMMatrixIdentity(),
+            XMVectorSet(0.95f, 0.95f, 0.95f, alpha));
+    }
 
     BeginRects(context);
     const float optionY = panelY + panelH - 44.0f * sy;
@@ -289,6 +320,39 @@ bool BattleResultRenderer::CreateFillTexture(ID3D11Device* device)
     return SUCCEEDED(hr);
 }
 
+bool BattleResultRenderer::LoadArtTexture(ID3D11Device* device,
+                                          ID3D11DeviceContext* context,
+                                          const std::string& path,
+                                          ComPtr<ID3D11ShaderResourceView>& outSrv)
+{
+    outSrv.Reset();
+    if (!device || !context || path.empty()) return false;
+
+    const std::wstring widePath(path.begin(), path.end());
+    const HRESULT hr = CreateWICTextureFromFileEx(
+        device,
+        context,
+        widePath.c_str(),
+        0,
+        D3D11_USAGE_DEFAULT,
+        D3D11_BIND_SHADER_RESOURCE,
+        0,
+        0,
+        WIC_LOADER_IGNORE_SRGB,
+        nullptr,
+        outSrv.GetAddressOf());
+
+    if (FAILED(hr))
+    {
+        LOG("[BattleResultRenderer] WARNING: result art '%s' failed to load (0x%08X).",
+            path.c_str(),
+            static_cast<unsigned>(hr));
+        return false;
+    }
+
+    return true;
+}
+
 void BattleResultRenderer::BindViewport(ID3D11DeviceContext* context)
 {
     D3D11_VIEWPORT viewport{};
@@ -330,6 +394,20 @@ void BattleResultRenderer::DrawFillRect(float x,
     mSpriteBatch->Draw(mFillSRV.Get(), rect, nullptr, color);
 }
 
+void BattleResultRenderer::DrawTextureRect(ID3D11ShaderResourceView* srv,
+                                           float x,
+                                           float y,
+                                           float width,
+                                           float height,
+                                           FXMVECTOR color)
+{
+    if (!mSpriteBatch || !srv) return;
+    if (width <= 0.0f || height <= 0.0f) return;
+
+    const RECT rect = MakeRect(x, y, width, height);
+    mSpriteBatch->Draw(srv, rect, nullptr, color);
+}
+
 void BattleResultRenderer::DrawDecorativeFrame(float x,
                                                float y,
                                                float width,
@@ -358,6 +436,38 @@ void BattleResultRenderer::DrawBackdrop(float alphaMul)
                  XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
     DrawFillRect(static_cast<float>(mScreenW) - 160.0f, 0.0f, 160.0f, static_cast<float>(mScreenH),
                  XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
+
+    DrawTextureRect(
+        mVignetteSRV.Get(),
+        0.0f,
+        0.0f,
+        static_cast<float>(mScreenW),
+        static_cast<float>(mScreenH),
+        XMVectorSet(1.0f, 1.0f, 1.0f, Clamp01(mLayout.vignetteTextureAlpha * alphaMul)));
+}
+
+void BattleResultRenderer::DrawDefeatSigil(float alpha)
+{
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float centerX = mLayout.defeatSigilCenterX * sx;
+    const float centerY = mLayout.defeatSigilCenterY * sy;
+    const float width = mLayout.defeatSigilW * sx;
+    const float height = mLayout.defeatSigilH * sy;
+
+    if (mDefeatSigilSRV.Get())
+    {
+        DrawTextureRect(
+            mDefeatSigilSRV.Get(),
+            centerX - width * 0.5f,
+            centerY - height * 0.5f,
+            width,
+            height,
+            XMVectorSet(1.0f, 1.0f, 1.0f, alpha));
+        return;
+    }
+
+    DrawDefeatGlyph(centerX, centerY, alpha);
 }
 
 void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,

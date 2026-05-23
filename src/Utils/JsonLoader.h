@@ -950,6 +950,20 @@ struct BattleResultLayout
     float promptH = 118.0f;
     float promptOptionGap = 136.0f;
 
+    std::string defeatSigilTexturePath;
+    std::string promptPanelTexturePath;
+    std::string vignetteTexturePath;
+    std::string victoryFlourishTexturePath;
+    float defeatSigilCenterX = 640.0f;
+    float defeatSigilCenterY = 304.0f;
+    float defeatSigilW = 278.0f;
+    float defeatSigilH = 314.0f;
+    float vignetteTextureAlpha = 0.72f;
+    float victoryFlourishX = 82.0f;
+    float victoryFlourishY = 156.0f;
+    float victoryFlourishW = 430.0f;
+    float victoryFlourishH = 82.0f;
+
     std::string victoryAppearSfxId = "battle_result_victory_appear";
     std::string defeatAppearSfxId = "battle_result_defeat_appear";
     std::string statsOpenSfxId = "battle_result_stats_open";
@@ -1009,6 +1023,25 @@ inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& 
     out.promptW = detail::ParseFloat(detail::ValueOf(src, "promptW"), out.promptW);
     out.promptH = detail::ParseFloat(detail::ValueOf(src, "promptH"), out.promptH);
     out.promptOptionGap = detail::ParseFloat(detail::ValueOf(src, "promptOptionGap"), out.promptOptionGap);
+
+    const std::string sigilPath = detail::ValueOf(src, "defeatSigilTexturePath");
+    if (!sigilPath.empty()) out.defeatSigilTexturePath = detail::CleanString(sigilPath);
+    const std::string panelPath = detail::ValueOf(src, "promptPanelTexturePath");
+    if (!panelPath.empty()) out.promptPanelTexturePath = detail::CleanString(panelPath);
+    const std::string vignettePath = detail::ValueOf(src, "vignetteTexturePath");
+    if (!vignettePath.empty()) out.vignetteTexturePath = detail::CleanString(vignettePath);
+    const std::string flourishPath = detail::ValueOf(src, "victoryFlourishTexturePath");
+    if (!flourishPath.empty()) out.victoryFlourishTexturePath = detail::CleanString(flourishPath);
+
+    out.defeatSigilCenterX = detail::ParseFloat(detail::ValueOf(src, "defeatSigilCenterX"), out.defeatSigilCenterX);
+    out.defeatSigilCenterY = detail::ParseFloat(detail::ValueOf(src, "defeatSigilCenterY"), out.defeatSigilCenterY);
+    out.defeatSigilW = detail::ParseFloat(detail::ValueOf(src, "defeatSigilW"), out.defeatSigilW);
+    out.defeatSigilH = detail::ParseFloat(detail::ValueOf(src, "defeatSigilH"), out.defeatSigilH);
+    out.vignetteTextureAlpha = detail::ParseFloat(detail::ValueOf(src, "vignetteTextureAlpha"), out.vignetteTextureAlpha);
+    out.victoryFlourishX = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishX"), out.victoryFlourishX);
+    out.victoryFlourishY = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishY"), out.victoryFlourishY);
+    out.victoryFlourishW = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishW"), out.victoryFlourishW);
+    out.victoryFlourishH = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishH"), out.victoryFlourishH);
 
     const std::string victorySfx = detail::ValueOf(src, "victoryAppearSfxId");
     if (!victorySfx.empty()) out.victoryAppearSfxId = detail::CleanString(victorySfx);

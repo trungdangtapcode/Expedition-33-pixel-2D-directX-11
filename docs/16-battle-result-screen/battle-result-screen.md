@@ -22,6 +22,28 @@ Rewards are applied once when victory results are created. This keeps the render
 ## Layout And Audio
 
 `data/battle_result_layout.json` owns screen positions, panel sizes, animation timing, the no-damage bonus percentage, and result SFX ids.
+It also owns optional result-art texture paths for the defeat sigil, retry prompt panel, ink vignette, and victory flourish.
+
+The committed generated source sheet lives at:
+
+```text
+source_assets/battle_result_ui_raw.png
+```
+
+Regenerate the sliced game assets with:
+
+```bat
+python patches\process_battle_result_assets.py
+```
+
+The script writes:
+
+```text
+assets/UI/battle_result/battle_result_defeat_sigil.png
+assets/UI/battle_result/battle_result_prompt_panel.png
+assets/UI/battle_result/battle_result_ink_vignette.png
+assets/UI/battle_result/battle_result_victory_flourish.png
+```
 
 Result SFX live under:
 

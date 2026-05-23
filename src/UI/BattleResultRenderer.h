@@ -7,6 +7,7 @@
 //   SpriteBatch/CommonStates for filled overlays and portrait sprites.
 //   One 1x1 white SRV for tintable rectangles.
 //   NineSliceRenderer for the defeat retry prompt panel.
+//   Optional result-art SRVs loaded from the layout data.
 //   Portrait SRVs loaded from PartyManager metadata for result rows.
 //
 // Lifetime:
@@ -68,12 +69,23 @@ private:
     };
 
     bool CreateFillTexture(ID3D11Device* device);
+    bool LoadArtTexture(ID3D11Device* device,
+                        ID3D11DeviceContext* context,
+                        const std::string& path,
+                        Microsoft::WRL::ComPtr<ID3D11ShaderResourceView>& outSrv);
     void BindViewport(ID3D11DeviceContext* context);
     void BeginRects(ID3D11DeviceContext* context);
     void EndRects();
     void DrawFillRect(float x, float y, float width, float height, DirectX::FXMVECTOR color);
+    void DrawTextureRect(ID3D11ShaderResourceView* srv,
+                         float x,
+                         float y,
+                         float width,
+                         float height,
+                         DirectX::FXMVECTOR color);
     void DrawDecorativeFrame(float x, float y, float width, float height, DirectX::FXMVECTOR color);
     void DrawBackdrop(float alphaMul);
+    void DrawDefeatSigil(float alpha);
     void DrawVictoryText(ID3D11DeviceContext* context,
                          BattleTextRenderer& text,
                          const BattleResultData& data,
@@ -86,6 +98,10 @@ private:
     std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates> mStates;
     Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mFillSRV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mDefeatSigilSRV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mPromptPanelSRV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mVignetteSRV;
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> mVictoryFlourishSRV;
     NineSliceRenderer mPromptPanel;
     std::vector<PortraitEntry> mPortraits;
 

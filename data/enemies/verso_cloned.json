@@ -11,6 +11,7 @@
   "contactRadius": 100.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
   "bgmTrackId": "verso_cloned_battle",
+  "victoryBgmTrackId": "verso_cloned_fight_victory",
 
   "battleParty": [
     {

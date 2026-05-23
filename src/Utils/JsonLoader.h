@@ -705,6 +705,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     std::ostringstream buf;
     buf << file.rdbuf();
     const std::string src = buf.str();
+    out.battleParty.clear();
 
     // Helper: strip surrounding quotes from a ValueOf() string token.
     auto stripQ = [](const std::string& s) -> std::string {
@@ -729,6 +730,8 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
     out.environmentPath = stripQ(detail::ValueOf(src, "environmentPath"));
     out.bgmTrackId      = stripQ(detail::ValueOf(src, "bgmTrackId"));
+    out.victoryBgmTrackId = stripQ(detail::ValueOf(src, "victoryBgmTrackId"));
+    out.defeatBgmTrackId = stripQ(detail::ValueOf(src, "defeatBgmTrackId"));
 
     if (out.name.empty() || out.texturePath.empty())
     {
@@ -926,6 +929,8 @@ struct BattleResultLayout
     float victoryEnterDuration = 0.70f;
     float defeatSplashDuration = 1.80f;
     int noDamageBonusPercent = 20;
+    std::string defaultVictoryBgmTrackId;
+    std::string defaultDefeatBgmTrackId;
     float victoryImpactDuration = 1.10f;
     float victoryImpactCenterX = 640.0f;
     float victoryImpactCenterY = 380.0f;
@@ -1059,6 +1064,10 @@ inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& 
     out.victoryEnterDuration = detail::ParseFloat(detail::ValueOf(src, "victoryEnterDuration"), out.victoryEnterDuration);
     out.defeatSplashDuration = detail::ParseFloat(detail::ValueOf(src, "defeatSplashDuration"), out.defeatSplashDuration);
     out.noDamageBonusPercent = static_cast<int>(detail::ParseFloat(detail::ValueOf(src, "noDamageBonusPercent"), static_cast<float>(out.noDamageBonusPercent)));
+    const std::string defaultVictoryBgm = detail::ValueOf(src, "defaultVictoryBgmTrackId");
+    if (!defaultVictoryBgm.empty()) out.defaultVictoryBgmTrackId = detail::CleanString(defaultVictoryBgm);
+    const std::string defaultDefeatBgm = detail::ValueOf(src, "defaultDefeatBgmTrackId");
+    if (!defaultDefeatBgm.empty()) out.defaultDefeatBgmTrackId = detail::CleanString(defaultDefeatBgm);
     out.victoryImpactDuration = detail::ParseFloat(detail::ValueOf(src, "victoryImpactDuration"), out.victoryImpactDuration);
     out.victoryImpactCenterX = detail::ParseFloat(detail::ValueOf(src, "victoryImpactCenterX"), out.victoryImpactCenterX);
     out.victoryImpactCenterY = detail::ParseFloat(detail::ValueOf(src, "victoryImpactCenterY"), out.victoryImpactCenterY);

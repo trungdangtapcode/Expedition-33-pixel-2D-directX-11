@@ -10,6 +10,7 @@
   "contactRadius": 94.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
   "bgmTrackId": "zombie_armour_battle",
+  "victoryBgmTrackId": "beneath_the_blue_tree_victory",
 
   "battleParty": [
     {

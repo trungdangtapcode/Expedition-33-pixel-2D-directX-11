@@ -201,6 +201,8 @@ private:
     void CheckDeathAnimations();
     void CheckBattleEnd();
     void ActivateResultScreen(BattleOutcome outcome);
+    std::string ResolveResultBgmTrackId(BattleOutcome outcome) const;
+    void PlayResultBgm(BattleOutcome outcome);
     void BuildAndApplyVictoryResult();
     void BuildDefeatResult();
     void RestorePreBattleState();

@@ -1,5 +1,5 @@
 {
-  "comment":  "Skeleton — solo encounter (1 enemy in battle).",
+  "comment":  "Skeleton -- solo encounter (1 enemy in battle).",
   "comment2": "Top-level fields: overworld sprite + collision radius.",
   "comment3": "battleParty: single entry = 1-on-1 fight.",
 
@@ -10,6 +10,7 @@
   "idleClip": "idle",
   "contactRadius": 90.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
+  "victoryBgmTrackId": "the_end_in_me_victory",
 
   "battleParty": [
     {

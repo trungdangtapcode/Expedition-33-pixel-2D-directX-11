@@ -4,6 +4,8 @@
   "victoryEnterDuration": 0.75,
   "defeatSplashDuration": 1.85,
   "noDamageBonusPercent": 20,
+  "defaultVictoryBgmTrackId": "the_end_in_me_victory",
+  "defaultDefeatBgmTrackId": "battle_defeat",
   "victoryImpactDuration": 1.10,
   "victoryImpactCenterX": 640.0,
   "victoryImpactCenterY": 390.0,

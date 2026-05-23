@@ -66,6 +66,23 @@ assets/sound/SFX/Battle/Result/
 
 They are registered in `data/audio/sfx.json`, so the global SFX volume bus controls them automatically.
 
+Result BGM is data-driven through the same `AudioManager` BGM bus as menu,
+overworld, and battle music. `data/audio/bgm.json` registers every result
+soundtrack id and file path. `data/battle_result_layout.json` owns default
+victory and defeat track ids, while each `data/enemies/*.json` encounter can
+override `victoryBgmTrackId` and `defeatBgmTrackId`.
+
+Current result soundtrack mapping:
+
+- Default victory: `the_end_in_me_victory`
+- Zombie Armour victory: `beneath_the_blue_tree_victory`
+- Verso Cloned victory: `verso_cloned_fight_victory`
+- Default defeat: `battle_defeat`
+
+When the result screen activates, BattleState resolves the encounter override
+first, then falls back to the layout default, then broadcasts `bgm_play` with
+that track id. No soundtrack file paths are embedded in C++.
+
 ## Retry Rules
 
 BattleState captures:

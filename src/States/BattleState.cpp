@@ -821,14 +821,56 @@ void BattleState::ActivateResultScreen(BattleOutcome outcome)
     {
         BuildAndApplyVictoryResult();
         mResultPhase = BattleResultPhase::VictoryResult;
+        PlayResultBgm(outcome);
         AudioManager::Get().PlaySfx(mResultLayout.victoryAppearSfxId);
     }
     else
     {
         BuildDefeatResult();
         mResultPhase = BattleResultPhase::DefeatSplash;
+        PlayResultBgm(outcome);
         AudioManager::Get().PlaySfx(mResultLayout.defeatAppearSfxId);
     }
+}
+
+// ------------------------------------------------------------
+// Function: ResolveResultBgmTrackId
+// Purpose:
+//   Choose the music track for the victory or defeat result screen.
+// Why:
+//   Encounter JSON can provide bespoke victory music, while the result
+//   layout keeps global fallbacks for common enemies and defeat.
+// ------------------------------------------------------------
+std::string BattleState::ResolveResultBgmTrackId(BattleOutcome outcome) const
+{
+    if (outcome == BattleOutcome::VICTORY)
+    {
+        return !mEncounter.victoryBgmTrackId.empty()
+            ? mEncounter.victoryBgmTrackId
+            : mResultLayout.defaultVictoryBgmTrackId;
+    }
+
+    return !mEncounter.defeatBgmTrackId.empty()
+        ? mEncounter.defeatBgmTrackId
+        : mResultLayout.defaultDefeatBgmTrackId;
+}
+
+// ------------------------------------------------------------
+// Function: PlayResultBgm
+// Purpose:
+//   Broadcast a generic BGM request for the resolved result track.
+// Why:
+//   AudioManager already owns track lookup and voice switching, so
+//   BattleState only passes a data-driven track id through EventManager.
+// ------------------------------------------------------------
+void BattleState::PlayResultBgm(BattleOutcome outcome)
+{
+    const std::string trackId = ResolveResultBgmTrackId(outcome);
+    if (trackId.empty()) return;
+
+    EventData eventData;
+    eventData.payload = const_cast<char*>(trackId.c_str());
+    EventManager::Get().Broadcast("bgm_play", eventData);
 }
 
 void BattleState::BuildAndApplyVictoryResult()

@@ -84,7 +84,18 @@ private:
                          float height,
                          DirectX::FXMVECTOR color);
     void DrawDecorativeFrame(float x, float y, float width, float height, DirectX::FXMVECTOR color);
+    void DrawRotatedFillRect(float x,
+                             float y,
+                             float width,
+                             float height,
+                             float rotation,
+                             DirectX::FXMVECTOR color,
+                             float originX,
+                             float originY);
     void DrawBackdrop(float alphaMul);
+    void DrawVictoryImpactEffect(float visibleSeconds);
+    void DrawVictoryImpactRays(float centerX, float centerY, float progress, float fade);
+    void DrawVictoryImpactRing(float centerX, float centerY, float progress, float fade);
     void DrawDefeatSigil(float alpha);
     void DrawVictoryPartyPanel(float alpha);
     void DrawVictoryText(ID3D11DeviceContext* context,

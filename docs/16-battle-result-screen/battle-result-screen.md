@@ -27,6 +27,10 @@ The victory party panel uses a data-driven translucent fill so the frozen battle
 scene can stay cinematic without enemy sprites bleeding through readable result
 rows. Portrait rows crop the wide turn-view art through layout data instead of
 stretching the full 256x128 image into a square.
+Victory also has a data-driven impact overlay: a short flash, warm tint,
+expanding ring, and deterministic ray burst drawn with the existing 1x1 fill
+texture. The effect is intentionally screen-space and renderer-local, so it does
+not mutate battle state or require a new post-process shader for V1.
 
 The committed generated source sheet lives at:
 

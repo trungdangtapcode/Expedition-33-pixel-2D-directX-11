@@ -16,6 +16,7 @@
 #include <WICTextureLoader.h>
 #include <DirectXColors.h>
 #include <algorithm>
+#include <cmath>
 #include <cstdio>
 
 using Microsoft::WRL::ComPtr;
@@ -38,6 +39,36 @@ namespace
         if (value < 0.0f) return 0.0f;
         if (value > 1.0f) return 1.0f;
         return value;
+    }
+
+    float SmoothStep(float edge0, float edge1, float value)
+    {
+        if (edge0 == edge1) return value >= edge1 ? 1.0f : 0.0f;
+        const float t = Clamp01((value - edge0) / (edge1 - edge0));
+        return t * t * (3.0f - 2.0f * t);
+    }
+
+    float EaseOutCubic(float value)
+    {
+        const float t = Clamp01(value);
+        const float inverse = 1.0f - t;
+        return 1.0f - inverse * inverse * inverse;
+    }
+
+    float Lerp(float a, float b, float t)
+    {
+        return a + (b - a) * t;
+    }
+
+    float Hash01(int seed)
+    {
+        unsigned int x = static_cast<unsigned int>(seed) + 0x9E3779B9u;
+        x ^= x >> 16;
+        x *= 0x7FEB352Du;
+        x ^= x >> 15;
+        x *= 0x846CA68Bu;
+        x ^= x >> 16;
+        return static_cast<float>(x & 0x00FFFFFFu) / 16777215.0f;
     }
 
     std::string FormatTime(float seconds)
@@ -163,6 +194,7 @@ void BattleResultRenderer::RenderVictory(ID3D11DeviceContext* context,
 
     BeginRects(context);
     DrawBackdrop(alpha);
+    DrawVictoryImpactEffect(visibleSeconds);
     DrawTextureRect(
         mVictoryFlourishSRV.Get(),
         mLayout.victoryFlourishX * (static_cast<float>(mScreenW) / 1280.0f),
@@ -403,6 +435,28 @@ void BattleResultRenderer::DrawTextureRect(ID3D11ShaderResourceView* srv,
     mSpriteBatch->Draw(srv, rect, nullptr, color);
 }
 
+void BattleResultRenderer::DrawRotatedFillRect(float x,
+                                               float y,
+                                               float width,
+                                               float height,
+                                               float rotation,
+                                               FXMVECTOR color,
+                                               float originX,
+                                               float originY)
+{
+    if (!mSpriteBatch || !mFillSRV) return;
+    if (width <= 0.0f || height <= 0.0f) return;
+
+    mSpriteBatch->Draw(
+        mFillSRV.Get(),
+        XMFLOAT2(x, y),
+        nullptr,
+        color,
+        rotation,
+        XMFLOAT2(originX, originY),
+        XMFLOAT2(width, height));
+}
+
 void BattleResultRenderer::DrawDecorativeFrame(float x,
                                                float y,
                                                float width,
@@ -439,6 +493,136 @@ void BattleResultRenderer::DrawBackdrop(float alphaMul)
         static_cast<float>(mScreenW),
         static_cast<float>(mScreenH),
         XMVectorSet(1.0f, 1.0f, 1.0f, Clamp01(mLayout.vignetteTextureAlpha * alphaMul)));
+}
+
+void BattleResultRenderer::DrawVictoryImpactEffect(float visibleSeconds)
+{
+    if (mLayout.victoryImpactDuration <= 0.0f) return;
+    if (visibleSeconds > mLayout.victoryImpactDuration) return;
+
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float progress = Clamp01(visibleSeconds / mLayout.victoryImpactDuration);
+    const float fade = 1.0f - SmoothStep(mLayout.victoryImpactFadeStartProgress, 1.0f, progress);
+    const float centerX = mLayout.victoryImpactCenterX * sx;
+    const float centerY = mLayout.victoryImpactCenterY * sy;
+
+    const float flashT = 1.0f - Clamp01(visibleSeconds / (std::max)(0.01f, mLayout.victoryImpactFlashDuration));
+    DrawFillRect(0.0f, 0.0f, static_cast<float>(mScreenW), static_cast<float>(mScreenH),
+                 XMVectorSet(mLayout.victoryImpactFlashR,
+                             mLayout.victoryImpactFlashG,
+                             mLayout.victoryImpactFlashB,
+                             mLayout.victoryImpactFlashAlpha * flashT));
+
+    // The warm tint behaves like a lightweight post-process pass: it colors
+    // only the frozen battle scene before the result UI settles over it.
+    DrawFillRect(0.0f, 0.0f, static_cast<float>(mScreenW), static_cast<float>(mScreenH),
+                 XMVectorSet(mLayout.victoryImpactWarmTintR,
+                             mLayout.victoryImpactWarmTintG,
+                             mLayout.victoryImpactWarmTintB,
+                             Clamp01(mLayout.victoryImpactWarmTintAlpha * fade)));
+
+    DrawVictoryImpactRing(centerX, centerY, progress, fade);
+    DrawVictoryImpactRays(centerX, centerY, progress, fade);
+}
+
+void BattleResultRenderer::DrawVictoryImpactRays(float centerX, float centerY, float progress, float fade)
+{
+    const int rayCount = (std::max)(0, mLayout.victoryImpactRayCount);
+    if (rayCount <= 0) return;
+
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float ss = (std::min)(sx, sy);
+    const float burst = EaseOutCubic(progress);
+    const float rayFade = Clamp01(fade);
+
+    for (int i = 0; i < rayCount; ++i)
+    {
+        const float u = (static_cast<float>(i) + 0.5f) / static_cast<float>(rayCount);
+        const float lengthNoise = Hash01(i * 37 + 11);
+        const float angleNoise = Hash01(i * 53 + 23) - 0.5f;
+        const float baseAngle = u * XM_2PI;
+        const float angle = baseAngle + angleNoise * mLayout.victoryImpactRayAngleJitter;
+        const float lengthVariance = Lerp(mLayout.victoryImpactRayLengthVarianceMin,
+                                          mLayout.victoryImpactRayLengthVarianceMax,
+                                          lengthNoise);
+        const float length = Lerp(mLayout.victoryImpactRayLengthMin,
+                                  mLayout.victoryImpactRayLengthMax * lengthVariance,
+                                  burst) * ss;
+        const float startOffset = Lerp(mLayout.victoryImpactRayStartOffsetMin,
+                                       mLayout.victoryImpactRayStartOffsetMax,
+                                       burst) * ss;
+        const float thicknessVariance = Lerp(mLayout.victoryImpactRayThicknessVarianceMin,
+                                             mLayout.victoryImpactRayThicknessVarianceMax,
+                                             lengthNoise);
+        const float thickness = mLayout.victoryImpactRayThickness * thicknessVariance * ss;
+        const float startX = centerX + std::cos(angle) * startOffset;
+        const float startY = centerY + std::sin(angle) * startOffset;
+
+        DrawRotatedFillRect(
+            startX,
+            startY,
+            length,
+            thickness * mLayout.victoryImpactRayGlowThicknessScale,
+            angle,
+            XMVectorSet(mLayout.victoryImpactRayColorR,
+                        mLayout.victoryImpactRayColorG,
+                        mLayout.victoryImpactRayColorB,
+                        Clamp01(mLayout.victoryImpactRayGlowAlpha * rayFade)),
+            0.0f,
+            thickness * mLayout.victoryImpactRayGlowThicknessScale * 0.5f);
+
+        const float coreThickness = (std::max)(mLayout.victoryImpactRayCoreMinThickness,
+                                               thickness * mLayout.victoryImpactRayCoreThicknessScale);
+
+        DrawRotatedFillRect(
+            startX,
+            startY,
+            length * mLayout.victoryImpactRayCoreLengthScale,
+            coreThickness,
+            angle,
+            XMVectorSet(mLayout.victoryImpactFlashR,
+                        mLayout.victoryImpactFlashG,
+                        mLayout.victoryImpactFlashB,
+                        Clamp01(mLayout.victoryImpactRayCoreAlpha * rayFade)),
+            0.0f,
+            coreThickness * 0.5f);
+    }
+}
+
+void BattleResultRenderer::DrawVictoryImpactRing(float centerX, float centerY, float progress, float fade)
+{
+    const int segmentCount = (std::max)(3, mLayout.victoryImpactRingSegments);
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float ss = (std::min)(sx, sy);
+    const float radius = Lerp(mLayout.victoryImpactRingStartRadius,
+                              mLayout.victoryImpactRingEndRadius,
+                              EaseOutCubic(progress)) * ss;
+    const float thickness = (std::max)(1.0f, mLayout.victoryImpactRingThickness * ss);
+    const float circumference = XM_2PI * (std::max)(1.0f, radius);
+    const float segmentLength = (circumference / static_cast<float>(segmentCount)) * mLayout.victoryImpactRingArcScale;
+    const float alpha = Clamp01(mLayout.victoryImpactRingAlpha * fade);
+
+    for (int i = 0; i < segmentCount; ++i)
+    {
+        const float angle = (static_cast<float>(i) / static_cast<float>(segmentCount)) * XM_2PI;
+        const float x = centerX + std::cos(angle) * radius;
+        const float y = centerY + std::sin(angle) * radius;
+        DrawRotatedFillRect(
+            x,
+            y,
+            segmentLength,
+            thickness,
+            angle + XM_PIDIV2,
+            XMVectorSet(mLayout.victoryImpactRingColorR,
+                        mLayout.victoryImpactRingColorG,
+                        mLayout.victoryImpactRingColorB,
+                        alpha),
+            segmentLength * 0.5f,
+            thickness * 0.5f);
+    }
 }
 
 void BattleResultRenderer::DrawDefeatSigil(float alpha)

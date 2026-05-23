@@ -94,6 +94,14 @@ BattleState captures:
 
 On retry or defeat leave, those snapshots are restored before rebuilding or exiting. Victory does not restore snapshots; it applies rewards, persists surviving HP/MP from combatants, and broadcasts `battle_end_victory` only when the player confirms the result screen.
 
+## Flee Rules
+
+Flee is a plain battle exit, not a battle result. Choosing Flee starts the iris
+close and broadcasts `battle_flee` after the deferred safe exit, but it does not
+enter `VictoryResult`, `DefeatSplash`, `DefeatPrompt`, or result `Exiting`.
+This prevents the result renderer from drawing stale/default victory data during
+the flee fade.
+
 ## Localization
 
 All player-facing result labels use localization keys under `battle.result.*`.

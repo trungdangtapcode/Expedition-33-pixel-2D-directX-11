@@ -958,9 +958,16 @@ void BattleState::StartExitTransition(const std::string& eventName)
 {
     if (mExitTransitionStarted) return;
 
+    const bool exitingVisibleResult =
+        mResultPhase == BattleResultPhase::VictoryResult ||
+        mResultPhase == BattleResultPhase::DefeatSplash ||
+        mResultPhase == BattleResultPhase::DefeatPrompt;
+
     mExitEventName = eventName;
     mExitTransitionStarted = true;
-    mResultPhase = BattleResultPhase::Exiting;
+    mResultPhase = exitingVisibleResult
+        ? BattleResultPhase::Exiting
+        : BattleResultPhase::None;
     mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
 }
 

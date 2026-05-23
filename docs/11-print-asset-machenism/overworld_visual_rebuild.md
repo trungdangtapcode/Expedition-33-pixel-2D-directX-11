@@ -63,6 +63,22 @@ If a future pass makes roads look tiled again, fix the generator first and then
 regenerate the atlas. Do not hand-paint only the committed PNG, because the next
 generator run would reintroduce the artifact.
 
+## Low Object Tiles
+
+Small tile-layer props such as the market table and signpost are generated in
+`draw_prop_tile()` in `patches/compile_assets.py`.
+
+These props should use:
+
+- A readable silhouette at 64x64.
+- A dark one-pixel outline only where it separates the prop from terrain.
+- Small cast shadows to anchor the prop to the ground.
+- Plank seams, highlights, and nail marks instead of flat rectangles.
+
+They should not carry interaction logic. If an object becomes interactive or
+needs Y-sorting against the player, move it into `data/overworld_props.json`
+and render it through `OverworldStaticProp`.
+
 ## Tiled Layer Rules
 
 Use tile layers for art that does not need individual Y-sorting:

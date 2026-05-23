@@ -223,12 +223,69 @@ def draw_prop_tile(draw: ImageDraw.ImageDraw, local_id: int, shape: str) -> None
     elif shape == "block":
         draw.rectangle([left + 8, top + 8, right - 8, bottom - 8], fill=rgba("#625b51"), outline=rgba("#292723"))
     elif shape == "sign":
-        draw.rectangle([left + 29, top + 15, left + 35, top + 58], fill=rgba("#5a3a22"), outline=rgba("#25170f"))
-        draw.rectangle([left + 15, top + 17, left + 49, top + 35], fill=rgba("#8d6337"), outline=rgba("#25170f"))
+        draw.ellipse([left + 22, top + 48, left + 45, top + 61], fill=rgba("#000000", 55))
+        draw.rectangle([left + 28, top + 29, left + 36, top + 58], fill=rgba("#3d2617"), outline=rgba("#1b100b"))
+        draw.rectangle([left + 30, top + 29, left + 33, top + 57], fill=rgba("#76502e"))
+        draw.polygon(
+            [
+                (left + 13, top + 13),
+                (left + 49, top + 13),
+                (left + 53, top + 18),
+                (left + 49, top + 34),
+                (left + 13, top + 34),
+                (left + 10, top + 18),
+            ],
+            fill=rgba("#2c1a10"),
+        )
+        draw.polygon(
+            [
+                (left + 15, top + 15),
+                (left + 47, top + 15),
+                (left + 50, top + 19),
+                (left + 47, top + 31),
+                (left + 15, top + 31),
+                (left + 13, top + 19),
+            ],
+            fill=rgba("#8f6136"),
+        )
+        draw.line([left + 16, top + 20, left + 48, top + 20], fill=rgba("#b38049"), width=1)
+        draw.line([left + 15, top + 26, left + 47, top + 26], fill=rgba("#59371f"), width=2)
+        draw.rectangle([left + 18, top + 17, left + 20, top + 19], fill=rgba("#2a1a10"))
+        draw.rectangle([left + 43, top + 17, left + 45, top + 19], fill=rgba("#2a1a10"))
+        draw.rectangle([left + 19, top + 29, left + 42, top + 30], fill=rgba("#c29357", 150))
     elif shape == "table":
-        draw.rectangle([left + 7, top + 22, right - 7, top + 40], fill=rgba("#8d5f34"), outline=rgba("#2c1e16"))
-        draw.rectangle([left + 13, top + 40, left + 19, top + 57], fill=rgba("#6d4528"), outline=rgba("#2c1e16"))
-        draw.rectangle([right - 19, top + 40, right - 13, top + 57], fill=rgba("#6d4528"), outline=rgba("#2c1e16"))
+        draw.ellipse([left + 7, top + 42, right - 6, top + 60], fill=rgba("#000000", 45))
+        draw.rectangle([left + 13, top + 34, left + 19, top + 55], fill=rgba("#3d2617"), outline=rgba("#1b100b"))
+        draw.rectangle([right - 20, top + 34, right - 14, top + 55], fill=rgba("#3d2617"), outline=rgba("#1b100b"))
+        draw.rectangle([left + 15, top + 34, left + 17, top + 53], fill=rgba("#76502e"))
+        draw.rectangle([right - 18, top + 34, right - 16, top + 53], fill=rgba("#76502e"))
+        draw.polygon(
+            [
+                (left + 6, top + 20),
+                (right - 10, top + 20),
+                (right - 6, top + 25),
+                (right - 8, top + 39),
+                (left + 8, top + 39),
+                (left + 4, top + 25),
+            ],
+            fill=rgba("#26170f"),
+        )
+        draw.polygon(
+            [
+                (left + 8, top + 22),
+                (right - 12, top + 22),
+                (right - 9, top + 26),
+                (right - 11, top + 36),
+                (left + 10, top + 36),
+                (left + 7, top + 26),
+            ],
+            fill=rgba("#95663a"),
+        )
+        draw.line([left + 9, top + 26, right - 10, top + 26], fill=rgba("#bd8a4e"), width=1)
+        draw.line([left + 10, top + 31, right - 11, top + 31], fill=rgba("#5c3920"), width=2)
+        draw.rectangle([left + 13, top + 23, right - 15, top + 24], fill=rgba("#c9995c", 135))
+        draw.rectangle([left + 14, top + 34, left + 17, top + 36], fill=rgba("#2a1a10"))
+        draw.rectangle([right - 19, top + 34, right - 16, top + 36], fill=rgba("#2a1a10"))
     elif shape == "crate":
         draw.rectangle([left + 14, top + 18, right - 14, top + 50], fill=rgba("#805332"), outline=rgba("#2c1e16"))
     elif shape == "barrel":

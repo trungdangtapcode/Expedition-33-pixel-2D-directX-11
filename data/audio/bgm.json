@@ -3,42 +3,52 @@
   "comment2": "AudioManager loads this at Initialize() and preloads all voices.",
   "comment3": "Supports .wav (WavLoader) and .mp3/.wma/.aac/.flac (MediaLoader).",
   "comment4": "To change a BGM file, edit 'path' here - no recompile needed.",
+  "comment5": "loop defaults to true when omitted; result themes set it false explicitly.",
   "tracks": [
     {
       "id":   "menu",
-      "path": "assets/sound/OST/alicia_menu.mp3"
+      "path": "assets/sound/OST/alicia_menu.mp3",
+      "loop": true
     },
     {
       "id":   "overworld",
-      "path": "assets/sound/OST/lumiere_a_laube.wav"
+      "path": "assets/sound/OST/lumiere_a_laube.wav",
+      "loop": true
     },
     {
       "id":   "battle",
-      "path": "assets/sound/OST/the_end_in_me.wav"
+      "path": "assets/sound/OST/the_end_in_me.wav",
+      "loop": true
     },
     {
       "id":   "the_end_in_me_victory",
-      "path": "assets/sound/OST/the_end_in_me_victory.mp3"
+      "path": "assets/sound/OST/the_end_in_me_victory.mp3",
+      "loop": false
     },
     {
       "id":   "zombie_armour_battle",
-      "path": "assets/sound/OST/beneath_the_blue_tree.mp3"
+      "path": "assets/sound/OST/beneath_the_blue_tree.mp3",
+      "loop": true
     },
     {
       "id":   "beneath_the_blue_tree_victory",
-      "path": "assets/sound/OST/beneath_the_blue_tree_victory.mp3"
+      "path": "assets/sound/OST/beneath_the_blue_tree_victory.mp3",
+      "loop": false
     },
     {
       "id":   "verso_cloned_battle",
-      "path": "assets/sound/OST/verso-cloned-fight.mp3"
+      "path": "assets/sound/OST/verso-cloned-fight.mp3",
+      "loop": true
     },
     {
       "id":   "verso_cloned_fight_victory",
-      "path": "assets/sound/OST/verso-cloned-fight_victory.mp3"
+      "path": "assets/sound/OST/verso-cloned-fight_victory.mp3",
+      "loop": false
     },
     {
       "id":   "battle_defeat",
-      "path": "assets/sound/OST/defeat.mp3"
+      "path": "assets/sound/OST/defeat.mp3",
+      "loop": false
     }
   ]
 }

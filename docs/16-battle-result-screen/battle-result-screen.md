@@ -68,9 +68,11 @@ They are registered in `data/audio/sfx.json`, so the global SFX volume bus contr
 
 Result BGM is data-driven through the same `AudioManager` BGM bus as menu,
 overworld, and battle music. `data/audio/bgm.json` registers every result
-soundtrack id and file path. `data/battle_result_layout.json` owns default
-victory and defeat track ids, while each `data/enemies/*.json` encounter can
-override `victoryBgmTrackId` and `defeatBgmTrackId`.
+soundtrack id, file path, and loop policy. Result tracks set `"loop": false`
+so victory and defeat themes play once, while exploration and battle tracks
+keep `"loop": true`. `data/battle_result_layout.json` owns default victory and
+defeat track ids, while each `data/enemies/*.json` encounter can override
+`victoryBgmTrackId` and `defeatBgmTrackId`.
 
 Current result soundtrack mapping:
 

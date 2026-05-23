@@ -2,7 +2,7 @@
 // File: AudioManager.h
 // Responsibility: Global audio manager - owns the XAudio2 engine,
 //                 preloads BGM tracks from data/audio/bgm.json, and
-//                 handles looping BGM playback with internal state tracking.
+//                 handles data-driven BGM playback with internal state tracking.
 //
 // Pattern: Meyers' Singleton + Observer (EventManager subscription).
 //   States NEVER call AudioManager directly - they broadcast named events:
@@ -12,13 +12,15 @@
 //   This keeps every game state fully decoupled from the audio subsystem.
 //
 // BGM internal state machine:
-//   PlayBGM(id) is IDEMPOTENT - if 'id' is already the current track, it is
-//   a no-op.  No restarts, no clicks.  Switching tracks: stop current voice,
-//   flush buffer, resubmit loop buffer for the new track, start.
+//   PlayBGM(id) is IDEMPOTENT - if 'id' is already the current looping track,
+//   it is a no-op.  One-shot tracks may replay after their submitted buffer has
+//   naturally ended.  Switching tracks: stop current voice, flush buffer,
+//   submit the new track with its configured loop policy, start.
 //
 // Track configuration  (data/audio/bgm.json):
-//   { "tracks": [ {"id":"overworld","path":"..."}, {"id":"battle","path":"..."} ] }
+//   { "tracks": [ {"id":"overworld","path":"...","loop":true} ] }
 //   Paths are relative to the workspace root (same convention as all other assets).
+//   loop defaults to true for backward compatibility with older configs.
 //
 // Owned resources:
 //   IXAudio2               - XAudio2 engine (ComPtr, auto-released on Reset())
@@ -119,6 +121,7 @@ private:
         IXAudio2SourceVoice* voice   = nullptr;  // raw ptr; DestroyVoice() in Shutdown
         std::vector<BYTE>    pcmData;             // PCM samples; must outlive voice
         WAVEFORMATEX         wfx     = {};        // format descriptor passed to voice
+        bool                 loop    = true;      // playback policy loaded from bgm.json
         bool                 loaded  = false;
     };
 
@@ -127,7 +130,8 @@ private:
     //   States interact through EventManager, not these methods directly.
     // ---------------------------------------------------------------
 
-    // Play the track with the given id.  No-op if already playing.
+    // Play the track with the given id.  Looping tracks no-op if already
+    // playing; one-shot tracks can replay after XAudio2 drains the buffer.
     // Stops and flushes the current track before switching.
     void PlayBGM(const std::string& trackId);
 
@@ -141,9 +145,9 @@ private:
     // Parse data/audio/bgm.json and call LoadTrack() for each entry.
     void LoadBgmConfig(const std::string& configPath);
 
-    // Load a WAV file at 'path' and create an IXAudio2SourceVoice for it.
+    // Load an audio file at 'path' and create an IXAudio2SourceVoice for it.
     // Returns true on success; logs a warning and returns false on failure.
-    bool LoadTrack(const std::string& id, const std::string& path);
+    bool LoadTrack(const std::string& id, const std::string& path, bool loop);
 
     bool CreateSubmixBus(IXAudio2SubmixVoice** outVoice, const char* label);
     void DestroyVoiceBus(IXAudio2SubmixVoice*& voice);
@@ -161,8 +165,8 @@ private:
     // Must be destroyed AFTER all source voices and BEFORE mXAudio2.Reset().
     IXAudio2MasteringVoice* mMasterVoice = nullptr;
 
-    // BGM bus receives every looping music source voice before the master.
-    // This keeps music volume independent from SFX and future voice audio.
+    // BGM bus receives every music source voice before the master.  This
+    // keeps music volume independent from SFX and future voice audio.
     IXAudio2SubmixVoice* mBgmSubmix = nullptr;
 
     // Voice bus is created before the voice feature exists so future

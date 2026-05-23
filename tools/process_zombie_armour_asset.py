@@ -56,6 +56,7 @@ class AnimationPlan:
     frame_count: int
     frame_rate: int
     loop: bool
+    flip_x: bool | None = None
 
 
 def is_sprite_pixel(pixel: tuple[int, int, int, int], threshold: int) -> bool:
@@ -155,7 +156,7 @@ def build_default_plan(rows: list[list[Rect]]) -> list[AnimationPlan]:
             AnimationPlan("walk", 26, safe_count(26, 5), 10, True),
             AnimationPlan("battle-move", 26, safe_count(26, 5), 10, True),
             AnimationPlan("battle-unmove", 26, safe_count(26, 5), 10, True),
-            AnimationPlan("attack-1", 6, safe_count(6, 6), 12, False),
+            AnimationPlan("attack-1", 6, safe_count(6, 6), 12, False, False),
             AnimationPlan("hurt", 36, safe_count(36, 3), 8, False),
             AnimationPlan("die", 19, safe_count(19, 6), 6, False),
         ]
@@ -187,6 +188,7 @@ def load_plan(path: Path | None, rows: list[list[Rect]]) -> list[AnimationPlan]:
             frame_count=int(entry["frames"]),
             frame_rate=int(entry.get("frameRate", 8)),
             loop=bool(entry.get("loop", True)),
+            flip_x=entry.get("flipX"),
         ))
 
     if not plans:
@@ -236,7 +238,7 @@ def build_atlas(source: Image.Image,
 
         for frame_index in range(plan.frame_count):
             rect = source_row[min(frame_index, len(source_row) - 1)]
-            frame = extract_frame(source, rect, scale, flip_x)
+            frame = extract_frame(source, rect, scale, flip_x if plan.flip_x is None else plan.flip_x)
             cell = Image.new("RGBA", (FRAME_SIZE, FRAME_SIZE), (0, 0, 0, 0))
             paste_centered(cell, frame)
             atlas.alpha_composite(cell, (frame_index * FRAME_SIZE, out_row * FRAME_SIZE))

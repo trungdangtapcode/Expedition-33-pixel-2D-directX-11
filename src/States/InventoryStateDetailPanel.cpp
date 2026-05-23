@@ -6,17 +6,17 @@
 //                 the 300-line CLAUDE.md ceiling.
 //
 // The panel has three modes, selected by (mTab, mPhase):
-//   1. Items tab          → hovered consumable's icon + name +
+//   1. Items tab          - hovered consumable's icon + name +
 //                           owned count + description
-//   2. Equipment slots    → currently equipped item details +
+//   2. Equipment slots    - currently equipped item details +
 //                           per-stat bonus list (color-coded)
-//   3. Equipment picker   → STAT PREVIEW comparing current effective
+//   3. Equipment picker   - STAT PREVIEW comparing current effective
 //                           stats vs hypothetical with-this-item stats,
 //                           every stat row green-tinted on bonus and
 //                           red on penalty
 //
 // All math goes through PartyManager::PreviewEffectiveStats so the
-// preview rule is identical to what the actual equip will produce —
+// preview rule is identical to what the actual equip will produce;
 // there is no chance of UI / simulation drift.
 // ============================================================
 #define NOMINMAX
@@ -53,7 +53,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
 {
     auto* ctx = D3DContext::Get().GetContext();
 
-    // Panel background — translucent so the dark backdrop shows through.
+    // Panel background is translucent so the dark backdrop shows through.
     DirectX::XMVECTOR panelColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, 0.55f);
     mDialogBox.Draw(ctx, rightX, rightY, rightW, rightH,
                     0.55f, DirectX::XMMatrixIdentity(), panelColor);
@@ -63,7 +63,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     auto  nextLine = [&](float dy = 22.0f) { lineY += dy; };
 
     // ===========================================================
-    //  MODE 1 — Items tab
+    //  MODE 1 - Items tab
     // ===========================================================
     if (mTab == Tab::Items)
     {
@@ -78,7 +78,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         const ItemData* item  = ItemRegistry::Get().Find(id);
         if (!item) return;
 
-        // Big icon swatch — colored frame always (effect-kind color
+        // Big icon swatch: colored frame always (effect-kind color
         // reads at a glance), real PNG overlaid when art is available.
         const float bigIcon = 96.0f;
         const float bx      = rightX + kPad;
@@ -116,7 +116,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     }
 
     // ===========================================================
-    //  MODE 3 — Equipment picker (STAT PREVIEW)
+    //  MODE 3 - Equipment picker (STAT PREVIEW)
     //
     //  Drawn before the slot-list mode because the picker overlay
     //  takes precedence whenever it is active.
@@ -133,14 +133,14 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         BattlerStats current = PartyManager::Get().GetEffectiveStats(mMemberIndex);
 
         // Resolve the hypothetical id under the picker cursor.  Empty
-        // string means "(unequip)" pseudo-row OR an empty list — both
+        // string means "(unequip)" pseudo-row OR an empty list; both
         // are valid inputs to PreviewEffectiveStats.
         const std::string previewId = PickerCursorIsUnequip()
             ? std::string{}
             : (mPickerItems.empty() ? std::string{} : mPickerItems[mPickerCursor]);
 
         // PreviewEffectiveStats runs the SAME fold the real Equip path
-        // would run — there is no chance of preview vs simulation drift.
+        // would run, so there is no chance of preview vs simulation drift.
         const BattlerStats preview = PartyManager::Get().PreviewEffectiveStats(mMemberIndex, mPickerSlot, previewId);
 
         // Helper: draw "label  current -> preview (delta)" with a color
@@ -195,7 +195,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     }
 
     // ===========================================================
-    //  MODE 2 — Equipment slot list (no picker active)
+    //  MODE 2 - Equipment slot list (no picker active)
     // ===========================================================
     constexpr EquipSlot order[kEquipSlotCount] = {
         EquipSlot::Weapon, EquipSlot::Body, EquipSlot::Head, EquipSlot::Accessory
@@ -217,7 +217,10 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
         mTextRenderer.DrawString(ctx, emptyText.c_str(),
                                   rightX + kPad, lineY, DirectX::Colors::Gray);
         nextLine();
-        const std::string chooseText = LocalizationManager::Get().Text("inventory.choose_item");
+        const std::string chooseText = LocalizationManager::Get().Text(
+            mAllowEquipmentChanges
+                ? "inventory.choose_item"
+                : "inventory.equipment_campfire_required");
         mTextRenderer.DrawString(ctx, chooseText.c_str(),
                                   rightX + kPad, lineY, DirectX::Colors::Gray);
         return;
@@ -230,7 +233,7 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
                               rightX + kPad, lineY, DirectX::Colors::Gray);
     nextLine(28.0f);
 
-    // Inline bonus list — only non-zero rows so a sword with only ATK +5
+    // Inline bonus list: only non-zero rows so a sword with only ATK +5
     // shows one line, not a wall of zeros.
     auto drawBonus = [&](const char* label, int v)
     {
@@ -248,4 +251,13 @@ void InventoryState::RenderDetailPanel(float rightX, float rightY,
     drawBonus("MATK",  item->bonusMatk);
     drawBonus("MDEF",  item->bonusMdef);
     drawBonus("SPD",   item->bonusSpd);
+
+    if (!mAllowEquipmentChanges)
+    {
+        nextLine(8.0f);
+        const std::string lockedText =
+            LocalizationManager::Get().Text("inventory.equipment_campfire_required");
+        mTextRenderer.DrawString(ctx, lockedText.c_str(),
+                                  rightX + kPad, lineY, DirectX::Colors::Gray);
+    }
 }

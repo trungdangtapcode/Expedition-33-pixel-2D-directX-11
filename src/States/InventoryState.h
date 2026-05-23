@@ -4,23 +4,23 @@
 //                 grid, equipment slots, equipment picker overlay,
 //                 and live stat preview.
 //
-// Layout (centered panel, ~960x600 in screen pixels):
+// Layout (centered panel, about 960x600 in screen pixels):
 //
-//   ┌──────────────────────────────────────────────────────┐
-//   │ [Items]  [Equipment]                                 │  tab bar
-//   ├────────────────────────────┬─────────────────────────┤
-//   │  ITEMS GRID  /  SLOT LIST  │  DETAIL / STAT PREVIEW  │
-//   │   (left half)              │   (right half)          │
-//   ├────────────────────────────┴─────────────────────────┤
-//   │  Verso  HP 100/100  MP 50/50  ATK 25  DEF 10  ...    │  stats footer
-//   ├──────────────────────────────────────────────────────┤
-//   │  ↑↓: nav  Enter: use/equip  Tab: switch  Esc: close  │  hint footer
-//   └──────────────────────────────────────────────────────┘
+//   +------------------------------------------------------+
+//   | [Items]  [Equipment]                                | tab bar
+//   +----------------------------+-------------------------+
+//   |  ITEMS GRID / SLOT LIST    | DETAIL / STAT PREVIEW   |
+//   |  left half                 | right half              |
+//   +----------------------------+-------------------------+
+//   |  Verso HP 100/100 MP 50/50 ATK 25 DEF 10 ...        | stats footer
+//   +------------------------------------------------------+
+//   |  Up/Down: nav Enter: use/equip Tab: switch Esc: close| hint footer
+//   +------------------------------------------------------+
 //
 // Three-phase input FSM:
-//   ITEMS_GRID        — Items tab; cursor moves over a 4xN grid
-//   EQUIPMENT_SLOTS   — Equipment tab; cursor moves over slot rows
-//   EQUIPMENT_PICKER  — Overlay opened from EQUIPMENT_SLOTS to pick a
+//   ITEMS_GRID        - Items tab; cursor moves over a 4xN grid
+//   EQUIPMENT_SLOTS   - Equipment tab; cursor moves over slot rows
+//   EQUIPMENT_PICKER  - Overlay opened from EQUIPMENT_SLOTS to pick a
 //                       new item for the selected slot.  Right panel
 //                       switches to a stat preview showing the delta.
 //
@@ -55,6 +55,8 @@
 class InventoryState : public IGameState
 {
 public:
+    explicit InventoryState(bool allowEquipmentChanges = false);
+
     void OnEnter() override;
     void OnExit()  override;
     void Update(float dt) override;
@@ -107,18 +109,19 @@ private:
     bool TryEquip(EquipSlot slot, const std::string& itemId);
     void TryUnequip(EquipSlot slot);
     void Flash(const std::string& msg);
+    void FlashEquipmentLocked();
 
     // ============================================================
     //  Render helpers (one per layout block)
     //
     //  Spread across THREE .cpp files to keep each one under the
     //  300-line CLAUDE.md ceiling:
-    //    - InventoryStateRender.cpp        — Render() dispatch + tabs +
+    //    - InventoryStateRender.cpp        - Render() dispatch + tabs +
     //                                        items grid + equipment slots/picker
     //                                        + stats/hint footers
-    //    - InventoryStateDetailPanel.cpp   — RenderDetailPanel only
+    //    - InventoryStateDetailPanel.cpp   - RenderDetailPanel only
     //                                        (the most complex single block)
-    //    - InventoryState.cpp              — lifecycle / input / actions
+    //    - InventoryState.cpp              - lifecycle / input / actions
     // ============================================================
     void RenderTabs(float panelX, float panelY, float panelW);
     void RenderItemsTab(float leftX, float leftY,
@@ -137,10 +140,10 @@ private:
     //
     // Encodes ItemKind / ItemEffectKind as a tint color so the
     // placeholder squares are visually distinguishable until real
-    // icon PNGs land (see idea/asset-todo.md §1.1 / §1.4).
+    // icon PNGs land (see idea/asset-todo.md sections 1.1 and 1.4).
     //
     // Promoted from a file-local helper to a static method when
-    // RenderDetailPanel was extracted into its own .cpp — anonymous
+    // RenderDetailPanel was extracted into its own .cpp; anonymous
     // namespace functions can't be shared across translation units.
     // ------------------------------------------------------------
     static DirectX::XMVECTOR IconTintFor(const ItemData* item, float alpha);
@@ -165,6 +168,10 @@ private:
     // ============================================================
     Tab    mTab    = Tab::Items;
     Phase  mPhase  = Phase::ItemsGrid;
+
+    // Equipment mutation is a campfire service. The inventory can still
+    // display gear anywhere, but equip and unequip actions require this flag.
+    bool mAllowEquipmentChanges = false;
 
     // Which party member the item/equip actions target.
     // Cycles via Left/Right in Items tab. Defaults to 0 (first member).
@@ -197,7 +204,7 @@ private:
     float mElapsed = 0.0f;
 
     // ============================================================
-    //  Input edge trackers — one bool per key, fresh-press semantics
+    //  Input edge trackers - one bool per key, fresh-press semantics
     // ============================================================
     bool mUpWasDown    = false;
     bool mDownWasDown  = false;

@@ -37,9 +37,15 @@
 //  Lifecycle
 // ============================================================
 
+InventoryState::InventoryState(bool allowEquipmentChanges)
+    : mAllowEquipmentChanges(allowEquipmentChanges)
+{
+}
+
 void InventoryState::OnEnter()
 {
-    LOG("[InventoryState] OnEnter");
+    LOG("[InventoryState] OnEnter (equipment changes %s).",
+        mAllowEquipmentChanges ? "enabled" : "campfire-only");
 
     auto& d3d = D3DContext::Get();
 
@@ -47,7 +53,7 @@ void InventoryState::OnEnter()
     // even if no battle has been entered yet this session.
     ItemRegistry::Get().EnsureLoaded();
 
-    // Dialog box for backdrop, panel, and row backgrounds — same 9-slice
+    // Dialog box for backdrop, panel, and row backgrounds; same 9-slice
     // the battle menus use so the visual language stays consistent.
     mDialogBox.Initialize(
         d3d.GetDevice(), d3d.GetContext(),
@@ -61,7 +67,7 @@ void InventoryState::OnEnter()
         std::wstring(fontPath.begin(), fontPath.end()),
         d3d.GetWidth(), d3d.GetHeight());
 
-    // Scroll chevrons — placeholder pointer texture (see asset-todo.md).
+    // Scroll chevrons use the placeholder pointer texture.
     mChevronDown.Initialize(
         d3d.GetDevice(), d3d.GetContext(),
         L"assets/UI/enemy-pointer-ui.png",
@@ -140,7 +146,7 @@ void InventoryState::RefreshConsumables()
 void InventoryState::RefreshPicker()
 {
     // Filter to items whose equipSlot matches the slot the picker
-    // was opened for.  No "show every equipment item" view — saves
+    // was opened for.  No "show every equipment item" view; this saves
     // the player from being shown swords while equipping a hat.
     mPickerItems.clear();
     for (const std::string& id : Inventory::Get().OwnedIds())
@@ -151,13 +157,19 @@ void InventoryState::RefreshPicker()
     }
     if (mPickerCursor < 0) mPickerCursor = 0;
     // The list has one extra "(unequip)" pseudo-entry at the end so the
-    // cursor can land there to clear the slot — clamp accordingly.
+    // cursor can land there to clear the slot, so clamp accordingly.
     const int maxCursor = static_cast<int>(mPickerItems.size());  // == "(unequip)" index
     if (mPickerCursor > maxCursor) mPickerCursor = maxCursor;
 }
 
 void InventoryState::OpenPicker()
 {
+    if (!mAllowEquipmentChanges)
+    {
+        FlashEquipmentLocked();
+        return;
+    }
+
     constexpr EquipSlot order[kEquipSlotCount] = {
         EquipSlot::Weapon, EquipSlot::Body, EquipSlot::Head, EquipSlot::Accessory
     };
@@ -174,6 +186,11 @@ void InventoryState::Flash(const std::string& msg)
     mFlashMessage = msg;
     mFlashTimer   = kFlashDuration;
     LOG("[InventoryState] %s", msg.c_str());
+}
+
+void InventoryState::FlashEquipmentLocked()
+{
+    Flash(LocalizationManager::Get().Text("inventory.flash.equipment_campfire_only"));
 }
 
 // ============================================================
@@ -257,6 +274,12 @@ bool InventoryState::TryUseItem(const std::string& id)
 
 bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 {
+    if (!mAllowEquipmentChanges)
+    {
+        FlashEquipmentLocked();
+        return false;
+    }
+
     if (PartyManager::Get().EquipItem(mMemberIndex, slot, itemId))
     {
         const ItemData* item = ItemRegistry::Get().Find(itemId);
@@ -271,6 +294,12 @@ bool InventoryState::TryEquip(EquipSlot slot, const std::string& itemId)
 
 void InventoryState::TryUnequip(EquipSlot slot)
 {
+    if (!mAllowEquipmentChanges)
+    {
+        FlashEquipmentLocked();
+        return;
+    }
+
     std::string equippedId = PartyManager::Get().GetEquippedItem(mMemberIndex, slot);
     if (equippedId.empty())
     {
@@ -285,7 +314,7 @@ void InventoryState::TryUnequip(EquipSlot slot)
 }
 
 // ============================================================
-//  Update — top-level dispatch
+//  Update - top-level dispatch
 // ============================================================
 
 void InventoryState::Update(float dt)
@@ -338,7 +367,7 @@ void InventoryState::Update(float dt)
     }
 
     // Q / E cycle the target party member (across all phases).
-    // Not available inside the picker — the picker is for a specific member's slot.
+    // Not available inside the picker because it is for a specific member's slot.
     if (mPhase != Phase::EquipmentPicker)
     {
         const bool qPressed = pressed('Q', mQWasDown);
@@ -478,6 +507,13 @@ void InventoryState::HandleSlotsInput()
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        if (!mAllowEquipmentChanges)
+        {
+            FlashEquipmentLocked();
+            AudioManager::Get().PlaySfx("battle_no_ap");
+            return;
+        }
+
         AudioManager::Get().PlaySfx("ui_confirm");
         OpenPicker();
     }
@@ -508,6 +544,13 @@ void InventoryState::HandlePickerInput()
 
     if (pressed(VK_RETURN, mEnterWasDown))
     {
+        if (!mAllowEquipmentChanges)
+        {
+            FlashEquipmentLocked();
+            AudioManager::Get().PlaySfx("battle_no_ap");
+            return;
+        }
+
         AudioManager::Get().PlaySfx("ui_confirm");
         if (PickerCursorIsUnequip())
         {
@@ -522,7 +565,7 @@ void InventoryState::HandlePickerInput()
         // picker so the player can chain swaps without re-navigating.
         RefreshPicker();
         // After a successful equip the cursor may now be past the end
-        // of a shrunken list — clamp.
+        // of a shrunken list, so clamp.
         const int newTotal = static_cast<int>(mPickerItems.size()) + 1;
         if (mPickerCursor >= newTotal) mPickerCursor = newTotal - 1;
     }
@@ -545,7 +588,7 @@ void InventoryState::Render()
     const float screenW = static_cast<float>(d3d.GetWidth());
     const float screenH = static_cast<float>(d3d.GetHeight());
 
-    // Centered panel with deliberate generous size — RPG inventories
+    // Centered panel with deliberate generous size because RPG inventories
     // need breathing room for grid + detail panel + stats footer.
     constexpr float kPanelW = 960.0f;
     constexpr float kPanelH = 600.0f;

@@ -953,7 +953,13 @@ void OverworldState::Update(float dt)
         mIWasDown = iDown;
         if (iPressed)
         {
-            StateManager::Get().PushState(std::make_unique<InventoryState>());
+            const bool allowEquipmentChanges =
+                mPlayer &&
+                FindNearbyCampfire(mPlayer->GetX(), mPlayer->GetY()) != nullptr;
+            StateManager::Get().PushState(
+                std::make_unique<InventoryState>(allowEquipmentChanges));
+            LOG("[OverworldState] Inventory opened with equipment changes %s.",
+                allowEquipmentChanges ? "enabled" : "locked outside campfire");
             return;  // do NOT run the rest of Update - the new state owns this frame
         }
     }

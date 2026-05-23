@@ -1,0 +1,541 @@
+// ============================================================
+// File: BattleResultRenderer.cpp
+// Responsibility: Implement the cinematic battle result overlay.
+//
+// Common mistakes:
+//   1. Drawing result UI before the scene -> the battle backdrop covers it.
+//   2. Reading rewards from Wallet here -> results change after saving or
+//      retrying. BattleState owns the immutable snapshot.
+//   3. Drawing text inside this renderer's SpriteBatch Begin/End -> nested
+//      SpriteBatch calls throw in DirectXTK debug builds.
+// ============================================================
+#define NOMINMAX
+#include "BattleResultRenderer.h"
+#include "../Systems/LocalizationManager.h"
+#include "../Utils/Log.h"
+#include <WICTextureLoader.h>
+#include <DirectXColors.h>
+#include <algorithm>
+#include <cstdio>
+
+using Microsoft::WRL::ComPtr;
+using namespace DirectX;
+
+namespace
+{
+    RECT MakeRect(float x, float y, float width, float height)
+    {
+        RECT rect{};
+        rect.left = static_cast<LONG>(x);
+        rect.top = static_cast<LONG>(y);
+        rect.right = static_cast<LONG>(x + width);
+        rect.bottom = static_cast<LONG>(y + height);
+        return rect;
+    }
+
+    float Clamp01(float value)
+    {
+        if (value < 0.0f) return 0.0f;
+        if (value > 1.0f) return 1.0f;
+        return value;
+    }
+
+    std::string FormatTime(float seconds)
+    {
+        const int total = static_cast<int>((std::max)(0.0f, seconds));
+        const int minutes = total / 60;
+        const int secs = total % 60;
+
+        char buffer[32]{};
+        std::snprintf(buffer, sizeof(buffer), "%d:%02d", minutes, secs);
+        return buffer;
+    }
+}
+
+bool BattleResultRenderer::Initialize(ID3D11Device* device,
+                                      ID3D11DeviceContext* context,
+                                      const JsonLoader::BattleResultLayout& layout,
+                                      int screenW,
+                                      int screenH)
+{
+    Shutdown();
+
+    if (!device || !context) return false;
+
+    mLayout = layout;
+    mScreenW = screenW;
+    mScreenH = screenH;
+
+    mSpriteBatch = std::make_unique<SpriteBatch>(context);
+    mStates = std::make_unique<CommonStates>(device);
+    if (!CreateFillTexture(device)) return false;
+
+    if (!mPromptPanel.Initialize(
+        device,
+        context,
+        L"assets/UI/ui-dialog-box-hd.png",
+        "assets/UI/ui-dialog-box-hd.json",
+        screenW,
+        screenH))
+    {
+        LOG("%s", "[BattleResultRenderer] WARNING: retry prompt panel failed to initialize.");
+    }
+
+    return true;
+}
+
+void BattleResultRenderer::Shutdown()
+{
+    mPortraits.clear();
+    mPromptPanel.Shutdown();
+    mFillSRV.Reset();
+    mStates.reset();
+    mSpriteBatch.reset();
+    mElapsed = 0.0f;
+}
+
+void BattleResultRenderer::SetScreenSize(int screenW, int screenH)
+{
+    mScreenW = screenW;
+    mScreenH = screenH;
+    mPromptPanel.SetScreenSize(screenW, screenH);
+}
+
+void BattleResultRenderer::Update(float dt)
+{
+    mElapsed += dt;
+}
+
+void BattleResultRenderer::LoadPortraits(ID3D11Device* device,
+                                         ID3D11DeviceContext* context,
+                                         const BattleResultData& data)
+{
+    mPortraits.clear();
+    if (!device || !context) return;
+
+    for (const BattleMemberResult& member : data.members)
+    {
+        if (member.portraitPath.empty()) continue;
+
+        PortraitEntry entry{};
+        entry.memberId = member.id;
+
+        const HRESULT hr = CreateWICTextureFromFileEx(
+            device,
+            context,
+            member.portraitPath.c_str(),
+            0,
+            D3D11_USAGE_DEFAULT,
+            D3D11_BIND_SHADER_RESOURCE,
+            0,
+            0,
+            WIC_LOADER_IGNORE_SRGB,
+            nullptr,
+            entry.srv.GetAddressOf());
+
+        if (FAILED(hr))
+        {
+            LOG("[BattleResultRenderer] WARNING: portrait load failed for '%ls' (0x%08X).",
+                member.portraitPath.c_str(),
+                static_cast<unsigned>(hr));
+            continue;
+        }
+
+        mPortraits.push_back(std::move(entry));
+    }
+}
+
+void BattleResultRenderer::RenderVictory(ID3D11DeviceContext* context,
+                                         BattleTextRenderer& text,
+                                         const BattleResultData& data,
+                                         float visibleSeconds)
+{
+    const float alpha = Clamp01(visibleSeconds / (std::max)(0.01f, mLayout.victoryEnterDuration));
+
+    BeginRects(context);
+    DrawBackdrop(alpha);
+    DrawDecorativeFrame(
+        mLayout.partyPanelX * (static_cast<float>(mScreenW) / 1280.0f),
+        mLayout.partyPanelY * (static_cast<float>(mScreenH) / 720.0f),
+        mLayout.partyPanelW * (static_cast<float>(mScreenW) / 1280.0f),
+        mLayout.partyPanelH * (static_cast<float>(mScreenH) / 720.0f),
+        XMVectorSet(0.92f, 0.78f, 0.55f, 0.52f * alpha));
+    DrawVictoryPortraits(data, alpha);
+    EndRects();
+
+    DrawVictoryText(context, text, data, alpha);
+}
+
+void BattleResultRenderer::RenderDefeatSplash(ID3D11DeviceContext* context,
+                                              BattleTextRenderer& text,
+                                              float visibleSeconds)
+{
+    const float alpha = Clamp01(visibleSeconds / 0.55f);
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float ss = (std::min)(sx, sy);
+
+    BeginRects(context);
+    DrawBackdrop(alpha);
+    DrawDefeatGlyph(mScreenW * 0.5f, mScreenH * 0.45f, alpha);
+    EndRects();
+
+    text.BeginBatch(context);
+    const std::string title = LocalizationManager::Get().Text("battle.result.defeat_title");
+    text.DrawStringCenteredRaw(
+        title.c_str(),
+        mScreenW * 0.5f,
+        292.0f * sy,
+        XMVectorSet(0.82f, 0.12f, 0.12f, alpha),
+        2.25f * ss,
+        true);
+    text.EndBatch();
+}
+
+void BattleResultRenderer::RenderDefeatPrompt(ID3D11DeviceContext* context,
+                                              BattleTextRenderer& text,
+                                              int selectedOption,
+                                              float visibleSeconds)
+{
+    const float alpha = Clamp01(visibleSeconds / 0.35f);
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float ss = (std::min)(sx, sy);
+
+    BeginRects(context);
+    DrawBackdrop(1.0f);
+    DrawDefeatGlyph(mScreenW * 0.5f, mScreenH * 0.45f, 0.42f);
+    EndRects();
+
+    const float panelX = mLayout.promptX * sx;
+    const float panelY = mLayout.promptY * sy;
+    const float panelW = mLayout.promptW * sx;
+    const float panelH = mLayout.promptH * sy;
+
+    mPromptPanel.Draw(
+        context,
+        panelX,
+        panelY,
+        panelW,
+        panelH,
+        0.35f * ss,
+        XMMatrixIdentity(),
+        XMVectorSet(0.95f, 0.95f, 0.95f, alpha));
+
+    BeginRects(context);
+    const float optionY = panelY + panelH - 44.0f * sy;
+    const float optionW = 112.0f * sx;
+    const float optionH = 25.0f * sy;
+    const float leftX = panelX + panelW * 0.5f - mLayout.promptOptionGap * 0.5f * sx - optionW * 0.5f;
+    const float rightX = panelX + panelW * 0.5f + mLayout.promptOptionGap * 0.5f * sx - optionW * 0.5f;
+    const float highlightX = (selectedOption == 0) ? leftX : rightX;
+    DrawFillRect(highlightX, optionY - 4.0f * sy, optionW, optionH,
+                 XMVectorSet(0.58f, 0.43f, 0.25f, 0.85f * alpha));
+    EndRects();
+
+    text.BeginBatch(context);
+    text.DrawStringCenteredRaw(
+        LocalizationManager::Get().Text("battle.result.retry_question").c_str(),
+        panelX + panelW * 0.5f,
+        panelY + 24.0f * sy,
+        XMVectorSet(0.96f, 0.92f, 0.84f, alpha),
+        0.92f * ss,
+        true);
+    text.DrawStringCenteredRaw(
+        LocalizationManager::Get().Text("battle.result.retry_yes").c_str(),
+        leftX + optionW * 0.5f,
+        optionY,
+        XMVectorSet(1.0f, 0.92f, 0.55f, alpha),
+        0.65f * ss,
+        true);
+    text.DrawStringCenteredRaw(
+        LocalizationManager::Get().Text("battle.result.retry_no").c_str(),
+        rightX + optionW * 0.5f,
+        optionY,
+        XMVectorSet(1.0f, 0.92f, 0.55f, alpha),
+        0.65f * ss,
+        true);
+    text.EndBatch();
+}
+
+bool BattleResultRenderer::CreateFillTexture(ID3D11Device* device)
+{
+    const unsigned int white = 0xFFFFFFFFu;
+
+    D3D11_TEXTURE2D_DESC textureDesc{};
+    textureDesc.Width = 1;
+    textureDesc.Height = 1;
+    textureDesc.MipLevels = 1;
+    textureDesc.ArraySize = 1;
+    textureDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    textureDesc.SampleDesc.Count = 1;
+    textureDesc.Usage = D3D11_USAGE_DEFAULT;
+    textureDesc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA init{};
+    init.pSysMem = &white;
+    init.SysMemPitch = sizeof(unsigned int);
+
+    ComPtr<ID3D11Texture2D> texture;
+    HRESULT hr = device->CreateTexture2D(&textureDesc, &init, texture.GetAddressOf());
+    if (FAILED(hr)) return false;
+
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvDesc{};
+    srvDesc.Format = textureDesc.Format;
+    srvDesc.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvDesc.Texture2D.MipLevels = 1;
+
+    hr = device->CreateShaderResourceView(texture.Get(), &srvDesc, mFillSRV.GetAddressOf());
+    return SUCCEEDED(hr);
+}
+
+void BattleResultRenderer::BindViewport(ID3D11DeviceContext* context)
+{
+    D3D11_VIEWPORT viewport{};
+    viewport.Width = static_cast<float>(mScreenW);
+    viewport.Height = static_cast<float>(mScreenH);
+    viewport.MinDepth = 0.0f;
+    viewport.MaxDepth = 1.0f;
+    context->RSSetViewports(1, &viewport);
+}
+
+void BattleResultRenderer::BeginRects(ID3D11DeviceContext* context)
+{
+    if (!mSpriteBatch || !mStates || !mFillSRV) return;
+
+    BindViewport(context);
+    mSpriteBatch->Begin(
+        SpriteSortMode_Deferred,
+        mStates->NonPremultiplied(),
+        mStates->PointClamp(),
+        mStates->DepthNone());
+}
+
+void BattleResultRenderer::EndRects()
+{
+    if (!mSpriteBatch) return;
+    mSpriteBatch->End();
+}
+
+void BattleResultRenderer::DrawFillRect(float x,
+                                        float y,
+                                        float width,
+                                        float height,
+                                        FXMVECTOR color)
+{
+    if (!mSpriteBatch || !mFillSRV) return;
+    if (width <= 0.0f || height <= 0.0f) return;
+
+    const RECT rect = MakeRect(x, y, width, height);
+    mSpriteBatch->Draw(mFillSRV.Get(), rect, nullptr, color);
+}
+
+void BattleResultRenderer::DrawDecorativeFrame(float x,
+                                               float y,
+                                               float width,
+                                               float height,
+                                               FXMVECTOR color)
+{
+    const float t = 2.0f;
+    DrawFillRect(x, y, width, t, color);
+    DrawFillRect(x, y + height, width, t, color);
+    DrawFillRect(x, y, t, height, color);
+    DrawFillRect(x + width, y, t, height, color);
+}
+
+void BattleResultRenderer::DrawBackdrop(float alphaMul)
+{
+    const float alpha = Clamp01(mLayout.scrimAlpha * alphaMul);
+    DrawFillRect(0.0f, 0.0f, static_cast<float>(mScreenW), static_cast<float>(mScreenH),
+                 XMVectorSet(0.0f, 0.0f, 0.0f, alpha));
+
+    const float vignette = Clamp01(mLayout.vignetteAlpha * alphaMul);
+    DrawFillRect(0.0f, 0.0f, static_cast<float>(mScreenW), 70.0f,
+                 XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
+    DrawFillRect(0.0f, static_cast<float>(mScreenH) - 92.0f, static_cast<float>(mScreenW), 92.0f,
+                 XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
+    DrawFillRect(0.0f, 0.0f, 130.0f, static_cast<float>(mScreenH),
+                 XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
+    DrawFillRect(static_cast<float>(mScreenW) - 160.0f, 0.0f, 160.0f, static_cast<float>(mScreenH),
+                 XMVectorSet(0.0f, 0.0f, 0.0f, vignette));
+}
+
+void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
+                                           BattleTextRenderer& text,
+                                           const BattleResultData& data,
+                                           float alpha)
+{
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float ss = (std::min)(sx, sy);
+
+    auto value = [](int amount)
+    {
+        return std::to_string(amount);
+    };
+
+    text.BeginBatch(context);
+    text.DrawStringRawScaled(
+        LocalizationManager::Get().Text("battle.result.victory_title").c_str(),
+        mLayout.titleX * sx,
+        mLayout.titleY * sy,
+        XMVectorSet(0.96f, 0.83f, 0.62f, alpha),
+        mLayout.titleScale * ss,
+        true);
+    text.DrawStringRawScaled(
+        LocalizationManager::Get().Text("battle.result.battle_loot").c_str(),
+        mLayout.lootX * sx,
+        mLayout.lootY * sy,
+        XMVectorSet(0.94f, 0.83f, 0.64f, alpha),
+        mLayout.subtitleScale * ss,
+        true);
+    text.DrawStringRawScaled(
+        LocalizationManager::Get().Format("battle.result.exp", { { "amount", value(data.totalExp) } }).c_str(),
+        (mLayout.lootX + 330.0f) * sx,
+        mLayout.lootY * sy,
+        XMVectorSet(1.0f, 0.96f, 0.86f, alpha),
+        0.95f * ss,
+        true);
+    text.DrawStringRawScaled(
+        LocalizationManager::Get().Format("battle.result.coins", { { "amount", value(data.totalCoins) } }).c_str(),
+        (mLayout.lootX + 330.0f) * sx,
+        (mLayout.lootY + 38.0f) * sy,
+        XMVectorSet(1.0f, 0.88f, 0.42f, alpha),
+        0.80f * ss,
+        true);
+
+    if (data.noDamage)
+    {
+        text.DrawStringRawScaled(
+            LocalizationManager::Get().Format("battle.result.no_damage", {
+                { "percent", value(mLayout.noDamageBonusPercent) }
+            }).c_str(),
+            (mLayout.lootX + 330.0f) * sx,
+            (mLayout.lootY + 74.0f) * sy,
+            XMVectorSet(1.0f, 0.78f, 0.48f, alpha),
+            0.78f * ss,
+            true);
+    }
+
+    const float statsX = mLayout.statsX * sx;
+    float statsY = mLayout.statsY * sy;
+    const float rowGap = mLayout.rowGap * sy;
+    const XMVECTOR statColor = XMVectorSet(0.94f, 0.90f, 0.84f, alpha);
+
+    const std::string stats[] = {
+        LocalizationManager::Get().Format("battle.result.kills", { { "amount", value(data.kills) } }),
+        LocalizationManager::Get().Format("battle.result.highest_damage", { { "amount", value(data.highestDamage) } }),
+        LocalizationManager::Get().Format("battle.result.damage_dealt", { { "amount", value(data.totalDamageDealt) } }),
+        LocalizationManager::Get().Format("battle.result.damage_received", { { "amount", value(data.totalDamageReceived) } }),
+        LocalizationManager::Get().Format("battle.result.time", { { "time", FormatTime(data.battleSeconds) } }),
+        LocalizationManager::Get().Format("battle.result.qte", {
+            { "perfect", value(data.qtePerfect) },
+            { "good", value(data.qteGood) },
+            { "miss", value(data.qteMiss) }
+        }),
+        LocalizationManager::Get().Format("battle.result.dodges", {
+            { "clean", value(data.cleanDodges) },
+            { "hits", value(data.dodgeHits) }
+        })
+    };
+
+    for (const std::string& stat : stats)
+    {
+        text.DrawStringRawScaled(stat.c_str(), statsX, statsY, statColor, 0.62f * ss, true);
+        statsY += rowGap;
+    }
+
+    const float partyX = (mLayout.partyPanelX + 86.0f) * sx;
+    float partyY = (mLayout.partyPanelY + 34.0f) * sy;
+    for (const BattleMemberResult& member : data.members)
+    {
+        text.DrawStringRawScaled(member.name.c_str(), partyX, partyY,
+                                 XMVectorSet(0.98f, 0.88f, 0.68f, alpha),
+                                 0.72f * ss, true);
+        text.DrawStringRawScaled(
+            LocalizationManager::Get().Format("battle.result.member_level", {
+                { "level", std::to_string(member.levelAfter) }
+            }).c_str(),
+            partyX,
+            partyY + 24.0f * sy,
+            XMVectorSet(0.92f, 0.92f, 0.88f, alpha),
+            0.52f * ss,
+            true);
+        text.DrawStringRawScaled(
+            LocalizationManager::Get().Format("battle.result.member_exp", {
+                { "exp", std::to_string(member.expAfter) },
+                { "next", std::to_string(member.expToNextAfter) }
+            }).c_str(),
+            partyX,
+            partyY + 44.0f * sy,
+            XMVectorSet(0.82f, 0.86f, 0.90f, alpha),
+            0.46f * ss,
+            true);
+        if (member.leveledUp)
+        {
+            text.DrawStringRawScaled(
+                LocalizationManager::Get().Text("battle.result.level_up").c_str(),
+                partyX + 130.0f * sx,
+                partyY + 24.0f * sy,
+                XMVectorSet(1.0f, 0.74f, 0.36f, alpha),
+                0.46f * ss,
+                true);
+        }
+        partyY += mLayout.partyRowGap * sy;
+    }
+
+    text.DrawStringRawScaled(
+        LocalizationManager::Get().Text("battle.result.continue").c_str(),
+        (mScreenW - 250.0f * sx),
+        (mScreenH - 70.0f * sy),
+        XMVectorSet(0.98f, 0.94f, 0.84f, alpha),
+        0.70f * ss,
+        true);
+    text.EndBatch();
+}
+
+void BattleResultRenderer::DrawVictoryPortraits(const BattleResultData& data, float alpha)
+{
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+
+    float y = (mLayout.partyPanelY + 38.0f) * sy;
+    const float x = (mLayout.partyPanelX + 22.0f) * sx;
+    const float size = 52.0f * (std::min)(sx, sy);
+
+    for (const BattleMemberResult& member : data.members)
+    {
+        const auto portrait = FindPortrait(member.id);
+        if (portrait.Get())
+        {
+            const RECT dst = MakeRect(x, y, size, size);
+            mSpriteBatch->Draw(portrait.Get(), dst, nullptr, XMVectorSet(1.0f, 1.0f, 1.0f, alpha));
+        }
+        y += mLayout.partyRowGap * sy;
+    }
+}
+
+void BattleResultRenderer::DrawDefeatGlyph(float centerX, float centerY, float alpha)
+{
+    const XMVECTOR red = XMVectorSet(0.75f, 0.04f, 0.08f, alpha);
+    const float h = 240.0f;
+    const float w = 120.0f;
+    const float t = 2.0f;
+
+    DrawFillRect(centerX - t * 0.5f, centerY - h * 0.5f, t, h, red);
+    DrawFillRect(centerX - w * 0.5f, centerY - h * 0.5f, t, h, red);
+    DrawFillRect(centerX + w * 0.5f, centerY - h * 0.5f, t, h, red);
+    DrawFillRect(centerX - w * 0.5f, centerY - h * 0.5f, w, t, red);
+    DrawFillRect(centerX - w * 0.5f, centerY + h * 0.5f, w, t, red);
+    DrawFillRect(centerX - w * 0.35f, centerY - h * 0.25f, w * 0.70f, t, red);
+    DrawFillRect(centerX - w * 0.35f, centerY + h * 0.25f, w * 0.70f, t, red);
+}
+
+ComPtr<ID3D11ShaderResourceView> BattleResultRenderer::FindPortrait(const std::string& memberId) const
+{
+    for (const PortraitEntry& entry : mPortraits)
+    {
+        if (entry.memberId == memberId) return entry.srv;
+    }
+    return {};
+}

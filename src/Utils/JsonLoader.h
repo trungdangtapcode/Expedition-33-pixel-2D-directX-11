@@ -919,6 +919,110 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     return true;
 }
 
+struct BattleResultLayout
+{
+    float scrimAlpha = 0.72f;
+    float vignetteAlpha = 0.35f;
+    float victoryEnterDuration = 0.70f;
+    float defeatSplashDuration = 1.80f;
+    int noDamageBonusPercent = 20;
+
+    float titleX = 96.0f;
+    float titleY = 74.0f;
+    float titleScale = 4.3f;
+    float subtitleScale = 1.05f;
+
+    float lootX = 110.0f;
+    float lootY = 246.0f;
+    float statsX = 460.0f;
+    float statsY = 540.0f;
+    float rowGap = 33.0f;
+
+    float partyPanelX = 920.0f;
+    float partyPanelY = 302.0f;
+    float partyPanelW = 318.0f;
+    float partyPanelH = 258.0f;
+    float partyRowGap = 76.0f;
+
+    float promptX = 830.0f;
+    float promptY = 332.0f;
+    float promptW = 360.0f;
+    float promptH = 118.0f;
+    float promptOptionGap = 136.0f;
+
+    std::string victoryAppearSfxId = "battle_result_victory_appear";
+    std::string defeatAppearSfxId = "battle_result_defeat_appear";
+    std::string statsOpenSfxId = "battle_result_stats_open";
+    std::string closeSfxId = "battle_result_close";
+};
+
+inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open battle result layout file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.scrimAlpha = detail::ParseFloat(detail::ValueOf(src, "scrimAlpha"), out.scrimAlpha);
+    out.vignetteAlpha = detail::ParseFloat(detail::ValueOf(src, "vignetteAlpha"), out.vignetteAlpha);
+    out.victoryEnterDuration = detail::ParseFloat(detail::ValueOf(src, "victoryEnterDuration"), out.victoryEnterDuration);
+    out.defeatSplashDuration = detail::ParseFloat(detail::ValueOf(src, "defeatSplashDuration"), out.defeatSplashDuration);
+    out.noDamageBonusPercent = static_cast<int>(detail::ParseFloat(detail::ValueOf(src, "noDamageBonusPercent"), static_cast<float>(out.noDamageBonusPercent)));
+
+    out.titleX = detail::ParseFloat(detail::ValueOf(src, "titleX"), out.titleX);
+    out.titleY = detail::ParseFloat(detail::ValueOf(src, "titleY"), out.titleY);
+    out.titleScale = detail::ParseFloat(detail::ValueOf(src, "titleScale"), out.titleScale);
+    out.subtitleScale = detail::ParseFloat(detail::ValueOf(src, "subtitleScale"), out.subtitleScale);
+
+    out.lootX = detail::ParseFloat(detail::ValueOf(src, "lootX"), out.lootX);
+    out.lootY = detail::ParseFloat(detail::ValueOf(src, "lootY"), out.lootY);
+    out.statsX = detail::ParseFloat(detail::ValueOf(src, "statsX"), out.statsX);
+    out.statsY = detail::ParseFloat(detail::ValueOf(src, "statsY"), out.statsY);
+    out.rowGap = detail::ParseFloat(detail::ValueOf(src, "rowGap"), out.rowGap);
+
+    out.partyPanelX = detail::ParseFloat(detail::ValueOf(src, "partyPanelX"), out.partyPanelX);
+    out.partyPanelY = detail::ParseFloat(detail::ValueOf(src, "partyPanelY"), out.partyPanelY);
+    out.partyPanelW = detail::ParseFloat(detail::ValueOf(src, "partyPanelW"), out.partyPanelW);
+    out.partyPanelH = detail::ParseFloat(detail::ValueOf(src, "partyPanelH"), out.partyPanelH);
+    out.partyRowGap = detail::ParseFloat(detail::ValueOf(src, "partyRowGap"), out.partyRowGap);
+
+    out.promptX = detail::ParseFloat(detail::ValueOf(src, "promptX"), out.promptX);
+    out.promptY = detail::ParseFloat(detail::ValueOf(src, "promptY"), out.promptY);
+    out.promptW = detail::ParseFloat(detail::ValueOf(src, "promptW"), out.promptW);
+    out.promptH = detail::ParseFloat(detail::ValueOf(src, "promptH"), out.promptH);
+    out.promptOptionGap = detail::ParseFloat(detail::ValueOf(src, "promptOptionGap"), out.promptOptionGap);
+
+    const std::string victorySfx = detail::ValueOf(src, "victoryAppearSfxId");
+    if (!victorySfx.empty()) out.victoryAppearSfxId = detail::CleanString(victorySfx);
+    const std::string defeatSfx = detail::ValueOf(src, "defeatAppearSfxId");
+    if (!defeatSfx.empty()) out.defeatAppearSfxId = detail::CleanString(defeatSfx);
+    const std::string statsSfx = detail::ValueOf(src, "statsOpenSfxId");
+    if (!statsSfx.empty()) out.statsOpenSfxId = detail::CleanString(statsSfx);
+    const std::string closeSfx = detail::ValueOf(src, "closeSfxId");
+    if (!closeSfx.empty()) out.closeSfxId = detail::CleanString(closeSfx);
+
+    LOG("[JsonLoader] Loaded BattleResultLayout from '%s'.", path.c_str());
+    return true;
+}
+
 struct BattleSystemConfig {
     float qteSlowMoScale = 0.1f;
     float qteFadeInRatio = 0.15f;

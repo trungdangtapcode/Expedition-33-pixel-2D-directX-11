@@ -73,6 +73,9 @@ public:
     // -- Queries for BattleState UI --
     BattlePhase   GetPhase()   const { return mPhase; }
     BattleOutcome GetOutcome() const { return mOutcome; }
+    int GetTotalExpReward() const { return mTotalExpPool; }
+    int GetTotalCoinReward() const { return mTotalCoinPool; }
+    float GetBattleElapsedSeconds() const { return mContext.battleElapsed; }
 
     const std::vector<std::string>& GetBattleLog() const { return mBattleLog; }
 
@@ -114,6 +117,7 @@ public:
     const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
 
     void QueueAction(std::unique_ptr<IAction> action) { mQueue.Enqueue(std::move(action)); }
+    void Reset();
 
     // Simulate the future actions in the queue based on the current AV timeline
     std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;

@@ -11,7 +11,6 @@
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Systems/LocalizationManager.h"
-#include "../Systems/Wallet.h"
 
 #include "EnemyEncounterData.h"
 #include <algorithm>
@@ -22,6 +21,20 @@
 #include "ParallelAction.h"
 
 BattleManager::BattleManager() = default;
+
+void BattleManager::Reset()
+{
+    mPlayers.clear();
+    mEnemies.clear();
+    mTimeline.clear();
+    mQueue.Clear();
+    mPhase = BattlePhase::INIT;
+    mOutcome = BattleOutcome::NONE;
+    mBattleLog.clear();
+    mTotalExpPool = 0;
+    mTotalCoinPool = 0;
+    mContext = BattleContext{};
+}
 
 // ------------------------------------------------------------
 // Initialize: create combatants from encounter data and build the
@@ -37,9 +50,8 @@ BattleManager::BattleManager() = default;
 // ------------------------------------------------------------
 void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config)
 {
+    Reset();
     mContext.config = config;
-    mTotalExpPool   = 0;
-    mTotalCoinPool  = 0;
 
     // -- Spawn player party natively pulling from PartyManager arrays! --
     auto& activeParty = PartyManager::Get().GetActiveParty();
@@ -381,18 +393,6 @@ void BattleManager::HandleResolving(float dt)
     if (AllEnemiesDefeated())
     {
         Log(LocalizationManager::Get().Text("battle.log.victory"));
-        Log(LocalizationManager::Get().Format("battle.log.exp_earned", {
-            { "exp", std::to_string(mTotalExpPool) }
-        }));
-        PartyManager::Get().AddExp(mTotalExpPool);
-        if (mTotalCoinPool > 0)
-        {
-            Wallet::Get().AddCoins(mTotalCoinPool);
-            Log(LocalizationManager::Get().Format("battle.log.coins_earned", {
-                { "amount", std::to_string(mTotalCoinPool) }
-            }));
-        }
-
         mOutcome = BattleOutcome::VICTORY;
         mPhase   = BattlePhase::WIN;
         return;

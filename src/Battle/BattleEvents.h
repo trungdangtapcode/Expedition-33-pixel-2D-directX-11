@@ -92,6 +92,15 @@ struct BulletHellPayload {
     float invincibilityTimer = 0.0f;
 };
 
+struct BattleDodgeResultPayload
+{
+    IBattler* attacker = nullptr;
+    IBattler* defender = nullptr;
+    bool completed = false;
+    int hitsTaken = 0;
+    float elapsedSeconds = 0.0f;
+};
+
 // Must forward declare enum wrapper since we can't cleanly drag camera into events
 enum class BattleCameraPhase;
 

@@ -71,6 +71,11 @@ public:
     // ------------------------------------------------------------
     static PartyManager& Get();
 
+    static int ExpToNextLevel(int level)
+    {
+        return GetExpCurve(level);
+    }
+
     // ------------------------------------------------------------
     // Function: ResetToDefaults
     // Purpose:

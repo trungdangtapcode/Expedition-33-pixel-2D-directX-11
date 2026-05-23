@@ -112,6 +112,35 @@
       "volume": 0.85,
       "paths": [ "assets/sound/SFX/Battle/flee.wav" ]
     },
+    {
+      "id":     "battle_result_victory_appear",
+      "volume": 0.82,
+      "paths": [
+        "assets/sound/SFX/Battle/Result/scoreboard_appear_01.wav",
+        "assets/sound/SFX/Battle/Result/scoreboard_appear_02.wav"
+      ]
+    },
+    {
+      "id":     "battle_result_defeat_appear",
+      "volume": 0.78,
+      "paths": [ "assets/sound/SFX/Battle/Result/scoreboard_appear_02.wav" ]
+    },
+    {
+      "id":     "battle_result_stats_open",
+      "volume": 0.70,
+      "paths": [
+        "assets/sound/SFX/Battle/Result/scoreboard_stat_open_01.wav",
+        "assets/sound/SFX/Battle/Result/scoreboard_stat_open_02.wav"
+      ]
+    },
+    {
+      "id":     "battle_result_close",
+      "volume": 0.72,
+      "paths": [
+        "assets/sound/SFX/Battle/Result/scoreboard_close_01.wav",
+        "assets/sound/SFX/Battle/Result/scoreboard_close_02.wav"
+      ]
+    },
 
     {
       "id":     "battle_qte_start",

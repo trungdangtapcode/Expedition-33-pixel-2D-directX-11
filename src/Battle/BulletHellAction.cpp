@@ -73,6 +73,14 @@ BulletHellAction::BulletHellAction(IBattler* attacker, IBattler* defender, const
     }
 }
 
+BulletHellAction::~BulletHellAction()
+{
+    if (!mResultPublished && mElapsed > 0.0f)
+    {
+        PublishResult(false);
+    }
+}
+
 void BulletHellAction::ApplyDamage(float overrideScaling)
 {
     DefaultDamageCalculator calc;
@@ -141,11 +149,29 @@ void BulletHellAction::PublishState(bool isActive) const
     EventManager::Get().Broadcast("verso_bullet_hell_state", ed);
 }
 
+void BulletHellAction::PublishResult(bool completed)
+{
+    if (mResultPublished) return;
+    mResultPublished = true;
+
+    BattleDodgeResultPayload payload{};
+    payload.attacker = mAttacker;
+    payload.defender = mDefender;
+    payload.completed = completed;
+    payload.hitsTaken = mHitsTaken;
+    payload.elapsedSeconds = mElapsed;
+
+    EventData eventData;
+    eventData.payload = &payload;
+    EventManager::Get().Broadcast("battle_dodge_result", eventData);
+}
+
 bool BulletHellAction::Execute(float dt)
 {
     if (!mDefender || !mDefender->IsAlive())
     {
         PublishState(false);
+        PublishResult(false);
         return true;
     }
 
@@ -221,6 +247,7 @@ bool BulletHellAction::Execute(float dt)
                 {
                     LOG("[BulletHellAction] Dodge phase ended because the defender was defeated.");
                     PublishState(false);
+                    PublishResult(false);
                     return true;
                 }
             }
@@ -241,6 +268,7 @@ bool BulletHellAction::Execute(float dt)
     if (mElapsed >= mDuration) {
         LOG("[BulletHellAction] Dodge phase ended cleanly.");
         PublishState(false);
+        PublishResult(true);
         return true; 
     }
     return false;

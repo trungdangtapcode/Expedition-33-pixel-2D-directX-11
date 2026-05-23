@@ -4,6 +4,7 @@
 //                handles input via a three-phase FSM, renders combatant
 //                sprites and the HP bar UI.
 // ============================================================
+#define NOMINMAX
 #include "BattleState.h"
 #include "../Battle/BattleEvents.h"
 #include "../Battle/ItemRegistry.h"
@@ -14,10 +15,13 @@
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/Wallet.h"
+#include "../Core/InputManager.h"
 #include "../UI/BattleDebugHUD.h"
 #include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
+#include <Windows.h>
 #include <string>
 #include <algorithm>
 #include <array>
@@ -37,17 +41,25 @@ void BattleState::OnEnter()
 {
     LOG("%s", "[BattleState] OnEnter");
 
-    InitAudio();
-
     if (!JsonLoader::LoadBattleSystemConfig("data/battle_system_config.json", mSystemConfig)) {
         LOG("%s", "[BattleState] WARNING - failed to load data/battle_system_config.json");
     }
 
-    mBattle.Initialize(mEncounter, mSystemConfig);
-    mInputController.Initialize();
+    if (!JsonLoader::LoadBattleResultLayout("data/battle_result_layout.json", mResultLayout)) {
+        LOG("%s", "[BattleState] WARNING - failed to load data/battle_result_layout.json");
+    }
 
-    InitBattleSlots();
-    InitUIRenderers();
+    mPreBattleProgress = PartyManager::Get().CaptureProgress();
+    mPreBattleCoins = Wallet::Get().GetCoins();
+    mResultTracker.CaptureInitialParty(mPreBattleProgress);
+    mResultRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        mResultLayout,
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
+    SubscribeBattleEvents();
+    BeginBattleSession(true);
       
       mEnvRenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext());
       std::string envPath = mEncounter.environmentPath;
@@ -76,13 +88,6 @@ void BattleState::OnEnter()
     {
         LOG("%s", "[BattleState] WARNING - IrisTransitionRenderer init failed.");
     }
-
-    // Broadcast initial visual offsets for the walk-in sequence
-    for (IBattler* player : mBattle.GetAllPlayers()) {
-        MoveOffsetPayload p = { player, -mSystemConfig.introWalkDistance, 0.f };
-        EventData e; e.payload = &p;
-        EventManager::Get().Broadcast("battler_set_offset", e);
-    }
 }
 
 void BattleState::InitAudio()
@@ -105,6 +110,67 @@ void BattleState::InitAudio()
     // One-shot encounter sting layered over the BGM transition.
     // XAudio2 mixes both voices naturally - no ducking needed.
     AudioManager::Get().PlaySfx("battle_start");
+}
+
+void BattleState::BeginBattleSession(bool playStartAudio)
+{
+    if (playStartAudio)
+    {
+        InitAudio();
+    }
+
+    mBattle.Initialize(mEncounter, mSystemConfig);
+    mInputController.Initialize();
+    InitBattleSlots();
+    InitUIRenderers();
+
+    mEnemyWasAlive[0] = true;
+    mEnemyWasAlive[1] = true;
+    mEnemyWasAlive[2] = true;
+    mPlayerWasAlive[0] = true;
+    mPlayerWasAlive[1] = true;
+    mPlayerWasAlive[2] = true;
+
+    mFloatingTexts.clear();
+    mCmdMenuTimer = 0.0f;
+    mSkillMenuTimer = 0.0f;
+    mLastInputPhase = PlayerInputPhase::COMMAND_SELECT;
+    mWaitingForDeathAnims = false;
+    mExitTransitionStarted = false;
+    mPendingSafeExit = false;
+    mPendingFlee = false;
+    mExitEventName.clear();
+    mResultPhase = BattleResultPhase::None;
+    mResultTimer = 0.0f;
+    mDefeatPromptIndex = 0;
+    mVictoryRewardsApplied = false;
+    mResultData = BattleResultData{};
+
+    mResultTracker.Reset();
+    mResultTracker.CaptureInitialParty(mPreBattleProgress);
+    BroadcastIntroOffsets();
+}
+
+void BattleState::ShutdownBattleSessionRenderers()
+{
+    mBattleRenderer.Shutdown();
+    for (auto& bar : mHealthBars) bar->Shutdown();
+    for (auto& ebar : mExpBars) ebar->Shutdown();
+    mHealthBars.clear();
+    mExpBars.clear();
+    mEnemyHpBar.Shutdown();
+    mTurnQueueUI.Shutdown();
+    mTargetPointer.Shutdown();
+    mChevronUp.Shutdown();
+    mChevronDown.Shutdown();
+    mItemIconRenderer.Shutdown();
+    mDialogBox.Shutdown();
+    mTextRenderer.Shutdown();
+    mQTERenderer.Shutdown();
+    if (mBulletHellRenderer)
+    {
+        mBulletHellRenderer.reset();
+    }
 }
 
 void BattleState::InitBattleSlots()
@@ -169,19 +235,6 @@ void BattleState::InitBattleSlots()
         enemySlots[0].worldX             = battleCenterX + formation.enemy[0].offsetX;
         enemySlots[0].worldY             = battleCenterY + formation.enemy[0].offsetY;
     }
-
-    
-    mPlayAnimListener = EventManager::Get().Subscribe("battler_play_anim", [this](const EventData& e){ OnPlayAnim(e); });
-    mIsAnimDoneListener = EventManager::Get().Subscribe("battler_is_anim_done", [this](const EventData& e){ OnIsAnimDone(e); });
-    mGetAnimProgressListener = EventManager::Get().Subscribe("battler_get_anim_progress", [this](const EventData& e){ OnGetAnimProgress(e); });
-    mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
-    mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
-    mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
-    mCameraPhaseListener = EventManager::Get().Subscribe("battler_set_camera_phase", [this](const EventData& e){ OnCameraSetPhase(e); });
-    
-    mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
-    mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
-    mBulletHellStateListener = EventManager::Get().Subscribe("verso_bullet_hell_state", [this](const EventData& e){ OnBulletHellState(e); });
 
     mBattleRenderer.Initialize(
         mD3D.GetDevice(),
@@ -357,42 +410,72 @@ void BattleState::InitUIRenderers()
     mBulletHellRenderer = std::make_unique<BattleBulletHellRenderer>(mD3D.GetDevice(), mD3D.GetContext());
 }
 
+void BattleState::SubscribeBattleEvents()
+{
+    mPlayAnimListener = EventManager::Get().Subscribe("battler_play_anim", [this](const EventData& e){ OnPlayAnim(e); });
+    mIsAnimDoneListener = EventManager::Get().Subscribe("battler_is_anim_done", [this](const EventData& e){ OnIsAnimDone(e); });
+    mGetAnimProgressListener = EventManager::Get().Subscribe("battler_get_anim_progress", [this](const EventData& e){ OnGetAnimProgress(e); });
+    mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
+    mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
+    mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
+    mCameraPhaseListener = EventManager::Get().Subscribe("battler_set_camera_phase", [this](const EventData& e){ OnCameraSetPhase(e); });
+    mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
+    mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
+    mBulletHellStateListener = EventManager::Get().Subscribe("verso_bullet_hell_state", [this](const EventData& e){ OnBulletHellState(e); });
+    mDodgeResultListener = EventManager::Get().Subscribe("battle_dodge_result", [this](const EventData& e){ OnDodgeResult(e); });
+}
+
+void BattleState::UnsubscribeBattleEvents()
+{
+    auto unsubscribe = [](const char* eventName, int& listenerId)
+    {
+        if (listenerId < 0) return;
+        EventManager::Get().Unsubscribe(eventName, listenerId);
+        listenerId = -1;
+    };
+
+    unsubscribe("battler_play_anim", mPlayAnimListener);
+    unsubscribe("battler_is_anim_done", mIsAnimDoneListener);
+    unsubscribe("battler_get_anim_progress", mGetAnimProgressListener);
+    unsubscribe("battler_set_offset", mMoveOffsetListener);
+    unsubscribe("battler_get_world_pos", mGetWorldPosListener);
+    unsubscribe("battler_get_offset", mGetOffsetListener);
+    unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
+    unsubscribe("battler_damage_taken", mDamageTakenListener);
+    unsubscribe("battler_qte_update", mQteUpdateListener);
+    unsubscribe("verso_bullet_hell_state", mBulletHellStateListener);
+    unsubscribe("battle_dodge_result", mDodgeResultListener);
+}
+
+void BattleState::BroadcastIntroOffsets()
+{
+    for (IBattler* player : mBattle.GetAllPlayers())
+    {
+        MoveOffsetPayload payload{ player, -mSystemConfig.introWalkDistance, 0.0f };
+        EventData eventData;
+        eventData.payload = &payload;
+        EventManager::Get().Broadcast("battler_set_offset", eventData);
+    }
+}
+
 void BattleState::OnExit()
 {
     LOG("%s", "[BattleState] OnExit");
 
     EventManager::Get().Broadcast("bgm_play_overworld", {});
 
-        EventManager::Get().Unsubscribe("battler_play_anim", mPlayAnimListener);
-    EventManager::Get().Unsubscribe("battler_is_anim_done", mIsAnimDoneListener);
-    EventManager::Get().Unsubscribe("battler_get_anim_progress", mGetAnimProgressListener);
-    EventManager::Get().Unsubscribe("battler_set_offset", mMoveOffsetListener);
-    EventManager::Get().Unsubscribe("battler_get_world_pos", mGetWorldPosListener);
-    EventManager::Get().Unsubscribe("battler_get_offset", mGetOffsetListener);
-    EventManager::Get().Unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
-    EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
-    EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
-    EventManager::Get().Unsubscribe("verso_bullet_hell_state", mBulletHellStateListener);
-    mBattleRenderer.Shutdown();
-    for (auto& bar : mHealthBars) bar->Shutdown();
-    for (auto& ebar : mExpBars) ebar->Shutdown();
-    mEnemyHpBar.Shutdown();
-    mTurnQueueUI.Shutdown();
-    mTargetPointer.Shutdown();
-    mChevronUp.Shutdown();
-    mChevronDown.Shutdown();
-    mItemIconRenderer.Shutdown();
-    mDialogBox.Shutdown();
-    mTextRenderer.Shutdown();
-    mQTERenderer.Shutdown();
+    UnsubscribeBattleEvents();
+    ShutdownBattleSessionRenderers();
     mAmbientParticles.Shutdown();
     mIris.Shutdown();
+    mResultRenderer.Shutdown();
 }
 
 void BattleState::Update(float dt)
 {
     mIris.Update(dt);
     mAmbientParticles.Update(dt);
+    mResultRenderer.Update(dt);
 
     if (mPendingSafeExit)
     {
@@ -405,9 +488,86 @@ void BattleState::Update(float dt)
         return;
     }
 
+    if (IsResultVisible())
+    {
+        UpdateResultFlow(dt);
+        return;
+    }
+
     if (!mExitTransitionStarted)
     {
         UpdateLogic(dt);
+    }
+}
+
+bool BattleState::IsResultVisible() const
+{
+    return mResultPhase != BattleResultPhase::None &&
+           mResultPhase != BattleResultPhase::Retrying;
+}
+
+void BattleState::UpdateResultFlow(float dt)
+{
+    mResultTimer += dt;
+
+    InputManager& input = InputManager::Get();
+    const bool confirmPressed =
+        input.IsKeyPressed(VK_RETURN) ||
+        input.IsKeyPressed(VK_SPACE) ||
+        input.IsKeyPressed(0x46);
+    const bool backPressed = input.IsKeyPressed(VK_ESCAPE);
+
+    if (mResultPhase == BattleResultPhase::VictoryResult)
+    {
+        if (confirmPressed)
+        {
+            AudioManager::Get().PlaySfx(mResultLayout.closeSfxId);
+            StartExitTransition("battle_end_victory");
+        }
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatSplash)
+    {
+        if (mResultTimer >= mResultLayout.defeatSplashDuration || confirmPressed)
+        {
+            mResultPhase = BattleResultPhase::DefeatPrompt;
+            mResultTimer = 0.0f;
+            AudioManager::Get().PlaySfx(mResultLayout.statsOpenSfxId);
+        }
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatPrompt)
+    {
+        if (input.IsKeyPressed(VK_LEFT) || input.IsKeyPressed(VK_RIGHT) ||
+            input.IsKeyPressed(VK_UP) || input.IsKeyPressed(VK_DOWN))
+        {
+            mDefeatPromptIndex = 1 - mDefeatPromptIndex;
+            AudioManager::Get().PlaySfx("ui_navigate");
+        }
+
+        if (backPressed)
+        {
+            mDefeatPromptIndex = 1;
+            AudioManager::Get().PlaySfx("ui_back");
+            RestorePreBattleState();
+            StartExitTransition("battle_end_defeat");
+            return;
+        }
+
+        if (!confirmPressed) return;
+
+        AudioManager::Get().PlaySfx("ui_confirm");
+        if (mDefeatPromptIndex == 0)
+        {
+            RetryBattle();
+        }
+        else
+        {
+            RestorePreBattleState();
+            StartExitTransition("battle_end_defeat");
+        }
     }
 }
 
@@ -627,15 +787,11 @@ void BattleState::OnCameraSetPhase(const EventData& d)
 void BattleState::CheckBattleEnd()
 {
     const BattleOutcome outcome = mBattle.GetOutcome();
-    if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
+    if (outcome != BattleOutcome::NONE &&
+        !mExitTransitionStarted &&
+        !mWaitingForDeathAnims &&
+        mResultPhase == BattleResultPhase::None)
     {
-        const auto& players = mBattle.GetAllPlayers();
-        for (size_t i = 0; i < players.size(); ++i) {
-            PartyManager::Get().SetMemberStats(i, players[i]->GetStats());
-            LOG("[BattleState] Saved %s HP: %d/%d",
-                players[i]->GetName().c_str(), players[i]->GetStats().hp, players[i]->GetStats().maxHp);
-        }
-
         mExitEventName = (outcome == BattleOutcome::VICTORY) ? "battle_end_victory" : "battle_end_defeat";
         mWaitingForDeathAnims = true;
         LOG("[BattleState] Outcome detected (%s) - waiting for death animations.", mExitEventName.c_str());
@@ -643,22 +799,127 @@ void BattleState::CheckBattleEnd()
 
     if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
     {
-        mWaitingForDeathAnims  = false;
-        mExitTransitionStarted = true;
-
-        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-        LOG("[BattleState] Death animations done - starting iris close.");
+        mWaitingForDeathAnims = false;
+        ActivateResultScreen(outcome);
+        LOG("[BattleState] Death animations done - showing battle result.");
     }
 
     if (mPendingFlee && !mExitTransitionStarted)
     {
         mPendingFlee           = false;
-        mExitTransitionStarted = true;
-        mExitEventName         = "battle_flee";
-
-        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+        StartExitTransition("battle_flee");
         LOG("%s", "[BattleState] Flee requested - closing iris.");
     }
+}
+
+void BattleState::ActivateResultScreen(BattleOutcome outcome)
+{
+    mResultTimer = 0.0f;
+    mDefeatPromptIndex = 0;
+
+    if (outcome == BattleOutcome::VICTORY)
+    {
+        BuildAndApplyVictoryResult();
+        mResultPhase = BattleResultPhase::VictoryResult;
+        AudioManager::Get().PlaySfx(mResultLayout.victoryAppearSfxId);
+    }
+    else
+    {
+        BuildDefeatResult();
+        mResultPhase = BattleResultPhase::DefeatSplash;
+        AudioManager::Get().PlaySfx(mResultLayout.defeatAppearSfxId);
+    }
+}
+
+void BattleState::BuildAndApplyVictoryResult()
+{
+    if (mVictoryRewardsApplied) return;
+
+    const int enemyCount = static_cast<int>(mBattle.GetAllEnemies().size());
+    BattleResultData preview = mResultTracker.BuildResult(
+        BattleResultOutcome::Victory,
+        mBattle.GetTotalExpReward(),
+        mBattle.GetTotalCoinReward(),
+        mResultLayout.noDamageBonusPercent,
+        enemyCount,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+
+    if (preview.totalExp > 0)
+    {
+        PartyManager::Get().AddExp(preview.totalExp);
+    }
+    if (preview.totalCoins > 0)
+    {
+        Wallet::Get().AddCoins(preview.totalCoins);
+    }
+
+    const auto& players = mBattle.GetAllPlayers();
+    for (size_t i = 0; i < players.size(); ++i)
+    {
+        PartyManager::Get().SetMemberStats(i, players[i]->GetStats());
+        LOG("[BattleState] Saved %s HP: %d/%d",
+            players[i]->GetName().c_str(),
+            players[i]->GetStats().hp,
+            players[i]->GetStats().maxHp);
+    }
+
+    mResultData = mResultTracker.BuildResult(
+        BattleResultOutcome::Victory,
+        mBattle.GetTotalExpReward(),
+        mBattle.GetTotalCoinReward(),
+        mResultLayout.noDamageBonusPercent,
+        enemyCount,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+    mResultRenderer.LoadPortraits(mD3D.GetDevice(), mD3D.GetContext(), mResultData);
+    mVictoryRewardsApplied = true;
+}
+
+void BattleState::BuildDefeatResult()
+{
+    int defeatedEnemies = 0;
+    for (IBattler* enemy : mBattle.GetAllEnemies())
+    {
+        if (enemy && !enemy->IsAlive()) ++defeatedEnemies;
+    }
+
+    mResultData = mResultTracker.BuildResult(
+        BattleResultOutcome::Defeat,
+        0,
+        0,
+        mResultLayout.noDamageBonusPercent,
+        defeatedEnemies,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+}
+
+void BattleState::RestorePreBattleState()
+{
+    PartyManager::Get().ApplyProgress(mPreBattleProgress);
+    Wallet::Get().SetCoins(mPreBattleCoins);
+}
+
+void BattleState::RetryBattle()
+{
+    mResultPhase = BattleResultPhase::Retrying;
+    RestorePreBattleState();
+    ShutdownBattleSessionRenderers();
+    BeginBattleSession(true);
+    mIris.StartOpen(600.0f);
+}
+
+void BattleState::StartExitTransition(const std::string& eventName)
+{
+    if (mExitTransitionStarted) return;
+
+    mExitEventName = eventName;
+    mExitTransitionStarted = true;
+    mResultPhase = BattleResultPhase::Exiting;
+    mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
 }
 
 void BattleState::Render()
@@ -671,6 +932,13 @@ void BattleState::Render()
     mBattleRenderer.Render(mD3D.GetContext());
     mAmbientParticles.Render(mD3D.GetContext(), mBattleRenderer.GetCamera(), BattleAmbientParticleLayer::Front);
     mEnvRenderer.RenderForeground(mBattleRenderer.GetCamera());
+
+    if (IsResultVisible())
+    {
+        RenderResultOverlay();
+        mIris.Render(mD3D.GetContext());
+        return;
+    }
 
     // UI Render
     for (auto& bar : mHealthBars) {
@@ -1340,6 +1608,38 @@ void BattleState::Render()
     mIris.Render(mD3D.GetContext());
 }
 
+void BattleState::RenderResultOverlay()
+{
+    mResultRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+    mTextRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+
+    if (mResultPhase == BattleResultPhase::VictoryResult ||
+        (mResultPhase == BattleResultPhase::Exiting && mResultData.outcome == BattleResultOutcome::Victory))
+    {
+        mResultRenderer.RenderVictory(
+            mD3D.GetContext(),
+            mTextRenderer,
+            mResultData,
+            mResultTimer);
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatSplash)
+    {
+        mResultRenderer.RenderDefeatSplash(
+            mD3D.GetContext(),
+            mTextRenderer,
+            mResultTimer);
+        return;
+    }
+
+    mResultRenderer.RenderDefeatPrompt(
+        mD3D.GetContext(),
+        mTextRenderer,
+        mDefeatPromptIndex,
+        mResultTimer);
+}
+
 void BattleState::DumpStateToDebugOutput() const
 {
     BattleHUDSnapshot snap;
@@ -1562,6 +1862,8 @@ void BattleState::OnDamageTaken(const EventData& e)
     bool isPlayer;
     if (GetBattlerSlot(payload->target, slot, isPlayer))
     {
+        mResultTracker.RecordDamage(payload->target, isPlayer, payload->damage);
+
         float worldX, worldY;
         if (isPlayer) {
             mBattleRenderer.GetPlayerSlotPos(slot, worldX, worldY);
@@ -1602,6 +1904,7 @@ void BattleState::OnQteFeedback(const EventData& e)
 {
     auto* payload = static_cast<QTEStatePayload*>(e.payload);
     if (!payload) return;
+    mResultTracker.RecordQteResult(payload->result);
     
     if (payload->result == QTEResult::Perfect) {
         // High intensity shake for perfect 
@@ -1683,4 +1986,11 @@ void BattleState::OnBulletHellState(const EventData& e)
         const BulletHellPayload* payload = static_cast<const BulletHellPayload*>(e.payload);
         mBulletHellRenderer->UpdateState(*payload);
     }
+}
+
+void BattleState::OnDodgeResult(const EventData& e)
+{
+    const auto* payload = static_cast<const BattleDodgeResultPayload*>(e.payload);
+    if (!payload) return;
+    mResultTracker.RecordDodgeResult(*payload);
 }

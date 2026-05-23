@@ -1,0 +1,35 @@
+{
+  "scrimAlpha": 0.74,
+  "vignetteAlpha": 0.38,
+  "victoryEnterDuration": 0.75,
+  "defeatSplashDuration": 1.85,
+  "noDamageBonusPercent": 20,
+
+  "titleX": 100.0,
+  "titleY": 72.0,
+  "titleScale": 4.4,
+  "subtitleScale": 1.05,
+
+  "lootX": 110.0,
+  "lootY": 246.0,
+  "statsX": 470.0,
+  "statsY": 540.0,
+  "rowGap": 33.0,
+
+  "partyPanelX": 914.0,
+  "partyPanelY": 300.0,
+  "partyPanelW": 326.0,
+  "partyPanelH": 270.0,
+  "partyRowGap": 78.0,
+
+  "promptX": 832.0,
+  "promptY": 332.0,
+  "promptW": 372.0,
+  "promptH": 124.0,
+  "promptOptionGap": 142.0,
+
+  "victoryAppearSfxId": "battle_result_victory_appear",
+  "defeatAppearSfxId": "battle_result_defeat_appear",
+  "statsOpenSfxId": "battle_result_stats_open",
+  "closeSfxId": "battle_result_close"
+}

@@ -17,6 +17,10 @@
       "path": "assets/sound/OST/the_end_in_me.wav"
     },
     {
+      "id":   "zombie_armour_battle",
+      "path": "assets/sound/OST/beneath_the_blue_tree.mp3"
+    },
+    {
       "id":   "verso_cloned_battle",
       "path": "assets/sound/OST/verso-cloned-fight.mp3"
     }

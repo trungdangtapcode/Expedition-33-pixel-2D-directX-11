@@ -9,6 +9,7 @@
   "idleClip": "idle",
   "contactRadius": 94.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
+  "bgmTrackId": "zombie_armour_battle",
 
   "battleParty": [
     {

@@ -260,6 +260,13 @@ The track must be registered in `data/audio/bgm.json`:
 If `bgmTrackId` is empty or absent, `BattleState` plays the default
 `"battle"` track.
 
+Current encounter-specific tracks:
+
+| Encounter | `bgmTrackId` | Track path |
+|---|---|---|
+| Zombie Armour | `zombie_armour_battle` | `assets/sound/OST/beneath_the_blue_tree.mp3` |
+| Verso Cloned | `verso_cloned_battle` | `assets/sound/OST/verso-cloned-fight.mp3` |
+
 ---
 
 ## Asset Directory Layout

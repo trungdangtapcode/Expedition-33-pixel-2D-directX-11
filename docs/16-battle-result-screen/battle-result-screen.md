@@ -45,6 +45,11 @@ assets/UI/battle_result/battle_result_ink_vignette.png
 assets/UI/battle_result/battle_result_victory_flourish.png
 ```
 
+The defeat sigil extraction deliberately uses a larger source crop, isolated red
+glyph strokes, and an elliptical alpha falloff. That keeps the red glow from
+reaching the PNG bounds, which prevents rectangular source-sheet edges from
+appearing in-game.
+
 Result SFX live under:
 
 ```text

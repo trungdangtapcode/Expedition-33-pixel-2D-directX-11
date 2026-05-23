@@ -170,12 +170,7 @@ void BattleResultRenderer::RenderVictory(ID3D11DeviceContext* context,
         mLayout.victoryFlourishW * (static_cast<float>(mScreenW) / 1280.0f),
         mLayout.victoryFlourishH * (static_cast<float>(mScreenH) / 720.0f),
         XMVectorSet(1.0f, 1.0f, 1.0f, 0.86f * alpha));
-    DrawDecorativeFrame(
-        mLayout.partyPanelX * (static_cast<float>(mScreenW) / 1280.0f),
-        mLayout.partyPanelY * (static_cast<float>(mScreenH) / 720.0f),
-        mLayout.partyPanelW * (static_cast<float>(mScreenW) / 1280.0f),
-        mLayout.partyPanelH * (static_cast<float>(mScreenH) / 720.0f),
-        XMVectorSet(0.92f, 0.78f, 0.55f, 0.52f * alpha));
+    DrawVictoryPartyPanel(alpha);
     DrawVictoryPortraits(data, alpha);
     EndRects();
 
@@ -470,6 +465,26 @@ void BattleResultRenderer::DrawDefeatSigil(float alpha)
     DrawDefeatGlyph(centerX, centerY, alpha);
 }
 
+void BattleResultRenderer::DrawVictoryPartyPanel(float alpha)
+{
+    const float sx = static_cast<float>(mScreenW) / 1280.0f;
+    const float sy = static_cast<float>(mScreenH) / 720.0f;
+    const float panelX = mLayout.partyPanelX * sx;
+    const float panelY = mLayout.partyPanelY * sy;
+    const float panelW = mLayout.partyPanelW * sx;
+    const float panelH = mLayout.partyPanelH * sy;
+
+    // The battle scene remains visible around the panel, but this fill
+    // prevents large frozen enemies from reading as broken result UI art.
+    DrawFillRect(panelX, panelY, panelW, panelH,
+                 XMVectorSet(mLayout.partyPanelFillR,
+                             mLayout.partyPanelFillG,
+                             mLayout.partyPanelFillB,
+                             Clamp01(mLayout.partyPanelFillAlpha * alpha)));
+    DrawDecorativeFrame(panelX, panelY, panelW, panelH,
+                        XMVectorSet(0.92f, 0.78f, 0.55f, mLayout.partyPanelFrameAlpha * alpha));
+}
+
 void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
                                            BattleTextRenderer& text,
                                            const BattleResultData& data,
@@ -555,8 +570,8 @@ void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
         statsY += rowGap;
     }
 
-    const float partyX = (mLayout.partyPanelX + 86.0f) * sx;
-    float partyY = (mLayout.partyPanelY + 34.0f) * sy;
+    const float partyX = (mLayout.partyPanelX + mLayout.partyTextXOffset) * sx;
+    float partyY = (mLayout.partyPanelY + mLayout.partyTextYOffset) * sy;
     for (const BattleMemberResult& member : data.members)
     {
         text.DrawStringRawScaled(member.name.c_str(), partyX, partyY,
@@ -567,7 +582,7 @@ void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
                 { "level", std::to_string(member.levelAfter) }
             }).c_str(),
             partyX,
-            partyY + 24.0f * sy,
+            partyY + mLayout.partyLevelTextOffsetY * sy,
             XMVectorSet(0.92f, 0.92f, 0.88f, alpha),
             0.52f * ss,
             true);
@@ -577,7 +592,7 @@ void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
                 { "next", std::to_string(member.expToNextAfter) }
             }).c_str(),
             partyX,
-            partyY + 44.0f * sy,
+            partyY + mLayout.partyExpTextOffsetY * sy,
             XMVectorSet(0.82f, 0.86f, 0.90f, alpha),
             0.46f * ss,
             true);
@@ -585,8 +600,8 @@ void BattleResultRenderer::DrawVictoryText(ID3D11DeviceContext* context,
         {
             text.DrawStringRawScaled(
                 LocalizationManager::Get().Text("battle.result.level_up").c_str(),
-                partyX + 130.0f * sx,
-                partyY + 24.0f * sy,
+                partyX + mLayout.partyLevelUpOffsetX * sx,
+                partyY + mLayout.partyLevelTextOffsetY * sy,
                 XMVectorSet(1.0f, 0.74f, 0.36f, alpha),
                 0.46f * ss,
                 true);
@@ -609,9 +624,18 @@ void BattleResultRenderer::DrawVictoryPortraits(const BattleResultData& data, fl
     const float sx = static_cast<float>(mScreenW) / 1280.0f;
     const float sy = static_cast<float>(mScreenH) / 720.0f;
 
-    float y = (mLayout.partyPanelY + 38.0f) * sy;
-    const float x = (mLayout.partyPanelX + 22.0f) * sx;
-    const float size = 52.0f * (std::min)(sx, sy);
+    float y = (mLayout.partyPanelY + mLayout.partyPortraitYOffset) * sy;
+    const float x = (mLayout.partyPanelX + mLayout.partyPortraitXOffset) * sx;
+    const float size = mLayout.partyPortraitSize * (std::min)(sx, sy);
+
+    RECT source{};
+    source.left = static_cast<LONG>(mLayout.partyPortraitSourceX);
+    source.top = static_cast<LONG>(mLayout.partyPortraitSourceY);
+    source.right = static_cast<LONG>(mLayout.partyPortraitSourceX + mLayout.partyPortraitSourceW);
+    source.bottom = static_cast<LONG>(mLayout.partyPortraitSourceY + mLayout.partyPortraitSourceH);
+    const RECT* sourceRect = (mLayout.partyPortraitSourceW > 0.0f && mLayout.partyPortraitSourceH > 0.0f)
+        ? &source
+        : nullptr;
 
     for (const BattleMemberResult& member : data.members)
     {
@@ -619,7 +643,7 @@ void BattleResultRenderer::DrawVictoryPortraits(const BattleResultData& data, fl
         if (portrait.Get())
         {
             const RECT dst = MakeRect(x, y, size, size);
-            mSpriteBatch->Draw(portrait.Get(), dst, nullptr, XMVectorSet(1.0f, 1.0f, 1.0f, alpha));
+            mSpriteBatch->Draw(portrait.Get(), dst, sourceRect, XMVectorSet(1.0f, 1.0f, 1.0f, alpha));
         }
         y += mLayout.partyRowGap * sy;
     }

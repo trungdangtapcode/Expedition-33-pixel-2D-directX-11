@@ -86,6 +86,7 @@ private:
     void DrawDecorativeFrame(float x, float y, float width, float height, DirectX::FXMVECTOR color);
     void DrawBackdrop(float alphaMul);
     void DrawDefeatSigil(float alpha);
+    void DrawVictoryPartyPanel(float alpha);
     void DrawVictoryText(ID3D11DeviceContext* context,
                          BattleTextRenderer& text,
                          const BattleResultData& data,

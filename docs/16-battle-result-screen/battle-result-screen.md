@@ -23,6 +23,10 @@ Rewards are applied once when victory results are created. This keeps the render
 
 `data/battle_result_layout.json` owns screen positions, panel sizes, animation timing, the no-damage bonus percentage, and result SFX ids.
 It also owns optional result-art texture paths for the defeat sigil, retry prompt panel, ink vignette, and victory flourish.
+The victory party panel uses a data-driven translucent fill so the frozen battle
+scene can stay cinematic without enemy sprites bleeding through readable result
+rows. Portrait rows crop the wide turn-view art through layout data instead of
+stretching the full 256x128 image into a square.
 
 The committed generated source sheet lives at:
 

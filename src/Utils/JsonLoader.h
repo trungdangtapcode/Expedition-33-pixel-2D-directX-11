@@ -924,6 +924,10 @@ struct BattleSystemConfig {
     float qteFadeInRatio = 0.15f;
     float qteFadeOutDuration = 0.20f;
     float qteCameraZoom = 1.4f;
+    std::string qteStartSfxId;
+    std::string qteMissSfxId;
+    std::string qteGoodSfxId;
+    std::string qtePerfectSfxId;
     float introWalkDuration = 1.2f;
     float introWalkDistance = 600.0f;
     std::string introWalkAnim = "walk";
@@ -959,6 +963,27 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
     out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+
+    const std::string qteStartSfx = detail::ValueOf(src, "qteStartSfxId");
+    if (!qteStartSfx.empty()) {
+        out.qteStartSfxId = detail::CleanString(qteStartSfx);
+    }
+
+    const std::string qteMissSfx = detail::ValueOf(src, "qteMissSfxId");
+    if (!qteMissSfx.empty()) {
+        out.qteMissSfxId = detail::CleanString(qteMissSfx);
+    }
+
+    const std::string qteGoodSfx = detail::ValueOf(src, "qteGoodSfxId");
+    if (!qteGoodSfx.empty()) {
+        out.qteGoodSfxId = detail::CleanString(qteGoodSfx);
+    }
+
+    const std::string qtePerfectSfx = detail::ValueOf(src, "qtePerfectSfxId");
+    if (!qtePerfectSfx.empty()) {
+        out.qtePerfectSfxId = detail::CleanString(qtePerfectSfx);
+    }
+
     out.introWalkDuration = detail::ParseFloat(detail::ValueOf(src, "introWalkDuration"), 1.2f);
     out.introWalkDistance = detail::ParseFloat(detail::ValueOf(src, "introWalkDistance"), 600.0f);
 

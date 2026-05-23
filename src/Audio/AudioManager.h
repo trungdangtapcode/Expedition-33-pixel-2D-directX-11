@@ -1,18 +1,18 @@
 // ============================================================
 // File: AudioManager.h
-// Responsibility: Global audio manager — owns the XAudio2 engine,
+// Responsibility: Global audio manager - owns the XAudio2 engine,
 //                 preloads BGM tracks from data/audio/bgm.json, and
 //                 handles looping BGM playback with internal state tracking.
 //
 // Pattern: Meyers' Singleton + Observer (EventManager subscription).
-//   States NEVER call AudioManager directly — they broadcast named events:
+//   States NEVER call AudioManager directly - they broadcast named events:
 //     "bgm_play_overworld"  ->  PlayBGM("overworld")
 //     "bgm_play_battle"     ->  PlayBGM("battle")
 //     "bgm_stop"            ->  StopBGM()
 //   This keeps every game state fully decoupled from the audio subsystem.
 //
 // BGM internal state machine:
-//   PlayBGM(id) is IDEMPOTENT — if 'id' is already the current track, it is
+//   PlayBGM(id) is IDEMPOTENT - if 'id' is already the current track, it is
 //   a no-op.  No restarts, no clicks.  Switching tracks: stop current voice,
 //   flush buffer, resubmit loop buffer for the new track, start.
 //
@@ -21,24 +21,24 @@
 //   Paths are relative to the workspace root (same convention as all other assets).
 //
 // Owned resources:
-//   IXAudio2               — XAudio2 engine (ComPtr, auto-released on Reset())
-//   IXAudio2MasteringVoice — master output voice (raw ptr, DestroyVoice() in Shutdown())
-//   IXAudio2SourceVoice    — one per BGM track  (raw ptr, DestroyVoice() in Shutdown())
-//   std::vector<BYTE>      — PCM buffer per track (must outlive the voice)
+//   IXAudio2               - XAudio2 engine (ComPtr, auto-released on Reset())
+//   IXAudio2MasteringVoice - master output voice (raw ptr, DestroyVoice() in Shutdown())
+//   IXAudio2SourceVoice    - one per BGM track  (raw ptr, DestroyVoice() in Shutdown())
+//   std::vector<BYTE>      - PCM buffer per track (must outlive the voice)
 //
 // Lifetime:
-//   Initialize() — called from GameApp::Initialize(), before the first state push.
-//   Shutdown()   — called from GameApp::~GameApp(), after the state stack is cleared.
+//   Initialize() - called from GameApp::Initialize(), before the first state push.
+//   Shutdown()   - called from GameApp::~GameApp(), after the state stack is cleared.
 //
 // Common mistakes:
 //   1. Calling IXAudio2::Release() (via ComPtr reset) before DestroyVoice() on
-//      all child voices — the engine tears down the audio graph from underneath them.
-//   2. Freeing the PCM vector while the source voice is still playing — XAudio2
+//      all child voices - the engine tears down the audio graph from underneath them.
+//   2. Freeing the PCM vector while the source voice is still playing - XAudio2
 //      references the buffer pointer; the CPU crash happens on the XAudio2 thread.
-//   3. Creating a new IXAudio2SourceVoice on every PlayBGM() call — voices are
+//   3. Creating a new IXAudio2SourceVoice on every PlayBGM() call - voices are
 //      reusable; always stop/flush/resubmit the existing voice instead.
 //   4. Calling CoUninitialize() when COM was initialised by another subsystem
-//      (e.g., DirectX 11) — only uninitialise if AudioManager itself called
+//      (e.g., DirectX 11) - only uninitialise if AudioManager itself called
 //      CoInitializeEx successfully (tracked by mCoInitialized).
 // ============================================================
 #pragma once
@@ -55,7 +55,7 @@ class AudioManager
 {
 public:
     // ------------------------------------------------------------
-    // Singleton accessor — Meyers' pattern, thread-safe from C++11.
+    // Singleton accessor - Meyers' pattern, thread-safe from C++11.
     // ------------------------------------------------------------
     static AudioManager& Get();
 
@@ -77,12 +77,12 @@ public:
     // ------------------------------------------------------------
     void Shutdown();
 
-    // Convenience query — used by states (optional) to skip broadcasts
+    // Convenience query - used by states (optional) to skip broadcasts
     // when audio is unavailable (e.g., headless test environment).
     bool IsInitialized() const { return mInitialized; }
 
     // ------------------------------------------------------------
-    // SFX façade.
+    // SFX facade.
     //
     // Direct API: AudioManager::Get().PlaySfx("ui_navigate").
     // Event API:  EventManager::Get().Broadcast("sfx_play",
@@ -103,7 +103,7 @@ private:
     // Per-track data.
     //
     // The source voice is created ONCE at load time and reused for every
-    // stop/play cycle — creating a new voice per play would accumulate
+    // stop/play cycle - creating a new voice per play would accumulate
     // unused voices and eventually exhaust XAudio2's voice pool.
     //
     // pcmData must remain alive for the entire voice lifetime.  It is
@@ -118,7 +118,7 @@ private:
     };
 
     // ---------------------------------------------------------------
-    // BGM playback — private.
+    // BGM playback - private.
     //   States interact through EventManager, not these methods directly.
     // ---------------------------------------------------------------
 
@@ -144,7 +144,7 @@ private:
     // Members.
     // ---------------------------------------------------------------
 
-    // XAudio2 engine — ComPtr ensures Release() is called before the
+    // XAudio2 engine - ComPtr ensures Release() is called before the
     // destructor returns, even if exceptions occur (not used here, but
     // good practice for integration with exception-enabled code).
     ComPtr<IXAudio2>        mXAudio2;
@@ -153,14 +153,14 @@ private:
     // Must be destroyed AFTER all source voices and BEFORE mXAudio2.Reset().
     IXAudio2MasteringVoice* mMasterVoice = nullptr;
 
-    // Keyed by track id string ("overworld", "battle", …).
+    // Keyed by track id string ("overworld", "battle", ...).
     std::unordered_map<std::string, TrackData> mTracks;
 
     // ID of the track currently playing, or "" when stopped.
     // Used by PlayBGM() to implement the idempotent no-op check.
     std::string mCurrentTrackId;
 
-    // EventManager subscription IDs — stored so Shutdown() can clean up.
+    // EventManager subscription IDs - stored so Shutdown() can clean up.
     // Dangling subscriptions would fire into a destroyed AudioManager.
     int mListenerPlayOverworld = -1;
     int mListenerPlayBattle    = -1;
@@ -172,12 +172,12 @@ private:
     // mXAudio2 are released.
     SfxPlayer mSfx;
 
-    // Generic BGM event subscription — plays any track id via payload.
+    // Generic BGM event subscription - plays any track id via payload.
     int mListenerBgmPlay     = -1;
 
     // SFX event-bus subscriptions.
     int mListenerSfxPlay     = -1;
-    int mListenerDamageTaken = -1;   // -> battle_first_strike
+    int mListenerDamageTaken = -1;   // -> battle_hit_physical / battle_hit_critical
 
     bool mInitialized   = false;
 

@@ -111,6 +111,83 @@
       "id":     "battle_flee",
       "volume": 0.85,
       "paths": [ "assets/sound/SFX/Battle/flee.wav" ]
+    },
+
+    {
+      "id":     "battle_qte_start",
+      "volume": 0.75,
+      "paths": [ "assets/sound/SFX/Battle/QTE/start.wav" ]
+    },
+    {
+      "id":     "battle_qte_miss",
+      "volume": 0.85,
+      "paths": [ "assets/sound/SFX/Battle/QTE/miss.wav" ]
+    },
+    {
+      "id":     "battle_qte_good",
+      "volume": 0.8,
+      "paths": [
+        "assets/sound/SFX/Battle/QTE/success_good_01.wav",
+        "assets/sound/SFX/Battle/QTE/success_good_02.wav"
+      ]
+    },
+    {
+      "id":     "battle_qte_perfect",
+      "volume": 0.85,
+      "paths": [
+        "assets/sound/SFX/Battle/QTE/success_perfect_01.wav",
+        "assets/sound/SFX/Battle/QTE/success_perfect_02.wav"
+      ]
+    },
+
+    {
+      "id":     "battle_hit_physical",
+      "volume": 0.72,
+      "paths": [
+        "assets/sound/SFX/Hits/Sword/sword_medium_01.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_02.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_03.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_04.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_05.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_06.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_07.wav",
+        "assets/sound/SFX/Hits/Sword/sword_medium_08.wav"
+      ]
+    },
+    {
+      "id":     "battle_hit_magic",
+      "volume": 0.72,
+      "paths": [
+        "assets/sound/SFX/Hits/Magic/magic_generic_01.wav",
+        "assets/sound/SFX/Hits/Magic/magic_generic_02.wav",
+        "assets/sound/SFX/Hits/Magic/magic_generic_03.wav",
+        "assets/sound/SFX/Hits/Magic/magic_generic_04.wav"
+      ]
+    },
+    {
+      "id":     "battle_hit_blunt",
+      "volume": 0.72,
+      "paths": [
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_01.wav",
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_02.wav",
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_03.wav",
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_04.wav",
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_05.wav",
+        "assets/sound/SFX/Hits/Blunt/hammer_medium_06.wav"
+      ]
+    },
+    {
+      "id":     "battle_hit_critical",
+      "volume": 0.85,
+      "paths": [ "assets/sound/SFX/Hits/Feedback/critical.wav" ]
+    },
+    {
+      "id":     "battle_hit_weakness",
+      "volume": 0.82,
+      "paths": [
+        "assets/sound/SFX/Hits/Feedback/weakness_01.wav",
+        "assets/sound/SFX/Hits/Feedback/weakness_02.wav"
+      ]
     }
   ]
 }

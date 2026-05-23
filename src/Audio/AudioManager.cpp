@@ -17,16 +17,17 @@
 //
 // Common mistakes:
 //   1. Resetting mXAudio2 ComPtr before calling DestroyVoice() on child
-//      voices — XAudio2 tears down the graph from under them, causing AV.
-//   2. Calling PlayBGM with the same id twice — idempotent guard prevents
+//      voices - XAudio2 tears down the graph from under them, causing AV.
+//   2. Calling PlayBGM with the same id twice - idempotent guard prevents
 //      click/restart; always check mCurrentTrackId first.
-//   3. Forgetting word-alignment padding in the RIFF chunk scanner —
+//   3. Forgetting word-alignment padding in the RIFF chunk scanner -
 //      chunks with odd byte counts have a silent pad byte after the data.
 // ============================================================
 #include "AudioManager.h"
 #include "WavLoader.h"
 #include "MediaLoader.h"
 #include "../Events/EventManager.h"
+#include "../Battle/BattleEvents.h"
 #include "../Utils/Log.h"
 #include <fstream>
 #include <sstream>
@@ -51,9 +52,9 @@ bool AudioManager::Initialize()
     // COM is required by XAudio2's internal CoCreateInstance call.
     // Track whether WE initialised it so Shutdown() can pair the call.
     const HRESULT hrCom = CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-    // S_OK          — COM initialised by us.
-    // S_FALSE       — COM already initialised with the same model; refcount bumped.
-    // RPC_E_CHANGED_MODE — already initialised with a different apartment model (e.g.,
+    // S_OK          - COM initialised by us.
+    // S_FALSE       - COM already initialised with the same model; refcount bumped.
+    // RPC_E_CHANGED_MODE - already initialised with a different apartment model (e.g.,
     //                      single-threaded from WinMain).  Still usable; just don't
     //                      uninitialise on our side.
     mCoInitialized = SUCCEEDED(hrCom);
@@ -82,7 +83,7 @@ bool AudioManager::Initialize()
     LoadBgmConfig("data/audio/bgm.json");
 
     // Subscribe to BGM control events.
-    // Lambdas capture 'this' — safe because AudioManager is a singleton that
+    // Lambdas capture 'this' - safe because AudioManager is a singleton that
     // outlives all states.  Subscriptions are removed in Shutdown().
     mListenerPlayOverworld = EventManager::Get().Subscribe("bgm_play_overworld",
         [this](const EventData&) { PlayBGM("overworld"); });
@@ -117,12 +118,16 @@ bool AudioManager::Initialize()
                 mSfx.PlaySfx(static_cast<const char*>(e.payload));
         });
 
-    // Hit feedback: every damage broadcast plays the first-strike sting.
-    // No payload inspection -- the same SFX fires for any hit kind.
-    // Wiring the listener inside AudioManager keeps Combatant.cpp ignorant
-    // of the audio subsystem.
+    // Hit feedback: damage events route to impact groups from sfx.json.
+    // Critical hits get their own accent while normal hits use the physical
+    // impact bank copied from assets/Hits into the runtime sound tree.
     mListenerDamageTaken = EventManager::Get().Subscribe("battler_damage_taken",
-        [this](const EventData&) { mSfx.PlaySfx("battle_first_strike"); });
+        [this](const EventData& e) {
+            const auto* payload = static_cast<const DamageTakenPayload*>(e.payload);
+            mSfx.PlaySfx(payload && payload->isCrit
+                ? "battle_hit_critical"
+                : "battle_hit_physical");
+        });
 
     mInitialized = true;
     LOG("[AudioManager] Initialized. %zu BGM track(s) loaded.", mTracks.size());
@@ -137,7 +142,7 @@ void AudioManager::Shutdown()
 {
     if (!mInitialized) return;
 
-    // Remove event subscriptions FIRST — prevents events fired during shutdown
+    // Remove event subscriptions FIRST - prevents events fired during shutdown
     // (e.g., from state destructors) from calling into a partially torn-down manager.
     EventManager::Get().Unsubscribe("bgm_play_overworld",  mListenerPlayOverworld);
     EventManager::Get().Unsubscribe("bgm_play_battle",     mListenerPlayBattle);
@@ -153,8 +158,8 @@ void AudioManager::Shutdown()
     mSfx.Shutdown();
 
     // Stop and destroy all source voices.
-    // Source voices MUST be destroyed before the mastering voice and the engine —
-    // the engine graph flows from source → master → device; tearing it down in
+    // Source voices MUST be destroyed before the mastering voice and the engine -
+    // the engine graph flows from source -> master -> device; tearing it down in
     // reverse order prevents a data-race on the XAudio2 render thread.
     for (auto& [id, track] : mTracks)
     {
@@ -176,7 +181,7 @@ void AudioManager::Shutdown()
         mMasterVoice = nullptr;
     }
 
-    // ComPtr destructor calls IXAudio2::Release() — the engine is freed here.
+    // ComPtr destructor calls IXAudio2::Release() - the engine is freed here.
     mXAudio2.Reset();
 
     // Only uninitialise COM if we were the ones who initialised it.
@@ -191,7 +196,7 @@ void AudioManager::Shutdown()
 }
 
 // ============================================================
-// LoadBgmConfig — parse data/audio/bgm.json
+// LoadBgmConfig - parse data/audio/bgm.json
 // ============================================================
 
 void AudioManager::LoadBgmConfig(const std::string& configPath)
@@ -250,7 +255,7 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
     TrackData track;
 
     // Choose loader by file extension.  .wav files use the lightweight
-    // hand-rolled RIFF parser; everything else (mp3, wma, aac, flac, …)
+    // hand-rolled RIFF parser; everything else (mp3, wma, aac, flac, ...)
     // goes through Windows Media Foundation which auto-selects the OS
     // codec and decodes to 16-bit PCM.
     bool loaded = false;
@@ -272,7 +277,7 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
     }
 
     // Create the source voice with the WAV's format descriptor.
-    // The voice is created once and reused across all play/stop cycles —
+    // The voice is created once and reused across all play/stop cycles -
     // voice creation is expensive; reuse avoids per-play allocation overhead.
     const HRESULT hr = mXAudio2->CreateSourceVoice(
         &track.voice,
@@ -370,7 +375,7 @@ void AudioManager::StopBGM()
 }
 
 // ============================================================
-// SFX façade -- delegates to mSfx, but guards against use before
+// SFX facade -- delegates to mSfx, but guards against use before
 // Initialize() so callers do not need to test IsInitialized() first.
 // ============================================================
 

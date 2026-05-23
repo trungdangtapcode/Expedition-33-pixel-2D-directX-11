@@ -13,6 +13,18 @@
 #include <cmath>
 #include <algorithm>
 
+namespace
+{
+    void BroadcastSfx(const std::string& groupId)
+    {
+        if (groupId.empty()) return;
+
+        EventData sfxEvent;
+        sfxEvent.payload = const_cast<char*>(groupId.c_str());
+        EventManager::Get().Broadcast("sfx_play", sfxEvent);
+    }
+}
+
 QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
                                          CombatantAnim animType,
                                          float qteStartMoment,
@@ -52,7 +64,8 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
     
     mNodes.resize(count);
     
-    // Nodes now have an explicit duration. We will pull this from your JSON config via qteSpacing.
+    // Node timing comes from skill JSON so designers can tighten or relax
+    // the rhythm without changing action code.
     float duration = qteSpacing; 
     
     // We must ensure the node completes completely before mDamageMoment fires.
@@ -97,11 +110,40 @@ void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
     qteState.fadeInRatio = mFadeInRatio;
     qteState.fadeOutDuration = mFadeOutDuration;
     
+    PlayQteResultSfx(result);
+
     EventData qteEvent;
     qteEvent.payload = &qteState;
     EventManager::Get().Broadcast("battler_qte_update", qteEvent);
 }
 
+void QteAnimDamageAction::PlayQteStartSfx() const
+{
+    const JsonLoader::BattleSystemConfig fallbackConfig;
+    const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+    BroadcastSfx(config.qteStartSfxId);
+}
+
+void QteAnimDamageAction::PlayQteResultSfx(QTEResult result) const
+{
+    const JsonLoader::BattleSystemConfig fallbackConfig;
+    const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+
+    switch (result)
+    {
+    case QTEResult::Perfect:
+        BroadcastSfx(config.qtePerfectSfxId);
+        break;
+    case QTEResult::Good:
+        BroadcastSfx(config.qteGoodSfxId);
+        break;
+    case QTEResult::Miss:
+        BroadcastSfx(config.qteMissSfxId);
+        break;
+    default:
+        break;
+    }
+}
 
 bool QteAnimDamageAction::Execute(float /*dt*/)
 {
@@ -126,6 +168,7 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
         mQteActive = true;
         // Slow motion scale matches the config exactly. Unaffected by the amount of concurrent nodes!
         TimeSystem::Get().SetSlowMotion(mSlowMoScale);
+        PlayQteStartSfx();
     }
 
     if (mQteActive && !mActionResolved)

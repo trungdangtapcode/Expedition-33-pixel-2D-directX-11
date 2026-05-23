@@ -193,8 +193,9 @@ already use `EventManager`.
 | Trigger | SFX Group | File |
 |---|---|---|
 | Battle encounter start | `battle_start` | `BattleState.cpp` |
-| Damage dealt (normal hit) | `battle_hit_physical` | `AudioManager.cpp` (event subscriber) |
-| Damage dealt (critical hit) | `battle_hit_critical` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (mix-presence layer) | `battle_first_strike` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (normal texture layer) | `battle_hit_physical` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (critical texture layer) | `battle_hit_critical` | `AudioManager.cpp` (event subscriber) |
 
 ### QTE Events
 
@@ -228,6 +229,7 @@ The runtime catalog now exposes more impact banks copied from `assets/Hits`:
 
 | SFX Group | Runtime files | Intended use |
 |---|---|---|
+| `battle_first_strike` | `assets/sound/SFX/Battle/first_strike_01..03.wav` | Main audible hit layer |
 | `battle_hit_physical` | `assets/sound/SFX/Hits/Sword/sword_medium_01..08.wav` | Standard weapon hits |
 | `battle_hit_magic` | `assets/sound/SFX/Hits/Magic/magic_generic_01..04.wav` | Future magical attacks |
 | `battle_hit_blunt` | `assets/sound/SFX/Hits/Blunt/hammer_medium_01..06.wav` | Future hammer or impact attacks |

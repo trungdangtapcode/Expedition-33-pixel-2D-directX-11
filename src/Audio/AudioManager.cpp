@@ -118,12 +118,14 @@ bool AudioManager::Initialize()
                 mSfx.PlaySfx(static_cast<const char*>(e.payload));
         });
 
-    // Hit feedback: damage events route to impact groups from sfx.json.
-    // Critical hits get their own accent while normal hits use the physical
-    // impact bank copied from assets/Hits into the runtime sound tree.
+    // Hit feedback is layered so attacks keep the readable old impact
+    // sting while the newer short hit banks add moment-to-moment variety.
+    // The old sting carries mix presence; the copied assets/Hits variants
+    // carry texture and can be tuned or replaced in sfx.json.
     mListenerDamageTaken = EventManager::Get().Subscribe("battler_damage_taken",
         [this](const EventData& e) {
             const auto* payload = static_cast<const DamageTakenPayload*>(e.payload);
+            mSfx.PlaySfx("battle_first_strike");
             mSfx.PlaySfx(payload && payload->isCrit
                 ? "battle_hit_critical"
                 : "battle_hit_physical");

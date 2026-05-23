@@ -23,6 +23,7 @@
 // Owned resources:
 //   IXAudio2               - XAudio2 engine (ComPtr, auto-released on Reset())
 //   IXAudio2MasteringVoice - master output voice (raw ptr, DestroyVoice() in Shutdown())
+//   IXAudio2SubmixVoice    - BGM and future voice buses (raw ptr, DestroyVoice())
 //   IXAudio2SourceVoice    - one per BGM track  (raw ptr, DestroyVoice() in Shutdown())
 //   std::vector<BYTE>      - PCM buffer per track (must outlive the voice)
 //
@@ -92,8 +93,12 @@ public:
     // Both routes funnel through SfxPlayer::PlaySfx.
     // ------------------------------------------------------------
     void  PlaySfx(const std::string& groupId, float volumeMul = 1.0f);
+    void  SetBgmMasterVolume(float v);
+    float GetBgmMasterVolume() const { return mBgmMasterVolume; }
     void  SetSfxMasterVolume(float v);
     float GetSfxMasterVolume() const;
+    void  SetVoiceMasterVolume(float v);
+    float GetVoiceMasterVolume() const { return mVoiceMasterVolume; }
 
 private:
     AudioManager()  = default;
@@ -140,6 +145,9 @@ private:
     // Returns true on success; logs a warning and returns false on failure.
     bool LoadTrack(const std::string& id, const std::string& path);
 
+    bool CreateSubmixBus(IXAudio2SubmixVoice** outVoice, const char* label);
+    void DestroyVoiceBus(IXAudio2SubmixVoice*& voice);
+
     // ---------------------------------------------------------------
     // Members.
     // ---------------------------------------------------------------
@@ -152,6 +160,14 @@ private:
     // Master voice mixes all source voices down to the audio device.
     // Must be destroyed AFTER all source voices and BEFORE mXAudio2.Reset().
     IXAudio2MasteringVoice* mMasterVoice = nullptr;
+
+    // BGM bus receives every looping music source voice before the master.
+    // This keeps music volume independent from SFX and future voice audio.
+    IXAudio2SubmixVoice* mBgmSubmix = nullptr;
+
+    // Voice bus is created before the voice feature exists so future
+    // cutscene/dialogue playback can route through the saved user setting.
+    IXAudio2SubmixVoice* mVoiceSubmix = nullptr;
 
     // Keyed by track id string ("overworld", "battle", ...).
     std::unordered_map<std::string, TrackData> mTracks;
@@ -180,6 +196,9 @@ private:
     int mListenerDamageTaken = -1;   // -> battle_hit_physical / battle_hit_critical
 
     bool mInitialized   = false;
+
+    float mBgmMasterVolume = 1.0f;
+    float mVoiceMasterVolume = 1.0f;
 
     // True only if THIS call to Initialize() succeeded in CoInitializeEx.
     // We must not CoUninitialize() COM that another subsystem initialised.

@@ -82,12 +82,15 @@ SfxGroup
 
 All SFX source voices route through a single **SFX submix voice** before
 reaching the mastering voice. This lets `SetSfxMasterVolume(float)` control
-all SFX with one call, independent of BGM volume.
+all SFX with one call, independent of BGM and future voice volume.
+
+`masterSfxVolume` in `sfx.json` is the authored baseline for the SFX bus.
+The user setting from `save/settings.json` multiplies that baseline at runtime.
 
 ```
 Source voices --> SFX Submix Voice --> Mastering Voice --> Speakers
                                   ^
-                   SetSfxMasterVolume() applies here
+                   authored baseline * user SFX volume
 ```
 
 ### Audio Format Support
@@ -127,7 +130,7 @@ Both loaders output the same `{WAVEFORMATEX, vector<BYTE>}` pair.
 |---|---|---|
 | `stereoVoiceCount` | int | Preallocated stereo voice pool size |
 | `monoVoiceCount` | int | Preallocated mono voice pool size |
-| `masterSfxVolume` | float | Global SFX volume multiplier (0..1) |
+| `masterSfxVolume` | float | Authored SFX bus baseline (0..1), multiplied by user SFX volume |
 | `groups[].id` | string | Group key used by `PlaySfx("id")` |
 | `groups[].volume` | float | Per-group volume (0..1) |
 | `groups[].paths` | string[] | WAV file paths (all must share format) |

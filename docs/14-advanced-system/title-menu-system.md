@@ -39,6 +39,7 @@ black before `StateManager::ChangeState()` swaps into the overworld.
 
 - `PressStart`
 - `MainOptions`
+- `Options`
 - `NewGameSlots`
 - `LoadSlots`
 
@@ -50,6 +51,7 @@ Main options:
 - `New Game`
 - `Continue`
 - `Load Slot`
+- `Options`
 - `Quit`
 
 `Continue` and `Load Slot` are disabled until at least one save slot exists.
@@ -62,6 +64,10 @@ title screen instead of being forced into Slot 1.
 
 `Load Slot` opens a slot picker using `SaveSlotInfo` converted into renderer
 view data. Empty slots stay visible and play the unavailable SFX if confirmed.
+
+`Options` opens a dedicated lower panel for language and audio preferences.
+Audio rows adjust BGM, SFX, and future Voice volume in 10 percent steps and
+save immediately to `save/settings.json`.
 
 When `New Game`, `Continue`, or an occupied `Load Slot` succeeds, `MenuState`
 starts a pending gameplay transition instead of changing state immediately.
@@ -103,6 +109,7 @@ The file controls:
 - Title BGM track id.
 - Press-start prompt placement and blink speed.
 - Centered command-list placement.
+- Options panel and volume-meter dimensions.
 - Slot-list dimensions.
 - Logo pulse alpha.
 - Ambient particle alpha.
@@ -141,6 +148,8 @@ The title menu does not hardcode audio file paths. The split is:
 - `TitleMenuRenderer` loads that track id as layout data.
 - `MenuState` broadcasts the generic `bgm_play` event using the loaded id.
 - `AudioManager` remains the only system that loads and plays BGM files.
+- Audio volume preferences are read from `SettingsManager` and applied through
+  `AudioManager` bus volume APIs.
 
 ## Visual Direction
 
@@ -165,6 +174,7 @@ Current controls:
 - `Up` / `Down`: move the cursor.
 - `Enter`: confirm.
 - `Backspace`: return from the slot picker to the main list.
+- `Left` / `Right`: change language or selected audio volume in Options.
 - `Quit`: closes the game from the menu option.
 
 The global `Escape` handling in `GameApp` still exits the process.

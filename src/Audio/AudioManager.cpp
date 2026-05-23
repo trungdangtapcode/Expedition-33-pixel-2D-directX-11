@@ -28,10 +28,21 @@
 #include "MediaLoader.h"
 #include "../Events/EventManager.h"
 #include "../Battle/BattleEvents.h"
+#include "../Systems/SettingsManager.h"
 #include "../Utils/Log.h"
 #include <fstream>
 #include <sstream>
 #include <cstring>
+
+namespace
+{
+    float ClampVolume(float value)
+    {
+        if (value < 0.0f) return 0.0f;
+        if (value > 1.0f) return 1.0f;
+        return value;
+    }
+}
 
 // ============================================================
 // Singleton
@@ -78,6 +89,21 @@ bool AudioManager::Initialize()
         return false;
     }
 
+    if (!CreateSubmixBus(&mBgmSubmix, "BGM"))
+    {
+        Shutdown();
+        return false;
+    }
+
+    if (!CreateSubmixBus(&mVoiceSubmix, "Voice"))
+    {
+        Shutdown();
+        return false;
+    }
+
+    SetBgmMasterVolume(SettingsManager::Get().GetBgmVolume());
+    SetVoiceMasterVolume(SettingsManager::Get().GetVoiceVolume());
+
     // Preload all BGM tracks from the config file.
     // Voices are created once here and reused for every stop/play cycle.
     LoadBgmConfig("data/audio/bgm.json");
@@ -108,6 +134,7 @@ bool AudioManager::Initialize()
     // Failure here is non-fatal -- BGM still works and PlaySfx() becomes
     // a no-op until the cause is fixed.
     mSfx.Initialize(mXAudio2.Get(), mMasterVoice, "data/audio/sfx.json");
+    SetSfxMasterVolume(SettingsManager::Get().GetSfxVolume());
 
     // SFX event bus.  Payload is treated as const char* (a string literal
     // by convention; the cast is unsafe with non-static lifetimes -- see
@@ -142,16 +169,48 @@ bool AudioManager::Initialize()
 
 void AudioManager::Shutdown()
 {
-    if (!mInitialized) return;
+    if (!mInitialized &&
+        !mMasterVoice &&
+        !mBgmSubmix &&
+        !mVoiceSubmix &&
+        !mXAudio2.Get() &&
+        !mCoInitialized)
+    {
+        return;
+    }
 
     // Remove event subscriptions FIRST - prevents events fired during shutdown
     // (e.g., from state destructors) from calling into a partially torn-down manager.
-    EventManager::Get().Unsubscribe("bgm_play_overworld",  mListenerPlayOverworld);
-    EventManager::Get().Unsubscribe("bgm_play_battle",     mListenerPlayBattle);
-    EventManager::Get().Unsubscribe("bgm_stop",            mListenerStop);
-    EventManager::Get().Unsubscribe("bgm_play",            mListenerBgmPlay);
-    EventManager::Get().Unsubscribe("sfx_play",            mListenerSfxPlay);
-    EventManager::Get().Unsubscribe("battler_damage_taken", mListenerDamageTaken);
+    if (mListenerPlayOverworld >= 0)
+    {
+        EventManager::Get().Unsubscribe("bgm_play_overworld", mListenerPlayOverworld);
+        mListenerPlayOverworld = -1;
+    }
+    if (mListenerPlayBattle >= 0)
+    {
+        EventManager::Get().Unsubscribe("bgm_play_battle", mListenerPlayBattle);
+        mListenerPlayBattle = -1;
+    }
+    if (mListenerStop >= 0)
+    {
+        EventManager::Get().Unsubscribe("bgm_stop", mListenerStop);
+        mListenerStop = -1;
+    }
+    if (mListenerBgmPlay >= 0)
+    {
+        EventManager::Get().Unsubscribe("bgm_play", mListenerBgmPlay);
+        mListenerBgmPlay = -1;
+    }
+    if (mListenerSfxPlay >= 0)
+    {
+        EventManager::Get().Unsubscribe("sfx_play", mListenerSfxPlay);
+        mListenerSfxPlay = -1;
+    }
+    if (mListenerDamageTaken >= 0)
+    {
+        EventManager::Get().Unsubscribe("battler_damage_taken", mListenerDamageTaken);
+        mListenerDamageTaken = -1;
+    }
 
     // Tear down the SFX subsystem before BGM voices so the engine graph
     // unwinds top-down: SFX source voices -> SFX submix -> BGM source
@@ -175,6 +234,9 @@ void AudioManager::Shutdown()
     }
     mTracks.clear();
     mCurrentTrackId.clear();
+
+    DestroyVoiceBus(mVoiceSubmix);
+    DestroyVoiceBus(mBgmSubmix);
 
     // Mastering voice must be destroyed before IXAudio2 is released.
     if (mMasterVoice)
@@ -278,7 +340,20 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
         return false;
     }
 
-    // Create the source voice with the WAV's format descriptor.
+    // Create the source voice with the decoded format descriptor.
+    // BGM voices route through the BGM submix so one settings value can
+    // control every looping track without touching SFX or future voice audio.
+    XAUDIO2_SEND_DESCRIPTOR sendDesc = {};
+    XAUDIO2_VOICE_SENDS sends = {};
+    XAUDIO2_VOICE_SENDS* sendsPtr = nullptr;
+    if (mBgmSubmix)
+    {
+        sendDesc.pOutputVoice = mBgmSubmix;
+        sends.SendCount = 1;
+        sends.pSends = &sendDesc;
+        sendsPtr = &sends;
+    }
+
     // The voice is created once and reused across all play/stop cycles -
     // voice creation is expensive; reuse avoids per-play allocation overhead.
     const HRESULT hr = mXAudio2->CreateSourceVoice(
@@ -287,7 +362,7 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
         0,                          // flags
         XAUDIO2_DEFAULT_FREQ_RATIO, // max pitch ratio (2.0 = one octave up)
         nullptr,                    // callback (none needed for BGM)
-        nullptr,                    // send list (routes to master by default)
+        sendsPtr,                   // send list (BGM bus when available)
         nullptr                     // effect chain (none)
     );
 
@@ -303,6 +378,42 @@ bool AudioManager::LoadTrack(const std::string& id, const std::string& path)
     LOG("[AudioManager] Loaded BGM track '%s' (%zu bytes PCM).",
         id.c_str(), mTracks[id].pcmData.size());
     return true;
+}
+
+bool AudioManager::CreateSubmixBus(IXAudio2SubmixVoice** outVoice, const char* label)
+{
+    if (!outVoice || !mXAudio2.Get() || !mMasterVoice) return false;
+
+    XAUDIO2_VOICE_DETAILS masterDetails = {};
+    mMasterVoice->GetVoiceDetails(&masterDetails);
+
+    const HRESULT hr = mXAudio2->CreateSubmixVoice(
+        outVoice,
+        masterDetails.InputChannels,
+        masterDetails.InputSampleRate,
+        0,
+        0,
+        nullptr,
+        nullptr);
+
+    if (FAILED(hr))
+    {
+        LOG("[AudioManager] CreateSubmixVoice failed for %s bus (0x%08X).",
+            label ? label : "unknown", hr);
+        *outVoice = nullptr;
+        return false;
+    }
+
+    LOG("[AudioManager] Created %s audio bus.", label ? label : "unknown");
+    return true;
+}
+
+void AudioManager::DestroyVoiceBus(IXAudio2SubmixVoice*& voice)
+{
+    if (!voice) return;
+
+    voice->DestroyVoice();
+    voice = nullptr;
 }
 
 // ============================================================
@@ -387,6 +498,19 @@ void AudioManager::PlaySfx(const std::string& groupId, float volumeMul)
     mSfx.PlaySfx(groupId, volumeMul);
 }
 
+void AudioManager::SetBgmMasterVolume(float v)
+{
+    mBgmMasterVolume = ClampVolume(v);
+    if (mBgmSubmix)
+    {
+        const HRESULT hr = mBgmSubmix->SetVolume(mBgmMasterVolume);
+        if (FAILED(hr))
+        {
+            LOG("[AudioManager] Failed to set BGM volume (0x%08X).", hr);
+        }
+    }
+}
+
 void AudioManager::SetSfxMasterVolume(float v)
 {
     mSfx.SetMasterVolume(v);
@@ -395,4 +519,17 @@ void AudioManager::SetSfxMasterVolume(float v)
 float AudioManager::GetSfxMasterVolume() const
 {
     return mSfx.GetMasterVolume();
+}
+
+void AudioManager::SetVoiceMasterVolume(float v)
+{
+    mVoiceMasterVolume = ClampVolume(v);
+    if (mVoiceSubmix)
+    {
+        const HRESULT hr = mVoiceSubmix->SetVolume(mVoiceMasterVolume);
+        if (FAILED(hr))
+        {
+            LOG("[AudioManager] Failed to set Voice volume (0x%08X).", hr);
+        }
+    }
 }

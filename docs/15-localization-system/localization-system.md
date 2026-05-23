@@ -20,7 +20,8 @@ The first version stores:
 {
   "language": "en_us",
   "bgmVolume": 1.0,
-  "sfxVolume": 1.0
+  "sfxVolume": 1.0,
+  "voiceVolume": 1.0
 }
 ```
 
@@ -96,11 +97,18 @@ regions.
 The title menu has an `Options` entry. Version 1 contains:
 
 - `Language`
+- `BGM Volume`
+- `SFX Volume`
+- `Voice Volume`
 - `Back`
 
 Changing the language cycles through `languages.json`, saves
 `save/settings.json` immediately, and reloads the title font so the current
 screen updates without a restart.
+
+Changing an audio row also saves `save/settings.json` immediately. The display
+labels and flash messages use localization keys, while the numeric values stay
+as percentages.
 
 ## Migrating Content
 

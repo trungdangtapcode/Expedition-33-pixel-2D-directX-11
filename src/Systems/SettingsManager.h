@@ -3,8 +3,7 @@
 // Responsibility: Persist global player preferences outside save slots.
 //
 // Owns:
-//   Language id and future audio preference values loaded from
-//   save/settings.json.
+//   Language id and audio preference values loaded from save/settings.json.
 //
 // Lifetime:
 //   Created as a Meyers singleton on first access.
@@ -32,6 +31,11 @@ public:
 
     float GetBgmVolume() const { return mBgmVolume; }
     float GetSfxVolume() const { return mSfxVolume; }
+    float GetVoiceVolume() const { return mVoiceVolume; }
+
+    void SetBgmVolume(float volume);
+    void SetSfxVolume(float volume);
+    void SetVoiceVolume(float volume);
 
 private:
     SettingsManager() = default;
@@ -43,5 +47,6 @@ private:
     std::string mLanguageId = "en_us";
     float mBgmVolume = 1.0f;
     float mSfxVolume = 1.0f;
+    float mVoiceVolume = 1.0f;
     bool mInitialized = false;
 };

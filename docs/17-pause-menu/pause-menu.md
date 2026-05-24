@@ -59,12 +59,17 @@ SFX use existing groups from `data/audio/sfx.json`: `ui_navigate`,
 
 ## Input Rules
 
-- `ESC` in overworld opens the pause menu.
+- `ESC` in overworld opens the pause menu through `InputManager::IsKeyPressed`.
 - `ESC` or `Backspace` in the pause main menu resumes gameplay.
 - Up/down or W/S moves the main cursor.
 - Enter or Space activates the selected row.
 - Left/right/up/down or WASD toggles the confirmation choice.
 - `ESC` or `Backspace` on a confirmation prompt returns to the pause main menu.
+
+The pause state starts with its back input disarmed and only re-arms it after
+`ESC` and `Backspace` are both released. This prevents the opening key press
+from being read as an immediate close request on the next frame if the player
+holds the key briefly.
 
 Other states keep their existing local ESC behavior. Battle target menus,
 battle result prompts, campfire, inventory, lineup, and title menu are not

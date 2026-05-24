@@ -182,9 +182,6 @@ private:
     // not while held.
     bool mIWasDown = false;
 
-    // One-press Escape tracking - opens PauseState only from idle overworld.
-    bool mEscWasDown = false;
-
     // One-press L key tracking - opens the LineupState overlay only at campfires.
     bool mLWasDown = false;
 

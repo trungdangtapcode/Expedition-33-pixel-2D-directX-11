@@ -56,6 +56,7 @@
 #include "../Systems/SaveManager.h"
 #include "../Systems/Wallet.h"
 #include "../Core/TimeSystem.h"
+#include "../Core/InputManager.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
@@ -930,10 +931,8 @@ void OverworldState::Update(float dt)
         return;
     }
 
-    const bool escDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
-    const bool escPressed = escDown && !mEscWasDown;
-    mEscWasDown = escDown;
-    if (escPressed && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
+    if (InputManager::Get().IsKeyPressed(VK_ESCAPE) &&
+        mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
         StateManager::Get().PushState(std::make_unique<PauseState>());
         return;

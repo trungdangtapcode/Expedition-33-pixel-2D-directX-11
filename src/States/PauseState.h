@@ -53,6 +53,7 @@ private:
     void CancelConfirmOrResume();
     void BeginExit(Phase exitPhase);
     void CompleteExitIfReady(float uiDt);
+    bool ConsumeOpeningBackKeys();
     PauseMenuRenderState BuildRenderState() const;
     std::vector<PauseMenuOptionView> BuildOptionViews() const;
     static std::string MainOptionLabel(MainOption option);
@@ -65,5 +66,6 @@ private:
     int mConfirmCursor = 1;
     float mElapsed = 0.0f;
     float mFadeTimer = 0.0f;
+    bool mBackInputArmed = false;
     int mResizeListenerId = -1;
 };

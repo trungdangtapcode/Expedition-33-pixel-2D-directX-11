@@ -65,6 +65,7 @@ void PauseState::OnEnter()
     mConfirmCursor = 1;
     mElapsed = 0.0f;
     mFadeTimer = 0.0f;
+    mBackInputArmed = false;
 
     LOG("[PauseState] Pause menu opened.");
 }
@@ -94,6 +95,10 @@ void PauseState::Update(float)
     }
 
     const InputManager& input = InputManager::Get();
+    const bool backPressed = ConsumeOpeningBackKeys()
+        ? false
+        : BackPressed(input);
+
     if (mPhase == Phase::Main)
     {
         if (input.IsKeyPressed(VK_UP) || input.IsKeyPressed('W'))
@@ -108,7 +113,7 @@ void PauseState::Update(float)
         {
             ActivateMainSelection();
         }
-        else if (BackPressed(input))
+        else if (backPressed)
         {
             AudioManager::Get().PlaySfx(mRenderer.GetBackSfxId());
             StateManager::Get().PopState();
@@ -131,7 +136,7 @@ void PauseState::Update(float)
     {
         ActivateConfirmSelection();
     }
-    else if (BackPressed(input))
+    else if (backPressed)
     {
         CancelConfirmOrResume();
     }
@@ -233,6 +238,19 @@ void PauseState::CompleteExitIfReady(float uiDt)
         TimeSystem::Get().SetGameplayPaused(false);
         PostQuitMessage(0);
     }
+}
+
+bool PauseState::ConsumeOpeningBackKeys()
+{
+    if (mBackInputArmed) return false;
+
+    const InputManager& input = InputManager::Get();
+    if (!input.IsKeyDown(VK_ESCAPE) && !input.IsKeyDown(VK_BACK))
+    {
+        mBackInputArmed = true;
+    }
+
+    return true;
 }
 
 PauseMenuRenderState PauseState::BuildRenderState() const

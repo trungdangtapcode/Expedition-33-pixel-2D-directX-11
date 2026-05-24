@@ -962,18 +962,24 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
                 ? reason
                 : info.checkpointId;
 
-            char secondary[192]{};
             if (info.hasPlayerPosition)
             {
-                std::snprintf(secondary, sizeof(secondary), "%.0f, %.0f",
-                              info.playerX, info.playerY);
+                char xText[32]{};
+                char yText[32]{};
+                char positionText[64]{};
+                std::snprintf(xText, sizeof(xText), "%.0f", info.playerX);
+                std::snprintf(yText, sizeof(yText), "%.0f", info.playerY);
+                std::snprintf(positionText, sizeof(positionText), "%s, %s", xText, yText);
                 view.secondary = LocalizationManager::Get().Format(
                     "menu.slot_secondary_with_position",
                     {
+                        { "party", lead },
+                        { "x", xText },
+                        { "y", yText },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint },
-                        { "position", secondary }
+                        { "position", positionText }
                     });
             }
             else
@@ -981,6 +987,7 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
                 view.secondary = LocalizationManager::Get().Format(
                     "menu.slot_secondary",
                     {
+                        { "party", lead },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint }

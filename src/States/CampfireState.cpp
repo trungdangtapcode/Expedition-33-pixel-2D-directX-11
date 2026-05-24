@@ -465,16 +465,24 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
                 : LocalizationManager::Get().TextOrFallback("party.member." + info.leadMemberId, info.leadMemberId);
             if (info.hasPlayerPosition)
             {
-                char position[64]{};
-                std::snprintf(position, sizeof(position), "%.0f, %.0f", info.playerX, info.playerY);
+                char xText[32]{};
+                char yText[32]{};
+                char positionText[64]{};
+                std::snprintf(xText, sizeof(xText), "%.0f", info.playerX);
+                std::snprintf(yText, sizeof(yText), "%.0f", info.playerY);
+                std::snprintf(positionText, sizeof(positionText), "%s, %s", xText, yText);
                 const std::string text = LocalizationManager::Get().Format(
                     "campfire.slot_with_position",
                     {
                         { "index", std::to_string(i + 1) },
+                        { "label", lead },
+                        { "party", lead },
+                        { "x", xText },
+                        { "y", yText },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint },
-                        { "position", position }
+                        { "position", positionText }
                     });
                 std::snprintf(label, sizeof(label), "%s", text.c_str());
             }
@@ -484,6 +492,8 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
                     "campfire.slot",
                     {
                         { "index", std::to_string(i + 1) },
+                        { "label", lead },
+                        { "party", lead },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint }

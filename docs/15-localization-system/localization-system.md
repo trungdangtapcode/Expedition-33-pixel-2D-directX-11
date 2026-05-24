@@ -75,6 +75,14 @@ LocalizationManager::Get().Format("battle.log.attack", {
 });
 ```
 
+Callers must pass the exact token names used by the localized string. For save
+slot summaries, the title menu provides `party`, `x`, and `y` because the
+current strings are shaped as `"{party} - X {x}, Y {y}"`. Campfire slot rows
+also provide `label`, `party`, `x`, and `y`. Older tokens such as `lead`,
+`level`, `checkpoint`, and `position` are still supplied by those callers so
+copy changes can use either compact or detailed wording without leaving raw
+placeholders on screen.
+
 ## Debug And CLI Output
 
 Player-facing UI uses the active language. Debug and CLI output do not.

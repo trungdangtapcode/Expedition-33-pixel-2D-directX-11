@@ -3,7 +3,8 @@
 // Responsibility: Render the screen-space overworld pause overlay.
 //
 // Owns:
-//   A 1x1 fill texture, SpriteBatch, CommonStates, and BattleTextRenderer.
+//   A 1x1 fill texture, SpriteBatch, CommonStates, BattleTextRenderer,
+//   and an optional NineSliceRenderer for the pause panel artwork.
 //
 // Lifetime:
 //   Created in  -> PauseState::OnEnter().
@@ -42,9 +43,13 @@ struct PauseMenuRenderState
     float fadeAlpha = 0.0f;
 };
 
+class NineSliceRenderer;
+
 class PauseMenuRenderer
 {
 public:
+    ~PauseMenuRenderer();
+
     bool Initialize(ID3D11Device* device,
                     ID3D11DeviceContext* context,
                     const std::string& layoutPath,
@@ -64,6 +69,8 @@ private:
     struct Layout
     {
         std::string fontPath = "assets/fonts/arial_16.spritefont";
+        std::string panelTexturePath = "assets/UI/pause_menu_panel.png";
+        std::string panelJsonPath = "assets/UI/pause_menu_panel.json";
         std::string navigateSfxId = "ui_navigate";
         std::string confirmSfxId = "ui_confirm";
         std::string backSfxId = "ui_back";
@@ -72,7 +79,8 @@ private:
         float panelWidth = 560.0f;
         float panelHeight = 330.0f;
         float panelCenterY = 388.0f;
-        float panelAlpha = 0.62f;
+        float panelAlpha = 0.90f;
+        float panelSliceScale = 1.0f;
         float borderAlpha = 0.78f;
         float borderThickness = 2.0f;
         float titleOffsetY = 34.0f;
@@ -84,6 +92,7 @@ private:
         float highlightInset = 48.0f;
         float confirmPanelWidth = 620.0f;
         float confirmPanelHeight = 214.0f;
+        float confirmPanelAlpha = 0.86f;
         float confirmTextOffsetY = 56.0f;
         float confirmOptionOffsetY = 130.0f;
         float confirmOptionGap = 190.0f;
@@ -120,4 +129,6 @@ private:
     std::unique_ptr<DirectX::SpriteBatch> mSpriteBatch;
     std::unique_ptr<DirectX::CommonStates> mStates;
     BattleTextRenderer mTextRenderer;
+    std::unique_ptr<NineSliceRenderer> mPanelRenderer;
+    bool mPanelRendererReady = false;
 };

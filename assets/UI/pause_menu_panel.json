@@ -1,0 +1,16 @@
+{
+  "width": 128,
+  "height": 128,
+  "crop-region": {
+    "left": 0,
+    "top": 0,
+    "right": 128,
+    "bottom": 128
+  },
+  "nine-slice": {
+    "left": 28,
+    "top": 28,
+    "right": 100,
+    "bottom": 100
+  }
+}

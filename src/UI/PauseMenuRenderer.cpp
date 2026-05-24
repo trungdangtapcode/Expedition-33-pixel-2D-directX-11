@@ -15,6 +15,7 @@
 // ============================================================
 #define NOMINMAX
 #include "PauseMenuRenderer.h"
+#include "../Renderer/NineSliceRenderer.h"
 #include "../Systems/LocalizationManager.h"
 #include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
@@ -75,6 +76,11 @@ namespace
     }
 }
 
+PauseMenuRenderer::~PauseMenuRenderer()
+{
+    Shutdown();
+}
+
 bool PauseMenuRenderer::Initialize(ID3D11Device* device,
                                    ID3D11DeviceContext* context,
                                    const std::string& layoutPath,
@@ -99,6 +105,28 @@ bool PauseMenuRenderer::Initialize(ID3D11Device* device,
         return false;
     }
 
+    // The renderer keeps a rectangle fallback, but the data-driven 9-slice
+    // panel is the intended path because it preserves ornate corners while
+    // allowing the same asset to scale to the main and confirmation panels.
+    mPanelRendererReady = false;
+    if (!mLayout.panelTexturePath.empty() && !mLayout.panelJsonPath.empty())
+    {
+        mPanelRenderer = std::make_unique<NineSliceRenderer>();
+        mPanelRendererReady = mPanelRenderer->Initialize(
+            device,
+            context,
+            ToWidePath(mLayout.panelTexturePath),
+            mLayout.panelJsonPath,
+            mScreenW,
+            mScreenH);
+
+        if (!mPanelRendererReady)
+        {
+            LOG("[PauseMenuRenderer] Panel asset failed to load; using rectangle fallback.");
+            mPanelRenderer.reset();
+        }
+    }
+
     LOG("[PauseMenuRenderer] Initialized with '%s'.", layoutPath.c_str());
     return true;
 }
@@ -108,6 +136,10 @@ void PauseMenuRenderer::SetScreenSize(int screenW, int screenH)
     mScreenW = screenW;
     mScreenH = screenH;
     mTextRenderer.SetScreenSize(screenW, screenH);
+    if (mPanelRenderer)
+    {
+        mPanelRenderer->SetScreenSize(screenW, screenH);
+    }
 }
 
 void PauseMenuRenderer::Render(ID3D11DeviceContext* context, const PauseMenuRenderState& state)
@@ -133,6 +165,12 @@ void PauseMenuRenderer::Render(ID3D11DeviceContext* context, const PauseMenuRend
 void PauseMenuRenderer::Shutdown()
 {
     mTextRenderer.Shutdown();
+    if (mPanelRenderer)
+    {
+        mPanelRenderer->Shutdown();
+    }
+    mPanelRenderer.reset();
+    mPanelRendererReady = false;
     mSpriteBatch.reset();
     mStates.reset();
     mFillSRV.Reset();
@@ -150,6 +188,8 @@ bool PauseMenuRenderer::LoadLayout(const std::string& layoutPath)
     JsonLoader::detail::WarnIfUTF16(src, layoutPath);
 
     mLayout.fontPath = ReadJsonString(src, "fontPath", mLayout.fontPath);
+    mLayout.panelTexturePath = ReadJsonString(src, "panelTexturePath", mLayout.panelTexturePath);
+    mLayout.panelJsonPath = ReadJsonString(src, "panelJsonPath", mLayout.panelJsonPath);
     mLayout.navigateSfxId = ReadJsonString(src, "navigateSfxId", mLayout.navigateSfxId);
     mLayout.confirmSfxId = ReadJsonString(src, "confirmSfxId", mLayout.confirmSfxId);
     mLayout.backSfxId = ReadJsonString(src, "backSfxId", mLayout.backSfxId);
@@ -158,6 +198,7 @@ bool PauseMenuRenderer::LoadLayout(const std::string& layoutPath)
     mLayout.panelHeight = ReadJsonFloat(src, "panelHeight", mLayout.panelHeight);
     mLayout.panelCenterY = ReadJsonFloat(src, "panelCenterY", mLayout.panelCenterY);
     mLayout.panelAlpha = Clamp01(ReadJsonFloat(src, "panelAlpha", mLayout.panelAlpha));
+    mLayout.panelSliceScale = std::max(0.1f, ReadJsonFloat(src, "panelSliceScale", mLayout.panelSliceScale));
     mLayout.borderAlpha = Clamp01(ReadJsonFloat(src, "borderAlpha", mLayout.borderAlpha));
     mLayout.borderThickness = ReadJsonFloat(src, "borderThickness", mLayout.borderThickness);
     mLayout.titleOffsetY = ReadJsonFloat(src, "titleOffsetY", mLayout.titleOffsetY);
@@ -169,6 +210,7 @@ bool PauseMenuRenderer::LoadLayout(const std::string& layoutPath)
     mLayout.highlightInset = ReadJsonFloat(src, "highlightInset", mLayout.highlightInset);
     mLayout.confirmPanelWidth = ReadJsonFloat(src, "confirmPanelWidth", mLayout.confirmPanelWidth);
     mLayout.confirmPanelHeight = ReadJsonFloat(src, "confirmPanelHeight", mLayout.confirmPanelHeight);
+    mLayout.confirmPanelAlpha = Clamp01(ReadJsonFloat(src, "confirmPanelAlpha", mLayout.confirmPanelAlpha));
     mLayout.confirmTextOffsetY = ReadJsonFloat(src, "confirmTextOffsetY", mLayout.confirmTextOffsetY);
     mLayout.confirmOptionOffsetY = ReadJsonFloat(src, "confirmOptionOffsetY", mLayout.confirmOptionOffsetY);
     mLayout.confirmOptionGap = ReadJsonFloat(src, "confirmOptionGap", mLayout.confirmOptionGap);
@@ -256,6 +298,20 @@ void PauseMenuRenderer::DrawPanel(ID3D11DeviceContext* context,
                                   float height,
                                   float alpha)
 {
+    if (mPanelRendererReady && mPanelRenderer)
+    {
+        const float tint = Clamp01(alpha);
+        mPanelRenderer->Draw(context,
+                             x,
+                             y,
+                             width,
+                             height,
+                             mLayout.panelSliceScale,
+                             DirectX::XMMatrixIdentity(),
+                             DirectX::XMVectorSet(tint, tint, tint, tint));
+        return;
+    }
+
     const float border = std::max(1.0f, mLayout.borderThickness);
     const DirectX::XMVECTOR panelColor = DirectX::XMVectorSet(0.04f, 0.04f, 0.045f, Clamp01(alpha));
     const DirectX::XMVECTOR borderColor = DirectX::XMVectorSet(0.86f, 0.73f, 0.46f, Clamp01(mLayout.borderAlpha));
@@ -325,7 +381,7 @@ void PauseMenuRenderer::DrawConfirmPanel(ID3D11DeviceContext* context,
     const float panelX = (static_cast<float>(mScreenW) - mLayout.confirmPanelWidth) * 0.5f;
     const float panelY = (static_cast<float>(mScreenH) - mLayout.confirmPanelHeight) * 0.5f;
     const float centerX = static_cast<float>(mScreenW) * 0.5f;
-    DrawPanel(context, panelX, panelY, mLayout.confirmPanelWidth, mLayout.confirmPanelHeight, 0.78f);
+    DrawPanel(context, panelX, panelY, mLayout.confirmPanelWidth, mLayout.confirmPanelHeight, mLayout.confirmPanelAlpha);
 
     const float optionY = panelY + mLayout.confirmOptionOffsetY;
     const float yesX = centerX - mLayout.confirmOptionGap * 0.5f;

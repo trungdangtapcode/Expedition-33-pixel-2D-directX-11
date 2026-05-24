@@ -12,12 +12,17 @@ std::string FleeCommand::GetLabel() const
     return LocalizationManager::Get().Text("battle.command.flee");
 }
 
+std::string FleeCommand::GetDebugLabel() const
+{
+    return LocalizationManager::Get().TextEnglish("battle.command.flee");
+}
+
 void FleeCommand::Execute(BattleState& state) const
 {
     // Audible feedback for the flee action.
     AudioManager::Get().PlaySfx("battle_flee");
 
-    LOG("%s", "[FleeCommand] Player chose to flee — deferring pop to end of Update().");
+    LOG("%s", "[FleeCommand] Player chose to flee; deferring pop to end of Update().");
 
     // DO NOT call StateManager::PopState() here.
     // Execute() is called from inside BattleState::HandleCommandSelect(),

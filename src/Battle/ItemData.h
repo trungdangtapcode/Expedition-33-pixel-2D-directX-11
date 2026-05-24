@@ -120,6 +120,8 @@ struct ItemData
     std::string descriptionKey;// localization key; falls back to description
     std::string name;          // displayed in menu
     std::string description;   // tooltip / flavor text
+    std::string debugName;     // English name for CLI/debug output
+    std::string debugDescription; // English tooltip for CLI/debug output
     std::string iconPath;      // "assets/items/xxx.png" — may not exist yet
 
     // Targeting + effect selection

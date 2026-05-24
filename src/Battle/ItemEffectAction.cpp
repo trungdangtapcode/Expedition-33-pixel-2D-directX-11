@@ -19,6 +19,14 @@
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 
+namespace
+{
+    const std::string& DebugItemName(const ItemData& item)
+    {
+        return item.debugName.empty() ? item.id : item.debugName;
+    }
+}
+
 ItemEffectAction::ItemEffectAction(IBattler* target, ItemData effect)
     : mTarget(target)
     , mEffect(std::move(effect))
@@ -26,7 +34,7 @@ ItemEffectAction::ItemEffectAction(IBattler* target, ItemData effect)
 
 // ------------------------------------------------------------
 // Execute: switch on the effect kind.  Every branch is a handful
-// of lines — no per-kind subclass needed because the behaviors are
+// of lines; no per-kind subclass needed because the behaviors are
 // all simple stat mutations.
 //
 // Returns true unconditionally: items never span multiple frames.
@@ -45,7 +53,7 @@ bool ItemEffectAction::Execute(float /*dt*/)
     {
     case ItemEffectKind::HealHp:
     {
-        // Heal alive targets only — HealHp on a KO'd ally is a bug the
+        // Heal alive targets only. HealHp on a KO'd ally is a bug the
         // player should be told about (Revive has its own effect kind).
         if (!mTarget->IsAlive())
         {
@@ -56,9 +64,9 @@ bool ItemEffectAction::Execute(float /*dt*/)
         s.hp += mEffect.amount;
         s.ClampHp();
         LOG("[Item] %s restores %d HP to %s (%d -> %d).",
-            mEffect.name.c_str(),
+            DebugItemName(mEffect).c_str(),
             s.hp - before,
-            mTarget->GetName().c_str(),
+            mTarget->GetDebugName().c_str(),
             before, s.hp);
         break;
     }
@@ -69,9 +77,9 @@ bool ItemEffectAction::Execute(float /*dt*/)
         s.mp += mEffect.amount;
         if (s.mp > s.maxMp) s.mp = s.maxMp;
         LOG("[Item] %s restores %d MP to %s (%d -> %d).",
-            mEffect.name.c_str(),
+            DebugItemName(mEffect).c_str(),
             s.mp - before,
-            mTarget->GetName().c_str(),
+            mTarget->GetDebugName().c_str(),
             before, s.mp);
         break;
     }
@@ -81,7 +89,7 @@ bool ItemEffectAction::Execute(float /*dt*/)
         s.hp = s.maxHp;
         s.mp = s.maxMp;
         LOG("[Item] %s fully restores %s.",
-            mEffect.name.c_str(), mTarget->GetName().c_str());
+            DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str());
         break;
     }
 
@@ -89,15 +97,15 @@ bool ItemEffectAction::Execute(float /*dt*/)
     {
         if (mTarget->IsAlive())
         {
-            LOG("[Item] '%s' does nothing — %s is already conscious.",
-                mEffect.id.c_str(), mTarget->GetName().c_str());
+            LOG("[Item] '%s' does nothing; %s is already conscious.",
+                mEffect.id.c_str(), mTarget->GetDebugName().c_str());
             break;
         }
         // Start from 0 and add the revive amount so ClampHp handles caps.
         s.hp = mEffect.amount;
         s.ClampHp();
         LOG("[Item] %s revives %s at %d HP.",
-            mEffect.name.c_str(), mTarget->GetName().c_str(), s.hp);
+            DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str(), s.hp);
 
         // Broadcast idle animation through the SAME event interface that
         // Combatant::TakeDamage uses for CombatantAnim::Die.  The renderer
@@ -116,15 +124,15 @@ bool ItemEffectAction::Execute(float /*dt*/)
         // so using a rage item on an enemy silently wastes the item.
         s.AddRage(mEffect.amount);
         LOG("[Item] %s restores %d rage to %s (now %d/%d).",
-            mEffect.name.c_str(), mEffect.amount,
-            mTarget->GetName().c_str(), s.rage, s.maxRage);
+            DebugItemName(mEffect).c_str(), mEffect.amount,
+            mTarget->GetDebugName().c_str(), s.rage, s.maxRage);
         break;
     }
 
     case ItemEffectKind::DealDamage:
     {
         if (!mTarget->IsAlive()) break;
-        // Build a DamageResult by hand — item damage bypasses ATK/DEF
+        // Build a DamageResult by hand. Item damage bypasses ATK/DEF
         // scaling by convention.  rawDamage == effectiveDamage == amount
         // so the UI shows the full value the JSON author typed.
         DamageResult result;
@@ -132,10 +140,10 @@ bool ItemEffectAction::Execute(float /*dt*/)
         result.defenseUsed     = 0;
         result.effectiveDamage = std::max(1, mEffect.amount);
         result.isCritical      = false;
-        // source is nullptr — items don't grant rage on hit.
+        // source is nullptr because items do not grant rage on hit.
         mTarget->TakeDamage(result, nullptr);
         LOG("[Item] %s hits %s for %d.",
-            mEffect.name.c_str(), mTarget->GetName().c_str(),
+            DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str(),
             result.effectiveDamage);
         break;
     }
@@ -151,7 +159,7 @@ bool ItemEffectAction::Execute(float /*dt*/)
             mEffect.buffValue,
             mEffect.durationTurns));
         LOG("[Item] %s buffs %s for %d turns.",
-            mEffect.name.c_str(), mTarget->GetName().c_str(),
+            DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str(),
             mEffect.durationTurns);
         break;
     }
@@ -160,7 +168,7 @@ bool ItemEffectAction::Execute(float /*dt*/)
     {
         mTarget->ClearAllStatusEffects();
         LOG("[Item] %s cleanses %s.",
-            mEffect.name.c_str(), mTarget->GetName().c_str());
+            DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str());
         break;
     }
     }

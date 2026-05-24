@@ -17,6 +17,7 @@ class FleeCommand : public IBattleCommand
 {
 public:
     std::string GetLabel() const override;
+    std::string GetDebugLabel() const override;
 
     // Broadcast "battle_flee" and pop BattleState.
     void Execute(BattleState& state) const override;

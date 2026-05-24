@@ -11,6 +11,11 @@ std::string ItemCommand::GetLabel() const
     return LocalizationManager::Get().Text("battle.command.item");
 }
 
+std::string ItemCommand::GetDebugLabel() const
+{
+    return LocalizationManager::Get().TextEnglish("battle.command.item");
+}
+
 void ItemCommand::Execute(BattleState& state) const
 {
     // Audible feedback that the item sub-menu is opening.

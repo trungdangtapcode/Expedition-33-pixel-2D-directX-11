@@ -35,6 +35,11 @@ public:
     virtual std::string GetName()        const = 0;
     virtual std::string GetDescription() const = 0;
 
+    // Debug text is intentionally English-only because BattleDebugHUD and
+    // LOG() target CLI tools that may not render active-language UTF-8 text.
+    virtual std::string GetDebugName() const { return GetName(); }
+    virtual std::string GetDebugDescription() const { return GetDescription(); }
+
     // ------------------------------------------------------------
     // CanUse: return false to grey out the skill in UI.
     //   Examples: RageSkill returns false if caster rage < maxRage.

@@ -29,11 +29,15 @@ public:
     // ------------------------------------------------------------
     // Constructor: name + fully initialised stats struct.
     // ------------------------------------------------------------
-    explicit Combatant(std::string name, std::wstring turnViewPath, BattlerStats stats);
+    explicit Combatant(std::string name,
+                       std::wstring turnViewPath,
+                       BattlerStats stats,
+                       std::string debugName = std::string());
     virtual ~Combatant() = default;
 
     // -- IBattler --
     const std::string& GetName() const override;
+    const std::string& GetDebugName() const override;
     const std::wstring& GetTurnViewPath() const override;
           BattlerStats& GetStats()       override;
     const BattlerStats& GetStats() const override;
@@ -77,6 +81,7 @@ protected:
     void PurgeExpiredEffects();
 
     std::string                              mName;
+    std::string                              mDebugName;
     std::wstring                             mTurnViewPath;
     BattlerStats                             mStats;
     std::vector<std::unique_ptr<IStatusEffect>> mEffects;

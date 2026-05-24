@@ -78,6 +78,7 @@ public:
     float GetBattleElapsedSeconds() const { return mContext.battleElapsed; }
 
     const std::vector<std::string>& GetBattleLog() const { return mBattleLog; }
+    const std::vector<std::string>& GetBattleLogForDebug() const { return mDebugBattleLog; }
 
     // Alive combatant lists for UI rendering.
     std::vector<IBattler*> GetAlivePlayers() const;
@@ -143,6 +144,7 @@ private:
     BattleOutcome          mOutcome = BattleOutcome::NONE;
 
     std::vector<std::string> mBattleLog;
+    std::vector<std::string> mDebugBattleLog;
     int mTotalExpPool = 0;
     int mTotalCoinPool = 0;
 
@@ -171,7 +173,7 @@ private:
                             const std::string& itemId,
                             IBattler* primaryTarget);
 
-    void Log(const std::string& msg);
+    void Log(const std::string& msg, const std::string& debugMsg = std::string());
 
     bool AllPlayersDefeated() const;
     bool AllEnemiesDefeated()  const;

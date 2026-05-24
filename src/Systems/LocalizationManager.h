@@ -41,6 +41,11 @@ public:
     std::string Format(
         const std::string& key,
         const std::vector<std::pair<std::string, std::string>>& values) const;
+    std::string TextEnglish(const std::string& key) const;
+    std::string TextOrFallbackEnglish(const std::string& key, const std::string& fallback) const;
+    std::string FormatEnglish(
+        const std::string& key,
+        const std::vector<std::pair<std::string, std::string>>& values) const;
 
     const std::string& GetCurrentLanguageId() const { return mCurrentLanguageId; }
     std::string GetCurrentFontPath() const;

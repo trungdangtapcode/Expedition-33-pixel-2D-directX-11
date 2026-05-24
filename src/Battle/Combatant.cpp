@@ -17,13 +17,18 @@ static inline void LogStr(const std::string& msg)
     LOG("%s", msg.c_str());
 }
 
-Combatant::Combatant(std::string name, std::wstring turnViewPath, BattlerStats stats)
+Combatant::Combatant(std::string name,
+                     std::wstring turnViewPath,
+                     BattlerStats stats,
+                     std::string debugName)
     : mName(std::move(name))
+    , mDebugName(debugName.empty() ? mName : std::move(debugName))
     , mTurnViewPath(std::move(turnViewPath))
     , mStats(stats)
 {}
 
 const std::string& Combatant::GetName() const { return mName; }
+const std::string& Combatant::GetDebugName() const { return mDebugName; }
 const std::wstring& Combatant::GetTurnViewPath() const { return mTurnViewPath; }
       BattlerStats& Combatant::GetStats()       { return mStats; }
 const BattlerStats& Combatant::GetStats() const { return mStats; }
@@ -40,7 +45,7 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
     mStats.ClampHp();
 
     LOG("%s takes %d damage (raw=%d def=%d) HP=%d/%d",
-        mName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
+        mDebugName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
 
     // Receiver gains rage from the pain of being hit.
     mStats.AddRage(result.effectiveDamage / 8);
@@ -85,7 +90,7 @@ void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)
     // Apply the effect immediately — it may push stat modifiers via
     // AddStatModifier or begin a countdown.  Then store it.
     effect->Apply(*this);
-    LOG("%s afflicted with: %s", mName.c_str(), effect->GetName());
+    LOG("%s afflicted with: %s", mDebugName.c_str(), effect->GetName());
     mEffects.push_back(std::move(effect));
 }
 
@@ -103,7 +108,7 @@ void Combatant::ClearAllStatusEffects()
 
     for (auto& effect : mEffects)
     {
-        LOG("%s cleansed of: %s", mName.c_str(), effect->GetName());
+        LOG("%s cleansed of: %s", mDebugName.c_str(), effect->GetName());
         effect->Revert(*this);
     }
     mEffects.clear();
@@ -175,7 +180,7 @@ void Combatant::PurgeExpiredEffects()
     {
         if (mEffects[i]->IsExpired())
         {
-            LOG("%s effect expired: %s", mName.c_str(), mEffects[i]->GetName());
+            LOG("%s effect expired: %s", mDebugName.c_str(), mEffects[i]->GetName());
             mEffects[i]->Revert(*this);
             mEffects.erase(mEffects.begin() + i);
         }

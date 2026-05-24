@@ -28,6 +28,18 @@ std::string AttackSkill::GetDescription() const
         "Strike the enemy.");
 }
 
+std::string AttackSkill::GetDebugName() const
+{
+    return LocalizationManager::Get().TextOrFallbackEnglish(mData.nameKey, "Attack");
+}
+
+std::string AttackSkill::GetDebugDescription() const
+{
+    return LocalizationManager::Get().TextOrFallbackEnglish(
+        mData.descriptionKey,
+        "Strike the enemy.");
+}
+
 std::string AttackSkill::SelectBulletHellPatternPath() const
 {
     const std::vector<std::string>& patterns = mData.bulletHellPatternPaths;
@@ -88,6 +100,11 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
         LocalizationManager::Get().Format("battle.log.attack", {
             { "actor", caster.GetName() },
             { "target", target->GetName() }
+        }),
+        nullptr,
+        LocalizationManager::Get().FormatEnglish("battle.log.attack", {
+            { "actor", caster.GetDebugName() },
+            { "target", target->GetDebugName() }
         })
     ));
 

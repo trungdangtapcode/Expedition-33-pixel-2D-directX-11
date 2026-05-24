@@ -21,6 +21,16 @@ std::string WeakenSkill::GetDescription() const
     return LocalizationManager::Get().Text("skill.weaken.description");
 }
 
+std::string WeakenSkill::GetDebugName() const
+{
+    return LocalizationManager::Get().TextEnglish("skill.weaken.name");
+}
+
+std::string WeakenSkill::GetDebugDescription() const
+{
+    return LocalizationManager::Get().TextEnglish("skill.weaken.description");
+}
+
 bool WeakenSkill::CanUse(const IBattler& /*caster*/, const BattleContext& /*ctx*/) const
 {
     return true;    // no MP cost in MVP
@@ -42,6 +52,11 @@ std::vector<std::unique_ptr<IAction>> WeakenSkill::Execute(
         LocalizationManager::Get().Format("battle.log.weaken", {
             { "actor", caster.GetName() },
             { "target", target->GetName() }
+        }),
+        nullptr,
+        LocalizationManager::Get().FormatEnglish("battle.log.weaken", {
+            { "actor", caster.GetDebugName() },
+            { "target", target->GetDebugName() }
         })
     ));
 

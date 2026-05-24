@@ -1726,7 +1726,7 @@ void BattleState::DumpStateToDebugOutput() const
         for (int i = 0; i < static_cast<int>(commands.size()); ++i)
         {
             BattleHUDSnapshot::MenuItem item;
-            item.label    = commands[i]->GetLabel();
+            item.label    = commands[i]->GetDebugLabel();
             item.selected = (i == mInputController.GetCommandIndex());
             snap.menuItems.push_back(item);
         }
@@ -1746,8 +1746,8 @@ void BattleState::DumpStateToDebugOutput() const
 
                 BattleHUDSnapshot::SkillRow row;
                 row.slot        = i + 1;
-                row.name        = skill->GetName();
-                row.description = skill->GetDescription();
+                row.name        = skill->GetDebugName();
+                row.description = skill->GetDebugDescription();
                 row.available   = skill->CanUse(*static_cast<const IBattler*>(player), mBattle.GetContext());
                 row.selected    = (i == mInputController.GetSkillIndex());
                 snap.skillRows.push_back(row);
@@ -1761,12 +1761,12 @@ void BattleState::DumpStateToDebugOutput() const
         if (mInputController.GetTargetIndex() < static_cast<int>(enemies.size()))
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.target"),
-                enemies[mInputController.GetTargetIndex()]->GetName()
+                LocalizationManager::Get().TextEnglish("battle.info.target"),
+                enemies[mInputController.GetTargetIndex()]->GetDebugName()
             });
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.target_select")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.target_select")
             });
         }
 
@@ -1775,8 +1775,8 @@ void BattleState::DumpStateToDebugOutput() const
         {
             const ISkill* skill = player->GetSkill(mInputController.GetSkillIndex());
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.skill"),
-                skill ? skill->GetName() : LocalizationManager::Get().Text("battle.info.none")
+                LocalizationManager::Get().TextEnglish("battle.info.skill"),
+                skill ? skill->GetDebugName() : LocalizationManager::Get().TextEnglish("battle.info.none")
             });
         }
     }
@@ -1808,10 +1808,10 @@ void BattleState::DumpStateToDebugOutput() const
             const ItemData* item = ItemRegistry::Get().Find(ids[i]);
             BattleHUDSnapshot::ItemRow row;
             row.slot        = i + 1;
-            row.name        = item ? item->name        : ids[i];
+            row.name        = item ? (item->debugName.empty() ? item->id : item->debugName) : ids[i];
             row.description = item
-                ? item->description
-                : LocalizationManager::Get().Text("common.missing_registry");
+                ? item->debugDescription
+                : LocalizationManager::Get().TextEnglish("common.missing_registry");
             row.count       = Inventory::Get().GetCount(ids[i]);
             row.selected    = (i == hovered);
             snap.itemRows.push_back(row);
@@ -1820,15 +1820,15 @@ void BattleState::DumpStateToDebugOutput() const
         if (inputPhase == PlayerInputPhase::ITEM_TARGET_SELECT)
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.item_target")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.item_target")
             });
         }
         else
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.item_select")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.item_select")
             });
         }
     }
@@ -1842,7 +1842,7 @@ void BattleState::DumpStateToDebugOutput() const
         const auto& s = p->GetStats();
         BattleHUDSnapshot::CombatantRow row;
         row.tag          = "[PLAYER]";
-        row.name         = p->GetName();
+        row.name         = p->GetDebugName();
         row.isCurrentTurn = (p == activeCombatant);
         row.hp      = s.hp;      row.maxHp   = s.maxHp;
         row.rage    = s.rage;    row.maxRage = s.maxRage;
@@ -1857,7 +1857,7 @@ void BattleState::DumpStateToDebugOutput() const
         const auto& s = e->GetStats();
         BattleHUDSnapshot::CombatantRow row;
         row.tag           = "[ENEMY ]";
-        row.name          = e->GetName();
+        row.name          = e->GetDebugName();
         row.isCurrentTurn = (e == activeCombatant);
         row.hp      = s.hp;   row.maxHp = s.maxHp;
         row.atk     = s.atk;  row.def   = s.def;
@@ -1872,12 +1872,12 @@ void BattleState::DumpStateToDebugOutput() const
     for (IBattler* b : predictedQueue)
     {
         BattleHUDSnapshot::TimelineRow row;
-        row.name = b->GetName();
+        row.name = b->GetDebugName();
         row.currentAV = 0.0f; // No longer needed for visual queue
         snap.timeline.push_back(row);
     }
 
-    snap.logLines = mBattle.GetBattleLog();
+    snap.logLines = mBattle.GetBattleLogForDebug();
 
     BattleDebugHUD::Render(snap);
 }

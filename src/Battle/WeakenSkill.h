@@ -12,6 +12,8 @@ class WeakenSkill : public ISkill
 public:
     std::string GetName()        const override;
     std::string GetDescription() const override;
+    std::string GetDebugName() const override;
+    std::string GetDebugDescription() const override;
 
     // Always available — no MP cost in MVP.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;

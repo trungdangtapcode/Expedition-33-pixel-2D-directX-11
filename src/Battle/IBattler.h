@@ -28,6 +28,7 @@ public:
     // Identity
     // --------------------------------------------------------
     virtual const std::string& GetName() const = 0;
+    virtual const std::string& GetDebugName() const = 0;
     virtual const std::wstring& GetTurnViewPath() const = 0;
 
     // --------------------------------------------------------

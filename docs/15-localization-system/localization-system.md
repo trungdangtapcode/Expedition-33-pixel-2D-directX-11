@@ -75,6 +75,31 @@ LocalizationManager::Get().Format("battle.log.attack", {
 });
 ```
 
+## Debug And CLI Output
+
+Player-facing UI uses the active language. Debug and CLI output do not.
+
+The console, `OutputDebugStringA`, and `log_output.txt` are treated as an
+English-only diagnostic channel because some Windows console/debug viewers do
+not render active-language UTF-8 text consistently. Battle code therefore keeps
+two log streams:
+
+- `BattleManager::GetBattleLog()` returns localized gameplay text for the
+  on-screen battle log.
+- `BattleManager::GetBattleLogForDebug()` returns English text for
+  `BattleDebugHUD` and CLI output.
+
+Combatants expose `GetName()` for localized display and `GetDebugName()` for
+diagnostics. Skills, commands, and items follow the same split with debug label
+helpers or English item fields. `LocalizationManager` provides English lookup
+helpers (`TextEnglish`, `TextOrFallbackEnglish`, and `FormatEnglish`) so debug
+messages can still use the same localization keys without depending on the
+active language.
+
+`LOG()` also sanitizes formatted output to printable ASCII before writing it to
+CLI destinations. This is a last-resort guard; gameplay code should still pass
+English debug strings to logs instead of localized UI strings.
+
 ## Font Generation
 
 DirectXTK `MakeSpriteFont` defaults to ASCII-only unless character regions are

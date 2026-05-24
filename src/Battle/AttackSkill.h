@@ -24,6 +24,8 @@ public:
     AttackSkill(const JsonLoader::SkillData& data) : mData(data) {}
     std::string GetName()        const override;
     std::string GetDescription() const override;
+    std::string GetDebugName() const override;
+    std::string GetDebugDescription() const override;
 
     // Always available because the basic attack has no resource cost.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;

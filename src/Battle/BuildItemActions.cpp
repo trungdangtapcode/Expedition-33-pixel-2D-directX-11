@@ -18,7 +18,7 @@ namespace
     // ResolveTargets: turn (targeting rule, primary pick) into the
     // exact list of battlers the effect should apply to.
     //
-    // Returns an empty vector when targeting fails — the caller treats
+    // Returns an empty vector when targeting fails. The caller treats
     // that as "skill cannot execute" and refunds the player's turn.
     // ------------------------------------------------------------
     std::vector<IBattler*> ResolveTargets(IBattler& user,
@@ -39,7 +39,7 @@ namespace
             break;
 
         case ItemTargeting::SingleAllyAny:
-            // Revive items target dead allies — IsAlive check is intentionally
+            // Revive items target dead allies. IsAlive check is intentionally
             // skipped, but a null primary is still rejected.
             if (primary) out.push_back(primary);
             break;
@@ -77,7 +77,7 @@ std::vector<std::unique_ptr<IAction>> BuildItemActions::Build(
     auto targets = ResolveTargets(user, item, primaryTarget, battle);
     if (targets.empty())
     {
-        LOG("[BuildItemActions] '%s' has no valid targets — aborting.",
+        LOG("[BuildItemActions] '%s' has no valid targets; aborting.",
             item.id.c_str());
         return actions;
     }
@@ -90,10 +90,15 @@ std::vector<std::unique_ptr<IAction>> BuildItemActions::Build(
         LocalizationManager::Get().Format("battle.log.item_use", {
             { "actor", user.GetName() },
             { "item", item.name }
+        }),
+        nullptr,
+        LocalizationManager::Get().FormatEnglish("battle.log.item_use", {
+            { "actor", user.GetDebugName() },
+            { "item", item.debugName.empty() ? item.id : item.debugName }
         })));
 
     // 2. One ItemEffectAction per resolved target.  ItemData is value-copied
-    //    into each action so the action is self-contained — safe even if
+    //    into each action so the action is self-contained and safe even if
     //    the registry is reloaded mid-battle (it never is, today).
     for (IBattler* t : targets)
     {

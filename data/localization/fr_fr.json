@@ -47,6 +47,15 @@
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Emplacement vide",
 
+  "pause.title": "Pause",
+  "pause.resume": "Reprendre",
+  "pause.return_to_title": "Retour au titre",
+  "pause.quit_game": "Quitter le jeu",
+  "pause.confirm_title": "Retourner au titre ?",
+  "pause.confirm_quit": "Quitter le jeu ?",
+  "pause.yes": "Oui",
+  "pause.no": "Non",
+
   "campfire.title": "Feu de camp",
   "campfire.subtitle_main": "La flamme se souvient de votre route.",
   "campfire.subtitle_save": "Choisissez un emplacement pour sauvegarder le point actuel.",

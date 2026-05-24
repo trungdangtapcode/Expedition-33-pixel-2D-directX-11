@@ -3,14 +3,14 @@
 // Responsibility: Win32 window creation, main game loop, and coordinator.
 //
 // Owns: HWND, GameTimer, and the top-level Update/Render calls.
-//       Does NOT own game logic — that belongs to States and Systems.
+//       Does NOT own game logic; that belongs to States and Systems.
 //
 // Lifetime: Created in main.cpp (WinMain), lives until the process exits.
 //
 // Time flow each frame:
-//   GameTimer::Tick()              — raw wall-clock dt (QueryPerformanceCounter)
-//   TimeSystem::Tick(rawDt)        — propagates scaled dt down the clock tree
-//   StateManager::Update(gameplayDt) — gameplay states receive slow-mo dt
+//   GameTimer::Tick()               - raw wall-clock dt (QueryPerformanceCounter)
+//   TimeSystem::Tick(rawDt)         - propagates scaled dt down the clock tree
+//   StateManager::Update(gameplayDt) - gameplay states receive slow-mo dt
 //
 // Important:
 //   - AllocConsole() is called in Initialize (DEBUG builds only) to attach
@@ -136,7 +136,7 @@ bool GameApp::Initialize(HINSTANCE hInstance, const std::wstring& title,
         LOG("[GameApp] WARNING: AudioManager failed to initialize. Game will run without audio.");
     }
 
-    // Push initial state onto the stack — MenuState is the entry point of the game.
+    // Push initial state onto the stack. MenuState is the entry point of the game.
     StateManager::Get().PushState(std::make_unique<MenuState>());
     // Push game states here if you want to skip the menu and jump straight into gameplay for testing.
     // StateManager::Get().PushState(std::make_unique<PlayState>());
@@ -181,7 +181,7 @@ bool GameApp::InitWindow(HINSTANCE hInstance) {
 }
 
 // ============================================================
-// MAIN GAME LOOP — follows the canonical structure in docs/gameloop.md
+// MAIN GAME LOOP - follows the canonical structure in docs/gameloop.md
 // ============================================================
 int GameApp::Run() {
     MSG msg = {};
@@ -195,7 +195,7 @@ int GameApp::Run() {
             TranslateMessage(&msg);
             DispatchMessage(&msg);
         }
-        // 2. No pending messages — run one game frame.
+        // 2. No pending messages - run one game frame.
         else {
             mTimer.Tick();
 
@@ -308,7 +308,7 @@ LRESULT GameApp::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
                 mTimer.Start();
                 // Guard: only resize when the client area actually changed.
                 // WM_SIZE fires during ShowWindow() with whatever the OS chose
-                // as the initial window size — which may not match mWidth/mHeight
+                // as the initial window size, which may not match mWidth/mHeight
                 // set in Initialize().  Skipping equal sizes avoids clobbering
                 // the correct 1280x720 swap chain with the OS-measured size.
                 if (newW > 0 && newH > 0 &&
@@ -319,10 +319,6 @@ LRESULT GameApp::HandleMessage(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam
                 }
             }
         }
-        return 0;
-
-    case WM_KEYDOWN:
-        if (wParam == VK_ESCAPE) PostQuitMessage(0);
         return 0;
 
     case WM_DESTROY:

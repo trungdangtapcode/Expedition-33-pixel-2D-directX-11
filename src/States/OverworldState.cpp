@@ -37,18 +37,18 @@
 //
 // Input:
 //   W / A / S / D - move the Verso character
-//   ESC           - return to MenuState
+//   ESC           - open PauseState while the overworld is idle
 //   B (near enemy) - trigger battle transition (pincushion -> push BattleState)
 //   U (near campfire) - open the CampfireState hub
 //   L (near campfire) - open the party lineup
 // ============================================================
 #include "OverworldState.h"
 #include "StateManager.h"
-#include "MenuState.h"
 #include "BattleState.h"
 #include "InventoryState.h"
 #include "CampfireState.h"
 #include "LineupState.h"
+#include "PauseState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
@@ -892,7 +892,7 @@ bool OverworldState::HandleCampfireInput(float px, float py)
 // ------------------------------------------------------------
 // Function: Update
 // Purpose:
-//   1. Handle ESC -> transition to MenuState.
+//   1. Handle ESC -> push PauseState when no battle transition is active.
 //   2. Delegate all entity logic to SceneGraph::Update(dt).
 //   3. Refresh story region and blend its world color theme.
 //   4. Check proximity to overworld enemies; if B pressed near one -> start transition.
@@ -930,10 +930,12 @@ void OverworldState::Update(float dt)
         return;
     }
 
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        // Restore normal time scale before leaving, in case transition was active.
-        TimeSystem::Get().SetSlowMotion(1.0f);
-        StateManager::Get().ChangeState(std::make_unique<MenuState>());
+    const bool escDown = (GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0;
+    const bool escPressed = escDown && !mEscWasDown;
+    mEscWasDown = escDown;
+    if (escPressed && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
+    {
+        StateManager::Get().PushState(std::make_unique<PauseState>());
         return;
     }
 

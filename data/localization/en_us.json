@@ -47,6 +47,15 @@
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Empty Slot",
 
+  "pause.title": "Paused",
+  "pause.resume": "Resume",
+  "pause.return_to_title": "Return to Title",
+  "pause.quit_game": "Quit Game",
+  "pause.confirm_title": "Return to title?",
+  "pause.confirm_quit": "Quit the game?",
+  "pause.yes": "Yes",
+  "pause.no": "No",
+
   "campfire.title": "Campfire",
   "campfire.subtitle_main": "The flame remembers your route.",
   "campfire.subtitle_save": "Choose a slot to save the current checkpoint.",

@@ -47,6 +47,15 @@
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Ô trống",
 
+  "pause.title": "Tạm dừng",
+  "pause.resume": "Tiếp tục",
+  "pause.return_to_title": "Về màn hình chính",
+  "pause.quit_game": "Thoát trò chơi",
+  "pause.confirm_title": "Quay về màn hình chính?",
+  "pause.confirm_quit": "Thoát trò chơi?",
+  "pause.yes": "Có",
+  "pause.no": "Không",
+
   "campfire.title": "Lửa trại",
   "campfire.subtitle_main": "Ngọn lửa ghi nhớ hành trình của bạn.",
   "campfire.subtitle_save": "Chọn ô để lưu điểm dừng hiện tại.",

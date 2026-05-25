@@ -2,18 +2,20 @@
 
 ## Goal
 
-The battle skill picker now uses a screen-space card layout inspired by modern tactical JRPG menus.  It is not tied to the battle camera, so camera pans, zooms, and target focus no longer tilt or overlap the menu.
+The battle skill picker now uses a screen-space card layout inspired by modern tactical JRPG menus. It is not tied to the battle camera, so camera pans, zooms, and target focus no longer tilt or overlap the menu.
+
+The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than rotated fill rectangles. Skill cards, detail panels, target previews, accent bars, colors, alpha values, animation timing, and asset paths are all controlled by `data/battle_skill_menu_layout.json`.
 
 ## Renderer Ownership
 
 - `BattleState` owns `BattleSkillMenuRenderer`.
-- `BattleSkillMenuRenderer` owns its SpriteBatch, CommonStates, a 1x1 fill texture, and the status icon atlas view.
+- `BattleSkillMenuRenderer` owns its SpriteBatch, CommonStates, a 1x1 fill texture for small accent strips, the reusable 9-slice panel renderer, and the status icon atlas view.
 - `BattleState::Render()` calls the renderer only during `SKILL_SELECT` and `TARGET_SELECT`.
 - The old world-space skill list was removed.  The item menu still uses the legacy world-space list until it receives its own pass.
 
 ## Data Files
 
-- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors through alpha values, and animation timing.
+- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors, alpha values, 9-slice asset paths, and animation timing.
 - `data/skills/*.json` may include optional UI metadata:
   - `uiSortGroup`
   - `hitCount`

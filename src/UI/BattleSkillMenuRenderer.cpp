@@ -75,6 +75,18 @@ bool BattleSkillMenuRenderer::Initialize(ID3D11Device* device,
     }
 
     if (!CreateFillTexture(device)) return false;
+    std::wstring panelTexture(mLayout.panelTexturePath.begin(), mLayout.panelTexturePath.end());
+    if (!mPanelRenderer.Initialize(
+        device,
+        context,
+        panelTexture,
+        mLayout.panelMetadataPath,
+        screenW,
+        screenH))
+    {
+        LOG("[BattleSkillMenuRenderer] Failed to initialize 9-slice skill panel.");
+        return false;
+    }
 
     mSpriteBatch = std::make_unique<SpriteBatch>(context);
     mStates = std::make_unique<CommonStates>(device);
@@ -116,17 +128,31 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
     const float progress = mLayout.entryDuration > 0.0f
         ? std::min(mTimer / mLayout.entryDuration, 1.0f)
         : 1.0f;
-    const float ease = 1.0f - std::pow(1.0f - progress, 3.0f);
+    const float ease = 1.0f - std::pow(1.0f - progress, mLayout.entryEasePower);
     const float alpha = mLayout.fadeStartAlpha + (1.0f - mLayout.fadeStartAlpha) * ease;
 
-    BindViewport(context);
-    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->LinearClamp(), mStates->DepthNone());
+    const XMVECTOR panelTint = XMVectorSet(mLayout.panelR, mLayout.panelG, mLayout.panelB, 1.0f);
+    const XMVECTOR gold = XMVectorSet(mLayout.goldR, mLayout.goldG, mLayout.goldB, alpha);
+    const XMVECTOR white = XMVectorSet(mLayout.textR, mLayout.textG, mLayout.textB, alpha);
+    const XMVECTOR muted = XMVectorSet(mLayout.mutedR, mLayout.mutedG, mLayout.mutedB, alpha);
+    const XMVECTOR disabledText = XMVectorSet(mLayout.disabledTextR, mLayout.disabledTextG, mLayout.disabledTextB, alpha);
+    const XMVECTOR costText = XMVectorSet(mLayout.costR, mLayout.costG, mLayout.costB, alpha);
+    const XMVECTOR warningText = XMVectorSet(mLayout.warningR, mLayout.warningG, mLayout.warningB, alpha);
 
-    const XMVECTOR panel = XMVectorSet(0.02f, 0.018f, 0.018f, mLayout.panelAlpha * alpha);
-    const XMVECTOR panelDim = XMVectorSet(0.02f, 0.018f, 0.018f, 0.46f * alpha);
-    const XMVECTOR gold = XMVectorSet(0.78f, 0.62f, 0.32f, alpha);
-    const XMVECTOR blue = XMVectorSet(0.44f, 0.62f, 1.0f, alpha);
-    const XMVECTOR red = XMVectorSet(0.65f, 0.18f, 0.18f, alpha);
+    const ISkill* selectedSkill = activePlayer->GetSkill(selectedSkillIndex);
+    const IBattler* previewTarget = nullptr;
+    if (selectedSkill)
+    {
+        if (targetSelectActive && !enemies.empty())
+        {
+            const int safeIndex = std::max(0, std::min(targetIndex, static_cast<int>(enemies.size()) - 1));
+            previewTarget = enemies[safeIndex];
+        }
+        else if (selectedSkill->GetTargeting() == SkillTargeting::Self)
+        {
+            previewTarget = activePlayer;
+        }
+    }
 
     for (int i = first; i < last; ++i)
     {
@@ -136,44 +162,127 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const int row = i - first;
         const bool selected = i == selectedSkillIndex;
         const bool canUse = skill->CanUse(*activePlayer, battleContext);
-        const float scale = selected ? mLayout.selectedScale : 1.0f;
-        const float x = mLayout.cardX - (1.0f - ease) * 80.0f;
+        const float rowAlpha = (selected ? mLayout.selectedAlpha : mLayout.listDimAlpha) * alpha;
+        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f);
         const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
-        const float w = mLayout.cardWidth * scale;
-        const float h = mLayout.cardHeight * scale;
-        const float cx = x + w * 0.5f;
-        const float cy = y + h * 0.5f;
 
-        DrawRotatedPanel(cx, cy, w, h, mLayout.cardAngle, canUse ? panel : panelDim);
-        DrawRotatedPanel(x + 6.0f, cy, 5.0f, h - 8.0f, mLayout.cardAngle, selected ? gold : XMVectorSet(0.28f, 0.26f, 0.23f, alpha));
+        DrawNineSlice(
+            context,
+            x,
+            y,
+            mLayout.cardWidth,
+            mLayout.cardHeight,
+            mLayout.sliceScale,
+            WithAlpha(panelTint, canUse ? rowAlpha : rowAlpha * mLayout.disabledPanelAlphaScale));
+    }
+
+    if (selectedSkill)
+    {
+        DrawNineSlice(
+            context,
+            mLayout.detailX,
+            mLayout.detailY,
+            mLayout.detailWidth,
+            mLayout.detailHeight,
+            mLayout.detailSliceScale,
+            WithAlpha(panelTint, mLayout.panelAlpha * alpha));
+        DrawNineSlice(
+            context,
+            mLayout.targetDetailX,
+            mLayout.targetDetailY,
+            mLayout.targetDetailWidth,
+            mLayout.targetDetailHeight,
+            mLayout.detailSliceScale,
+            WithAlpha(panelTint, mLayout.targetPanelAlpha * alpha));
+    }
+
+    BindViewport(context);
+    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->PointClamp(), mStates->DepthNone());
+    for (int i = first; i < last; ++i)
+    {
+        const ISkill* skill = activePlayer->GetSkill(i);
+        if (!skill) continue;
+
+        const int row = i - first;
+        const bool selected = i == selectedSkillIndex;
+        const bool canUse = skill->CanUse(*activePlayer, battleContext);
+        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f);
+        const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
+
+        DrawPanel(x + mLayout.iconBackOffsetX,
+                  y + mLayout.iconBackOffsetY,
+                  mLayout.iconBackSize,
+                  mLayout.iconBackSize,
+                  XMVectorSet(mLayout.iconBackR, mLayout.iconBackG, mLayout.iconBackB, mLayout.iconBackAlpha * alpha));
+
+        DrawPanel(x + mLayout.selectedAccentInsetY,
+                  y + mLayout.selectedAccentInsetY,
+                  mLayout.selectedAccentWidth,
+                  mLayout.cardHeight - 2.0f * mLayout.selectedAccentInsetY,
+                  selected ? gold : XMVectorSet(mLayout.unselectedAccentR, mLayout.unselectedAccentG, mLayout.unselectedAccentB, alpha));
+
         if (selected)
         {
-            DrawRotatedPanel(cx, y + h - 4.0f, w - 16.0f, 3.0f, mLayout.cardAngle, gold);
+            DrawPanel(x + mLayout.selectedUnderlineInsetX,
+                      y + mLayout.cardHeight - mLayout.selectedAccentInsetY,
+                      mLayout.cardWidth - 2.0f * mLayout.selectedUnderlineInsetX,
+                      mLayout.selectedUnderlineHeight,
+                      gold);
         }
 
         DrawIcon(skill->GetIconId().empty() ? "fallback" : skill->GetIconId(),
                  x + mLayout.iconOffsetX,
                  y + mLayout.iconOffsetY,
                  mLayout.iconSize,
-                 canUse ? Colors::White : XMVectorSet(0.55f, 0.55f, 0.60f, alpha));
+                 canUse ? white : disabledText);
 
         if (targetSelectActive && selected)
         {
-            DrawRotatedPanel(x - 34.0f, cy, 24.0f, 24.0f, 0.0f, gold);
+            DrawPanel(x + mLayout.targetMarkerOffsetX,
+                      y + mLayout.targetMarkerOffsetY,
+                      mLayout.targetMarkerSize,
+                      mLayout.targetMarkerSize,
+                      gold);
         }
-
-        (void)blue;
-        (void)red;
     }
 
-    DrawPanel(mLayout.detailX, mLayout.detailY, mLayout.detailWidth, mLayout.detailHeight, XMVectorSet(0.015f, 0.014f, 0.014f, 0.78f * alpha));
-    DrawPanel(mLayout.detailX, mLayout.detailY, mLayout.detailWidth, 3.0f, gold);
-    DrawPanel(mLayout.targetDetailX, mLayout.targetDetailY, mLayout.targetDetailWidth, mLayout.targetDetailHeight, XMVectorSet(0.015f, 0.014f, 0.014f, 0.66f * alpha));
+    if (selectedSkill)
+    {
+        DrawPanel(mLayout.detailX,
+                  mLayout.detailY,
+                  mLayout.detailWidth,
+                  mLayout.detailAccentHeight,
+                  gold);
+
+        if (!selectedSkill->GetStatusEffectId().empty())
+        {
+            StatusEffectRegistry::Get().EnsureLoaded();
+            if (const StatusEffectData* status = StatusEffectRegistry::Get().Find(selectedSkill->GetStatusEffectId()))
+            {
+                DrawIcon(status->iconId, mLayout.statusIconX, mLayout.statusIconY, mLayout.iconSize, white);
+            }
+        }
+
+        if (previewTarget)
+        {
+            const auto effects = previewTarget->GetStatusEffectViews();
+            const int visibleCount = std::min(static_cast<int>(effects.size()), mLayout.targetMaxIcons);
+            for (int i = 0; i < visibleCount; ++i)
+            {
+                DrawIcon(
+                    effects[i].iconId.empty() ? "fallback" : effects[i].iconId,
+                    mLayout.targetDetailX + mLayout.detailBodyOffsetX +
+                        static_cast<float>(i) * (mLayout.iconSize + mLayout.targetEffectIconSpacing),
+                    mLayout.targetDetailY + mLayout.targetEffectIconOffsetY,
+                    mLayout.iconSize,
+                    white);
+            }
+        }
+    }
 
     mSpriteBatch->End();
-
-    const ISkill* selectedSkill = activePlayer->GetSkill(selectedSkillIndex);
-    const IBattler* previewTarget = nullptr;
 
     text.BeginBatch(context);
     for (int i = first; i < last; ++i)
@@ -184,56 +293,47 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const int row = i - first;
         const bool selected = i == selectedSkillIndex;
         const bool canUse = skill->CanUse(*activePlayer, battleContext);
+        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f);
         const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
-        XMVECTOR nameColor = canUse ? Colors::White : XMVectorSet(0.50f, 0.50f, 0.54f, alpha);
-        if (selected) nameColor = canUse ? Colors::PaleGoldenrod : Colors::Orange;
-        nameColor = WithAlpha(nameColor, alpha);
+        const XMVECTOR nameColor = selected ? gold : (canUse ? white : disabledText);
+        const XMVECTOR rowCostColor = canUse ? costText : disabledText;
 
-        text.DrawStringRawScaled(
-            TruncateForCard(skill->GetName(), 26).c_str(),
-            mLayout.cardX + mLayout.nameOffsetX,
-            y + mLayout.nameOffsetY,
-            nameColor,
-            mLayout.textScale,
-            true);
-
-        text.DrawStringRawScaled(
-            CostText(*skill).c_str(),
-            mLayout.cardX + mLayout.costOffsetX,
-            y + mLayout.costOffsetY,
-            canUse ? XMVectorSet(0.55f, 0.70f, 1.0f, alpha) : XMVectorSet(0.42f, 0.42f, 0.48f, alpha),
-            mLayout.textScale,
-            true);
+        DrawTextLine(text,
+                     TruncateForCard(skill->GetName(), static_cast<std::size_t>(mLayout.cardNameMaxBytes)),
+                     x + mLayout.nameOffsetX,
+                     y + mLayout.nameOffsetY,
+                     nameColor,
+                     mLayout.textScale);
+        DrawTextLine(text,
+                     CostText(*skill),
+                     x + mLayout.costOffsetX,
+                     y + mLayout.costOffsetY,
+                     rowCostColor,
+                     mLayout.textScale);
     }
 
     if (selectedSkill)
     {
-        const XMVECTOR detailColor = WithAlpha(Colors::White, alpha);
-        const XMVECTOR mutedColor = XMVectorSet(0.78f, 0.76f, 0.70f, alpha);
-        const XMVECTOR goldColor = XMVectorSet(0.88f, 0.72f, 0.38f, alpha);
+        DrawTextLine(text,
+                     selectedSkill->GetName(),
+                     mLayout.detailX + mLayout.detailTitleOffsetX,
+                     mLayout.detailY + mLayout.detailTitleOffsetY,
+                     gold,
+                     mLayout.textScale);
 
-        text.DrawStringRawScaled(
-            selectedSkill->GetName().c_str(),
-            mLayout.detailX + mLayout.detailTitleOffsetX,
-            mLayout.detailY + mLayout.detailTitleOffsetY,
-            goldColor,
-            mLayout.textScale,
-            true);
-
-        const std::string desc = TruncateForCard(selectedSkill->GetDescription(), 58);
-        text.DrawStringRawScaled(
-            desc.c_str(),
-            mLayout.detailX + mLayout.detailBodyOffsetX,
-            mLayout.detailY + mLayout.detailBodyOffsetY,
-            detailColor,
-            mLayout.detailTextScale,
-            true);
+        DrawTextLine(text,
+                     TruncateForCard(selectedSkill->GetDescription(), static_cast<std::size_t>(mLayout.descriptionMaxBytes)),
+                     mLayout.detailX + mLayout.detailBodyOffsetX,
+                     mLayout.detailY + mLayout.detailBodyOffsetY,
+                     white,
+                     mLayout.detailTextScale);
 
         float lineY = mLayout.detailY + mLayout.detailBodyOffsetY + mLayout.detailLineSpacing;
         const std::string targetLine = LocalizationManager::Get().Format("battle.skill_ui.target", {
             { "target", TargetText(selectedSkill->GetTargeting()) }
         });
-        text.DrawStringRawScaled(targetLine.c_str(), mLayout.detailX + mLayout.detailBodyOffsetX, lineY, mutedColor, mLayout.detailTextScale, true);
+        DrawTextLine(text, targetLine, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
         const std::string damageLine = LocalizationManager::Get().Format("battle.skill_ui.damage", {
@@ -242,13 +342,13 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                 ? std::to_string(selectedSkill->GetHitCount())
                 : std::string("-") }
         });
-        text.DrawStringRawScaled(damageLine.c_str(), mLayout.detailX + mLayout.detailBodyOffsetX, lineY, mutedColor, mLayout.detailTextScale, true);
+        DrawTextLine(text, damageLine, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
         const std::string availability = AvailabilityText(*selectedSkill, *activePlayer, battleContext);
         if (!availability.empty())
         {
-            text.DrawStringRawScaled(availability.c_str(), mLayout.detailX + mLayout.detailBodyOffsetX, lineY, XMVectorSet(1.0f, 0.48f, 0.34f, alpha), mLayout.detailTextScale, true);
+            DrawTextLine(text, availability, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, warningText, mLayout.detailTextScale);
             lineY += mLayout.detailLineSpacing;
         }
 
@@ -265,30 +365,30 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                     { "turns", std::to_string(status->durationTurns) },
                     { "stacks", std::to_string(status->maxStacks) }
                 });
-                text.DrawStringRawScaled(appliesLine.c_str(),
-                                         mLayout.detailX + mLayout.detailBodyOffsetX,
-                                         lineY,
-                                         goldColor,
-                                         mLayout.detailTextScale,
-                                         true);
-                text.DrawStringRawScaled(metaLine.c_str(),
-                                         mLayout.statusIconX - 132.0f,
-                                         mLayout.statusIconY + 30.0f,
-                                         mutedColor,
-                                         mLayout.smallTextScale,
-                                         true);
+                DrawTextLine(text,
+                             appliesLine,
+                             mLayout.detailX + mLayout.detailBodyOffsetX,
+                             lineY,
+                             gold,
+                             mLayout.detailTextScale);
+                DrawTextLine(text,
+                             metaLine,
+                             mLayout.statusIconX - mLayout.detailStatusMetaOffsetX,
+                             mLayout.statusIconY + mLayout.detailStatusMetaOffsetY,
+                             muted,
+                             mLayout.smallTextScale);
                 const std::string summaryKey = status->shortDescriptionKey.empty()
                     ? status->descriptionKey
                     : status->shortDescriptionKey;
                 const std::string summary = TruncateForCard(
                     LocalizationManager::Get().TextOrFallback(summaryKey, status->id),
-                    46);
-                text.DrawStringRawScaled(summary.c_str(),
-                                         mLayout.detailX + mLayout.detailBodyOffsetX,
-                                         lineY + mLayout.detailLineSpacing,
-                                         mutedColor,
-                                         mLayout.smallTextScale,
-                                         true);
+                    static_cast<std::size_t>(mLayout.statusSummaryMaxBytes));
+                DrawTextLine(text,
+                             summary,
+                             mLayout.detailX + mLayout.detailBodyOffsetX,
+                             lineY + mLayout.detailStatusSummaryOffsetY,
+                             muted,
+                             mLayout.smallTextScale);
             }
         }
 
@@ -296,83 +396,50 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             { "page", std::to_string(pageIndex + 1) },
             { "pages", std::to_string(pageCount) }
         });
-        text.DrawStringRawScaled(pageText.c_str(), mLayout.pageTextX, mLayout.pageTextY, mutedColor, mLayout.smallTextScale, true);
-
-        if (targetSelectActive && !enemies.empty())
-        {
-            const int safeIndex = std::max(0, std::min(targetIndex, static_cast<int>(enemies.size()) - 1));
-            previewTarget = enemies[safeIndex];
-        }
-        if (!previewTarget && selectedSkill->GetTargeting() == SkillTargeting::Self)
-        {
-            previewTarget = activePlayer;
-        }
+        DrawTextLine(text, pageText, mLayout.pageTextX, mLayout.pageTextY, muted, mLayout.smallTextScale);
 
         const std::string targetName = previewTarget
             ? previewTarget->GetName()
             : LocalizationManager::Get().Text("battle.skill_ui.no_target");
-        text.DrawStringRawScaled(
-            LocalizationManager::Get().Format("battle.skill_ui.preview_target", { { "target", targetName } }).c_str(),
+        const std::string previewLine = LocalizationManager::Get().Format("battle.skill_ui.preview_target", {
+            { "target", targetName }
+        });
+        DrawTextLine(
+            text,
+            previewLine,
             mLayout.targetDetailX + mLayout.detailBodyOffsetX,
-            mLayout.targetDetailY + 18.0f,
-            detailColor,
-            mLayout.detailTextScale,
-            true);
+            mLayout.targetDetailY + mLayout.targetTitleOffsetY,
+            white,
+            mLayout.detailTextScale);
 
         if (previewTarget)
         {
             const auto effects = previewTarget->GetStatusEffectViews();
-            std::string effectLine = effects.empty()
+            const std::string effectLine = effects.empty()
                 ? LocalizationManager::Get().Text("battle.skill_ui.no_effects")
                 : LocalizationManager::Get().Text("battle.skill_ui.active_effects");
-            text.DrawStringRawScaled(
-                effectLine.c_str(),
+            DrawTextLine(
+                text,
+                effectLine,
                 mLayout.targetDetailX + mLayout.detailBodyOffsetX,
-                mLayout.targetDetailY + 46.0f,
-                mutedColor,
-                mLayout.detailTextScale,
-                true);
+                mLayout.targetDetailY + mLayout.targetEffectLabelOffsetY,
+                muted,
+                mLayout.detailTextScale);
         }
     }
     text.EndBatch();
-
-    BindViewport(context);
-    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->PointClamp(), mStates->DepthNone());
-
-    if (selectedSkill && !selectedSkill->GetStatusEffectId().empty())
-    {
-        StatusEffectRegistry::Get().EnsureLoaded();
-        if (const StatusEffectData* status = StatusEffectRegistry::Get().Find(selectedSkill->GetStatusEffectId()))
-        {
-            DrawIcon(status->iconId, mLayout.statusIconX, mLayout.statusIconY, mLayout.iconSize, Colors::White);
-        }
-    }
-
-    if (previewTarget)
-    {
-        const auto effects = previewTarget->GetStatusEffectViews();
-        for (int i = 0; i < static_cast<int>(effects.size()) && i < 6; ++i)
-        {
-            DrawIcon(
-                effects[i].iconId.empty() ? "fallback" : effects[i].iconId,
-                mLayout.targetDetailX + mLayout.detailBodyOffsetX + static_cast<float>(i) * (mLayout.iconSize + 6.0f),
-                mLayout.targetDetailY + 70.0f,
-                mLayout.iconSize,
-                Colors::White);
-        }
-    }
-
-    mSpriteBatch->End();
 }
 
 void BattleSkillMenuRenderer::SetScreenSize(int w, int h)
 {
     mScreenW = w;
     mScreenH = h;
+    mPanelRenderer.SetScreenSize(w, h);
 }
 
 void BattleSkillMenuRenderer::Shutdown()
 {
+    mPanelRenderer.Shutdown();
     mSpriteBatch.reset();
     mStates.reset();
     mFillSRV.Reset();
@@ -406,18 +473,59 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
 
     mLayout.pageSize = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "pageSize"), mLayout.pageSize);
     mLayout.entryDuration = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "entryDuration"), mLayout.entryDuration);
+    mLayout.entryEasePower = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "entryEasePower"), mLayout.entryEasePower);
     mLayout.fadeStartAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "fadeStartAlpha"), mLayout.fadeStartAlpha);
     mLayout.panelAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "panelAlpha"), mLayout.panelAlpha);
+    mLayout.targetPanelAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetPanelAlpha"), mLayout.targetPanelAlpha);
+    mLayout.panelR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "panelR"), mLayout.panelR);
+    mLayout.panelG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "panelG"), mLayout.panelG);
+    mLayout.panelB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "panelB"), mLayout.panelB);
+    mLayout.goldR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "goldR"), mLayout.goldR);
+    mLayout.goldG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "goldG"), mLayout.goldG);
+    mLayout.goldB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "goldB"), mLayout.goldB);
+    mLayout.textR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textR"), mLayout.textR);
+    mLayout.textG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textG"), mLayout.textG);
+    mLayout.textB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textB"), mLayout.textB);
+    mLayout.mutedR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "mutedR"), mLayout.mutedR);
+    mLayout.mutedG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "mutedG"), mLayout.mutedG);
+    mLayout.mutedB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "mutedB"), mLayout.mutedB);
+    mLayout.disabledTextR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "disabledTextR"), mLayout.disabledTextR);
+    mLayout.disabledTextG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "disabledTextG"), mLayout.disabledTextG);
+    mLayout.disabledTextB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "disabledTextB"), mLayout.disabledTextB);
+    mLayout.costR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "costR"), mLayout.costR);
+    mLayout.costG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "costG"), mLayout.costG);
+    mLayout.costB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "costB"), mLayout.costB);
+    mLayout.warningR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "warningR"), mLayout.warningR);
+    mLayout.warningG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "warningG"), mLayout.warningG);
+    mLayout.warningB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "warningB"), mLayout.warningB);
+    mLayout.unselectedAccentR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "unselectedAccentR"), mLayout.unselectedAccentR);
+    mLayout.unselectedAccentG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "unselectedAccentG"), mLayout.unselectedAccentG);
+    mLayout.unselectedAccentB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "unselectedAccentB"), mLayout.unselectedAccentB);
+    mLayout.iconBackR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackR"), mLayout.iconBackR);
+    mLayout.iconBackG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackG"), mLayout.iconBackG);
+    mLayout.iconBackB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackB"), mLayout.iconBackB);
+    mLayout.iconBackAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackAlpha"), mLayout.iconBackAlpha);
+    mLayout.disabledPanelAlphaScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "disabledPanelAlphaScale"), mLayout.disabledPanelAlphaScale);
     mLayout.cardX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardX"), mLayout.cardX);
     mLayout.cardY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardY"), mLayout.cardY);
     mLayout.cardWidth = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardWidth"), mLayout.cardWidth);
     mLayout.cardHeight = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardHeight"), mLayout.cardHeight);
     mLayout.cardSpacing = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardSpacing"), mLayout.cardSpacing);
-    mLayout.cardAngle = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardAngle"), mLayout.cardAngle);
-    mLayout.selectedScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedScale"), mLayout.selectedScale);
+    mLayout.cardSlideOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "cardSlideOffsetX"), mLayout.cardSlideOffsetX);
+    mLayout.selectedNudgeX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedNudgeX"), mLayout.selectedNudgeX);
+    mLayout.selectedAccentWidth = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedAccentWidth"), mLayout.selectedAccentWidth);
+    mLayout.selectedAccentInsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedAccentInsetY"), mLayout.selectedAccentInsetY);
+    mLayout.selectedUnderlineHeight = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedUnderlineHeight"), mLayout.selectedUnderlineHeight);
+    mLayout.selectedUnderlineInsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedUnderlineInsetX"), mLayout.selectedUnderlineInsetX);
+    mLayout.targetMarkerOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetMarkerOffsetX"), mLayout.targetMarkerOffsetX);
+    mLayout.targetMarkerOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetMarkerOffsetY"), mLayout.targetMarkerOffsetY);
+    mLayout.targetMarkerSize = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetMarkerSize"), mLayout.targetMarkerSize);
     mLayout.iconSize = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconSize"), mLayout.iconSize);
     mLayout.iconOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconOffsetX"), mLayout.iconOffsetX);
     mLayout.iconOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconOffsetY"), mLayout.iconOffsetY);
+    mLayout.iconBackSize = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackSize"), mLayout.iconBackSize);
+    mLayout.iconBackOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackOffsetX"), mLayout.iconBackOffsetX);
+    mLayout.iconBackOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "iconBackOffsetY"), mLayout.iconBackOffsetY);
     mLayout.nameOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "nameOffsetX"), mLayout.nameOffsetX);
     mLayout.nameOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "nameOffsetY"), mLayout.nameOffsetY);
     mLayout.costOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "costOffsetX"), mLayout.costOffsetX);
@@ -433,16 +541,38 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     mLayout.detailBodyOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailBodyOffsetX"), mLayout.detailBodyOffsetX);
     mLayout.detailBodyOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailBodyOffsetY"), mLayout.detailBodyOffsetY);
     mLayout.detailLineSpacing = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailLineSpacing"), mLayout.detailLineSpacing);
+    mLayout.detailAccentHeight = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailAccentHeight"), mLayout.detailAccentHeight);
+    mLayout.detailStatusMetaOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailStatusMetaOffsetX"), mLayout.detailStatusMetaOffsetX);
+    mLayout.detailStatusMetaOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailStatusMetaOffsetY"), mLayout.detailStatusMetaOffsetY);
+    mLayout.detailStatusSummaryOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailStatusSummaryOffsetY"), mLayout.detailStatusSummaryOffsetY);
     mLayout.statusIconX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "statusIconX"), mLayout.statusIconX);
     mLayout.statusIconY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "statusIconY"), mLayout.statusIconY);
     mLayout.targetDetailX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetDetailX"), mLayout.targetDetailX);
     mLayout.targetDetailY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetDetailY"), mLayout.targetDetailY);
     mLayout.targetDetailWidth = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetDetailWidth"), mLayout.targetDetailWidth);
     mLayout.targetDetailHeight = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetDetailHeight"), mLayout.targetDetailHeight);
+    mLayout.targetTitleOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetTitleOffsetY"), mLayout.targetTitleOffsetY);
+    mLayout.targetEffectLabelOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetEffectLabelOffsetY"), mLayout.targetEffectLabelOffsetY);
+    mLayout.targetEffectIconOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetEffectIconOffsetY"), mLayout.targetEffectIconOffsetY);
+    mLayout.targetEffectIconSpacing = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "targetEffectIconSpacing"), mLayout.targetEffectIconSpacing);
+    mLayout.targetMaxIcons = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "targetMaxIcons"), mLayout.targetMaxIcons);
+    mLayout.cardNameMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "cardNameMaxBytes"), mLayout.cardNameMaxBytes);
+    mLayout.descriptionMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "descriptionMaxBytes"), mLayout.descriptionMaxBytes);
+    mLayout.statusSummaryMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "statusSummaryMaxBytes"), mLayout.statusSummaryMaxBytes);
     mLayout.textScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textScale"), mLayout.textScale);
     mLayout.smallTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "smallTextScale"), mLayout.smallTextScale);
     mLayout.detailTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailTextScale"), mLayout.detailTextScale);
+    mLayout.sliceScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "sliceScale"), mLayout.sliceScale);
+    mLayout.detailSliceScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailSliceScale"), mLayout.detailSliceScale);
+    mLayout.listDimAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "listDimAlpha"), mLayout.listDimAlpha);
+    mLayout.selectedAlpha = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "selectedAlpha"), mLayout.selectedAlpha);
+    const std::string panelTexturePath = JsonLoader::detail::CleanString(JsonLoader::detail::ValueOf(src, "panelTexturePath"));
+    if (!panelTexturePath.empty()) mLayout.panelTexturePath = panelTexturePath;
+    const std::string panelMetadataPath = JsonLoader::detail::CleanString(JsonLoader::detail::ValueOf(src, "panelMetadataPath"));
+    if (!panelMetadataPath.empty()) mLayout.panelMetadataPath = panelMetadataPath;
     if (mLayout.pageSize < 1) mLayout.pageSize = 1;
+    if (mLayout.entryEasePower <= 0.0f) mLayout.entryEasePower = 1.0f;
+    if (mLayout.targetMaxIcons < 0) mLayout.targetMaxIcons = 0;
     return true;
 }
 
@@ -506,10 +636,25 @@ void BattleSkillMenuRenderer::DrawPanel(float x, float y, float w, float h, XMVE
     mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(x, y), nullptr, color, 0.0f, origin, XMFLOAT2(w, h));
 }
 
-void BattleSkillMenuRenderer::DrawRotatedPanel(float centerX, float centerY, float w, float h, float rotation, XMVECTOR color)
+void BattleSkillMenuRenderer::DrawNineSlice(ID3D11DeviceContext* context,
+                                            float x,
+                                            float y,
+                                            float w,
+                                            float h,
+                                            float sliceScale,
+                                            FXMVECTOR color)
 {
-    const XMFLOAT2 origin(0.5f, 0.5f);
-    mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(centerX, centerY), nullptr, color, rotation, origin, XMFLOAT2(w, h));
+    mPanelRenderer.Draw(context, x, y, w, h, sliceScale, XMMatrixIdentity(), color);
+}
+
+void BattleSkillMenuRenderer::DrawTextLine(BattleTextRenderer& text,
+                                           const std::string& value,
+                                           float x,
+                                           float y,
+                                           FXMVECTOR color,
+                                           float scale) const
+{
+    text.DrawStringRawScaled(value.c_str(), x, y, color, scale, true);
 }
 
 void BattleSkillMenuRenderer::DrawIcon(const std::string& iconId, float x, float y, float size, XMVECTOR color)

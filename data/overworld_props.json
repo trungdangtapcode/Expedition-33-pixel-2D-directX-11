@@ -1,6 +1,51 @@
 {
   "props": [
     {
+      "id": "paris_ruin_west",
+      "texturePath": "assets/environments/overworld_objects_v2.png",
+      "sourceX": 0,
+      "sourceY": 128,
+      "sourceWidth": 128,
+      "sourceHeight": 128,
+      "worldX": -512.0,
+      "worldY": -264.0,
+      "pivotX": 64.0,
+      "pivotY": 120,
+      "scale": 1.0,
+      "layer": 50,
+      "sortYOffset": 0.0
+    },
+    {
+      "id": "paris_ruin_east",
+      "texturePath": "assets/environments/overworld_objects_v2.png",
+      "sourceX": 0,
+      "sourceY": 128,
+      "sourceWidth": 128,
+      "sourceHeight": 128,
+      "worldX": 960.0,
+      "worldY": -264.0,
+      "pivotX": 64.0,
+      "pivotY": 120,
+      "scale": 1.0,
+      "layer": 50,
+      "sortYOffset": 0.0
+    },
+    {
+      "id": "paris_market_tent",
+      "texturePath": "assets/environments/overworld_objects_v2.png",
+      "sourceX": 128,
+      "sourceY": 128,
+      "sourceWidth": 128,
+      "sourceHeight": 128,
+      "worldX": -256.0,
+      "worldY": 504.0,
+      "pivotX": 64.0,
+      "pivotY": 120,
+      "scale": 1.0,
+      "layer": 50,
+      "sortYOffset": 0.0
+    },
+    {
       "id": "market_ruin_west",
       "texturePath": "assets/environments/overworld_objects_v2.png",
       "sourceX": 0,

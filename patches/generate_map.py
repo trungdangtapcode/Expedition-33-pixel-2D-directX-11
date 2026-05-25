@@ -13,7 +13,7 @@ PROPS_OUT = ROOT / "data" / "overworld_props.json"
 TILE = 64
 WIDTH = 128
 HEIGHT = 96
-GROUND_TILE_COUNT = 32
+GROUND_TILE_COUNT = 40
 OBJECT_FIRST_GID = GROUND_TILE_COUNT + 1
 
 GRASS = (1, 2, 3, 4)
@@ -27,6 +27,14 @@ DETAIL_CRACKS = 29
 DETAIL_LEAVES = 30
 DETAIL_PEBBLES = 31
 DETAIL_FLOWERS = 32
+PARIS_COBBLE_A = 33
+PARIS_COBBLE_B = 34
+PARIS_COBBLE_DARK = 35
+PARIS_COBBLE_CRACKED = 36
+PARIS_COBBLE_ALT_A = 37
+PARIS_COBBLE_ALT_B = 38
+PARIS_COBBLE_EDGE = 39
+PARIS_COBBLE_EDGE_CRACKED = 40
 
 WALL_H = OBJECT_FIRST_GID + 0
 WALL_V = OBJECT_FIRST_GID + 1
@@ -108,6 +116,17 @@ def route_cells() -> set[tuple[int, int]]:
     return road
 
 
+def paris_cells() -> set[tuple[int, int]]:
+    cells: set[tuple[int, int]] = set()
+    for tx in range(58, 76):
+        for ty in range(44, 55):
+            cells.add((tx, ty))
+    add_line(cells, (66, 49), (84, 47), 2)
+    add_line(cells, (60, 51), (55, 57), 1)
+    add_disc(cells, 66, 49, 5)
+    return cells
+
+
 def base_ground() -> list[int]:
     layer = [0] * (WIDTH * HEIGHT)
     for ty in range(HEIGHT):
@@ -117,17 +136,43 @@ def base_ground() -> list[int]:
     return layer
 
 
-def roads(road: set[tuple[int, int]]) -> list[int]:
+def paris_plaza(cells: set[tuple[int, int]]) -> list[int]:
+    layer = [0] * (WIDTH * HEIGHT)
+    variants = (
+        PARIS_COBBLE_A,
+        PARIS_COBBLE_B,
+        PARIS_COBBLE_DARK,
+        PARIS_COBBLE_CRACKED,
+        PARIS_COBBLE_ALT_A,
+        PARIS_COBBLE_ALT_B,
+    )
+    for tx, ty in cells:
+        edge = (
+            (tx - 1, ty) not in cells or
+            (tx + 1, ty) not in cells or
+            (tx, ty - 1) not in cells or
+            (tx, ty + 1) not in cells
+        )
+        gid = PARIS_COBBLE_EDGE_CRACKED if edge and h(tx, ty, 33) % 4 == 0 else PARIS_COBBLE_EDGE
+        if not edge:
+            gid = variants[h(tx, ty, 34) % len(variants)]
+        set_tile(layer, tx, ty, gid)
+    return layer
+
+
+def roads(road: set[tuple[int, int]], blocked_cells: set[tuple[int, int]]) -> list[int]:
     layer = [0] * (WIDTH * HEIGHT)
     for tx, ty in road:
+        if (tx, ty) in blocked_cells:
+            continue
         mask = 0
-        if (tx, ty - 1) in road:
+        if (tx, ty - 1) in road and (tx, ty - 1) not in blocked_cells:
             mask |= 1
-        if (tx + 1, ty) in road:
+        if (tx + 1, ty) in road and (tx + 1, ty) not in blocked_cells:
             mask |= 2
-        if (tx, ty + 1) in road:
+        if (tx, ty + 1) in road and (tx, ty + 1) not in blocked_cells:
             mask |= 4
-        if (tx - 1, ty) in road:
+        if (tx - 1, ty) in road and (tx - 1, ty) not in blocked_cells:
             mask |= 8
         set_tile(layer, tx, ty, ROAD_BASE + mask)
     return layer
@@ -252,6 +297,9 @@ def prop(prop_id: str, local_id: int, tx: int, ty: int, w: int, h_: int, scale: 
 
 def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
     specs = [
+        ("paris_ruin_west", 16, 55, 42, 128, 128),
+        ("paris_ruin_east", 16, 78, 42, 128, 128),
+        ("paris_market_tent", 18, 59, 54, 128, 128),
         ("market_ruin_west", 16, 55, 18, 128, 128),
         ("market_ruin_east", 16, 66, 19, 128, 128),
         ("market_ruin_south", 16, 48, 27, 128, 128),
@@ -270,13 +318,15 @@ def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
 
 def build_map() -> tuple[dict[str, object], list[dict[str, object]]]:
     road = route_cells()
+    paris = paris_cells()
     colliders: list[dict[str, object]] = []
     props = static_props(colliders)
     objects = low_objects(colliders)
     layers = [
         ("BaseGround", base_ground()),
+        ("ParisPlaza", paris_plaza(paris)),
         ("StoneLandmarks", stone_layer()),
-        ("Roads", roads(road)),
+        ("Roads", roads(road, paris)),
         ("Details", details(road)),
         ("Objects", objects),
         ("ForegroundCanopy", foreground_layer()),
@@ -301,11 +351,11 @@ def build_map() -> tuple[dict[str, object], list[dict[str, object]]]:
                 "name": "ground_v2",
                 "image": "overworld_tiles_v2.png",
                 "imagewidth": 512,
-                "imageheight": 256,
+                "imageheight": 320,
                 "tilewidth": TILE,
                 "tileheight": TILE,
                 "columns": 8,
-                "tilecount": 32,
+                "tilecount": 40,
                 "margin": 0,
                 "spacing": 0,
             },

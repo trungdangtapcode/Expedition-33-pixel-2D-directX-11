@@ -56,6 +56,16 @@
   "pause.yes": "Oui",
   "pause.no": "Non",
 
+  "dialogue.prompt.next": "Entree / Espace",
+  "dialogue.intro_maelle.verso_1": "Cette place devrait etre plus bruyante. Je n'entends que la cendre tomber.",
+  "dialogue.intro_maelle.maelle_1": "Alors ecoute mieux. Paris se souvient encore de chacun de nos pas.",
+  "dialogue.intro_maelle.verso_2": "La route de l'est est ouverte. Partons avant que la patrouille nous trouve.",
+  "dialogue.intro_maelle.maelle_2": "Pas a l'aveugle. Verifie le feu de camp, garde ta lame proche, puis suis le boulevard.",
+  "dialogue.intro_maelle.maelle_3": "Si les miroirs commencent a chanter, ne leur reponds pas.",
+  "dialogue.maelle_repeat.maelle_1": "Le boulevard de l'est est notre meilleure route. Reste pres des feux si tu dois changer d'equipement.",
+  "overworld.prompt.talk": "Appuyez sur E pour parler a {name}",
+  "overworld.prompt.talk_to_maelle": "Parlez a Maelle avant de quitter la place.",
+
   "campfire.title": "Feu de camp",
   "campfire.subtitle_main": "La flamme se souvient de votre route.",
   "campfire.subtitle_save": "Choisissez un emplacement pour sauvegarder le point actuel.",
@@ -195,6 +205,8 @@
 
   "story.default_area": "Prairie cendreuse",
   "story.default_objective": "Suivez les chemins de terre pour rallumer les feux de camp perdus, puis affrontez le miroir à la porte de l'est.",
+  "story.region.paris_square.name": "Rue Cendre",
+  "story.region.paris_square.objective": "Paris est silencieuse. Parlez a Maelle avant de quitter la place par le boulevard de l'est.",
   "story.region.meadow_wake.name": "Éveil de la prairie",
   "story.region.meadow_wake.objective": "Le premier feu de camp est vivant. Suivez la route de l'est et découvrez ce qui a brisé le village.",
   "story.region.silent_market.name": "Marché silencieux",

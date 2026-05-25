@@ -7,6 +7,7 @@
 #include "../Entities/OverworldEnemy.h"
 #include "../Entities/CheckpointCampfire.h"
 #include "../Entities/OverworldStaticProp.h"
+#include "../Entities/OverworldNpc.h"
 #include "../Battle/EnemyEncounterData.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
@@ -156,6 +157,10 @@ private:
     // proximity checks and campfire-specific interaction input.
     std::vector<CheckpointCampfire*> mCampfires;
 
+    // Story NPCs are SceneGraph-owned; this vector only observes them for
+    // proximity prompts, dialogue triggers, and authored route gates.
+    std::vector<OverworldNpc*> mNpcs;
+
     // Encounter data copied from the nearby enemy when B is pressed.
     // Passed to BattleState constructor after the iris closes.
     EnemyEncounterData mPendingEncounter;
@@ -185,6 +190,9 @@ private:
     // One-press L key tracking - opens the LineupState overlay only at campfires.
     bool mLWasDown = false;
 
+    // One-press E key tracking - talks to a nearby NPC.
+    bool mEWasDown = false;
+
     // One-press campfire interaction tracking. U opens the campfire hub;
     // F/C remain quick save/load shortcuts while standing near the fire.
     bool mFWasDown = false;
@@ -201,6 +209,7 @@ private:
     std::string mDefaultThemeId = "ashen_meadow";
     std::string mCurrentArea;
     std::string mCurrentObjective;
+    std::string mInteractionPrompt;
 
     // ListenerID for "window_resized" - stored so we can Unsubscribe in OnExit.
     int mResizeListenerID = -1;
@@ -217,12 +226,17 @@ private:
     bool LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const;
     bool LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const;
     bool LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const;
+    bool LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const;
     bool LoadStoryData();
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
+    OverworldNpc* FindNearbyNpc(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);
+    void ApplyNpcRouteBlocks(float px, float py);
+    bool HandleNpcInput(float px, float py);
     void RenderStoryOverlay();
+    void RenderInteractionPrompt();
     void RenderCurrencyOverlay();
     bool HandleCampfireInput(float px, float py);
 };

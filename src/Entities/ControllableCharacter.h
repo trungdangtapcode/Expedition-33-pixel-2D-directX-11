@@ -115,6 +115,16 @@ public:
     float GetX() const { return mPosX; }
     float GetY() const { return mPosY; }
 
+    // Teleport the character to an authored gameplay gate or checkpoint.
+    // Used by overworld story gates that must push the player out of a
+    // blocked route without exposing velocity or collision internals.
+    void SetPosition(float x, float y) { mPosX = x; mPosY = y; }
+
+    // Clear residual movement after a scripted reposition.
+    // Without this, the old velocity can immediately slide the player back
+    // into the blocked area on the next frame.
+    void ResetVelocity() { mVelX = 0.0f; mVelY = 0.0f; }
+
     // Kill this character (sets IsAlive()=false; SceneGraph purges next frame).
     void Kill() { mAlive = false; }
 

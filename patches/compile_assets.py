@@ -177,8 +177,46 @@ def detail_tile(kind: str, seed: int) -> Image.Image:
     return tile
 
 
+def paris_cobble_tile(local_id: int, seed: int) -> Image.Image:
+    tile = Image.new("RGBA", (TILE, TILE), rgba("#58524b"))
+    draw = ImageDraw.Draw(tile)
+    rng = random.Random(seed)
+    palette = [rgba("#6b645a"), rgba("#504a44"), rgba("#746b5e"), rgba("#3d3936")]
+    y = 0
+    row = 0
+    while y < TILE:
+        block_h = rng.randrange(10, 15)
+        offset = 0 if row % 2 == 0 else -16
+        x = offset
+        while x < TILE:
+            block_w = rng.randrange(18, 28)
+            color = palette[(h := channel_noise(x + local_id, y + local_id, seed)) % len(palette)]
+            left = max(0, x + 1)
+            top = max(0, y + 1)
+            right = min(TILE - 1, x + block_w - 1)
+            bottom = min(TILE - 1, y + block_h - 1)
+            if right >= left and bottom >= top:
+                draw.rectangle([left, top, right, bottom], fill=color, outline=rgba("#252321", 150))
+                if h % 5 == 0:
+                    draw.line([left + 2, bottom - 2, right - 2, top + 2], fill=rgba("#8c8170", 70), width=1)
+            x += block_w
+        y += block_h
+        row += 1
+
+    if local_id in (34, 38):
+        draw_noise(draw, (0, 0, TILE, TILE), seed + 33, [rgba("#9a6c3d", 190), rgba("#2f2b28", 150)], 18, 2)
+    if local_id in (35, 39):
+        for _ in range(4):
+            x = rng.randrange(8, 56)
+            y = rng.randrange(8, 56)
+            draw.line([(x, y), (x + rng.randrange(-10, 11), y + rng.randrange(8, 18))],
+                      fill=rgba("#221f1d", 180),
+                      width=2)
+    return tile
+
+
 def make_ground_atlas() -> Image.Image:
-    atlas = Image.new("RGBA", (COLS * TILE, 4 * TILE), (0, 0, 0, 0))
+    atlas = Image.new("RGBA", (COLS * TILE, 5 * TILE), (0, 0, 0, 0))
     grass = [rgba("#4f7247"), rgba("#507146"), rgba("#4d7046"), rgba("#517348")]
     for i, base in enumerate(grass):
         paste_tile(atlas, i, solid_tile(base, 100 + i, [rgba("#5e7d4f"), rgba("#466a40"), rgba("#668453")], 115))
@@ -211,6 +249,8 @@ def make_ground_atlas() -> Image.Image:
     paste_tile(atlas, 29, detail_tile("leaves", 1002))
     paste_tile(atlas, 30, detail_tile("pebbles", 1003))
     paste_tile(atlas, 31, detail_tile("flowers", 1004))
+    for local_id in range(32, 40):
+        paste_tile(atlas, local_id, paris_cobble_tile(local_id, 1600 + local_id))
     return atlas
 
 

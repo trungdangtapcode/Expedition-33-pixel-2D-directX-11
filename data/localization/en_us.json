@@ -56,6 +56,16 @@
   "pause.yes": "Yes",
   "pause.no": "No",
 
+  "dialogue.prompt.next": "Enter / Space",
+  "dialogue.intro_maelle.verso_1": "This square should be louder. I only hear ash falling.",
+  "dialogue.intro_maelle.maelle_1": "Then listen harder. Paris still remembers every step we take.",
+  "dialogue.intro_maelle.verso_2": "The road east is open. We move before the patrol finds us.",
+  "dialogue.intro_maelle.maelle_2": "Not blindly. Check the campfire, keep your blade close, and follow the boulevard.",
+  "dialogue.intro_maelle.maelle_3": "If the mirrors start singing, do not answer them.",
+  "dialogue.maelle_repeat.maelle_1": "The eastern boulevard is our best route. Stay near the campfires when you need to change gear.",
+  "overworld.prompt.talk": "Press E to talk to {name}",
+  "overworld.prompt.talk_to_maelle": "Talk to Maelle before leaving the square.",
+
   "campfire.title": "Campfire",
   "campfire.subtitle_main": "The flame remembers your route.",
   "campfire.subtitle_save": "Choose a slot to save the current checkpoint.",
@@ -194,6 +204,8 @@
 
   "story.default_area": "Ashen Meadow",
   "story.default_objective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
+  "story.region.paris_square.name": "Rue Cendre",
+  "story.region.paris_square.objective": "Paris is quiet. Talk to Maelle before leaving the square by the eastern boulevard.",
   "story.region.meadow_wake.name": "Meadow Wake",
   "story.region.meadow_wake.objective": "The first campfire is alive. Follow the eastern road and find what broke the village.",
   "story.region.silent_market.name": "Silent Market",

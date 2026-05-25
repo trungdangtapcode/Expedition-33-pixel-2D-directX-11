@@ -1,0 +1,14 @@
+{
+  "id": "maelle_repeat",
+  "completionFlag": "",
+  "skippable": true,
+  "lines": [
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_repeat.maelle_1",
+      "text": "The eastern boulevard is our best route. Stay near the campfires when you need to change gear."
+    }
+  ]
+}

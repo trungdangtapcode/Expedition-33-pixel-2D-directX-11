@@ -1249,14 +1249,16 @@ void BattleState::Render()
                     cameraMatrix
                 );
 
-                std::string costText = "FREE";
+                std::string costText = LocalizationManager::Get().Text("battle.skill_cost.free");
                 if (skill->GetResourceKind() == SkillResourceKind::MP)
                 {
-                    costText = std::to_string(skill->GetMpCost()) + " MP";
+                    costText = LocalizationManager::Get().Format("battle.skill_cost.mp", {
+                        { "cost", std::to_string(skill->GetMpCost()) }
+                    });
                 }
                 else if (skill->GetResourceKind() == SkillResourceKind::Rage)
                 {
-                    costText = "RAGE";
+                    costText = LocalizationManager::Get().Text("battle.skill_cost.rage");
                 }
                 DirectX::XMVECTOR costColor = canUse
                     ? DirectX::XMVectorSet(0.55f, 0.72f, 1.0f, currentAlpha)

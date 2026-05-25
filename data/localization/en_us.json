@@ -154,6 +154,9 @@
   "skill.maelle_quickstep.name": "Quickstep",
   "skill.maelle_quickstep.description": "Spend MP to increase Maelle's speed.",
   "battle.log.skill_use": "{actor} uses {skill} on {target}.",
+  "battle.skill_cost.free": "FREE",
+  "battle.skill_cost.mp": "{cost} MP",
+  "battle.skill_cost.rage": "RAGE",
 
   "status.burn.name": "Burn",
   "status.burn.description": "Takes fire damage at the start of each turn. Repeated burns stack damage.",

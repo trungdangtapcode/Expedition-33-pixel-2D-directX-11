@@ -33,6 +33,8 @@ MP is stored in `BattlerStats` as base battle state:
 
 The UI now renders MP from the same HP bar JSON layout. MP spending happens through `ConsumeMpAction` so the action queue remains the only place combat state is mutated.
 
+Skill menu cost labels are localized through `battle.skill_cost.*` keys and positioned from `data/battle_menu_layout.json` so long skill names do not collide with the cost column.
+
 ## Status Data
 Status effects are loaded from `data/status_effects/*.json` by `StatusEffectRegistry`.
 

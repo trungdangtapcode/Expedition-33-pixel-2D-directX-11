@@ -1,0 +1,11 @@
+{
+	"width": 128,
+	"height": 16,
+	"health_bar_topleft": [16, 6],
+	"health_bar_bottomright": [111, 10],
+	"shield_bar_topleft": [16, 11],
+	"shield_bar_bottomright": [111, 12],
+	"status_anchor_offset_x": -72,
+	"status_anchor_offset_y": 8,
+	"align": "top-center"
+}

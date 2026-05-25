@@ -128,6 +128,8 @@ bool StatusEffectRegistry::LoadFile(const std::string& path)
 
     data.nameKey = StripQuotes(JsonLoader::detail::ValueOf(src, "nameKey"));
     data.descriptionKey = StripQuotes(JsonLoader::detail::ValueOf(src, "descriptionKey"));
+    data.shortDescriptionKey = StripQuotes(JsonLoader::detail::ValueOf(src, "shortDescriptionKey"));
+    data.durationLabelKey = StripQuotes(JsonLoader::detail::ValueOf(src, "durationLabelKey"));
     data.iconId = StripQuotes(JsonLoader::detail::ValueOf(src, "iconId"));
     data.category = ParseCategory(JsonLoader::detail::ValueOf(src, "category"));
     data.stackPolicy = ParseStackPolicy(JsonLoader::detail::ValueOf(src, "stackPolicy"));

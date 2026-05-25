@@ -6,5 +6,7 @@
   "descriptionKey": "skill.maelle_quickstep.description",
   "targeting": "self",
   "mpCost": 8,
-  "statusEffectId": "haste"
+  "statusEffectId": "haste",
+  "uiSortGroup": "support",
+  "hitCount": 0
 }

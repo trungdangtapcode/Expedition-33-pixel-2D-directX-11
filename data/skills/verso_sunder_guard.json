@@ -6,5 +6,7 @@
   "descriptionKey": "skill.verso_sunder_guard.description",
   "targeting": "single_enemy",
   "mpCost": 12,
-  "statusEffectId": "weaken"
+  "statusEffectId": "weaken",
+  "uiSortGroup": "debuff",
+  "hitCount": 0
 }

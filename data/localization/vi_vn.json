@@ -2,7 +2,6 @@
   "language.english": "Tiếng Anh",
   "language.vietnamese": "Tiếng Việt",
   "language.french": "Tiếng Pháp",
-
   "common.back": "Quay lại",
   "common.empty": "Trống",
   "common.party": "Đội hình",
@@ -10,14 +9,11 @@
   "common.owned": "Đang có: {count}",
   "common.none": "(không có)",
   "common.missing_registry": "(thiếu dữ liệu vật phẩm)",
-
   "currency.coins": "Xu: {amount}",
-
   "party.member.Verso": "Verso",
   "party.member.verso": "Verso",
   "party.member.Maelle": "Maelle",
   "party.member.maelle": "Maelle",
-
   "menu.press_any_button": "NHẤN PHÍM BẤT KỲ",
   "menu.new_game": "Chơi mới",
   "menu.continue": "Tiếp tục",
@@ -46,7 +42,6 @@
   "menu.slot_secondary_with_position": "{party} - X {x}, Y {y}",
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Ô trống",
-
   "pause.title": "Tạm dừng",
   "pause.resume": "Tiếp tục",
   "pause.return_to_title": "Về màn hình chính",
@@ -55,7 +50,6 @@
   "pause.confirm_quit": "Thoát trò chơi?",
   "pause.yes": "Có",
   "pause.no": "Không",
-
   "dialogue.prompt.next": "Enter / Space",
   "dialogue.intro_maelle.verso_1": "Quảng trường này lẽ ra phải ồn ào hơn. Tôi chỉ nghe tro rơi.",
   "dialogue.intro_maelle.maelle_1": "Vậy hãy lắng nghe kỹ hơn. Paris vẫn nhớ từng bước chân của chúng ta.",
@@ -65,7 +59,6 @@
   "dialogue.maelle_repeat.maelle_1": "Đại lộ phía đông là đường tốt nhất. Ở gần lửa trại nếu cần đổi trang bị.",
   "overworld.prompt.talk": "Nhấn E để nói chuyện với {name}",
   "overworld.prompt.talk_to_maelle": "Hãy nói chuyện với Maelle trước khi rời quảng trường.",
-
   "campfire.title": "Lửa trại",
   "campfire.subtitle_main": "Ngọn lửa ghi nhớ hành trình của bạn.",
   "campfire.subtitle_save": "Chọn ô để lưu điểm dừng hiện tại.",
@@ -88,7 +81,6 @@
   "campfire.slot_with_position": "Ô {index}: {label} - X {x}, Y {y}",
   "campfire.slot": "Ô {index}: {label}",
   "campfire.slot_empty": "Trống",
-
   "battle.command.fight": "Chiến đấu",
   "battle.command.item": "Vật phẩm",
   "battle.command.flee": "Bỏ chạy",
@@ -136,14 +128,12 @@
   "battle.result.retry_question": "Thử lại trận chiến?",
   "battle.result.retry_yes": "Có",
   "battle.result.retry_no": "Rời đi",
-
   "skill.attack.name": "Tấn công",
   "skill.attack.description": "Đánh kẻ địch.",
   "skill.rage_burst.name": "Nộ Kích",
   "skill.rage_burst.description": "Dùng toàn bộ nộ khí để gây sát thương lớn.",
   "skill.weaken.name": "Suy yếu",
   "skill.weaken.description": "Giảm ATK và DEF của mục tiêu trong 2 lượt.",
-
   "skill.verso_sunder_guard.name": "Phá thủ",
   "skill.verso_sunder_guard.description": "Dùng MP để tấn công và làm suy yếu phòng thủ của một kẻ địch.",
   "skill.verso_mark_prey.name": "Đánh dấu",
@@ -158,7 +148,6 @@
   "battle.skill_cost.free": "0 MP",
   "battle.skill_cost.mp": "{cost} MP",
   "battle.skill_cost.rage": "Nộ khí",
-
   "status.burn.name": "Bỏng",
   "status.burn.description": "Nhận sát thương lửa ở đầu mỗi lượt. Bỏng lặp lại sẽ cộng dồn sát thương.",
   "status.weaken.name": "Suy yếu",
@@ -171,7 +160,6 @@
   "status.haste.description": "SPD được tăng.",
   "status.vulnerable.name": "Dễ tổn thương",
   "status.vulnerable.description": "DEF bị giảm theo phần trăm.",
-
   "inventory.flash.unknown_item": "Vật phẩm không rõ: {item}",
   "inventory.flash.hp_full": "HP đã đầy.",
   "inventory.flash.mp_full": "MP đã đầy.",
@@ -204,7 +192,6 @@
   "inventory.hint.equipment": "Lên/Xuống: ô   Trái/Phải: nhân vật   Enter: đổi   Tab: tab   Esc: đóng",
   "inventory.hint.equipment_locked": "Up/Down: slot   Left/Right: member   Enter: campfire required   Tab: tab   Esc: close",
   "inventory.hint.picker": "Lên/Xuống: chọn vật phẩm   Enter: trang bị   Esc/Backspace: hủy",
-
   "lineup.title": "Đội hình",
   "lineup.equipment": "TRANG BỊ",
   "lineup.select_item": "CHỌN VẬT PHẨM",
@@ -218,18 +205,15 @@
   "lineup.flash.unequipped": "Đã tháo {item}",
   "lineup.flash.nothing_to_unequip": "Không có gì để tháo.",
   "lineup.flash.could_not_equip": "Không thể trang bị vật phẩm này.",
-
   "equip.slot.weapon": "Vũ khí",
   "equip.slot.body": "Áo giáp",
   "equip.slot.head": "Mũ",
   "equip.slot.accessory": "Phụ kiện",
   "equip.slot.none": "(không có)",
-
   "enemy.skeleton.name": "Bộ xương",
   "enemy.skeleton_group.name": "Đội tuần tra xương",
   "enemy.verso_cloned.name": "Bản sao Verso",
   "enemy.zombie_armour.name": "Thây ma giáp",
-
   "story.default_area": "Đồng cỏ tro tàn",
   "story.default_objective": "Đi theo những con đường đất để khôi phục các lửa trại thất lạc, rồi đối mặt chiếc gương ở cổng phía đông.",
   "story.region.paris_square.name": "Phố Tro",
@@ -246,7 +230,6 @@
   "story.region.glass_shrine.objective": "Lửa trại ở đền cho bạn lần hồi phục cuối. Hãy gom sức trước con đường phía đông.",
   "story.region.mirror_gate.name": "Cổng gương",
   "story.region.mirror_gate.objective": "Bản sao chờ sau cánh cổng. Đánh bại nó để chứng minh Verso không chỉ là tiếng vọng.",
-
   "item.antidote.name": "Thuốc giải",
   "item.antidote.description": "Xóa mọi hiệu ứng trạng thái khỏi một đồng minh.",
   "item.bomb.name": "Bom",
@@ -286,5 +269,36 @@
   "item.swift_feather.name": "Lông vũ nhanh",
   "item.swift_feather.description": "Tăng SPD của một đồng minh 50% trong 3 lượt.",
   "item.village_clothes.name": "Áo làng",
-  "item.village_clothes.description": "Quần áo dệt thô của dân làng. Vẫn tốt hơn không có gì."
+  "item.village_clothes.description": "Quần áo dệt thô của dân làng. Vẫn tốt hơn không có gì.",
+  "battle.skill_ui.target": "M?c ti?u: {target}",
+  "battle.skill_ui.damage": "S?t th??ng: {damage} / S? ??n: {hits}",
+  "battle.skill_ui.page": "Trang {page}/{pages}",
+  "battle.skill_ui.preview_target": "Xem tr??c: {target}",
+  "battle.skill_ui.no_target": "Kh?ng c? m?c ti?u",
+  "battle.skill_ui.no_effects": "Kh?ng c? hi?u ?ng",
+  "battle.skill_ui.active_effects": "Hi?u ?ng ?ang c?",
+  "battle.skill_ui.not_enough_mp": "Kh?ng ?? MP.",
+  "battle.skill_ui.rage_not_full": "N? kh? ch?a ??y.",
+  "battle.skill_ui.unavailable": "Ch?a th? d?ng.",
+  "battle.skill_target.self": "B?n th?n",
+  "battle.skill_target.single_ally": "M?t ??ng minh",
+  "battle.skill_target.all_allies": "To?n ??i",
+  "battle.skill_target.single_enemy": "M?t k? ??ch",
+  "battle.skill_target.all_enemies": "M?i k? ??ch",
+  "battle.damage_type.physical": "V?t l?",
+  "battle.damage_type.magical": "Ma ph?p",
+  "battle.damage_type.true": "Chu?n",
+  "battle.damage_type.none": "H? tr?",
+  "battle.skill_ui.applies": "G?y hi?u ?ng: {status}",
+  "battle.skill_ui.status_meta": "{turns} l??t, c?ng d?n t?i ?a {stacks}",
+  "battle.damage_grade.low": "Th?p",
+  "battle.damage_grade.medium": "V?a",
+  "battle.damage_grade.high": "Cao",
+  "battle.damage_grade.extreme": "C?c m?nh",
+  "status.burn.short": "M?t m?u l?a m?i l??t; c?ng d?n m?nh h?n.",
+  "status.guard_up.short": "T?ng DEF trong th?i gian hi?u l?c.",
+  "status.haste.short": "T?ng SPD v? nh?p l??t.",
+  "status.power_up.short": "T?ng ATK trong th?i gian hi?u l?c.",
+  "status.vulnerable.short": "Gi?m DEF tr??c c?c ??n ??nh t?i.",
+  "status.weaken.short": "Gi?m c? ATK v? DEF."
 }

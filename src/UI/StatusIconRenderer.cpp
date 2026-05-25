@@ -92,6 +92,19 @@ void StatusIconRenderer::Render(ID3D11DeviceContext* context,
                                 float barX,
                                 float barY)
 {
+    RenderAt(context,
+             textRenderer,
+             effects,
+             barX + mLayout.offsetX,
+             barY + mLayout.offsetY);
+}
+
+void StatusIconRenderer::RenderAt(ID3D11DeviceContext* context,
+                                  BattleTextRenderer& textRenderer,
+                                  const std::vector<StatusEffectView>& effects,
+                                  float startX,
+                                  float startY)
+{
     if (!IsInitialized() || effects.empty()) return;
 
     const int visibleCount = std::min(static_cast<int>(effects.size()), mLayout.maxVisible);
@@ -107,8 +120,8 @@ void StatusIconRenderer::Render(ID3D11DeviceContext* context,
     for (int i = 0; i < visibleCount; ++i)
     {
         const StatusEffectView& effect = effects[i];
-        const float x = barX + mLayout.offsetX + static_cast<float>(i) * (mLayout.iconSize + mLayout.spacing);
-        const float y = barY + mLayout.offsetY;
+        const float x = startX + static_cast<float>(i) * (mLayout.iconSize + mLayout.spacing);
+        const float y = startY;
 
         const XMVECTORF32 ring = CategoryColor(effect.category);
         mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(x - 2.0f, y - 2.0f), nullptr, ring, 0.0f, origin,
@@ -132,8 +145,8 @@ void StatusIconRenderer::Render(ID3D11DeviceContext* context,
         for (int i = 0; i < visibleCount; ++i)
         {
             const StatusEffectView& effect = effects[i];
-            const float x = barX + mLayout.offsetX + static_cast<float>(i) * (mLayout.iconSize + mLayout.spacing);
-            const float y = barY + mLayout.offsetY;
+            const float x = startX + static_cast<float>(i) * (mLayout.iconSize + mLayout.spacing);
+            const float y = startY;
 
             if (effect.remainingTurns > 0)
             {
@@ -162,8 +175,8 @@ void StatusIconRenderer::Render(ID3D11DeviceContext* context,
         if (static_cast<int>(effects.size()) > visibleCount)
         {
             const int overflow = static_cast<int>(effects.size()) - visibleCount;
-            const float x = barX + mLayout.offsetX + static_cast<float>(visibleCount) * (mLayout.iconSize + mLayout.spacing);
-            const float y = barY + mLayout.offsetY + 5.0f;
+            const float x = startX + static_cast<float>(visibleCount) * (mLayout.iconSize + mLayout.spacing);
+            const float y = startY + 5.0f;
             const std::string label = "+" + std::to_string(overflow);
             textRenderer.DrawStringRawScaled(label.c_str(), x, y, Colors::White, mLayout.textScale, true);
         }

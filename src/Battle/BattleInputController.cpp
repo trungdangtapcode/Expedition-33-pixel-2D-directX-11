@@ -2,6 +2,7 @@
 // File: BattleInputController.cpp
 // Responsibility: Implements the battle input FSM.
 // ============================================================
+#define NOMINMAX
 #include "BattleInputController.h"
 #include "../States/BattleState.h"
 #include "BattleManager.h"
@@ -14,10 +15,13 @@
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Audio/AudioManager.h"
+#include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
 
-#define NOMINMAX
 #include <Windows.h>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
 
 BattleInputController::BattleInputController(BattleState& state, BattleManager& battle, BattleRenderer& renderer)
     : mState(state), mBattle(battle), mRenderer(renderer)
@@ -33,6 +37,7 @@ void BattleInputController::Initialize()
     mSkillIndex   = 0;
     mTargetIndex  = 0;
     mItemIndex    = 0;
+    LoadSkillMenuInputConfig();
 
     // ItemRegistry is the read-only catalog of every item the game knows
     // about.  Loaded once on first access; safe to call here.  Inventory
@@ -41,6 +46,36 @@ void BattleInputController::Initialize()
     ItemRegistry::Get().EnsureLoaded();
 
     BuildCommandList();
+}
+
+// ------------------------------------------------------------
+// Function: LoadSkillMenuInputConfig
+// Purpose:
+//   Read the visible skill-card page size from the same layout JSON
+//   used by BattleSkillMenuRenderer.
+// Why:
+//   Input and rendering must agree on page boundaries so Up/Down stays
+//   inside the visible cards and Left/Right swaps to the next page.
+// ------------------------------------------------------------
+void BattleInputController::LoadSkillMenuInputConfig()
+{
+    std::ifstream file("data/battle_skill_menu_layout.json");
+    if (!file.is_open())
+    {
+        mSkillPageSize = 4;
+        return;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    mSkillPageSize = JsonLoader::detail::ParseInt(
+        JsonLoader::detail::ValueOf(src, "pageSize"),
+        mSkillPageSize);
+    if (mSkillPageSize < 1)
+    {
+        mSkillPageSize = 1;
+    }
 }
 
 void BattleInputController::BuildCommandList()
@@ -127,13 +162,18 @@ void BattleInputController::HandleSkillSelect()
     auto* player = mBattle.GetActivePlayer();
     if (!player) return;
 
-    int skillCount = 0;
-    while (player->GetSkill(skillCount) != nullptr) ++skillCount;
+    const int skillCount = player->GetSkillCount();
     if (skillCount == 0) return;
+
+    const int pageSize = std::max(1, mSkillPageSize);
+    const int pageCount = (skillCount + pageSize - 1) / pageSize;
+    const int currentPage = std::max(0, std::min(mSkillIndex / pageSize, pageCount - 1));
+    const int firstOnPage = currentPage * pageSize;
+    const int lastOnPage = std::min(skillCount, firstOnPage + pageSize);
 
     if (pressed(VK_UP, mKeyUpWasDown))
     {
-        mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
+        mSkillIndex = (mSkillIndex > firstOnPage) ? (mSkillIndex - 1) : (lastOnPage - 1);
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
             mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
@@ -141,10 +181,30 @@ void BattleInputController::HandleSkillSelect()
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
-        mSkillIndex = (mSkillIndex + 1) % skillCount;
+        mSkillIndex = (mSkillIndex + 1 < lastOnPage) ? (mSkillIndex + 1) : firstOnPage;
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
             mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
+        mState.DumpStateToDebugOutput();
+    }
+    if (pressed(VK_LEFT, mKeyLeftWasDown))
+    {
+        const int row = mSkillIndex % pageSize;
+        const int nextPage = (currentPage - 1 + pageCount) % pageCount;
+        mSkillIndex = std::min(skillCount - 1, nextPage * pageSize + row);
+        AudioManager::Get().PlaySfx("ui_navigate");
+        LOG("[BattleState] Skill page -> %d, slot %d (%s)",
+            nextPage + 1, mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
+        mState.DumpStateToDebugOutput();
+    }
+    if (pressed(VK_RIGHT, mKeyRightWasDown))
+    {
+        const int row = mSkillIndex % pageSize;
+        const int nextPage = (currentPage + 1) % pageCount;
+        mSkillIndex = std::min(skillCount - 1, nextPage * pageSize + row);
+        AudioManager::Get().PlaySfx("ui_navigate");
+        LOG("[BattleState] Skill page -> %d, slot %d (%s)",
+            nextPage + 1, mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
@@ -495,10 +555,15 @@ void BattleInputController::ConfirmItemAndTarget()
 
 void BattleInputController::SetInputPhase(PlayerInputPhase phase)
 {
+    const PlayerInputPhase previousPhase = mInputPhase;
     mInputPhase = phase;
 
     if (phase == PlayerInputPhase::COMMAND_SELECT) mCommandIndex = 0;
-    if (phase == PlayerInputPhase::SKILL_SELECT)   mSkillIndex   = 0;
+    if (phase == PlayerInputPhase::SKILL_SELECT &&
+        previousPhase != PlayerInputPhase::TARGET_SELECT)
+    {
+        mSkillIndex = 0;
+    }
     if (phase == PlayerInputPhase::TARGET_SELECT)  mTargetIndex  = 0;
 
     // Refresh the inventory snapshot the moment the player enters the

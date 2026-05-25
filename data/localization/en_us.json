@@ -2,7 +2,6 @@
   "language.english": "English",
   "language.vietnamese": "Vietnamese",
   "language.french": "French",
-
   "common.back": "Back",
   "common.empty": "Empty",
   "common.party": "Party",
@@ -10,14 +9,11 @@
   "common.owned": "Owned: {count}",
   "common.none": "(none)",
   "common.missing_registry": "(missing registry entry)",
-
   "currency.coins": "Coins: {amount}",
-
   "party.member.Verso": "Verso",
   "party.member.verso": "Verso",
   "party.member.Maelle": "Maelle",
   "party.member.maelle": "Maelle",
-
   "menu.press_any_button": "PRESS ANY BUTTON",
   "menu.new_game": "New Game",
   "menu.continue": "Continue",
@@ -46,7 +42,6 @@
   "menu.slot_secondary_with_position": "{party} - X {x}, Y {y}",
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Empty Slot",
-
   "pause.title": "Paused",
   "pause.resume": "Resume",
   "pause.return_to_title": "Return to Title",
@@ -55,7 +50,6 @@
   "pause.confirm_quit": "Quit the game?",
   "pause.yes": "Yes",
   "pause.no": "No",
-
   "dialogue.prompt.next": "Enter / Space",
   "dialogue.intro_maelle.verso_1": "This square should be louder. I only hear ash falling.",
   "dialogue.intro_maelle.maelle_1": "Then listen harder. Paris still remembers every step we take.",
@@ -65,7 +59,6 @@
   "dialogue.maelle_repeat.maelle_1": "The eastern boulevard is our best route. Stay near the campfires when you need to change gear.",
   "overworld.prompt.talk": "Press E to talk to {name}",
   "overworld.prompt.talk_to_maelle": "Talk to Maelle before leaving the square.",
-
   "campfire.title": "Campfire",
   "campfire.subtitle_main": "The flame remembers your route.",
   "campfire.subtitle_save": "Choose a slot to save the current checkpoint.",
@@ -88,7 +81,6 @@
   "campfire.slot_with_position": "Slot {index}: {label} - X {x}, Y {y}",
   "campfire.slot": "Slot {index}: {label}",
   "campfire.slot_empty": "Empty",
-
   "battle.command.fight": "Fight",
   "battle.command.item": "Item",
   "battle.command.flee": "Flee",
@@ -136,7 +128,6 @@
   "battle.result.retry_question": "Retry Battle?",
   "battle.result.retry_yes": "Yes",
   "battle.result.retry_no": "Leave",
-
   "skill.attack.name": "Attack",
   "skill.attack.description": "Strike the enemy.",
   "skill.rage_burst.name": "Rage Burst",
@@ -157,7 +148,6 @@
   "battle.skill_cost.free": "FREE",
   "battle.skill_cost.mp": "{cost} MP",
   "battle.skill_cost.rage": "RAGE",
-
   "status.burn.name": "Burn",
   "status.burn.description": "Takes fire damage at the start of each turn. Repeated burns stack damage.",
   "status.weaken.name": "Weaken",
@@ -170,7 +160,6 @@
   "status.haste.description": "SPD is increased.",
   "status.vulnerable.name": "Vulnerable",
   "status.vulnerable.description": "DEF is reduced by a percentage.",
-
   "inventory.flash.unknown_item": "Unknown item: {item}",
   "inventory.flash.hp_full": "HP is already full.",
   "inventory.flash.mp_full": "MP is already full.",
@@ -203,7 +192,6 @@
   "inventory.hint.equipment": "Up/Down: slot   Left/Right: member   Enter: change   Tab: tab   Esc: close",
   "inventory.hint.equipment_locked": "Up/Down: slot   Left/Right: member   Enter: campfire required   Tab: tab   Esc: close",
   "inventory.hint.picker": "Up/Down: pick item   Enter: equip   Esc/Backspace: cancel",
-
   "lineup.title": "Party Lineup",
   "lineup.equipment": "EQUIPMENT",
   "lineup.select_item": "SELECT ITEM",
@@ -217,18 +205,15 @@
   "lineup.flash.unequipped": "Unequipped {item}",
   "lineup.flash.nothing_to_unequip": "Nothing to unequip.",
   "lineup.flash.could_not_equip": "Could not equip that item.",
-
   "equip.slot.weapon": "Weapon",
   "equip.slot.body": "Body",
   "equip.slot.head": "Head",
   "equip.slot.accessory": "Accessory",
   "equip.slot.none": "(none)",
-
   "enemy.skeleton.name": "Skeleton",
   "enemy.skeleton_group.name": "Skeleton Patrol",
   "enemy.verso_cloned.name": "Verso Clone",
   "enemy.zombie_armour.name": "Zombie Armour",
-
   "story.default_area": "Ashen Meadow",
   "story.default_objective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
   "story.region.paris_square.name": "Rue Cendre",
@@ -245,7 +230,6 @@
   "story.region.glass_shrine.objective": "The shrine campfire offers one last recovery. Gather strength before the eastern road.",
   "story.region.mirror_gate.name": "Mirror Gate",
   "story.region.mirror_gate.objective": "The clone waits beyond the gate. Defeat it to prove Verso is more than an echo.",
-
   "item.antidote.name": "Antidote",
   "item.antidote.description": "Removes all status effects from one ally.",
   "item.bomb.name": "Bomb",
@@ -285,5 +269,36 @@
   "item.swift_feather.name": "Swift Feather",
   "item.swift_feather.description": "Boosts an ally's SPD by 50% for 3 turns.",
   "item.village_clothes.name": "Village Clothes",
-  "item.village_clothes.description": "Plain woven garments worn by villagers. Better than nothing."
+  "item.village_clothes.description": "Plain woven garments worn by villagers. Better than nothing.",
+  "battle.skill_ui.target": "Target: {target}",
+  "battle.skill_ui.damage": "Damage: {damage} / Hits: {hits}",
+  "battle.skill_ui.page": "Page {page}/{pages}",
+  "battle.skill_ui.preview_target": "Preview: {target}",
+  "battle.skill_ui.no_target": "No target",
+  "battle.skill_ui.no_effects": "No active effects",
+  "battle.skill_ui.active_effects": "Active effects",
+  "battle.skill_ui.not_enough_mp": "Not enough MP.",
+  "battle.skill_ui.rage_not_full": "Rage is not full.",
+  "battle.skill_ui.unavailable": "Unavailable now.",
+  "battle.skill_target.self": "Self",
+  "battle.skill_target.single_ally": "One ally",
+  "battle.skill_target.all_allies": "All allies",
+  "battle.skill_target.single_enemy": "One enemy",
+  "battle.skill_target.all_enemies": "All enemies",
+  "battle.damage_type.physical": "Physical",
+  "battle.damage_type.magical": "Magical",
+  "battle.damage_type.true": "True",
+  "battle.damage_type.none": "Support",
+  "battle.skill_ui.applies": "Applies: {status}",
+  "battle.skill_ui.status_meta": "{turns} turns, max stacks {stacks}",
+  "battle.damage_grade.low": "Low",
+  "battle.damage_grade.medium": "Medium",
+  "battle.damage_grade.high": "High",
+  "battle.damage_grade.extreme": "Extreme",
+  "status.burn.short": "Fire damage each turn; stacks harder.",
+  "status.guard_up.short": "Raises DEF while it lasts.",
+  "status.haste.short": "Raises SPD and turn frequency.",
+  "status.power_up.short": "Raises ATK while it lasts.",
+  "status.vulnerable.short": "Lowers DEF against incoming hits.",
+  "status.weaken.short": "Lowers ATK and DEF together."
 }

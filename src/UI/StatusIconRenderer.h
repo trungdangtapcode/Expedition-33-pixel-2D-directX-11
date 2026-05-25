@@ -43,6 +43,12 @@ public:
                 float barX,
                 float barY);
 
+    void RenderAt(ID3D11DeviceContext* context,
+                  BattleTextRenderer& textRenderer,
+                  const std::vector<StatusEffectView>& effects,
+                  float x,
+                  float y);
+
     void SetScreenSize(int w, int h);
     void Shutdown();
     bool IsInitialized() const { return mSpriteBatch != nullptr; }

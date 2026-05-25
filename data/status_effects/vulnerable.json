@@ -9,6 +9,12 @@
   "maxStacks": 1,
   "dispellable": true,
   "modifiers": [
-    { "stat": "def", "op": "add_percent", "value": -20 }
-  ]
+    {
+      "stat": "def",
+      "op": "add_percent",
+      "value": -20
+    }
+  ],
+  "shortDescriptionKey": "status.vulnerable.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
 }

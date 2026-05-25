@@ -9,6 +9,12 @@
   "maxStacks": 1,
   "dispellable": true,
   "modifiers": [
-    { "stat": "spd", "op": "add_percent", "value": 50 }
-  ]
+    {
+      "stat": "spd",
+      "op": "add_percent",
+      "value": 50
+    }
+  ],
+  "shortDescriptionKey": "status.haste.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
 }

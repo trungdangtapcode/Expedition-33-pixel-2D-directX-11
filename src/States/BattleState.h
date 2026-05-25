@@ -63,6 +63,7 @@
 #include "../UI/StatusIconRenderer.h"
 #include "../UI/ExpBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
+#include "../UI/BattleSkillMenuRenderer.h"
 #include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
@@ -131,6 +132,7 @@ private:
     std::vector<DirectX::XMFLOAT2> mHealthBarPositions;
     std::vector<std::unique_ptr<ExpBarRenderer>>    mExpBars;
     StatusIconRenderer    mStatusIconRenderer;
+    BattleSkillMenuRenderer mSkillMenuRenderer;
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;

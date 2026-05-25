@@ -53,6 +53,41 @@ SkillTargeting AttackSkill::GetTargeting() const
     return SkillTargeting::SingleEnemy;
 }
 
+std::string AttackSkill::GetKind() const
+{
+    return mData.kind.empty() ? "attack" : mData.kind;
+}
+
+std::string AttackSkill::GetDamageType() const
+{
+    return mData.damageType.empty() ? "physical" : mData.damageType;
+}
+
+std::string AttackSkill::GetStatusEffectId() const
+{
+    return mData.statusEffectId;
+}
+
+std::string AttackSkill::GetDamageGradeKey() const
+{
+    return mData.damageGradeKey;
+}
+
+std::vector<std::string> AttackSkill::GetExtraRuleKeys() const
+{
+    return mData.extraRuleKeys;
+}
+
+int AttackSkill::GetHitCount() const
+{
+    return mData.hitCount;
+}
+
+float AttackSkill::GetSkillMultiplier() const
+{
+    return mData.skillMultiplier;
+}
+
 std::string AttackSkill::GetDebugName() const
 {
     return LocalizationManager::Get().TextOrFallbackEnglish(mData.nameKey, "Attack");

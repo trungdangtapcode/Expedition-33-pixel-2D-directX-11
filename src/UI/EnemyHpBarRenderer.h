@@ -10,18 +10,18 @@
 //   Stacked vertically from kTopPadding below the top edge, separated by
 //   kBarSpacing pixels.  Slot 0 = topmost; slot 2 = lowest.
 //
-// Visual layers per bar (three SpriteBatch passes — all active bars per pass):
-//   Pass 1 — background  (enemy-hp-ui-background.png, non-premultiplied)
-//   Pass 2 — HP fill     (1x1 white tinted red, opaque, clipped to ratio)
-//   Pass 3 — frame/chrome(enemy-hp-ui.png, non-premultiplied)
+// Visual layers per bar (three SpriteBatch passes - all active bars per pass):
+//   Pass 1 - background  (enemy-hp-ui-background.png, non-premultiplied)
+//   Pass 2 - HP fill     (1x1 white tinted red, opaque, clipped to ratio)
+//   Pass 3 - frame/chrome(enemy-hp-ui.png, non-premultiplied)
 //   This ordering matches the player HealthBarRenderer and guarantees the
 //   frame chrome always sits on top of the fill.
 //
 // HP smoothing (exponential approach, same as HealthBarRenderer):
 //   mDisplayedHP[i] += (mTargetHP[i] - mDisplayedHP[i]) * kLerpSpeed * dt
-//   Seeded to actual HP on the first SetEnemy() call — no lerp from 0.
+//   Seeded to actual HP on the first SetEnemy() call - no lerp from 0.
 //
-// Data flow — polling, not events:
+// Data flow - polling, not events:
 //   BattleState::Update() calls SetEnemy(slot, hp, maxHp, active) every
 //   frame after mBattle.Update() resolves actions.
 //
@@ -30,10 +30,10 @@
 //   GPU resources are released in Shutdown() before D3DContext teardown.
 //
 // Common mistakes:
-//   1. Not calling SetEnemy(slot, 0, max, false) when an enemy dies —
+//   1. Not calling SetEnemy(slot, 0, max, false) when an enemy dies -
 //      bar stays visible.
-//   2. Passing maxHp=0 — division by zero; guarded by max(maxHp, 1).
-//   3. Forgetting BindViewport() before SpriteBatch::Begin() — throws
+//   2. Passing maxHp=0 - division by zero; guarded by max(maxHp, 1).
+//   3. Forgetting BindViewport() before SpriteBatch::Begin() - throws
 //      std::runtime_error when RS viewports were cleared by another renderer.
 // ============================================================
 #pragma once
@@ -50,7 +50,7 @@
 class EnemyHpBarRenderer
 {
 public:
-    // Maximum HP bars — one per possible enemy slot.
+    // Maximum HP bars - one per possible enemy slot.
     static constexpr int kMaxSlots = 3;
 
     // ----------------------------------------------------------------
@@ -60,11 +60,11 @@ public:
     //   the JSON layout config, and create the SpriteBatch + CommonStates.
     //
     // Parameters:
-    //   device/context   — D3D11 device and immediate context
-    //   bgTexturePath    — path to enemy-hp-ui-background.png (wide string)
-    //   frameTexturePath — path to enemy-hp-ui.png (frame/chrome, wide string)
-    //   configJsonPath   — path to enemy-hp-ui.json (UTF-8 string)
-    //   screenW/H        — render target dimensions (for layout + viewport)
+    //   device/context   - D3D11 device and immediate context
+    //   bgTexturePath    - path to enemy-hp-ui-background.png (wide string)
+    //   frameTexturePath - path to enemy-hp-ui.png (frame/chrome, wide string)
+    //   configJsonPath   - path to enemy-hp-ui.json (UTF-8 string)
+    //   screenW/H        - render target dimensions (for layout + viewport)
     //
     // Returns: true if all GPU resources were created successfully.
     // ----------------------------------------------------------------
@@ -111,6 +111,8 @@ public:
 
     // Draw all active bars.  Four passes: BG, fill, frame, names.
     void Render(ID3D11DeviceContext* context);
+
+    bool GetStatusAnchor(int slot, float& outX, float& outY) const;
 
     // Release all GPU resources.
     void Shutdown();
@@ -183,6 +185,9 @@ private:
     // Pixels of vertical gap between the BOTTOM of one bar and the name label
     // of the NEXT slot below it.  Visible breathing room between slots.
     static constexpr float kBarSpacing      = 6.0f;
+
+    float mStatusAnchorOffsetX = -72.0f;
+    float mStatusAnchorOffsetY = 8.0f;
 
     // Bind the viewport so SpriteBatch does not throw when the RS stage
     // has no viewport set (can happen after WorldSpriteRenderer resets it).

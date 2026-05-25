@@ -157,6 +157,7 @@ void BattleState::ShutdownBattleSessionRenderers()
     for (auto& bar : mHealthBars) bar->Shutdown();
     for (auto& ebar : mExpBars) ebar->Shutdown();
     mStatusIconRenderer.Shutdown();
+    mSkillMenuRenderer.Shutdown();
     mHealthBars.clear();
     mHealthBarPositions.clear();
     mExpBars.clear();
@@ -393,6 +394,14 @@ void BattleState::InitUIRenderers()
         L"assets/UI/status_effect_icons.png",
         "assets/UI/status_effect_icons.json",
         "data/status_effect_ui.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
+    mSkillMenuRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        "data/battle_skill_menu_layout.json",
+        L"assets/UI/status_effect_icons.png",
+        "assets/UI/status_effect_icons.json",
         mD3D.GetWidth(),
         mD3D.GetHeight());
 
@@ -645,6 +654,12 @@ void BattleState::UpdateLogic(float dt)
         mCmdMenuTimer += dt;
         mSkillMenuTimer += dt;
     }
+
+    const bool skillMenuVisible =
+        phaseAfter == BattlePhase::PLAYER_TURN &&
+        (mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT ||
+         mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT);
+    mSkillMenuRenderer.Update(dt, skillMenuVisible);
 
     bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN &&
                             mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT);
@@ -1060,6 +1075,27 @@ void BattleState::Render()
         mTextRenderer.EndBatch();
     }
     mEnemyHpBar.Render(mD3D.GetContext());
+    if (mStatusIconRenderer.IsInitialized())
+    {
+        const auto enemies = mBattle.GetAllEnemies();
+        for (int i = 0;
+             i < static_cast<int>(enemies.size()) &&
+             i < EnemyHpBarRenderer::kMaxSlots;
+             ++i)
+        {
+            float anchorX = 0.0f;
+            float anchorY = 0.0f;
+            if (mEnemyHpBar.GetStatusAnchor(i, anchorX, anchorY))
+            {
+                mStatusIconRenderer.RenderAt(
+                    mD3D.GetContext(),
+                    mTextRenderer,
+                    enemies[i]->GetStatusEffectViews(),
+                    anchorX,
+                    anchorY);
+            }
+        }
+    }
     mTurnQueueUI.Render(mD3D.GetContext());
 
     // Draw Floating Damage Texts
@@ -1162,117 +1198,19 @@ void BattleState::Render()
     }
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&
-        mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT)
+        (mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT ||
+         mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT))
     {
-        const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
-        const auto& players = mBattle.GetAllPlayers();
-        int slotIndex = 0;
-        for (int i = 0; i < static_cast<int>(players.size()); ++i)
-        {
-            if (players[i] == activePlayer) { slotIndex = i; break; }
-        }
-
-        float worldX, worldY;
-        mBattleRenderer.GetPlayerSlotPos(slotIndex, worldX, worldY);
-
-        auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
-
-        if (activePlayer)
-        {
-            const int skillCount = activePlayer->GetSkillCount();
-            const int hoveredIndex = mInputController.GetSkillIndex();
-
-            const float baseDialogWidth = mMenuLayout.skill.width;
-            const float baseDialogHeight = mMenuLayout.skill.height;
-            const float itemSpacing = mMenuLayout.skill.spacing;
-            const float hoverScale = mMenuLayout.skill.hoverScale;
-            const float sliceScale = mMenuLayout.skill.sliceScale;
-
-            // Position right from character, centered vertically based on skill count
-            const float baseX = worldX + mMenuLayout.skill.offsetX;
-            const float totalHeight = skillCount * (baseDialogHeight + itemSpacing);
-            const float baseY = worldY + mMenuLayout.skill.offsetY - (totalHeight / 2.0f);
-
-            // Ease interpolation (cubic ease-out)
-            float activeSkillTimer = (std::max)(0.0f, mSkillMenuTimer - mMenuLayout.skill.entryDelay);
-            float t = mMenuLayout.skill.entryDuration > 0.f ? (std::min)(activeSkillTimer / mMenuLayout.skill.entryDuration, 1.0f) : 1.0f;
-            float easeT = 1.0f - std::pow(1.0f - t, 3.0f);
-            float slideOffset = mMenuLayout.skill.slideOffsetX * (1.0f - easeT);
-            float currentAlpha = mMenuLayout.skill.fadeStartAlpha + (1.0f - mMenuLayout.skill.fadeStartAlpha) * easeT;
-            DirectX::XMVECTOR dboxColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
-
-            for (int i = 0; i < skillCount; ++i)
-            {
-                const ISkill* skill = activePlayer->GetSkill(i);
-                if (!skill) continue;
-
-                bool isHovered = (i == hoveredIndex);
-                float scaleMultiplier = isHovered ? hoverScale : 1.0f;
-
-                float dialogWidth = baseDialogWidth * scaleMultiplier;
-                float dialogHeight = baseDialogHeight * scaleMultiplier;
-
-                // Shift by half the difference to scale from center
-                float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
-                float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
-
-                float dialogX = baseX - offsetX - slideOffset;
-                float dialogY = baseY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
-
-                // Draw 9-slice in WORLD SPACE
-                mDialogBox.Draw(
-                    mD3D.GetContext(),
-                    dialogX, dialogY,
-                    dialogWidth, dialogHeight,
-                    sliceScale * scaleMultiplier,
-                    cameraMatrix,
-                    dboxColor
-                );
-
-                float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier;
-                float textY = dialogY + mMenuLayout.skill.textOffsetY * scaleMultiplier;
-
-                bool canUse = skill->CanUse(*static_cast<const IBattler*>(activePlayer), mBattle.GetContext());
-                DirectX::XMVECTOR textColor = canUse ? DirectX::Colors::White : DirectX::Colors::Gray;
-                if (isHovered) {
-                    textColor = canUse ? DirectX::Colors::Yellow : DirectX::Colors::Orange;
-                }
-                textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
-
-                // Draw Text inside the dialog box (WORLD SPACE)
-                const std::string skillName = skill->GetName();
-                mTextRenderer.DrawString(
-                    mD3D.GetContext(),
-                    skillName.c_str(),
-                    textX, textY,
-                    textColor,
-                    cameraMatrix
-                );
-
-                std::string costText = LocalizationManager::Get().Text("battle.skill_cost.free");
-                if (skill->GetResourceKind() == SkillResourceKind::MP)
-                {
-                    costText = LocalizationManager::Get().Format("battle.skill_cost.mp", {
-                        { "cost", std::to_string(skill->GetMpCost()) }
-                    });
-                }
-                else if (skill->GetResourceKind() == SkillResourceKind::Rage)
-                {
-                    costText = LocalizationManager::Get().Text("battle.skill_cost.rage");
-                }
-                DirectX::XMVECTOR costColor = canUse
-                    ? DirectX::XMVectorSet(0.55f, 0.72f, 1.0f, currentAlpha)
-                    : DirectX::XMVectorSet(0.45f, 0.45f, 0.52f, currentAlpha);
-                mTextRenderer.DrawString(
-                    mD3D.GetContext(),
-                    costText.c_str(),
-                    dialogX + mMenuLayout.skill.costOffsetX * scaleMultiplier,
-                    dialogY + mMenuLayout.skill.costOffsetY * scaleMultiplier,
-                    costColor,
-                    cameraMatrix
-                );
-            }
-        }
+        mSkillMenuRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+        mSkillMenuRenderer.Render(
+            mD3D.GetContext(),
+            mTextRenderer,
+            mBattle.GetActivePlayer(),
+            mInputController.GetSkillIndex(),
+            mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT,
+            mInputController.GetTargetIndex(),
+            mBattle.GetAliveEnemies(),
+            mBattle.GetContext());
     }
 
     // ---- Item menu (ITEM_SELECT) ----

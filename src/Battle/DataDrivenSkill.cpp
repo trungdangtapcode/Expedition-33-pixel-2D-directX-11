@@ -93,6 +93,41 @@ SkillTargeting DataDrivenSkill::GetTargeting() const
     return mTargeting;
 }
 
+std::string DataDrivenSkill::GetKind() const
+{
+    return mData.kind;
+}
+
+std::string DataDrivenSkill::GetDamageType() const
+{
+    return mData.damageType;
+}
+
+std::string DataDrivenSkill::GetStatusEffectId() const
+{
+    return mData.statusEffectId;
+}
+
+std::string DataDrivenSkill::GetDamageGradeKey() const
+{
+    return mData.damageGradeKey;
+}
+
+std::vector<std::string> DataDrivenSkill::GetExtraRuleKeys() const
+{
+    return mData.extraRuleKeys;
+}
+
+int DataDrivenSkill::GetHitCount() const
+{
+    return mData.hitCount;
+}
+
+float DataDrivenSkill::GetSkillMultiplier() const
+{
+    return mData.skillMultiplier;
+}
+
 std::string DataDrivenSkill::GetDebugName() const
 {
     return LocalizationManager::Get().TextOrFallbackEnglish(mData.nameKey, mData.id);

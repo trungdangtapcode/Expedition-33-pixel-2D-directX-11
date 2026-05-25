@@ -18,5 +18,8 @@
   "qteMinCount": 2,
   "qteMaxCount": 4,
   "bonusQteCount": 0.2,
-  "qteSpacing": 0.15
+  "qteSpacing": 0.15,
+  "uiSortGroup": "basic",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.medium"
 }

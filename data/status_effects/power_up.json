@@ -9,6 +9,12 @@
   "maxStacks": 1,
   "dispellable": true,
   "modifiers": [
-    { "stat": "atk", "op": "add_percent", "value": 30 }
-  ]
+    {
+      "stat": "atk",
+      "op": "add_percent",
+      "value": 30
+    }
+  ],
+  "shortDescriptionKey": "status.power_up.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
 }

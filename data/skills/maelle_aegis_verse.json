@@ -6,5 +6,7 @@
   "descriptionKey": "skill.maelle_aegis_verse.description",
   "targeting": "self",
   "mpCost": 9,
-  "statusEffectId": "guard_up"
+  "statusEffectId": "guard_up",
+  "uiSortGroup": "support",
+  "hitCount": 0
 }

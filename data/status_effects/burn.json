@@ -9,5 +9,7 @@
   "maxStacks": 3,
   "dispellable": true,
   "tickDamage": 6,
-  "tickDamagePerStack": 4
+  "tickDamagePerStack": 4,
+  "shortDescriptionKey": "status.burn.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
 }

@@ -8,5 +8,8 @@
   "damageType": "magical",
   "skillMultiplier": 1.15,
   "mpCost": 10,
-  "statusEffectId": "burn"
+  "statusEffectId": "burn",
+  "uiSortGroup": "offense",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.medium"
 }

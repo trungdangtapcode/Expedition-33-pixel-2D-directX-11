@@ -9,7 +9,17 @@
   "maxStacks": 1,
   "dispellable": true,
   "modifiers": [
-    { "stat": "atk", "op": "add_flat", "value": -15 },
-    { "stat": "def", "op": "add_flat", "value": -10 }
-  ]
+    {
+      "stat": "atk",
+      "op": "add_flat",
+      "value": -15
+    },
+    {
+      "stat": "def",
+      "op": "add_flat",
+      "value": -10
+    }
+  ],
+  "shortDescriptionKey": "status.weaken.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
 }

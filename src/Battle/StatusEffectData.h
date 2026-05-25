@@ -29,6 +29,8 @@ struct StatusEffectData
     std::string id;
     std::string nameKey;
     std::string descriptionKey;
+    std::string shortDescriptionKey;
+    std::string durationLabelKey;
     std::string iconId;
     StatusEffectCategory category = StatusEffectCategory::Neutral;
     StatusStackPolicy stackPolicy = StatusStackPolicy::Refresh;

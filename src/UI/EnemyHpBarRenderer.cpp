@@ -9,9 +9,9 @@
 //   This keeps bars compact and pixel-art-sharp at all resolutions.
 //
 //   Three-pass rendering per frame (all active bars per pass, not per-bar):
-//     Pass 1 — NonPremultiplied: draw mBgSRV    (enemy-hp-ui-background.png)
-//     Pass 2 — Opaque:           draw mFillSRV  (1x1 white tinted red, scaled to ratio)
-//     Pass 3 — NonPremultiplied: draw mFrameSRV (enemy-hp-ui.png chrome/frame)
+//     Pass 1 - NonPremultiplied: draw mBgSRV    (enemy-hp-ui-background.png)
+//     Pass 2 - Opaque:           draw mFillSRV  (1x1 white tinted red, scaled to ratio)
+//     Pass 3 - NonPremultiplied: draw mFrameSRV (enemy-hp-ui.png chrome/frame)
 //   Three Begin/End pairs per frame regardless of active bar count.
 //
 // Fill geometry:
@@ -21,17 +21,16 @@
 //     fillH    = (mHpBottom - mHpTop) * scaleX
 //
 // Common mistakes:
-//   1. Using separate scaleX and scaleY — would distort the pixel-art end-caps.
-//   2. Forgetting to multiply fill coordinates by scaleX — fill misaligns.
-//   3. Calling Begin/End inside the slot loop — 2*N or 3*N pairs instead of 3.
+//   1. Using separate scaleX and scaleY - would distort the pixel-art end-caps.
+//   2. Forgetting to multiply fill coordinates by scaleX - fill misaligns.
+//   3. Calling Begin/End inside the slot loop - 2*N or 3*N pairs instead of 3.
 // ============================================================
+#define NOMINMAX
 #include "EnemyHpBarRenderer.h"
 #include "../Utils/Log.h"
 #include <fstream>
 #include <sstream>
 #include <algorithm>
-#undef min
-#undef max
 
 using Microsoft::WRL::ComPtr;
 using namespace DirectX;
@@ -43,7 +42,7 @@ void EnemyHpBarRenderer::BindViewport(ID3D11DeviceContext* context)
 {
     // Build and bind the viewport from stored screen dimensions.
     // Also push it into SpriteBatch via SetViewport() so SpriteBatch's
-    // internal GetViewportTransform() does not call RSGetViewports() — which
+    // internal GetViewportTransform() does not call RSGetViewports() - which
     // can return 0 viewports after another renderer unsets the RS state,
     // causing SpriteBatch::End() to throw std::runtime_error.
     D3D11_VIEWPORT vp = {};
@@ -98,6 +97,19 @@ bool EnemyHpBarRenderer::Initialize(ID3D11Device*        device,
                 catch (...) { return def; }
             };
 
+            auto parseFloat = [&](const std::string& key, float def) -> float
+            {
+                const std::string searchKey = "\"" + key + "\"";
+                size_t kpos = src.find(searchKey);
+                if (kpos == std::string::npos) return def;
+                size_t colon = src.find(':', kpos + searchKey.size());
+                if (colon == std::string::npos) return def;
+                size_t vs = colon + 1;
+                while (vs < src.size() && (src[vs] == ' ' || src[vs] == '\t')) ++vs;
+                try { return std::stof(src.substr(vs)); }
+                catch (...) { return def; }
+            };
+
             // Extract [x, y] integer array for "key": [x, y].
             auto parseVec2 = [&](const std::string& key, int& outX, int& outY)
             {
@@ -120,13 +132,15 @@ bool EnemyHpBarRenderer::Initialize(ID3D11Device*        device,
             mTexH = parseInt("height", mTexH);
             parseVec2("health_bar_topleft",     mHpLeft,  mHpTop);
             parseVec2("health_bar_bottomright", mHpRight, mHpBottom);
+            mStatusAnchorOffsetX = parseFloat("status_anchor_offset_x", mStatusAnchorOffsetX);
+            mStatusAnchorOffsetY = parseFloat("status_anchor_offset_y", mStatusAnchorOffsetY);
 
             LOG("[EnemyHpBarRenderer] Config: tex=%dx%d, HP fill [%d,%d]->[%d,%d]",
                 mTexW, mTexH, mHpLeft, mHpTop, mHpRight, mHpBottom);
         }
         else
         {
-            LOG("[EnemyHpBarRenderer] '%s' not found — using defaults.", configJsonPath.c_str());
+            LOG("[EnemyHpBarRenderer] '%s' not found - using defaults.", configJsonPath.c_str());
         }
     }
 
@@ -228,7 +242,7 @@ bool EnemyHpBarRenderer::Initialize(ID3D11Device*        device,
 }
 
 // ============================================================
-// SetEnemy — called every frame by BattleState
+// SetEnemy - called every frame by BattleState
 // ============================================================
 void EnemyHpBarRenderer::SetEnemy(int slot, float hp, float maxHp, bool active)
 {
@@ -313,7 +327,7 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     // scaleY is height-driven: bar height = kTargetBarHeight pixels exactly.
     // scaleX is width-driven: bar width = screenW * kBarWidthFactor pixels.
     // The two axes are independent so height stays compact while width fills
-    // ~60% of the screen — SpriteBatch accepts XMFLOAT2 scale so this is free.
+    // ~60% of the screen - SpriteBatch accepts XMFLOAT2 scale so this is free.
     const float baseScaleY  = kTargetBarHeight / static_cast<float>(mTexH);
     const float scaledW = static_cast<float>(mScreenW) * kBarWidthFactor;
     const float baseScaleX  = scaledW / static_cast<float>(mTexW);
@@ -330,7 +344,7 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     const XMFLOAT2 origin   = { 0.0f, 0.0f };
 
     // ----------------------------------------------------------------
-    // Pass 1 — Background (enemy-hp-ui-background.png).
+    // Pass 1 - Background (enemy-hp-ui-background.png).
     //   Drawn first so the fill and chrome render on top.
     //   NonPremultiplied blend: the PNG stores straight alpha.
     //   LinearClamp: smooth at fractional scale values.
@@ -360,7 +374,7 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     mSpriteBatch->End();
 
     // ----------------------------------------------------------------
-    // Pass 2 — HP fill quads (1x1 white tinted red, scaled to ratio).
+    // Pass 2 - HP fill quads (1x1 white tinted red, scaled to ratio).
     //   Opaque blend + PointClamp: the fill is solid color; nearest-neighbour
     //   is correct and avoids a semi-transparent fringe on the fill edge.
     //
@@ -424,7 +438,7 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     mSpriteBatch->End();
 
     // ----------------------------------------------------------------
-    // Pass 3 — Frame/chrome (enemy-hp-ui.png).
+    // Pass 3 - Frame/chrome (enemy-hp-ui.png).
     //   Drawn last so the decorative border covers the fill edges.
     //   Same blend + sampler settings as Pass 1.
     // ----------------------------------------------------------------
@@ -453,7 +467,7 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
     mSpriteBatch->End();
 
     // ----------------------------------------------------------------
-    // Pass 4 — Enemy name labels (centered above each bar).
+    // Pass 4 - Enemy name labels (centered above each bar).
     //   Delegated to BattleTextRenderer which owns its own SpriteBatch.
     //   Uses the batch API (Begin + N draws + End) to keep the name pass
     //   to a single Begin/End regardless of active slot count.
@@ -484,6 +498,27 @@ void EnemyHpBarRenderer::Render(ID3D11DeviceContext* context)
         }
         mTextRenderer->EndBatch();
     }
+}
+
+bool EnemyHpBarRenderer::GetStatusAnchor(int slot, float& outX, float& outY) const
+{
+    if (slot < 0 || slot >= kMaxSlots || !mSlotActive[slot])
+    {
+        return false;
+    }
+
+    const float scaledW = static_cast<float>(mScreenW) * kBarWidthFactor;
+    const float scaledH = kTargetBarHeight;
+    const float slotStride = kNameLineHeight + kNameGapY + scaledH + kBarSpacing;
+    const float slotScale = mEffectState[slot].GetScale();
+    const float barPosX = (static_cast<float>(mScreenW) - scaledW * slotScale) * 0.5f +
+        mEffectState[slot].GetOffsetX();
+    const float barPosY = kTopPadding + static_cast<float>(slot) * slotStride +
+        mEffectState[slot].GetOffsetY();
+
+    outX = barPosX + scaledW * slotScale * 0.5f + mStatusAnchorOffsetX;
+    outY = barPosY + scaledH * slotScale + mStatusAnchorOffsetY;
+    return true;
 }
 
 // ============================================================

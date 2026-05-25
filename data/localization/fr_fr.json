@@ -2,7 +2,6 @@
   "language.english": "Anglais",
   "language.vietnamese": "Vietnamien",
   "language.french": "Français",
-
   "common.back": "Retour",
   "common.empty": "Vide",
   "common.party": "Groupe",
@@ -10,14 +9,11 @@
   "common.owned": "Possédé : {count}",
   "common.none": "(aucun)",
   "common.missing_registry": "(entrée de registre manquante)",
-
   "currency.coins": "Pièces : {amount}",
-
   "party.member.Verso": "Verso",
   "party.member.verso": "Verso",
   "party.member.Maelle": "Maelle",
   "party.member.maelle": "Maelle",
-
   "menu.press_any_button": "APPUYEZ SUR UNE TOUCHE",
   "menu.new_game": "Nouvelle partie",
   "menu.continue": "Continuer",
@@ -46,7 +42,6 @@
   "menu.slot_secondary_with_position": "{party} - X {x}, Y {y}",
   "menu.slot_secondary": "{party}",
   "menu.slot_empty": "Emplacement vide",
-
   "pause.title": "Pause",
   "pause.resume": "Reprendre",
   "pause.return_to_title": "Retour au titre",
@@ -55,7 +50,6 @@
   "pause.confirm_quit": "Quitter le jeu ?",
   "pause.yes": "Oui",
   "pause.no": "Non",
-
   "dialogue.prompt.next": "Entree / Espace",
   "dialogue.intro_maelle.verso_1": "Cette place devrait etre plus bruyante. Je n'entends que la cendre tomber.",
   "dialogue.intro_maelle.maelle_1": "Alors ecoute mieux. Paris se souvient encore de chacun de nos pas.",
@@ -65,7 +59,6 @@
   "dialogue.maelle_repeat.maelle_1": "Le boulevard de l'est est notre meilleure route. Reste pres des feux si tu dois changer d'equipement.",
   "overworld.prompt.talk": "Appuyez sur E pour parler a {name}",
   "overworld.prompt.talk_to_maelle": "Parlez a Maelle avant de quitter la place.",
-
   "campfire.title": "Feu de camp",
   "campfire.subtitle_main": "La flamme se souvient de votre route.",
   "campfire.subtitle_save": "Choisissez un emplacement pour sauvegarder le point actuel.",
@@ -88,7 +81,6 @@
   "campfire.slot_with_position": "Emplacement {index} : {label} - X {x}, Y {y}",
   "campfire.slot": "Emplacement {index} : {label}",
   "campfire.slot_empty": "Vide",
-
   "battle.command.fight": "Combattre",
   "battle.command.item": "Objet",
   "battle.command.flee": "Fuir",
@@ -116,7 +108,6 @@
   "battle.hint.target_select": "Tab / Bas = cible suivante  Haut = cible précédente  Entrée = confirmer  Échap = retour",
   "battle.hint.item_target": "Haut/Bas = choisir la cible   Entrée = confirmer   Échap = retour",
   "battle.hint.item_select": "Haut/Bas = parcourir les objets  Entrée = utiliser   Échap = commandes",
-
   "battle.result.victory_title": "VICTOIRE",
   "battle.result.battle_loot": "Butin de combat",
   "battle.result.exp": "{amount} XP",
@@ -137,14 +128,12 @@
   "battle.result.retry_question": "Recommencer le combat ?",
   "battle.result.retry_yes": "Oui",
   "battle.result.retry_no": "Partir",
-
   "skill.attack.name": "Attaque",
   "skill.attack.description": "Frappe l'ennemi.",
   "skill.rage_burst.name": "Explosion de rage",
   "skill.rage_burst.description": "Libère toute la rage pour infliger de lourds dégâts.",
   "skill.weaken.name": "Affaiblir",
   "skill.weaken.description": "Réduit l'ATK et la DEF de la cible pendant 2 tours.",
-
   "skill.verso_sunder_guard.name": "Brise-garde",
   "skill.verso_sunder_guard.description": "Dépense des PM pour frapper un ennemi et affaiblir sa garde.",
   "skill.verso_mark_prey.name": "Marquer la proie",
@@ -159,7 +148,6 @@
   "battle.skill_cost.free": "0 PM",
   "battle.skill_cost.mp": "{cost} PM",
   "battle.skill_cost.rage": "RAGE",
-
   "status.burn.name": "Brûlure",
   "status.burn.description": "Subit des dégâts de feu au début de chaque tour. Les brûlures répétées cumulent leurs dégâts.",
   "status.weaken.name": "Affaibli",
@@ -172,7 +160,6 @@
   "status.haste.description": "SPD est augmentée.",
   "status.vulnerable.name": "Vulnérable",
   "status.vulnerable.description": "DEF est réduite en pourcentage.",
-
   "inventory.flash.unknown_item": "Objet inconnu : {item}",
   "inventory.flash.hp_full": "Les PV sont déjà au maximum.",
   "inventory.flash.mp_full": "Les PM sont déjà au maximum.",
@@ -205,7 +192,6 @@
   "inventory.hint.equipment": "Haut/Bas : emplacement   Gauche/Droite : personnage   Entrée : changer   Tab : onglet   Échap : fermer",
   "inventory.hint.equipment_locked": "Up/Down: slot   Left/Right: member   Enter: campfire required   Tab: tab   Esc: close",
   "inventory.hint.picker": "Haut/Bas : choisir un objet   Entrée : équiper   Échap/Retour arrière : annuler",
-
   "lineup.title": "Formation du groupe",
   "lineup.equipment": "ÉQUIPEMENT",
   "lineup.select_item": "CHOISIR UN OBJET",
@@ -219,18 +205,15 @@
   "lineup.flash.unequipped": "{item} déséquipé",
   "lineup.flash.nothing_to_unequip": "Rien à déséquiper.",
   "lineup.flash.could_not_equip": "Impossible d'équiper cet objet.",
-
   "equip.slot.weapon": "Arme",
   "equip.slot.body": "Corps",
   "equip.slot.head": "Tête",
   "equip.slot.accessory": "Accessoire",
   "equip.slot.none": "(aucun)",
-
   "enemy.skeleton.name": "Squelette",
   "enemy.skeleton_group.name": "Patrouille de squelettes",
   "enemy.verso_cloned.name": "Clone de Verso",
   "enemy.zombie_armour.name": "Zombie en armure",
-
   "story.default_area": "Prairie cendreuse",
   "story.default_objective": "Suivez les chemins de terre pour rallumer les feux de camp perdus, puis affrontez le miroir à la porte de l'est.",
   "story.region.paris_square.name": "Rue Cendre",
@@ -247,7 +230,6 @@
   "story.region.glass_shrine.objective": "Le feu du sanctuaire offre un dernier repos. Rassemblez vos forces avant la route de l'est.",
   "story.region.mirror_gate.name": "Porte du miroir",
   "story.region.mirror_gate.objective": "Le clone attend derrière la porte. Battez-le pour prouver que Verso est plus qu'un écho.",
-
   "item.antidote.name": "Antidote",
   "item.antidote.description": "Retire tous les effets d'état d'un allié.",
   "item.bomb.name": "Bombe",
@@ -287,5 +269,36 @@
   "item.swift_feather.name": "Plume vive",
   "item.swift_feather.description": "Augmente la SPD d'un allié de 50% pendant 3 tours.",
   "item.village_clothes.name": "Vêtements de village",
-  "item.village_clothes.description": "Des vêtements tissés simples portés par les villageois. Mieux que rien."
+  "item.village_clothes.description": "Des vêtements tissés simples portés par les villageois. Mieux que rien.",
+  "battle.skill_ui.target": "Cible : {target}",
+  "battle.skill_ui.damage": "D?g?ts : {damage} / Coups : {hits}",
+  "battle.skill_ui.page": "Page {page}/{pages}",
+  "battle.skill_ui.preview_target": "Aper?u : {target}",
+  "battle.skill_ui.no_target": "Aucune cible",
+  "battle.skill_ui.no_effects": "Aucun effet actif",
+  "battle.skill_ui.active_effects": "Effets actifs",
+  "battle.skill_ui.not_enough_mp": "PM insuffisants.",
+  "battle.skill_ui.rage_not_full": "La rage n est pas pleine.",
+  "battle.skill_ui.unavailable": "Indisponible.",
+  "battle.skill_target.self": "Soi-m?me",
+  "battle.skill_target.single_ally": "Un alli?",
+  "battle.skill_target.all_allies": "Tous les alli?s",
+  "battle.skill_target.single_enemy": "Un ennemi",
+  "battle.skill_target.all_enemies": "Tous les ennemis",
+  "battle.damage_type.physical": "Physique",
+  "battle.damage_type.magical": "Magique",
+  "battle.damage_type.true": "Brut",
+  "battle.damage_type.none": "Soutien",
+  "battle.skill_ui.applies": "Applique : {status}",
+  "battle.skill_ui.status_meta": "{turns} tours, cumuls max {stacks}",
+  "battle.damage_grade.low": "Faible",
+  "battle.damage_grade.medium": "Moyen",
+  "battle.damage_grade.high": "?lev?",
+  "battle.damage_grade.extreme": "Extr?me",
+  "status.burn.short": "Inflige des d?g?ts de feu chaque tour; se cumule.",
+  "status.guard_up.short": "Augmente la DEF pendant la dur?e.",
+  "status.haste.short": "Augmente la SPD et le rythme des tours.",
+  "status.power_up.short": "Augmente l ATK pendant la dur?e.",
+  "status.vulnerable.short": "R?duit la DEF contre les prochains coups.",
+  "status.weaken.short": "R?duit ? la fois ATK et DEF."
 }

@@ -8,5 +8,8 @@
   "damageType": "physical",
   "skillMultiplier": 2.2,
   "requiresFullRage": true,
-  "consumesAllRage": true
+  "consumesAllRage": true,
+  "uiSortGroup": "finisher",
+  "hitCount": 2,
+  "damageGradeKey": "battle.damage_grade.extreme"
 }

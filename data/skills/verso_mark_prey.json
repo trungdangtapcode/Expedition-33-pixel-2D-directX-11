@@ -8,5 +8,8 @@
   "damageType": "physical",
   "skillMultiplier": 0.85,
   "mpCost": 8,
-  "statusEffectId": "vulnerable"
+  "statusEffectId": "vulnerable",
+  "uiSortGroup": "offense",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.low"
 }

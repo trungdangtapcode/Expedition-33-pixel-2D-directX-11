@@ -1305,7 +1305,11 @@ struct SkillData {
     std::string targeting = "single_enemy";
     std::string damageType = "physical";
     std::string statusEffectId;
+    std::string uiSortGroup;
+    std::string damageGradeKey;
+    std::vector<std::string> extraRuleKeys;
     int mpCost = 0;
+    int hitCount = 1;
     bool requiresFullRage = false;
     bool consumesAllRage = false;
     float skillMultiplier = 1.0f;
@@ -1369,7 +1373,11 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     const std::string damageType = detail::CleanString(detail::ValueOf(src, "damageType"));
     out.damageType = damageType.empty() ? "physical" : damageType;
     out.statusEffectId = detail::CleanString(detail::ValueOf(src, "statusEffectId"));
+    out.uiSortGroup = detail::CleanString(detail::ValueOf(src, "uiSortGroup"));
+    out.damageGradeKey = detail::CleanString(detail::ValueOf(src, "damageGradeKey"));
+    out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
     out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.hitCount = detail::ParseInt(detail::ValueOf(src, "hitCount"), 1);
     out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
     out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
     out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);

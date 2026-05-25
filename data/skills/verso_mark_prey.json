@@ -1,0 +1,12 @@
+{
+  "id": "verso_mark_prey",
+  "kind": "damage",
+  "iconId": "vulnerable",
+  "nameKey": "skill.verso_mark_prey.name",
+  "descriptionKey": "skill.verso_mark_prey.description",
+  "targeting": "single_enemy",
+  "damageType": "physical",
+  "skillMultiplier": 0.85,
+  "mpCost": 8,
+  "statusEffectId": "vulnerable"
+}

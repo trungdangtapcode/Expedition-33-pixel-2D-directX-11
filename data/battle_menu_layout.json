@@ -22,6 +22,8 @@
   "skill_hoverScale": 1.05,
   "skill_offsetX": 80.0,
   "skill_offsetY": -100.0,
+  "skill_costOffsetX": 170.0,
+  "skill_costOffsetY": 12.0,
   "skill_entryDelay": 0.05,
   "skill_entryDuration": 0.35,
   "skill_slideOffsetX": 80.0,

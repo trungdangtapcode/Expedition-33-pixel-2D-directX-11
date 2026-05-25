@@ -1,0 +1,14 @@
+{
+  "id": "guard_up",
+  "nameKey": "status.guard_up.name",
+  "descriptionKey": "status.guard_up.description",
+  "iconId": "guard_up",
+  "category": "buff",
+  "durationTurns": 3,
+  "stackPolicy": "refresh",
+  "maxStacks": 1,
+  "dispellable": true,
+  "modifiers": [
+    { "stat": "def", "op": "add_percent", "value": 30 }
+  ]
+}

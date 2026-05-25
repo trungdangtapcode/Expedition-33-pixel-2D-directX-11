@@ -53,6 +53,7 @@ public:
     void AddEffect(std::unique_ptr<IStatusEffect> effect) override;
     void ClearAllStatusEffects() override;
     bool HasAnyStatusEffect() const override { return !mEffects.empty(); }
+    std::vector<StatusEffectView> GetStatusEffectViews() const override;
 
     // Stat modifier storage — see IBattler for the pipeline contract.
     void AddStatModifier(const StatModifier& mod) override;
@@ -64,6 +65,7 @@ public:
 
     // OnTurnEnd: call OnTurnEnd(*this) on every effect, then purge expired.
     void OnTurnEnd() override;
+    std::vector<std::unique_ptr<IAction>> BuildTurnStartActions(const BattleContext& ctx) override;
 
     bool IsAlive() const override;
 

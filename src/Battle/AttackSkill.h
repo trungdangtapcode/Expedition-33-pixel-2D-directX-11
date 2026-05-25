@@ -24,6 +24,11 @@ public:
     AttackSkill(const JsonLoader::SkillData& data) : mData(data) {}
     std::string GetName()        const override;
     std::string GetDescription() const override;
+    std::string GetId() const override;
+    std::string GetIconId() const override;
+    int GetMpCost() const override;
+    SkillResourceKind GetResourceKind() const override;
+    SkillTargeting GetTargeting() const override;
     std::string GetDebugName() const override;
     std::string GetDebugDescription() const override;
 

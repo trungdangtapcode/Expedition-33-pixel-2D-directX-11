@@ -11,6 +11,8 @@
 #include <memory>
 
 #include "ItemEffectAction.h"
+#include "DataDrivenStatusEffect.h"
+#include "StatusEffectRegistry.h"
 #include "TimedStatBuffEffect.h"
 #include "BattlerStats.h"
 #include "IDamageCalculator.h"
@@ -74,8 +76,7 @@ bool ItemEffectAction::Execute(float /*dt*/)
     case ItemEffectKind::HealMp:
     {
         const int before = s.mp;
-        s.mp += mEffect.amount;
-        if (s.mp > s.maxMp) s.mp = s.maxMp;
+        s.RestoreMp(mEffect.amount);
         LOG("[Item] %s restores %d MP to %s (%d -> %d).",
             DebugItemName(mEffect).c_str(),
             s.mp - before,
@@ -151,13 +152,25 @@ bool ItemEffectAction::Execute(float /*dt*/)
     case ItemEffectKind::StatBuff:
     {
         if (!mTarget->IsAlive()) break;
-        // Attach a TimedStatBuffEffect.  AddEffect runs Apply() which
-        // pushes the StatModifier immediately.
-        mTarget->AddEffect(std::make_unique<TimedStatBuffEffect>(
-            mEffect.buffStat,
-            mEffect.buffOp,
-            mEffect.buffValue,
-            mEffect.durationTurns));
+        StatusEffectRegistry::Get().EnsureLoaded();
+        const char* statusId = nullptr;
+        if (mEffect.buffStat == StatId::ATK && mEffect.buffValue > 0.0f) statusId = "power_up";
+        if (mEffect.buffStat == StatId::DEF && mEffect.buffValue > 0.0f) statusId = "guard_up";
+        if (mEffect.buffStat == StatId::SPD && mEffect.buffValue > 0.0f) statusId = "haste";
+
+        const StatusEffectData* status = statusId ? StatusEffectRegistry::Get().Find(statusId) : nullptr;
+        if (status)
+        {
+            mTarget->AddEffect(std::make_unique<DataDrivenStatusEffect>(*status));
+        }
+        else
+        {
+            mTarget->AddEffect(std::make_unique<TimedStatBuffEffect>(
+                mEffect.buffStat,
+                mEffect.buffOp,
+                mEffect.buffValue,
+                mEffect.durationTurns));
+        }
         LOG("[Item] %s buffs %s for %d turns.",
             DebugItemName(mEffect).c_str(), mTarget->GetDebugName().c_str(),
             mEffect.durationTurns);

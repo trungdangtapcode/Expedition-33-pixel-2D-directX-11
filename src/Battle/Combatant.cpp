@@ -9,6 +9,7 @@
 #include "../Events/EventManager.h"
 #include "BattleEvents.h"
 #include "CombatantAnim.h"
+#include "IAction.h"
 
 // Convenience wrapper: LOG() only accepts printf-style args, so convert        
 // std::string messages to C-strings before passing to the macro.
@@ -87,11 +88,34 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
 
 void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)
 {
+    if (!effect) return;
+
+    for (auto& active : mEffects)
+    {
+        if (active && active->GetId() == effect->GetId() &&
+            active->TryMergeFrom(*this, *effect))
+        {
+            LOG("%s refreshed effect: %s", mDebugName.c_str(), active->GetName());
+            return;
+        }
+    }
+
     // Apply the effect immediately — it may push stat modifiers via
     // AddStatModifier or begin a countdown.  Then store it.
     effect->Apply(*this);
     LOG("%s afflicted with: %s", mDebugName.c_str(), effect->GetName());
     mEffects.push_back(std::move(effect));
+}
+
+std::vector<StatusEffectView> Combatant::GetStatusEffectViews() const
+{
+    std::vector<StatusEffectView> views;
+    views.reserve(mEffects.size());
+    for (const auto& effect : mEffects)
+    {
+        if (effect) views.push_back(effect->GetView());
+    }
+    return views;
 }
 
 // ------------------------------------------------------------
@@ -149,6 +173,22 @@ const std::vector<StatModifier>& Combatant::GetStatModifiers() const
 void Combatant::OnTurnStart()
 {
     // Base no-op — subclasses may override for regen, burn, etc.
+}
+
+std::vector<std::unique_ptr<IAction>> Combatant::BuildTurnStartActions(const BattleContext& ctx)
+{
+    std::vector<std::unique_ptr<IAction>> actions;
+    for (auto& effect : mEffects)
+    {
+        if (!effect) continue;
+
+        auto effectActions = effect->BuildTurnStartActions(*this, ctx);
+        for (auto& action : effectActions)
+        {
+            actions.push_back(std::move(action));
+        }
+    }
+    return actions;
 }
 
 // ------------------------------------------------------------

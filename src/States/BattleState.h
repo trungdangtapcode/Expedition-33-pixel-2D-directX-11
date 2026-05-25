@@ -60,6 +60,7 @@
 #include "../Battle/EnemyEncounterData.h"
 #include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
+#include "../UI/StatusIconRenderer.h"
 #include "../UI/ExpBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
 #include "../UI/TurnQueueUI.h"
@@ -127,7 +128,9 @@ private:
     BattleManager          mBattle;
     BattleRenderer         mBattleRenderer;
     std::vector<std::unique_ptr<HealthBarRenderer>> mHealthBars;
+    std::vector<DirectX::XMFLOAT2> mHealthBarPositions;
     std::vector<std::unique_ptr<ExpBarRenderer>>    mExpBars;
+    StatusIconRenderer    mStatusIconRenderer;
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;

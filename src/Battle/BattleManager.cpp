@@ -67,6 +67,9 @@ void BattleManager::Reset()
     mTotalExpPool = 0;
     mTotalCoinPool = 0;
     mContext = BattleContext{};
+    mPendingTurnStartCombatant = nullptr;
+    mPendingTurnEndCombatant = nullptr;
+    mResolvingTurnStartEffects = false;
 }
 
 // ------------------------------------------------------------
@@ -91,7 +94,8 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
     for (size_t i = 0; i < activeParty.size(); ++i) {
         mPlayers.push_back(std::make_unique<PlayerCombatant>(
             activeParty[i].name, activeParty[i].turnViewPath,
-            PartyManager::Get().GetEffectiveStats(i)));
+            PartyManager::Get().GetEffectiveStats(i),
+            activeParty[i].skillPaths));
     }
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
@@ -325,9 +329,9 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
         player->ClearPendingAction();
 
-        if (skill && target && skill->CanUse(*player, mContext))
+        if (skill && skill->CanUse(*player, mContext))
         {
-            std::vector<IBattler*> targets = { target };
+            std::vector<IBattler*> targets = ResolveSkillTargets(*player, *skill, target);
             EnqueueSkillActions(*player, *skill, targets);
         }
         else
@@ -341,7 +345,7 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         }
     }
 
-    player->OnTurnEnd();
+    mPendingTurnEndCombatant = player;
     mPhase = BattlePhase::RESOLVING;
 }
 
@@ -367,7 +371,7 @@ void BattleManager::HandleEnemyTurn(float /*dt*/)
         EnqueueSkillActions(*enemy, *enemy->GetAttackSkill(), targets);
     }
 
-    enemy->OnTurnEnd();
+    mPendingTurnEndCombatant = enemy;
     mPhase = BattlePhase::RESOLVING;
 }
 
@@ -427,6 +431,31 @@ void BattleManager::HandleResolving(float dt)
 
     if (!mQueue.IsEmpty()) return;  // still executing actions
 
+    if (mResolvingTurnStartEffects)
+    {
+        mResolvingTurnStartEffects = false;
+        IBattler* actor = mPendingTurnStartCombatant;
+        mPendingTurnStartCombatant = nullptr;
+
+        if (AllEnemiesDefeated())
+        {
+            Log(LocalizationManager::Get().Text("battle.log.victory"),
+                LocalizationManager::Get().TextEnglish("battle.log.victory"));
+            mOutcome = BattleOutcome::VICTORY;
+            mPhase   = BattlePhase::WIN;
+            return;
+        }
+        if (AllPlayersDefeated())
+        {
+            FinishDefeat();
+            return;
+        }
+
+        if (actor && actor->IsAlive()) BeginTurnFor(actor);
+        else AdvanceTurn();
+        return;
+    }
+
     // All actions in this turn's queue have resolved.
     // Broadcast the current HP of every player combatant so UI elements
     // (HealthBarRenderer) can react to damage without polling each frame.
@@ -447,6 +476,12 @@ void BattleManager::HandleResolving(float dt)
         // payload meaningful on its own.
         data.value = static_cast<float>(p->GetStats().hp);
         EventManager::Get().Broadcast(eventName, data);
+    }
+
+    if (mPendingTurnEndCombatant)
+    {
+        mPendingTurnEndCombatant->OnTurnEnd();
+        mPendingTurnEndCombatant = nullptr;
     }
 
     // All actions done — check outcome before advancing turn.
@@ -536,17 +571,17 @@ void BattleManager::AdvanceTurn()
     if (!next) return;
 
     next->OnTurnStart();
-    Log(LocalizationManager::Get().Format("battle.log.turn", {
-        { "actor", next->GetName() }
-    }),
-    LocalizationManager::Get().FormatEnglish("battle.log.turn", {
-        { "actor", next->GetDebugName() }
-    }));
+    mPendingTurnStartCombatant = next;
+    auto startActions = next->BuildTurnStartActions(mContext);
+    if (!startActions.empty())
+    {
+        mResolvingTurnStartEffects = true;
+        EnqueueActionList(std::move(startActions));
+        mPhase = BattlePhase::RESOLVING;
+        return;
+    }
 
-    if (next->IsPlayerControlled())
-        mPhase = BattlePhase::PLAYER_TURN;
-    else
-        mPhase = BattlePhase::ENEMY_TURN;
+    BeginTurnFor(next);
 }
 
 // ------------------------------------------------------------
@@ -572,6 +607,11 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
     // Pass mContext to skill.Execute so DamageAction / AnimDamageAction
     // constructors receive &mContext and see LIVE state when they fire.
     auto actions = skill.Execute(caster, targets, mContext);
+    EnqueueActionList(std::move(actions));
+}
+
+void BattleManager::EnqueueActionList(std::vector<std::unique_ptr<IAction>> actions)
+{
     for (auto& action : actions)
     {
         std::unique_ptr<IAction> finalAction;
@@ -598,6 +638,52 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
 
         mQueue.Enqueue(std::move(finalAction));
     }
+}
+
+void BattleManager::BeginTurnFor(IBattler* battler)
+{
+    if (!battler) return;
+
+    Log(LocalizationManager::Get().Format("battle.log.turn", {
+        { "actor", battler->GetName() }
+    }),
+    LocalizationManager::Get().FormatEnglish("battle.log.turn", {
+        { "actor", battler->GetDebugName() }
+    }));
+
+    if (battler->IsPlayerControlled())
+        mPhase = BattlePhase::PLAYER_TURN;
+    else
+        mPhase = BattlePhase::ENEMY_TURN;
+}
+
+std::vector<IBattler*> BattleManager::ResolveSkillTargets(
+    IBattler& caster,
+    const ISkill& skill,
+    IBattler* primaryTarget)
+{
+    std::vector<IBattler*> targets;
+    switch (skill.GetTargeting())
+    {
+    case SkillTargeting::Self:
+        targets.push_back(&caster);
+        break;
+    case SkillTargeting::SingleAlly:
+        if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        else targets.push_back(&caster);
+        break;
+    case SkillTargeting::AllAllies:
+        targets = GetAlivePlayers();
+        break;
+    case SkillTargeting::AllEnemies:
+        targets = GetAliveEnemies();
+        break;
+    case SkillTargeting::SingleEnemy:
+    default:
+        if (primaryTarget && !primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        break;
+    }
+    return targets;
 }
 
 // ------------------------------------------------------------

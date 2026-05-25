@@ -1,4 +1,7 @@
 {
+    "id": "verso_attack",
+    "kind": "attack",
+    "iconId": "attack",
     "nameKey": "skill.attack.name",
     "descriptionKey": "skill.attack.description",
     "moveDuration": 0.4,

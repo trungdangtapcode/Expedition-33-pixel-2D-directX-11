@@ -622,6 +622,32 @@ inline bool LoadCharacterData(const std::string& path, BattlerStats& out)
     return true;
 }
 
+inline std::vector<std::string> LoadStringArrayFromFile(const std::string& path, const std::string& key)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+    if (!file.is_open() && !resolvedPath.is_absolute())
+    {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[JsonLoader] Cannot open string-array file: '%s'", path.c_str());
+        return {};
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+    return detail::ExtractStringArray(src, key);
+}
+
 // ------------------------------------------------------------
 // Function: LoadDeadOverlayConfig
 // ------------------------------------------------------------
@@ -848,6 +874,8 @@ struct BattleMenuLayout
     struct SkillMenuConfig : MenuConfig {
         float offsetX = 80.0f;
         float offsetY = -100.0f;
+        float costOffsetX = 170.0f;
+        float costOffsetY = 12.0f;
     };
 
     struct PartyHudConfig {
@@ -901,6 +929,8 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.hoverScale = detail::ParseFloat(detail::ValueOf(src, "skill_hoverScale"), 1.05f);
     out.skill.offsetX = detail::ParseFloat(detail::ValueOf(src, "skill_offsetX"), 80.0f);
     out.skill.offsetY = detail::ParseFloat(detail::ValueOf(src, "skill_offsetY"), -100.0f);
+    out.skill.costOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_costOffsetX"), 170.0f);
+    out.skill.costOffsetY = detail::ParseFloat(detail::ValueOf(src, "skill_costOffsetY"), 12.0f);
     out.skill.entryDelay = detail::ParseFloat(detail::ValueOf(src, "skill_entryDelay"), 0.0f);
     out.skill.entryDuration = detail::ParseFloat(detail::ValueOf(src, "skill_entryDuration"), 0.25f);
     out.skill.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_slideOffsetX"), -40.0f);
@@ -1267,8 +1297,19 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
 
 
 struct SkillData {
+    std::string id;
+    std::string kind = "attack";
     std::string nameKey;
     std::string descriptionKey;
+    std::string iconId;
+    std::string targeting = "single_enemy";
+    std::string damageType = "physical";
+    std::string statusEffectId;
+    int mpCost = 0;
+    bool requiresFullRage = false;
+    bool consumesAllRage = false;
+    float skillMultiplier = 1.0f;
+    float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
@@ -1317,8 +1358,22 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 
     detail::WarnIfUTF16(src, path);
 
+    out.id = detail::CleanString(detail::ValueOf(src, "id"));
+    const std::string kind = detail::CleanString(detail::ValueOf(src, "kind"));
+    out.kind = kind.empty() ? "attack" : kind;
     out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
     out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
+    out.iconId = detail::CleanString(detail::ValueOf(src, "iconId"));
+    const std::string targeting = detail::CleanString(detail::ValueOf(src, "targeting"));
+    out.targeting = targeting.empty() ? "single_enemy" : targeting;
+    const std::string damageType = detail::CleanString(detail::ValueOf(src, "damageType"));
+    out.damageType = damageType.empty() ? "physical" : damageType;
+    out.statusEffectId = detail::CleanString(detail::ValueOf(src, "statusEffectId"));
+    out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
+    out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
+    out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);
+    out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);

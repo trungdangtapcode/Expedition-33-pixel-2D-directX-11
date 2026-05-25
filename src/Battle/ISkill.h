@@ -21,6 +21,7 @@
 #include <string>
 #include <vector>
 #include <memory>
+#include "SkillTypes.h"
 
 // Forward declarations — avoid header pulling
 class IBattler;
@@ -34,6 +35,11 @@ public:
 
     virtual std::string GetName()        const = 0;
     virtual std::string GetDescription() const = 0;
+    virtual std::string GetId() const { return GetDebugName(); }
+    virtual std::string GetIconId() const { return std::string(); }
+    virtual int GetMpCost() const { return 0; }
+    virtual SkillResourceKind GetResourceKind() const { return SkillResourceKind::None; }
+    virtual SkillTargeting GetTargeting() const { return SkillTargeting::SingleEnemy; }
 
     // Debug text is intentionally English-only because BattleDebugHUD and
     // LOG() target CLI tools that may not render active-language UTF-8 text.

@@ -93,6 +93,8 @@ public:
     // ----------------------------------------------------------------
     void SetHP(float hp);
     void SetMaxHP(float maxHp);
+    void SetMP(float mp);
+    void SetMaxMP(float maxMp);
 
     // ----------------------------------------------------------------
     // SetScreenSize
@@ -180,6 +182,11 @@ private:
     float mRedHP       = 100.0f;   // front bar: drops quickly
     float mWhiteHP     = 100.0f;   // back bar: delayed and slow drop
     float mDelayTimer  = 0.0f;     // timer for white bar delay
+    float mMaxMP       = 50.0f;
+    float mTargetMP    = 50.0f;
+    float mRedMP       = 50.0f;
+    float mWhiteMP     = 50.0f;
+    float mMpDelayTimer = 0.0f;
     
     // -- Visual sink state variables --
     float mSinkAlpha = 1.0f;       // Transparency fade when dying

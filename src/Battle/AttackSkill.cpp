@@ -28,6 +28,31 @@ std::string AttackSkill::GetDescription() const
         "Strike the enemy.");
 }
 
+std::string AttackSkill::GetId() const
+{
+    return mData.id.empty() ? "attack" : mData.id;
+}
+
+std::string AttackSkill::GetIconId() const
+{
+    return mData.iconId;
+}
+
+int AttackSkill::GetMpCost() const
+{
+    return mData.mpCost;
+}
+
+SkillResourceKind AttackSkill::GetResourceKind() const
+{
+    return mData.mpCost > 0 ? SkillResourceKind::MP : SkillResourceKind::None;
+}
+
+SkillTargeting AttackSkill::GetTargeting() const
+{
+    return SkillTargeting::SingleEnemy;
+}
+
 std::string AttackSkill::GetDebugName() const
 {
     return LocalizationManager::Get().TextOrFallbackEnglish(mData.nameKey, "Attack");

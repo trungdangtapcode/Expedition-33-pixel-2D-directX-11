@@ -1,0 +1,12 @@
+{
+  "id": "verso_rage_burst",
+  "kind": "rage",
+  "iconId": "rage",
+  "nameKey": "skill.rage_burst.name",
+  "descriptionKey": "skill.rage_burst.description",
+  "targeting": "single_enemy",
+  "damageType": "physical",
+  "skillMultiplier": 2.2,
+  "requiresFullRage": true,
+  "consumesAllRage": true
+}

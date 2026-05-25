@@ -153,6 +153,9 @@ private:
     // UI predicates) hold pointers into this single member — the ADDRESS
     // is stable for the entire battle, the CONTENTS change per frame.
     BattleContext            mContext;
+    IBattler*                mPendingTurnStartCombatant = nullptr;
+    IBattler*                mPendingTurnEndCombatant = nullptr;
+    bool                     mResolvingTurnStartEffects = false;
 
     // -- Internal helpers --
     void BuildTurnOrder();
@@ -165,6 +168,11 @@ private:
 
     void EnqueueSkillActions(IBattler& caster, ISkill& skill,
                              std::vector<IBattler*> targets);
+    void EnqueueActionList(std::vector<std::unique_ptr<IAction>> actions);
+    void BeginTurnFor(IBattler* battler);
+    std::vector<IBattler*> ResolveSkillTargets(IBattler& caster,
+                                               const ISkill& skill,
+                                               IBattler* primaryTarget);
 
     // Build the action sequence for one item use and enqueue it.
     // Mirrors EnqueueSkillActions but takes an item id + primary target

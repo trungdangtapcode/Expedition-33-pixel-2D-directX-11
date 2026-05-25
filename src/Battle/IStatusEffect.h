@@ -34,9 +34,14 @@
 //   HP via target.GetStats().
 // ============================================================
 #pragma once
+#include <memory>
 #include <string>
+#include <vector>
+#include "IAction.h"
+#include "StatusEffectView.h"
 
 class IBattler;
+struct BattleContext;
 
 // ============================================================
 // Interface: IStatusEffect
@@ -63,6 +68,18 @@ public:
     // ------------------------------------------------------------
     virtual void OnTurnEnd(IBattler& target) = 0;
 
+    // Build actions that run at the start of the owner's turn.
+    // Most effects return none; damage-over-time effects return actions
+    // so combat mutations still flow through ActionQueue.
+    virtual std::vector<std::unique_ptr<IAction>> BuildTurnStartActions(
+        IBattler& target,
+        const BattleContext& ctx)
+    {
+        (void)target;
+        (void)ctx;
+        return {};
+    }
+
     // ------------------------------------------------------------
     // Revert
     // Purpose:  Undo any state changes made during Apply().
@@ -77,4 +94,27 @@ public:
 
     // Short display name for battle log and UI.
     virtual const char* GetName() const = 0;
+
+    // Stable id used for stacking/refresh rules.
+    virtual std::string GetId() const { return GetName(); }
+
+    // UI snapshot.  Legacy effects use a neutral fallback until migrated.
+    virtual StatusEffectView GetView() const
+    {
+        StatusEffectView view;
+        view.id = GetId();
+        view.nameKey = GetName();
+        view.descriptionKey = GetName();
+        return view;
+    }
+
+    // Merge a new incoming effect into this active effect when ids match.
+    // Returns true when the incoming effect was consumed and should not be
+    // stored separately.
+    virtual bool TryMergeFrom(IBattler& target, const IStatusEffect& incoming)
+    {
+        (void)target;
+        (void)incoming;
+        return false;
+    }
 };

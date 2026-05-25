@@ -159,8 +159,17 @@ void BattleInputController::HandleSkillSelect()
             return;
         }
         AudioManager::Get().PlaySfx("ui_confirm");
-        LOG("[BattleState] Skill confirmed: %s - now pick a target", skill->GetDebugName().c_str());
-        SetInputPhase(PlayerInputPhase::TARGET_SELECT);
+        if (skill->GetTargeting() == SkillTargeting::Self)
+        {
+            mBattle.SetPlayerAction(mSkillIndex, player);
+            LOG("[BattleState] Skill confirmed: %s -> self", skill->GetDebugName().c_str());
+            SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        }
+        else
+        {
+            LOG("[BattleState] Skill confirmed: %s - now pick a target", skill->GetDebugName().c_str());
+            SetInputPhase(PlayerInputPhase::TARGET_SELECT);
+        }
     }
     if (pressed(VK_BACK, mBackWasDown))
     {
@@ -225,6 +234,15 @@ void BattleInputController::ConfirmSkillAndTarget()
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
         LOG("%s", "[BattleState] Skill unavailable; action cancelled.");
+        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        return;
+    }
+
+    if (skill->GetTargeting() == SkillTargeting::Self)
+    {
+        mBattle.SetPlayerAction(mSkillIndex, player);
+        AudioManager::Get().PlaySfx("ui_confirm");
+        LOG("[BattleState] Action confirmed: %s -> self", skill->GetDebugName().c_str());
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         return;
     }

@@ -60,7 +60,7 @@ void BattleState::OnEnter()
         mD3D.GetHeight());
     SubscribeBattleEvents();
     BeginBattleSession(true);
-      
+
       mEnvRenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext());
       std::string envPath = mEncounter.environmentPath;
       if (envPath.empty()) {
@@ -156,7 +156,9 @@ void BattleState::ShutdownBattleSessionRenderers()
     mBattleRenderer.Shutdown();
     for (auto& bar : mHealthBars) bar->Shutdown();
     for (auto& ebar : mExpBars) ebar->Shutdown();
+    mStatusIconRenderer.Shutdown();
     mHealthBars.clear();
+    mHealthBarPositions.clear();
     mExpBars.clear();
     mEnemyHpBar.Shutdown();
     mTurnQueueUI.Shutdown();
@@ -185,7 +187,7 @@ void BattleState::InitBattleSlots()
     const float battleCenterY = 0.0f;
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
-    
+
     const auto& activeParty = PartyManager::Get().GetActiveParty();
     for (size_t i = 0; i < activeParty.size(); ++i) {
         playerSlots[i].occupied    = true;
@@ -256,13 +258,19 @@ void BattleState::InitUIRenderers()
 
     const auto& party = PartyManager::Get().GetActiveParty();
     const auto& players = mBattle.GetAllPlayers();
-    
+
     // Stack health bars visually mapping descending configurations vertically
     for (size_t i = 0; i < players.size(); ++i) {
         auto bar = std::make_unique<HealthBarRenderer>();
         // Using "membername_hp_changed" explicitly!
         std::string hpTopic = (party[i].name == "Verso") ? "verso_hp_changed" : party[i].name + "_hp_changed";
-        
+        const float barX = mMenuLayout.partyHud.align == "bottom-right" ?
+            (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) :
+            (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX));
+        const float barY = mMenuLayout.partyHud.align == "bottom-right" ?
+            (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) :
+            (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY));
+
         if (bar->Initialize(
             mD3D.GetDevice(),
             mD3D.GetContext(),
@@ -271,17 +279,16 @@ void BattleState::InitUIRenderers()
             "assets/UI/HP_description.json",
             mD3D.GetWidth(), mD3D.GetHeight(),
             hpTopic,
-            mMenuLayout.partyHud.align == "bottom-right" ? 
-                (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) :
-                (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)),
-            mMenuLayout.partyHud.align == "bottom-right" ?
-                (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) :
-                (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY))
+            barX,
+            barY
         )) {
             const BattlerStats& s = players[i]->GetStats();
             bar->SetMaxHP(static_cast<float>(s.maxHp));
             bar->SetHP(static_cast<float>(s.hp));
+            bar->SetMaxMP(static_cast<float>(s.maxMp));
+            bar->SetMP(static_cast<float>(s.mp));
             mHealthBars.push_back(std::move(bar));
+            mHealthBarPositions.push_back(DirectX::XMFLOAT2(barX, barY));
         } else {
             LOG("[BattleState] WARNING - HealthBar initialization failed for %s.", party[i].name.c_str());
         }
@@ -291,7 +298,7 @@ void BattleState::InitUIRenderers()
             mD3D.GetDevice(),
             mD3D.GetContext(),
             mD3D.GetWidth(), mD3D.GetHeight(),
-            mMenuLayout.partyHud.align == "bottom-right" ? 
+            mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f :
                 (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f,
             mMenuLayout.partyHud.align == "bottom-right" ?
@@ -300,7 +307,7 @@ void BattleState::InitUIRenderers()
         )) {
             const BattlerStats& s = players[i]->GetStats();
             // Get correct NextLevel map evaluating exact thresholds seamlessly!
-            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f));
             expBar->SetExp(s.exp, nextThreshold);
             mExpBars.push_back(std::move(expBar));
         } else {
@@ -380,6 +387,14 @@ void BattleState::InitUIRenderers()
         mD3D.GetDevice(), mD3D.GetContext(),
         mD3D.GetWidth(),  mD3D.GetHeight());
     ItemIconCache::Get().Initialize(mD3D.GetDevice(), mD3D.GetContext());
+    mStatusIconRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/UI/status_effect_icons.png",
+        "assets/UI/status_effect_icons.json",
+        "data/status_effect_ui.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
 
     const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(
@@ -576,12 +591,12 @@ void BattleState::UpdateLogic(float dt)
     // Update floating damage texts
     for (auto it = mFloatingTexts.begin(); it != mFloatingTexts.end(); ) {
         it->lifeTimer -= dt;
-        
+
         // Physics logic for 'thrown' effect (Gravity pulls down along +Y, so we start negative vy)
-        it->vy += 800.0f * dt; 
+        it->vy += 800.0f * dt;
         it->worldX += it->vx * dt;
         it->worldY += it->vy * dt;
-        
+
         if (it->lifeTimer <= 0.0f) {
             it = mFloatingTexts.erase(it);
         } else {
@@ -631,7 +646,7 @@ void BattleState::UpdateLogic(float dt)
         mSkillMenuTimer += dt;
     }
 
-    bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN && 
+    bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN &&
                             mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT);
 
     IBattler* targetedEnemyPtr = nullptr;
@@ -659,7 +674,7 @@ void BattleState::UpdateLogic(float dt)
             if (phaseAfter == BattlePhase::PLAYER_TURN)
             {
                 auto inputPhase = mInputController.GetInputPhase();
-                if (inputPhase == PlayerInputPhase::SKILL_SELECT || 
+                if (inputPhase == PlayerInputPhase::SKILL_SELECT ||
                     inputPhase == PlayerInputPhase::TARGET_SELECT)
                 {
                     inStance = true;
@@ -732,6 +747,12 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
                               allPlayers[i] == activePlayer;
         mHealthBars[i]->SetTargetScale(1.0f);
         mHealthBars[i]->SetTargetLift(isActive ? -20.0f : 0.0f);
+        if (i < static_cast<int>(allPlayers.size()))
+        {
+            const BattlerStats& stats = allPlayers[i]->GetStats();
+            mHealthBars[i]->SetMaxMP(static_cast<float>(stats.maxMp));
+            mHealthBars[i]->SetMP(static_cast<float>(stats.mp));
+        }
         mHealthBars[i]->Update(dt);
     }
     mTurnQueueUI.Update(dt);
@@ -751,7 +772,7 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         mEnemyHpBar.SetTargetScale(i, enemySelected ? 1.05f : 1.0f);
 
         const auto& stats = enemies[i]->GetStats();
-        
+
         bool active = enemies[i]->IsAlive() || !mBattleRenderer.IsEnemyClipDone(i);
 
         mEnemyHpBar.SetEnemy(
@@ -762,7 +783,7 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         );
     }
     mEnemyHpBar.Update(dt);
-    
+
     mQTERenderer.Update(dt);
 }
 
@@ -993,6 +1014,22 @@ void BattleState::Render()
     for (auto& bar : mHealthBars) {
         if (bar->IsInitialized()) bar->Render(mD3D.GetContext());
     }
+    if (mStatusIconRenderer.IsInitialized())
+    {
+        const auto players = mBattle.GetAllPlayers();
+        for (int i = 0;
+             i < static_cast<int>(players.size()) &&
+             i < static_cast<int>(mHealthBarPositions.size());
+             ++i)
+        {
+            mStatusIconRenderer.Render(
+                mD3D.GetContext(),
+                mTextRenderer,
+                players[i]->GetStatusEffectViews(),
+                mHealthBarPositions[i].x,
+                mHealthBarPositions[i].y);
+        }
+    }
     if (mBattle.GetOutcome() == BattleOutcome::VICTORY)
     {
         for (auto& ebar : mExpBars) {
@@ -1003,20 +1040,20 @@ void BattleState::Render()
         mTextRenderer.BeginBatch(mD3D.GetContext());
         const auto& players = mBattle.GetAllPlayers();
         for (size_t i = 0; i < players.size(); ++i) {
-            float baseX = mMenuLayout.partyHud.align == "bottom-right" ? 
+            float baseX = mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f :
                 (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f;
             float baseY = mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f :
                 (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f;
-            
+
             char bufL[32];
             snprintf(bufL, sizeof(bufL), "Lv. %d", players[i]->GetStats().level);
             mTextRenderer.DrawStringCenteredRaw(bufL, baseX - 20.0f, baseY - 4.0f, DirectX::Colors::DarkOrange, 0.45f, true);
 
             char bufE[32];
             const BattlerStats& s = players[i]->GetStats();
-            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f));
             snprintf(bufE, sizeof(bufE), "%d / %d", s.exp, nextThreshold);
             mTextRenderer.DrawStringCenteredRaw(bufE, baseX + 70.0f, baseY - 1.0f, DirectX::Colors::White, 0.35f, true);
         }
@@ -1024,7 +1061,7 @@ void BattleState::Render()
     }
     mEnemyHpBar.Render(mD3D.GetContext());
     mTurnQueueUI.Render(mD3D.GetContext());
-    
+
     // Draw Floating Damage Texts
     if (!mFloatingTexts.empty()) {
         mTextRenderer.BeginBatch(mD3D.GetContext(), mBattleRenderer.GetCamera().GetViewMatrix());
@@ -1044,7 +1081,7 @@ void BattleState::Render()
     mQTERenderer.Render(mD3D.GetContext());
     if (mBulletHellRenderer) mBulletHellRenderer->Render(mD3D.GetContext(), mD3D.GetWidth(), mD3D.GetHeight());
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&  
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&
         mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)
     {
         const auto& commands = mInputController.GetCommands();
@@ -1057,14 +1094,14 @@ void BattleState::Render()
 
         const float baseDialogWidth = mMenuLayout.command.width;
         const float baseDialogHeight = mMenuLayout.command.height;
-        
+
         // Offset from bottom-left corner
         const float paddingLeft = mMenuLayout.command.paddingLeft;
         const float paddingBottom = mMenuLayout.command.paddingBottom;
         const float itemSpacing = mMenuLayout.command.spacing;
         const float hoverScale = mMenuLayout.command.hoverScale;
         const float sliceScale = mMenuLayout.command.sliceScale;
-        
+
         // Calculate Base Y so the bottom of the list aligns with paddingBottom
         const float startX = paddingLeft;
         const float totalHeight = commandCount * (baseDialogHeight + itemSpacing);
@@ -1124,7 +1161,7 @@ void BattleState::Render()
         }
     }
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&
         mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT)
     {
         const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
@@ -1209,6 +1246,27 @@ void BattleState::Render()
                     skillName.c_str(),
                     textX, textY,
                     textColor,
+                    cameraMatrix
+                );
+
+                std::string costText = "FREE";
+                if (skill->GetResourceKind() == SkillResourceKind::MP)
+                {
+                    costText = std::to_string(skill->GetMpCost()) + " MP";
+                }
+                else if (skill->GetResourceKind() == SkillResourceKind::Rage)
+                {
+                    costText = "RAGE";
+                }
+                DirectX::XMVECTOR costColor = canUse
+                    ? DirectX::XMVectorSet(0.55f, 0.72f, 1.0f, currentAlpha)
+                    : DirectX::XMVectorSet(0.45f, 0.45f, 0.52f, currentAlpha);
+                mTextRenderer.DrawString(
+                    mD3D.GetContext(),
+                    costText.c_str(),
+                    dialogX + mMenuLayout.skill.costOffsetX * scaleMultiplier,
+                    dialogY + mMenuLayout.skill.costOffsetY * scaleMultiplier,
+                    costColor,
                     cameraMatrix
                 );
             }
@@ -1847,8 +1905,8 @@ void BattleState::DumpStateToDebugOutput() const
         row.hp      = s.hp;      row.maxHp   = s.maxHp;
         row.rage    = s.rage;    row.maxRage = s.maxRage;
         row.atk     = s.atk;     row.def     = s.def;
-        row.spd     = s.spd;     
-        row.level   = s.level;   row.exp     = s.exp; 
+        row.spd     = s.spd;
+        row.level   = s.level;   row.exp     = s.exp;
         row.alive   = p->IsAlive();
         snap.combatants.push_back(row);
     }
@@ -1861,7 +1919,7 @@ void BattleState::DumpStateToDebugOutput() const
         row.isCurrentTurn = (e == activeCombatant);
         row.hp      = s.hp;   row.maxHp = s.maxHp;
         row.atk     = s.atk;  row.def   = s.def;
-        row.spd     = s.spd;  
+        row.spd     = s.spd;
         row.level   = s.level; row.exp  = s.exp;
         row.alive = e->IsAlive();
         snap.combatants.push_back(row);
@@ -1920,18 +1978,18 @@ void BattleState::OnDamageTaken(const EventData& e)
             mBattleRenderer.GetEnemySlotPos(slot, worldX, worldY);
         }
         // Initial spawn positions
-        worldX += ((rand() % 20) - 10.0f); 
+        worldX += ((rand() % 20) - 10.0f);
         worldY -= 40.0f;
 
         FloatingDamageText ft;
         ft.text = std::to_string(payload->damage);
         ft.worldX = worldX;
         ft.worldY = worldY;
-        
+
         // Toss numbers out and up
-        ft.vx = ((rand() % 160) - 80.0f); 
-        ft.vy = -((rand() % 200) + 300.0f); 
-        
+        ft.vx = ((rand() % 160) - 80.0f);
+        ft.vy = -((rand() % 200) + 300.0f);
+
         ft.scale = 1.3f;
         ft.lifeTimer = 1.0f;
         ft.maxLife = 1.0f;
@@ -1954,9 +2012,9 @@ void BattleState::OnQteFeedback(const EventData& e)
     auto* payload = static_cast<QTEStatePayload*>(e.payload);
     if (!payload) return;
     mResultTracker.RecordQteResult(payload->result);
-    
+
     if (payload->result == QTEResult::Perfect) {
-        // High intensity shake for perfect 
+        // High intensity shake for perfect
         mBattleRenderer.TriggerCameraShake(40.0f, 0.25f);
     }
     else if (payload->result == QTEResult::Good) {

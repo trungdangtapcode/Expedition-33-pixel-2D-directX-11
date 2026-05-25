@@ -1,0 +1,12 @@
+{
+  "id": "maelle_ember",
+  "kind": "damage",
+  "iconId": "burn",
+  "nameKey": "skill.maelle_ember.name",
+  "descriptionKey": "skill.maelle_ember.description",
+  "targeting": "single_enemy",
+  "damageType": "magical",
+  "skillMultiplier": 1.15,
+  "mpCost": 10,
+  "statusEffectId": "burn"
+}

@@ -30,8 +30,13 @@ public:
     // In the full game stats always come from data/characters/verso.json
     // via PartyManager; the name-only overload is kept for testing.
     // ------------------------------------------------------------
-    explicit PlayerCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath = "data/skills/verso_attack.json");
-    PlayerCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& seedStats, std::string attackJsonPath = "data/skills/verso_attack.json");
+    explicit PlayerCombatant(std::string name,
+                             std::wstring turnViewPath,
+                             std::vector<std::string> skillPaths = {});
+    PlayerCombatant(std::string name,
+                    std::wstring turnViewPath,
+                    const BattlerStats& seedStats,
+                    std::vector<std::string> skillPaths = {});
 
     bool IsPlayerControlled() const override { return true; }
 
@@ -58,6 +63,8 @@ public:
     void    ClearPendingAction();
 
 private:
+    void BuildSkills(const std::vector<std::string>& skillPaths);
+
     std::vector<std::unique_ptr<ISkill>> mSkills;
 
     // Pending selection — only valid when mHasPendingAction == true.

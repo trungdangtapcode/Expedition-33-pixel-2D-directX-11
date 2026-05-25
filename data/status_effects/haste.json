@@ -1,0 +1,14 @@
+{
+  "id": "haste",
+  "nameKey": "status.haste.name",
+  "descriptionKey": "status.haste.description",
+  "iconId": "haste",
+  "category": "buff",
+  "durationTurns": 3,
+  "stackPolicy": "refresh",
+  "maxStacks": 1,
+  "dispellable": true,
+  "modifiers": [
+    { "stat": "spd", "op": "add_percent", "value": 50 }
+  ]
+}

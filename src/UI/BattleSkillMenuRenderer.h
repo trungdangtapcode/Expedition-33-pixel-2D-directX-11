@@ -124,6 +124,17 @@ struct BattleSkillMenuLayout
     float transformScaleY = 1.0f;
     float transformOffsetX = 0.0f;
     float transformOffsetY = 0.0f;
+    bool anchorToActiveCharacter = true;
+    float anchorReferenceX = 640.0f;
+    float anchorReferenceY = 360.0f;
+    float anchorOffsetX = 0.0f;
+    float anchorOffsetY = 0.0f;
+    bool clampAnchorOffset = true;
+    float anchorMinOffsetX = -240.0f;
+    float anchorMaxOffsetX = 160.0f;
+    float anchorMinOffsetY = -160.0f;
+    float anchorMaxOffsetY = 140.0f;
+    bool hideDetailPanelsDuringTargetSelect = true;
     float textScale = 0.54f;
     float smallTextScale = 0.36f;
     float detailTextScale = 0.38f;
@@ -156,7 +167,10 @@ public:
                 int targetIndex,
                 const std::vector<IBattler*>& enemies,
                 const BattleContext& battleContext,
-                float cameraRotationRadians);
+                float cameraRotationRadians,
+                bool hasActiveAnchor,
+                float activeAnchorScreenX,
+                float activeAnchorScreenY);
 
     void SetScreenSize(int w, int h);
     void Shutdown();
@@ -188,6 +202,10 @@ private:
     bool LoadIconMetadata(const std::string& path);
     bool CreateFillTexture(ID3D11Device* device);
     DirectX::XMMATRIX BuildUiTransform(float cameraRotationRadians) const;
+    DirectX::XMFLOAT2 ComputeAnchorOffset(DirectX::CXMMATRIX transform,
+                                          bool hasActiveAnchor,
+                                          float activeAnchorScreenX,
+                                          float activeAnchorScreenY) const;
     void DrawPanel(float x, float y, float w, float h, DirectX::XMVECTOR color);
     void DrawIcon(const std::string& iconId, float x, float y, float size, DirectX::XMVECTOR color);
     void DrawNineSlice(ID3D11DeviceContext* context,

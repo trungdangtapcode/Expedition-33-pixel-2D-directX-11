@@ -110,6 +110,17 @@
   "transformScaleY": 1.0,
   "transformOffsetX": 0.0,
   "transformOffsetY": 0.0,
+  "anchorToActiveCharacter": true,
+  "anchorReferenceX": 640.0,
+  "anchorReferenceY": 360.0,
+  "anchorOffsetX": 0.0,
+  "anchorOffsetY": 0.0,
+  "clampAnchorOffset": true,
+  "anchorMinOffsetX": -240.0,
+  "anchorMaxOffsetX": 160.0,
+  "anchorMinOffsetY": -160.0,
+  "anchorMaxOffsetY": 140.0,
+  "hideDetailPanelsDuringTargetSelect": true,
 
   "panelTexturePath": "assets/UI/ui-dialog-box-hd.png",
   "panelMetadataPath": "assets/UI/ui-dialog-box-hd.json"

@@ -113,7 +113,10 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                                      int targetIndex,
                                      const std::vector<IBattler*>& enemies,
                                      const BattleContext& battleContext,
-                                     float cameraRotationRadians)
+                                     float cameraRotationRadians,
+                                     bool hasActiveAnchor,
+                                     float activeAnchorScreenX,
+                                     float activeAnchorScreenY)
 {
     if (!IsInitialized() || !activePlayer || !text.IsReady()) return;
 
@@ -140,8 +143,17 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
     const XMVECTOR costText = XMVectorSet(mLayout.costR, mLayout.costG, mLayout.costB, alpha);
     const XMVECTOR warningText = XMVectorSet(mLayout.warningR, mLayout.warningG, mLayout.warningB, alpha);
     const XMMATRIX uiTransform = BuildUiTransform(cameraRotationRadians);
+    const XMFLOAT2 anchorOffset = ComputeAnchorOffset(
+        uiTransform,
+        hasActiveAnchor,
+        activeAnchorScreenX,
+        activeAnchorScreenY);
+    const auto layoutX = [&anchorOffset](float value) { return value + anchorOffset.x; };
+    const auto layoutY = [&anchorOffset](float value) { return value + anchorOffset.y; };
 
     const ISkill* selectedSkill = activePlayer->GetSkill(selectedSkillIndex);
+    const bool showDetailPanels = selectedSkill &&
+        !(targetSelectActive && mLayout.hideDetailPanelsDuringTargetSelect);
     const IBattler* previewTarget = nullptr;
     if (selectedSkill)
     {
@@ -165,9 +177,9 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const bool selected = i == selectedSkillIndex;
         const bool canUse = skill->CanUse(*activePlayer, battleContext);
         const float rowAlpha = (selected ? mLayout.selectedAlpha : mLayout.listDimAlpha) * alpha;
-        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
-            (selected ? mLayout.selectedNudgeX : 0.0f);
-        const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
+        const float x = layoutX(mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f));
+        const float y = layoutY(mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing));
 
         DrawNineSlice(
             context,
@@ -180,12 +192,12 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             WithAlpha(panelTint, canUse ? rowAlpha : rowAlpha * mLayout.disabledPanelAlphaScale));
     }
 
-    if (selectedSkill)
+    if (showDetailPanels)
     {
         DrawNineSlice(
             context,
-            mLayout.detailX,
-            mLayout.detailY,
+            layoutX(mLayout.detailX),
+            layoutY(mLayout.detailY),
             mLayout.detailWidth,
             mLayout.detailHeight,
             mLayout.detailSliceScale,
@@ -193,8 +205,8 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             WithAlpha(panelTint, mLayout.panelAlpha * alpha));
         DrawNineSlice(
             context,
-            mLayout.targetDetailX,
-            mLayout.targetDetailY,
+            layoutX(mLayout.targetDetailX),
+            layoutY(mLayout.targetDetailY),
             mLayout.targetDetailWidth,
             mLayout.targetDetailHeight,
             mLayout.detailSliceScale,
@@ -219,9 +231,9 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const int row = i - first;
         const bool selected = i == selectedSkillIndex;
         const bool canUse = skill->CanUse(*activePlayer, battleContext);
-        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
-            (selected ? mLayout.selectedNudgeX : 0.0f);
-        const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
+        const float x = layoutX(mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f));
+        const float y = layoutY(mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing));
 
         DrawPanel(x + mLayout.iconBackOffsetX,
                   y + mLayout.iconBackOffsetY,
@@ -260,10 +272,10 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         }
     }
 
-    if (selectedSkill)
+    if (showDetailPanels)
     {
-        DrawPanel(mLayout.detailX,
-                  mLayout.detailY,
+        DrawPanel(layoutX(mLayout.detailX),
+                  layoutY(mLayout.detailY),
                   mLayout.detailWidth,
                   mLayout.detailAccentHeight,
                   gold);
@@ -273,7 +285,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             StatusEffectRegistry::Get().EnsureLoaded();
             if (const StatusEffectData* status = StatusEffectRegistry::Get().Find(selectedSkill->GetStatusEffectId()))
             {
-                DrawIcon(status->iconId, mLayout.statusIconX, mLayout.statusIconY, mLayout.iconSize, white);
+                DrawIcon(status->iconId, layoutX(mLayout.statusIconX), layoutY(mLayout.statusIconY), mLayout.iconSize, white);
             }
         }
 
@@ -285,9 +297,9 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             {
                 DrawIcon(
                     effects[i].iconId.empty() ? "fallback" : effects[i].iconId,
-                    mLayout.targetDetailX + mLayout.detailBodyOffsetX +
-                        static_cast<float>(i) * (mLayout.iconSize + mLayout.targetEffectIconSpacing),
-                    mLayout.targetDetailY + mLayout.targetEffectIconOffsetY,
+                    layoutX(mLayout.targetDetailX + mLayout.detailBodyOffsetX +
+                        static_cast<float>(i) * (mLayout.iconSize + mLayout.targetEffectIconSpacing)),
+                    layoutY(mLayout.targetDetailY + mLayout.targetEffectIconOffsetY),
                     mLayout.iconSize,
                     white);
             }
@@ -305,9 +317,9 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const int row = i - first;
         const bool selected = i == selectedSkillIndex;
         const bool canUse = skill->CanUse(*activePlayer, battleContext);
-        const float x = mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
-            (selected ? mLayout.selectedNudgeX : 0.0f);
-        const float y = mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing);
+        const float x = layoutX(mLayout.cardX - (1.0f - ease) * mLayout.cardSlideOffsetX +
+            (selected ? mLayout.selectedNudgeX : 0.0f));
+        const float y = layoutY(mLayout.cardY + row * (mLayout.cardHeight + mLayout.cardSpacing));
         const XMVECTOR nameColor = selected ? gold : (canUse ? white : disabledText);
         const XMVECTOR rowCostColor = canUse ? costText : disabledText;
 
@@ -325,19 +337,19 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                      mLayout.textScale);
     }
 
-    if (selectedSkill)
+    if (showDetailPanels)
     {
         DrawTextLine(text,
                      selectedSkill->GetName(),
-                     mLayout.detailX + mLayout.detailTitleOffsetX,
-                     mLayout.detailY + mLayout.detailTitleOffsetY,
+                     layoutX(mLayout.detailX + mLayout.detailTitleOffsetX),
+                     layoutY(mLayout.detailY + mLayout.detailTitleOffsetY),
                      gold,
                      mLayout.textScale);
 
         DrawTextLine(text,
                      TruncateForCard(selectedSkill->GetDescription(), static_cast<std::size_t>(mLayout.descriptionMaxBytes)),
-                     mLayout.detailX + mLayout.detailBodyOffsetX,
-                     mLayout.detailY + mLayout.detailBodyOffsetY,
+                     layoutX(mLayout.detailX + mLayout.detailBodyOffsetX),
+                     layoutY(mLayout.detailY + mLayout.detailBodyOffsetY),
                      white,
                      mLayout.detailTextScale);
 
@@ -345,7 +357,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         const std::string targetLine = LocalizationManager::Get().Format("battle.skill_ui.target", {
             { "target", TargetText(selectedSkill->GetTargeting()) }
         });
-        DrawTextLine(text, targetLine, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, muted, mLayout.detailTextScale);
+        DrawTextLine(text, targetLine, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
         const std::string damageLine = LocalizationManager::Get().Format("battle.skill_ui.damage", {
@@ -354,13 +366,13 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                 ? std::to_string(selectedSkill->GetHitCount())
                 : std::string("-") }
         });
-        DrawTextLine(text, damageLine, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, muted, mLayout.detailTextScale);
+        DrawTextLine(text, damageLine, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
         const std::string availability = AvailabilityText(*selectedSkill, *activePlayer, battleContext);
         if (!availability.empty())
         {
-            DrawTextLine(text, availability, mLayout.detailX + mLayout.detailBodyOffsetX, lineY, warningText, mLayout.detailTextScale);
+            DrawTextLine(text, availability, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), warningText, mLayout.detailTextScale);
             lineY += mLayout.detailLineSpacing;
         }
 
@@ -379,14 +391,14 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                 });
                 DrawTextLine(text,
                              appliesLine,
-                             mLayout.detailX + mLayout.detailBodyOffsetX,
-                             lineY,
+                             layoutX(mLayout.detailX + mLayout.detailBodyOffsetX),
+                             layoutY(lineY),
                              gold,
                              mLayout.detailTextScale);
                 DrawTextLine(text,
                              metaLine,
-                             mLayout.statusIconX - mLayout.detailStatusMetaOffsetX,
-                             mLayout.statusIconY + mLayout.detailStatusMetaOffsetY,
+                             layoutX(mLayout.statusIconX - mLayout.detailStatusMetaOffsetX),
+                             layoutY(mLayout.statusIconY + mLayout.detailStatusMetaOffsetY),
                              muted,
                              mLayout.smallTextScale);
                 const std::string summaryKey = status->shortDescriptionKey.empty()
@@ -397,8 +409,8 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                     static_cast<std::size_t>(mLayout.statusSummaryMaxBytes));
                 DrawTextLine(text,
                              summary,
-                             mLayout.detailX + mLayout.detailBodyOffsetX,
-                             lineY + mLayout.detailStatusSummaryOffsetY,
+                             layoutX(mLayout.detailX + mLayout.detailBodyOffsetX),
+                             layoutY(lineY + mLayout.detailStatusSummaryOffsetY),
                              muted,
                              mLayout.smallTextScale);
             }
@@ -408,7 +420,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             { "page", std::to_string(pageIndex + 1) },
             { "pages", std::to_string(pageCount) }
         });
-        DrawTextLine(text, pageText, mLayout.pageTextX, mLayout.pageTextY, muted, mLayout.smallTextScale);
+        DrawTextLine(text, pageText, layoutX(mLayout.pageTextX), layoutY(mLayout.pageTextY), muted, mLayout.smallTextScale);
 
         const std::string targetName = previewTarget
             ? previewTarget->GetName()
@@ -419,8 +431,8 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         DrawTextLine(
             text,
             previewLine,
-            mLayout.targetDetailX + mLayout.detailBodyOffsetX,
-            mLayout.targetDetailY + mLayout.targetTitleOffsetY,
+            layoutX(mLayout.targetDetailX + mLayout.detailBodyOffsetX),
+            layoutY(mLayout.targetDetailY + mLayout.targetTitleOffsetY),
             white,
             mLayout.detailTextScale);
 
@@ -433,8 +445,8 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             DrawTextLine(
                 text,
                 effectLine,
-                mLayout.targetDetailX + mLayout.detailBodyOffsetX,
-                mLayout.targetDetailY + mLayout.targetEffectLabelOffsetY,
+                layoutX(mLayout.targetDetailX + mLayout.detailBodyOffsetX),
+                layoutY(mLayout.targetDetailY + mLayout.targetEffectLabelOffsetY),
                 muted,
                 mLayout.detailTextScale);
         }
@@ -581,6 +593,17 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     mLayout.transformScaleY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformScaleY"), mLayout.transformScaleY);
     mLayout.transformOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformOffsetX"), mLayout.transformOffsetX);
     mLayout.transformOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformOffsetY"), mLayout.transformOffsetY);
+    mLayout.anchorToActiveCharacter = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "anchorToActiveCharacter"), mLayout.anchorToActiveCharacter);
+    mLayout.anchorReferenceX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorReferenceX"), mLayout.anchorReferenceX);
+    mLayout.anchorReferenceY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorReferenceY"), mLayout.anchorReferenceY);
+    mLayout.anchorOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorOffsetX"), mLayout.anchorOffsetX);
+    mLayout.anchorOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorOffsetY"), mLayout.anchorOffsetY);
+    mLayout.clampAnchorOffset = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "clampAnchorOffset"), mLayout.clampAnchorOffset);
+    mLayout.anchorMinOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorMinOffsetX"), mLayout.anchorMinOffsetX);
+    mLayout.anchorMaxOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorMaxOffsetX"), mLayout.anchorMaxOffsetX);
+    mLayout.anchorMinOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorMinOffsetY"), mLayout.anchorMinOffsetY);
+    mLayout.anchorMaxOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "anchorMaxOffsetY"), mLayout.anchorMaxOffsetY);
+    mLayout.hideDetailPanelsDuringTargetSelect = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "hideDetailPanelsDuringTargetSelect"), mLayout.hideDetailPanelsDuringTargetSelect);
     mLayout.textScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textScale"), mLayout.textScale);
     mLayout.smallTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "smallTextScale"), mLayout.smallTextScale);
     mLayout.detailTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailTextScale"), mLayout.detailTextScale);
@@ -597,6 +620,8 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     if (mLayout.targetMaxIcons < 0) mLayout.targetMaxIcons = 0;
     if (std::abs(mLayout.transformScaleX) <= 0.001f) mLayout.transformScaleX = 1.0f;
     if (std::abs(mLayout.transformScaleY) <= 0.001f) mLayout.transformScaleY = 1.0f;
+    if (mLayout.anchorMinOffsetX > mLayout.anchorMaxOffsetX) std::swap(mLayout.anchorMinOffsetX, mLayout.anchorMaxOffsetX);
+    if (mLayout.anchorMinOffsetY > mLayout.anchorMaxOffsetY) std::swap(mLayout.anchorMinOffsetY, mLayout.anchorMaxOffsetY);
     return true;
 }
 
@@ -676,6 +701,42 @@ XMMATRIX BattleSkillMenuRenderer::BuildUiTransform(float cameraRotationRadians) 
         : 0.0f;
     const float radians = XMConvertToRadians(mLayout.transformRotationDegrees + cameraDegrees);
     return XMMatrixTransformation2D(scaleOrigin, 0.0f, scale, rotationOrigin, radians, translation);
+}
+
+// ------------------------------------------------------------
+// Function: ComputeAnchorOffset
+// Purpose:
+//   Convert the acting character's screen-space anchor back into the
+//   skill menu's local layout space, then shift every panel by one offset.
+// Why:
+//   The menu uses a shared parent transform. Anchoring before that transform
+//   keeps cards, icons, and text aligned instead of compensating each child.
+// ------------------------------------------------------------
+XMFLOAT2 BattleSkillMenuRenderer::ComputeAnchorOffset(CXMMATRIX transform,
+                                                      bool hasActiveAnchor,
+                                                      float activeAnchorScreenX,
+                                                      float activeAnchorScreenY) const
+{
+    if (!mLayout.anchorToActiveCharacter || !hasActiveAnchor)
+    {
+        return XMFLOAT2(0.0f, 0.0f);
+    }
+
+    XMVECTOR determinant = XMVectorZero();
+    const XMMATRIX inverse = XMMatrixInverse(&determinant, transform);
+    const XMVECTOR screenAnchor = XMVectorSet(activeAnchorScreenX, activeAnchorScreenY, 0.0f, 1.0f);
+    const XMVECTOR localAnchor = XMVector2Transform(screenAnchor, inverse);
+
+    float offsetX = XMVectorGetX(localAnchor) + mLayout.anchorOffsetX - mLayout.anchorReferenceX;
+    float offsetY = XMVectorGetY(localAnchor) + mLayout.anchorOffsetY - mLayout.anchorReferenceY;
+
+    if (mLayout.clampAnchorOffset)
+    {
+        offsetX = std::max(mLayout.anchorMinOffsetX, std::min(offsetX, mLayout.anchorMaxOffsetX));
+        offsetY = std::max(mLayout.anchorMinOffsetY, std::min(offsetY, mLayout.anchorMaxOffsetY));
+    }
+
+    return XMFLOAT2(offsetX, offsetY);
 }
 
 void BattleSkillMenuRenderer::DrawNineSlice(ID3D11DeviceContext* context,

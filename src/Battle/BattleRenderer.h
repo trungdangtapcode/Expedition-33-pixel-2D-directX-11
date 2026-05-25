@@ -216,6 +216,8 @@ public:
     void SetEnemyDrawOffset(int slot, float x, float y);
     void GetPlayerDrawOffset(int slot, float& x, float& y) const;
     void GetEnemyDrawOffset(int slot, float& x, float& y) const;
+    void GetPlayerCameraFocusOffset(int slot, float& x, float& y) const;
+    void GetEnemyCameraFocusOffset(int slot, float& x, float& y) const;
 
     // ------------------------------------------------------------
     // Stance Machine API

@@ -2,13 +2,17 @@
 
 ## Goal
 
-The battle skill picker now uses a screen-space card layout inspired by modern tactical JRPG menus. It is not tied to the battle camera, so camera pans, zooms, and target focus no longer tilt or overlap the menu.
+The battle skill picker uses a screen-space card layout inspired by modern tactical JRPG menus. It follows the battle camera tilt through one parent transform and then applies a data-driven active-character anchor offset, so the list still feels attached to the acting character without rotating each UI component separately.
 
 The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than rotated fill rectangles. Skill cards, detail panels, target previews, accent bars, colors, alpha values, animation timing, asset paths, and the shared tilted UI transform are all controlled by `data/battle_skill_menu_layout.json`.
 
 The tilt is intentionally applied as one parent transform to every panel, icon, accent, and text draw. Do not rotate child components independently; doing so causes the visible mismatch where the panel edge, icon, and label drift away from each other.
 
 By default the parent transform follows the live battle camera rotation through `transformFollowCameraRotation` and `transformCameraRotationMultiplier`. `transformRotationDegrees` is only an art-direction offset on top of the camera-follow value, not a replacement for the camera angle.
+
+The active-character anchor is controlled by `anchorToActiveCharacter`, `anchorReferenceX`, `anchorReferenceY`, `anchorOffsetX`, `anchorOffsetY`, and the optional anchor clamp values. `BattleState` passes the acting character's camera-focus anchor in screen space, and the renderer converts that point back through the inverse UI transform before moving the full layout. This keeps the menu coherent under tilt, zoom, and target focus.
+
+During target selection, `hideDetailPanelsDuringTargetSelect` hides the large selected-skill detail and target-preview panels. The skill list and target marker remain visible, but the enemy area stays clear for target reading.
 
 ## Renderer Ownership
 
@@ -19,7 +23,7 @@ By default the parent transform follows the live battle camera rotation through 
 
 ## Data Files
 
-- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors, alpha values, 9-slice asset paths, animation timing, and the shared parent transform.
+- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors, alpha values, 9-slice asset paths, animation timing, the shared parent transform, active-character anchoring, and target-select panel visibility.
 - `data/skills/*.json` may include optional UI metadata:
   - `uiSortGroup`
   - `hitCount`

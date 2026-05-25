@@ -1201,17 +1201,54 @@ void BattleState::Render()
         (mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT ||
          mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT))
     {
+        // Use the same visual-center point that drives actor camera focus.
+        // The skill renderer converts this screen point into its transformed
+        // layout space so the whole menu follows the acting character cleanly.
+        PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
+        bool hasSkillAnchor = false;
+        float skillAnchorScreenX = 0.0f;
+        float skillAnchorScreenY = 0.0f;
+
+        if (activePlayer)
+        {
+            int activeSlot = -1;
+            bool activeIsPlayer = false;
+            if (GetBattlerSlot(activePlayer, activeSlot, activeIsPlayer) && activeIsPlayer)
+            {
+                float worldX = 0.0f;
+                float worldY = 0.0f;
+                float drawOffsetX = 0.0f;
+                float drawOffsetY = 0.0f;
+                float cameraOffsetX = 0.0f;
+                float cameraOffsetY = 0.0f;
+
+                mBattleRenderer.GetPlayerSlotPos(activeSlot, worldX, worldY);
+                mBattleRenderer.GetPlayerDrawOffset(activeSlot, drawOffsetX, drawOffsetY);
+                mBattleRenderer.GetPlayerCameraFocusOffset(activeSlot, cameraOffsetX, cameraOffsetY);
+
+                const DirectX::XMFLOAT2 activeAnchor = mBattleRenderer.GetCamera().WorldToScreen(
+                    worldX + drawOffsetX + cameraOffsetX,
+                    worldY + drawOffsetY + cameraOffsetY);
+                skillAnchorScreenX = activeAnchor.x;
+                skillAnchorScreenY = activeAnchor.y;
+                hasSkillAnchor = true;
+            }
+        }
+
         mSkillMenuRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
         mSkillMenuRenderer.Render(
             mD3D.GetContext(),
             mTextRenderer,
-            mBattle.GetActivePlayer(),
+            activePlayer,
             mInputController.GetSkillIndex(),
             mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT,
             mInputController.GetTargetIndex(),
             mBattle.GetAliveEnemies(),
             mBattle.GetContext(),
-            mBattleRenderer.GetCamera().GetRotation());
+            mBattleRenderer.GetCamera().GetRotation(),
+            hasSkillAnchor,
+            skillAnchorScreenX,
+            skillAnchorScreenY);
     }
 
     // ---- Item menu (ITEM_SELECT) ----

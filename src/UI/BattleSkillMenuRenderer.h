@@ -114,6 +114,14 @@ struct BattleSkillMenuLayout
     int cardNameMaxBytes = 30;
     int descriptionMaxBytes = 72;
     int statusSummaryMaxBytes = 54;
+    bool transformEnabled = true;
+    float transformRotationDegrees = -2.0f;
+    float transformPivotX = 640.0f;
+    float transformPivotY = 360.0f;
+    float transformScaleX = 1.0f;
+    float transformScaleY = 1.0f;
+    float transformOffsetX = 0.0f;
+    float transformOffsetY = 0.0f;
     float textScale = 0.54f;
     float smallTextScale = 0.36f;
     float detailTextScale = 0.38f;
@@ -176,6 +184,7 @@ private:
     bool LoadLayout(const std::string& path);
     bool LoadIconMetadata(const std::string& path);
     bool CreateFillTexture(ID3D11Device* device);
+    DirectX::XMMATRIX BuildUiTransform() const;
     void DrawPanel(float x, float y, float w, float h, DirectX::XMVECTOR color);
     void DrawIcon(const std::string& iconId, float x, float y, float size, DirectX::XMVECTOR color);
     void DrawNineSlice(ID3D11DeviceContext* context,
@@ -184,6 +193,7 @@ private:
                        float w,
                        float h,
                        float sliceScale,
+                       DirectX::CXMMATRIX transform,
                        DirectX::FXMVECTOR color);
     void DrawTextLine(BattleTextRenderer& text,
                       const std::string& value,

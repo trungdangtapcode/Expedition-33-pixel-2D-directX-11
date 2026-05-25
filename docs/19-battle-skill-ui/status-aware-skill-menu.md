@@ -4,7 +4,9 @@
 
 The battle skill picker now uses a screen-space card layout inspired by modern tactical JRPG menus. It is not tied to the battle camera, so camera pans, zooms, and target focus no longer tilt or overlap the menu.
 
-The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than rotated fill rectangles. Skill cards, detail panels, target previews, accent bars, colors, alpha values, animation timing, and asset paths are all controlled by `data/battle_skill_menu_layout.json`.
+The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than rotated fill rectangles. Skill cards, detail panels, target previews, accent bars, colors, alpha values, animation timing, asset paths, and the shared tilted UI transform are all controlled by `data/battle_skill_menu_layout.json`.
+
+The tilt is intentionally applied as one parent transform to every panel, icon, accent, and text draw. Do not rotate child components independently; doing so causes the visible mismatch where the panel edge, icon, and label drift away from each other.
 
 ## Renderer Ownership
 
@@ -15,7 +17,7 @@ The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than
 
 ## Data Files
 
-- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors, alpha values, 9-slice asset paths, and animation timing.
+- `data/battle_skill_menu_layout.json` controls card position, card size, page size, detail panel position, icon sizes, colors, alpha values, 9-slice asset paths, animation timing, and the shared parent transform.
 - `data/skills/*.json` may include optional UI metadata:
   - `uiSortGroup`
   - `hitCount`

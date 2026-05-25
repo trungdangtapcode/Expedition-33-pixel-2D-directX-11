@@ -100,6 +100,14 @@
   "cardNameMaxBytes": 30,
   "descriptionMaxBytes": 72,
   "statusSummaryMaxBytes": 54,
+  "transformEnabled": true,
+  "transformRotationDegrees": -2.0,
+  "transformPivotX": 640.0,
+  "transformPivotY": 420.0,
+  "transformScaleX": 1.0,
+  "transformScaleY": 1.0,
+  "transformOffsetX": 0.0,
+  "transformOffsetY": 0.0,
 
   "panelTexturePath": "assets/UI/ui-dialog-box-hd.png",
   "panelMetadataPath": "assets/UI/ui-dialog-box-hd.json"

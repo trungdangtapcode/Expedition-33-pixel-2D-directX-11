@@ -138,6 +138,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
     const XMVECTOR disabledText = XMVectorSet(mLayout.disabledTextR, mLayout.disabledTextG, mLayout.disabledTextB, alpha);
     const XMVECTOR costText = XMVectorSet(mLayout.costR, mLayout.costG, mLayout.costB, alpha);
     const XMVECTOR warningText = XMVectorSet(mLayout.warningR, mLayout.warningG, mLayout.warningB, alpha);
+    const XMMATRIX uiTransform = BuildUiTransform();
 
     const ISkill* selectedSkill = activePlayer->GetSkill(selectedSkillIndex);
     const IBattler* previewTarget = nullptr;
@@ -174,6 +175,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             mLayout.cardWidth,
             mLayout.cardHeight,
             mLayout.sliceScale,
+            uiTransform,
             WithAlpha(panelTint, canUse ? rowAlpha : rowAlpha * mLayout.disabledPanelAlphaScale));
     }
 
@@ -186,6 +188,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             mLayout.detailWidth,
             mLayout.detailHeight,
             mLayout.detailSliceScale,
+            uiTransform,
             WithAlpha(panelTint, mLayout.panelAlpha * alpha));
         DrawNineSlice(
             context,
@@ -194,11 +197,19 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
             mLayout.targetDetailWidth,
             mLayout.targetDetailHeight,
             mLayout.detailSliceScale,
+            uiTransform,
             WithAlpha(panelTint, mLayout.targetPanelAlpha * alpha));
     }
 
     BindViewport(context);
-    mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->PointClamp(), mStates->DepthNone());
+    mSpriteBatch->Begin(
+        SpriteSortMode_Deferred,
+        mStates->NonPremultiplied(),
+        mStates->PointClamp(),
+        mStates->DepthNone(),
+        nullptr,
+        nullptr,
+        uiTransform);
     for (int i = first; i < last; ++i)
     {
         const ISkill* skill = activePlayer->GetSkill(i);
@@ -284,7 +295,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
 
     mSpriteBatch->End();
 
-    text.BeginBatch(context);
+    text.BeginBatch(context, uiTransform);
     for (int i = first; i < last; ++i)
     {
         const ISkill* skill = activePlayer->GetSkill(i);
@@ -559,6 +570,14 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     mLayout.cardNameMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "cardNameMaxBytes"), mLayout.cardNameMaxBytes);
     mLayout.descriptionMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "descriptionMaxBytes"), mLayout.descriptionMaxBytes);
     mLayout.statusSummaryMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "statusSummaryMaxBytes"), mLayout.statusSummaryMaxBytes);
+    mLayout.transformEnabled = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "transformEnabled"), mLayout.transformEnabled);
+    mLayout.transformRotationDegrees = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformRotationDegrees"), mLayout.transformRotationDegrees);
+    mLayout.transformPivotX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformPivotX"), mLayout.transformPivotX);
+    mLayout.transformPivotY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformPivotY"), mLayout.transformPivotY);
+    mLayout.transformScaleX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformScaleX"), mLayout.transformScaleX);
+    mLayout.transformScaleY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformScaleY"), mLayout.transformScaleY);
+    mLayout.transformOffsetX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformOffsetX"), mLayout.transformOffsetX);
+    mLayout.transformOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformOffsetY"), mLayout.transformOffsetY);
     mLayout.textScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textScale"), mLayout.textScale);
     mLayout.smallTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "smallTextScale"), mLayout.smallTextScale);
     mLayout.detailTextScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "detailTextScale"), mLayout.detailTextScale);
@@ -573,6 +592,8 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     if (mLayout.pageSize < 1) mLayout.pageSize = 1;
     if (mLayout.entryEasePower <= 0.0f) mLayout.entryEasePower = 1.0f;
     if (mLayout.targetMaxIcons < 0) mLayout.targetMaxIcons = 0;
+    if (std::abs(mLayout.transformScaleX) <= 0.001f) mLayout.transformScaleX = 1.0f;
+    if (std::abs(mLayout.transformScaleY) <= 0.001f) mLayout.transformScaleY = 1.0f;
     return true;
 }
 
@@ -636,15 +657,31 @@ void BattleSkillMenuRenderer::DrawPanel(float x, float y, float w, float h, XMVE
     mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(x, y), nullptr, color, 0.0f, origin, XMFLOAT2(w, h));
 }
 
+XMMATRIX BattleSkillMenuRenderer::BuildUiTransform() const
+{
+    if (!mLayout.transformEnabled)
+    {
+        return XMMatrixIdentity();
+    }
+
+    const XMVECTOR scaleOrigin = XMVectorSet(mLayout.transformPivotX, mLayout.transformPivotY, 0.0f, 0.0f);
+    const XMVECTOR rotationOrigin = scaleOrigin;
+    const XMVECTOR scale = XMVectorSet(mLayout.transformScaleX, mLayout.transformScaleY, 0.0f, 0.0f);
+    const XMVECTOR translation = XMVectorSet(mLayout.transformOffsetX, mLayout.transformOffsetY, 0.0f, 0.0f);
+    const float radians = XMConvertToRadians(mLayout.transformRotationDegrees);
+    return XMMatrixTransformation2D(scaleOrigin, 0.0f, scale, rotationOrigin, radians, translation);
+}
+
 void BattleSkillMenuRenderer::DrawNineSlice(ID3D11DeviceContext* context,
                                             float x,
                                             float y,
                                             float w,
                                             float h,
                                             float sliceScale,
+                                            CXMMATRIX transform,
                                             FXMVECTOR color)
 {
-    mPanelRenderer.Draw(context, x, y, w, h, sliceScale, XMMatrixIdentity(), color);
+    mPanelRenderer.Draw(context, x, y, w, h, sliceScale, transform, color);
 }
 
 void BattleSkillMenuRenderer::DrawTextLine(BattleTextRenderer& text,

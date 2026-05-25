@@ -101,11 +101,17 @@ reasonable armed side view at first glance, but it is actually a walking cycle,
 so it must not be used for `idle` or `fight-state`. Those clips use a single
 stable frame from row 4 instead.
 
-Raw zombie armour side-view frames are mirrored before packing. The battle and
-overworld enemy renderers flip enemy sprites at runtime because project enemy
-sheets are authored facing right by convention. Mirroring during processing
-keeps Zombie Armour consistent with `skeleton.png`, so the runtime flip makes it
-face left toward the player party.
+Most raw zombie armour side-view frames are mirrored before packing. The battle
+and overworld enemy renderers flip enemy sprites at runtime because project
+enemy sheets are authored facing right by convention. Mirroring during
+processing keeps Zombie Armour consistent with `skeleton.png`, so the runtime
+flip makes it face left toward the player party.
+
+`attack-1` is the exception. Source row 6 is already in the correct authored
+direction for the project convention, so the processor leaves that row
+unmirrored. If it is mirrored like the other rows, the runtime enemy flip turns
+the attack away from the player even though the same combat class and renderer
+work correctly for Skeleton.
 
 The default raw-sheet scale is `2`. The raw zombie armour frames are much
 smaller inside the source sheet than the Skeleton frames, so pre-scaling before
@@ -146,7 +152,8 @@ The raw-sheet path:
 4. Scans columns inside each row band to find individual frame boxes.
 5. Crops each detected frame.
 6. Scales frames with nearest-neighbor sampling.
-7. Mirrors raw side-view frames to the project enemy-facing convention.
+7. Mirrors raw side-view frames to the project enemy-facing convention unless
+   an animation explicitly overrides `flipX`.
 8. Pastes each frame into a transparent `128 x 128` cell.
 9. Writes project-format sprite-sheet JSON.
 
@@ -171,7 +178,7 @@ For precise animation mapping, create a recipe JSON:
     { "name": "idle", "sourceRow": 4, "frames": 1, "frameRate": 8, "loop": true },
     { "name": "walk", "sourceRow": 26, "frames": 5, "frameRate": 10, "loop": true },
     { "name": "fight-state", "sourceRow": 4, "frames": 1, "frameRate": 8, "loop": true },
-    { "name": "attack-1", "sourceRow": 6, "frames": 6, "frameRate": 12, "loop": false },
+    { "name": "attack-1", "sourceRow": 6, "frames": 6, "frameRate": 12, "loop": false, "flipX": false },
     { "name": "hurt", "sourceRow": 36, "frames": 3, "frameRate": 8, "loop": false },
     { "name": "die", "sourceRow": 19, "frames": 6, "frameRate": 6, "loop": false }
   ]

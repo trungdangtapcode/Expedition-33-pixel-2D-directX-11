@@ -4,9 +4,9 @@
 //                 Manages the combat menu FSM and command list.
 // ============================================================
 #pragma once
-#include <vector>
 #include <memory>
 #include <string>
+#include <vector>
 
 class BattleState;
 class BattleManager;
@@ -15,11 +15,11 @@ class IBattleCommand;
 
 enum class PlayerInputPhase
 {
-    COMMAND_SELECT,      // top-level: Fight / Item / Flee …
-    SKILL_SELECT,        // which skill (1/2/3)
-    TARGET_SELECT,       // which enemy (Up/Down to cycle, Enter to confirm)
-    ITEM_SELECT,         // which item from inventory
-    ITEM_TARGET_SELECT   // which battler (ally OR enemy) the item lands on
+    COMMAND_SELECT,      // top-level: Fight / Item / Flee
+    SKILL_SELECT,        // skill card list with paged navigation
+    TARGET_SELECT,       // enemy target cursor after choosing a skill
+    ITEM_SELECT,         // inventory item list
+    ITEM_TARGET_SELECT   // battler target cursor after choosing an item
 };
 
 class BattleInputController
@@ -36,7 +36,7 @@ public:
     int GetCommandIndex() const { return mCommandIndex; }
     int GetSkillIndex() const { return mSkillIndex; }
     int GetTargetIndex() const { return mTargetIndex; }
-    int GetItemIndex()   const { return mItemIndex; }
+    int GetItemIndex() const { return mItemIndex; }
 
     const std::vector<std::unique_ptr<IBattleCommand>>& GetCommands() const { return mCommands; }
 
@@ -54,11 +54,8 @@ private:
     void HandleItemTargetSelect();
     void ConfirmSkillAndTarget();
     void ConfirmItemAndTarget();
-
-    // Refresh mItemIds from Inventory::OwnedIds().  Called whenever the
-    // controller enters ITEM_SELECT so the menu reflects current counts
-    // (an item used last turn vanishes if its stack hit 0).
     void RefreshItemList();
+    void LoadSkillMenuInputConfig();
 
     BattleState& mState;
     BattleManager& mBattle;
@@ -68,7 +65,8 @@ private:
     int mCommandIndex = 0;
     int mSkillIndex = 0;
     int mTargetIndex = 0;
-    int mItemIndex   = 0;
+    int mItemIndex = 0;
+    int mSkillPageSize = 4;
 
     // Snapshot of Inventory::OwnedIds() taken when the player enters
     // ITEM_SELECT.  Refreshed only on phase entry, not per-frame, so
@@ -77,6 +75,8 @@ private:
 
     bool mKeyUpWasDown = false;
     bool mKeyDownWasDown = false;
+    bool mKeyLeftWasDown = false;
+    bool mKeyRightWasDown = false;
     bool mEnterWasDown = false;
     bool mBackWasDown = false;
 

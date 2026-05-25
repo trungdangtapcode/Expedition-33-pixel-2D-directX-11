@@ -1,0 +1,13 @@
+{
+  "iconPath": "assets/UI/coin_icon.png",
+  "labelKey": "currency.coins",
+  "sourceIconSize": 32.0,
+  "iconSize": 24.0,
+  "textOffsetX": 32.0,
+  "textOffsetY": 2.0,
+  "topRightWidth": 132.0,
+  "topRightMarginX": 24.0,
+  "topRightY": 20.0,
+  "campfireOffsetX": 382.0,
+  "campfireOffsetY": 96.0
+}

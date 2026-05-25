@@ -1,0 +1,120 @@
+# Battle Result Screen
+
+## Summary
+
+The battle result screen pauses the battle exit flow after a terminal outcome and presents a cinematic overlay on top of the frozen battle scene.
+
+- Victory shows rewards, performance stats, no-damage bonus, and party progression.
+- Defeat shows a failed splash, then a retry prompt.
+- Retry restores the pre-battle party and wallet snapshots, then rebuilds the same encounter in place.
+- Leave after defeat restores the pre-battle party and wallet snapshots, exits to overworld, and does not mark the enemy defeated.
+
+## Data Ownership
+
+- `BattleManager` owns combat simulation and exposes base reward totals.
+- `BattleState` owns reward application and result flow timing.
+- `BattleResultTracker` accumulates display-only stats from battle events.
+- `BattleResultRenderer` draws the overlay from immutable `BattleResultData`.
+- `PartyManager` and `Wallet` remain the only durable gameplay progress owners.
+
+Rewards are applied once when victory results are created. This keeps the renderer pure and prevents duplicate EXP or coins if the player waits on the result screen.
+
+## Layout And Audio
+
+`data/battle_result_layout.json` owns screen positions, panel sizes, animation timing, the no-damage bonus percentage, and result SFX ids.
+It also owns optional result-art texture paths for the defeat sigil, retry prompt panel, ink vignette, and victory flourish.
+The victory party panel uses a data-driven translucent fill so the frozen battle
+scene can stay cinematic without enemy sprites bleeding through readable result
+rows. Portrait rows crop the wide turn-view art through layout data instead of
+stretching the full 256x128 image into a square.
+Victory also has a data-driven impact overlay: a short flash, warm tint,
+expanding ring, and deterministic ray burst drawn with the existing 1x1 fill
+texture. The effect is intentionally screen-space and renderer-local, so it does
+not mutate battle state or require a new post-process shader for V1.
+
+The committed generated source sheet lives at:
+
+```text
+source_assets/battle_result_ui_raw.png
+```
+
+Regenerate the sliced game assets with:
+
+```bat
+python patches\process_battle_result_assets.py
+```
+
+The script writes:
+
+```text
+assets/UI/battle_result/battle_result_defeat_sigil.png
+assets/UI/battle_result/battle_result_prompt_panel.png
+assets/UI/battle_result/battle_result_ink_vignette.png
+assets/UI/battle_result/battle_result_victory_flourish.png
+```
+
+The defeat sigil extraction deliberately uses a larger source crop, isolated red
+glyph strokes, and an elliptical alpha falloff. That keeps the red glow from
+reaching the PNG bounds, which prevents rectangular source-sheet edges from
+appearing in-game.
+
+Result SFX live under:
+
+```text
+assets/sound/SFX/Battle/Result/
+```
+
+They are registered in `data/audio/sfx.json`, so the global SFX volume bus controls them automatically.
+
+Result BGM is data-driven through the same `AudioManager` BGM bus as menu,
+overworld, and battle music. `data/audio/bgm.json` registers every result
+soundtrack id, file path, and loop policy. Result tracks set `"loop": false`
+so victory and defeat themes play once, while exploration and battle tracks
+keep `"loop": true`. `data/battle_result_layout.json` owns default victory and
+defeat track ids, while each `data/enemies/*.json` encounter can override
+`victoryBgmTrackId` and `defeatBgmTrackId`.
+
+Current result soundtrack mapping:
+
+- Default victory: `the_end_in_me_victory`
+- Zombie Armour victory: `beneath_the_blue_tree_victory`
+- Verso Cloned victory: `verso_cloned_fight_victory`
+- Default defeat: `battle_defeat`
+
+When the result screen activates, BattleState resolves the encounter override
+first, then falls back to the layout default, then broadcasts `bgm_play` with
+that track id. No soundtrack file paths are embedded in C++.
+
+## Retry Rules
+
+BattleState captures:
+
+- party progress with `PartyManager::CaptureProgress()`
+- wallet coins with `Wallet::GetCoins()`
+
+On retry or defeat leave, those snapshots are restored before rebuilding or exiting. Victory does not restore snapshots; it applies rewards, persists surviving HP/MP from combatants, and broadcasts `battle_end_victory` only when the player confirms the result screen.
+
+## Flee Rules
+
+Flee is a plain battle exit, not a battle result. Choosing Flee starts the iris
+close and broadcasts `battle_flee` after the deferred safe exit, but it does not
+enter `VictoryResult`, `DefeatSplash`, `DefeatPrompt`, or result `Exiting`.
+This prevents the result renderer from drawing stale/default victory data during
+the flee fade.
+
+## Localization
+
+All player-facing result labels use localization keys under `battle.result.*`.
+
+English, Vietnamese, and French keys are provided. Code and docs remain English-only; translated strings live in localization data.
+
+## Testing Checklist
+
+- Build with `.\build_src_static.bat 2>&1`.
+- Win a battle and confirm the result screen appears after death animations.
+- Confirm EXP and coins are granted once only.
+- Confirm no-damage bonus appears only when party damage received is zero.
+- Confirm `[F]`, Enter, or Space continues from victory.
+- Lose a battle and confirm the failed splash transitions to retry prompt.
+- Confirm retry restarts the same encounter from pre-battle state.
+- Confirm leave returns to overworld without removing the enemy.

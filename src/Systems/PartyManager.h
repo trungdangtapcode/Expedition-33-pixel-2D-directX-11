@@ -47,6 +47,7 @@ struct PartyMember
     std::string animJsonPath;
     std::wstring hpFramePath;
     std::wstring turnViewPath;
+    std::vector<std::string> skillPaths;
     BattlerStats baseStats;
     std::array<std::string, kEquipSlotCount> equipped;
 };
@@ -70,6 +71,11 @@ public:
     //   pushes, pops, and full scene changes.
     // ------------------------------------------------------------
     static PartyManager& Get();
+
+    static int ExpToNextLevel(int level)
+    {
+        return GetExpCurve(level);
+    }
 
     // ------------------------------------------------------------
     // Function: ResetToDefaults

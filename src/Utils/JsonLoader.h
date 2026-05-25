@@ -622,6 +622,32 @@ inline bool LoadCharacterData(const std::string& path, BattlerStats& out)
     return true;
 }
 
+inline std::vector<std::string> LoadStringArrayFromFile(const std::string& path, const std::string& key)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+    if (!file.is_open() && !resolvedPath.is_absolute())
+    {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[JsonLoader] Cannot open string-array file: '%s'", path.c_str());
+        return {};
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+    return detail::ExtractStringArray(src, key);
+}
+
 // ------------------------------------------------------------
 // Function: LoadDeadOverlayConfig
 // ------------------------------------------------------------
@@ -705,6 +731,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     std::ostringstream buf;
     buf << file.rdbuf();
     const std::string src = buf.str();
+    out.battleParty.clear();
 
     // Helper: strip surrounding quotes from a ValueOf() string token.
     auto stripQ = [](const std::string& s) -> std::string {
@@ -729,6 +756,8 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
     out.contactRadius= detail::ParseFloat(detail::ValueOf(src, "contactRadius"), 80.0f);
     out.environmentPath = stripQ(detail::ValueOf(src, "environmentPath"));
     out.bgmTrackId      = stripQ(detail::ValueOf(src, "bgmTrackId"));
+    out.victoryBgmTrackId = stripQ(detail::ValueOf(src, "victoryBgmTrackId"));
+    out.defeatBgmTrackId = stripQ(detail::ValueOf(src, "defeatBgmTrackId"));
 
     if (out.name.empty() || out.texturePath.empty())
     {
@@ -753,6 +782,7 @@ inline bool LoadEnemyEncounterData(const std::string& path, EnemyEncounterData& 
         slot.def               = detail::ParseInt  (detail::ValueOf(slotSrc, "def"));
         slot.spd               = detail::ParseInt  (detail::ValueOf(slotSrc, "spd"));
         slot.expReward         = detail::ParseInt  (detail::ValueOf(slotSrc, "expReward"), 0);
+        slot.coinReward        = detail::ParseInt  (detail::ValueOf(slotSrc, "coinReward"), 0);
         slot.cameraFocusOffsetY= detail::ParseFloat(detail::ValueOf(slotSrc, "cameraFocusOffsetY"), -128.0f);
         
         std::string attackJson = stripQ(detail::ValueOf(slotSrc, "attackJsonPath"));
@@ -844,6 +874,8 @@ struct BattleMenuLayout
     struct SkillMenuConfig : MenuConfig {
         float offsetX = 80.0f;
         float offsetY = -100.0f;
+        float costOffsetX = 170.0f;
+        float costOffsetY = 12.0f;
     };
 
     struct PartyHudConfig {
@@ -897,6 +929,8 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     out.skill.hoverScale = detail::ParseFloat(detail::ValueOf(src, "skill_hoverScale"), 1.05f);
     out.skill.offsetX = detail::ParseFloat(detail::ValueOf(src, "skill_offsetX"), 80.0f);
     out.skill.offsetY = detail::ParseFloat(detail::ValueOf(src, "skill_offsetY"), -100.0f);
+    out.skill.costOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_costOffsetX"), 170.0f);
+    out.skill.costOffsetY = detail::ParseFloat(detail::ValueOf(src, "skill_costOffsetY"), 12.0f);
     out.skill.entryDelay = detail::ParseFloat(detail::ValueOf(src, "skill_entryDelay"), 0.0f);
     out.skill.entryDuration = detail::ParseFloat(detail::ValueOf(src, "skill_entryDuration"), 0.25f);
     out.skill.slideOffsetX = detail::ParseFloat(detail::ValueOf(src, "skill_slideOffsetX"), -40.0f);
@@ -918,11 +952,276 @@ inline bool LoadBattleMenuLayout(const std::string& path, BattleMenuLayout& out)
     return true;
 }
 
+struct BattleResultLayout
+{
+    float scrimAlpha = 0.72f;
+    float vignetteAlpha = 0.35f;
+    float victoryEnterDuration = 0.70f;
+    float defeatSplashDuration = 1.80f;
+    int noDamageBonusPercent = 20;
+    std::string defaultVictoryBgmTrackId;
+    std::string defaultDefeatBgmTrackId;
+    float victoryImpactDuration = 1.10f;
+    float victoryImpactCenterX = 640.0f;
+    float victoryImpactCenterY = 380.0f;
+    float victoryImpactFadeStartProgress = 0.22f;
+    float victoryImpactFlashR = 1.0f;
+    float victoryImpactFlashG = 0.92f;
+    float victoryImpactFlashB = 0.86f;
+    float victoryImpactFlashAlpha = 0.36f;
+    float victoryImpactFlashDuration = 0.22f;
+    float victoryImpactWarmTintR = 0.88f;
+    float victoryImpactWarmTintG = 0.20f;
+    float victoryImpactWarmTintB = 0.16f;
+    float victoryImpactWarmTintAlpha = 0.18f;
+    float victoryImpactRayColorR = 1.0f;
+    float victoryImpactRayColorG = 0.30f;
+    float victoryImpactRayColorB = 0.26f;
+    float victoryImpactRayCoreAlpha = 0.80f;
+    float victoryImpactRayGlowAlpha = 0.48f;
+    int victoryImpactRayCount = 24;
+    float victoryImpactRayLengthMin = 180.0f;
+    float victoryImpactRayLengthMax = 690.0f;
+    float victoryImpactRayLengthVarianceMin = 0.72f;
+    float victoryImpactRayLengthVarianceMax = 1.14f;
+    float victoryImpactRayThickness = 3.0f;
+    float victoryImpactRayThicknessVarianceMin = 0.75f;
+    float victoryImpactRayThicknessVarianceMax = 1.40f;
+    float victoryImpactRayAngleJitter = 0.20f;
+    float victoryImpactRayStartOffsetMin = 4.0f;
+    float victoryImpactRayStartOffsetMax = 34.0f;
+    float victoryImpactRayGlowThicknessScale = 3.2f;
+    float victoryImpactRayCoreLengthScale = 0.78f;
+    float victoryImpactRayCoreThicknessScale = 0.55f;
+    float victoryImpactRayCoreMinThickness = 1.0f;
+    float victoryImpactRingStartRadius = 18.0f;
+    float victoryImpactRingEndRadius = 520.0f;
+    float victoryImpactRingThickness = 3.0f;
+    float victoryImpactRingColorR = 1.0f;
+    float victoryImpactRingColorG = 0.76f;
+    float victoryImpactRingColorB = 0.62f;
+    float victoryImpactRingAlpha = 0.48f;
+    int victoryImpactRingSegments = 56;
+    float victoryImpactRingArcScale = 0.58f;
+
+    float titleX = 96.0f;
+    float titleY = 74.0f;
+    float titleScale = 4.3f;
+    float subtitleScale = 1.05f;
+
+    float lootX = 110.0f;
+    float lootY = 246.0f;
+    float statsX = 460.0f;
+    float statsY = 540.0f;
+    float rowGap = 33.0f;
+
+    float partyPanelX = 920.0f;
+    float partyPanelY = 302.0f;
+    float partyPanelW = 318.0f;
+    float partyPanelH = 258.0f;
+    float partyPanelFillR = 0.015f;
+    float partyPanelFillG = 0.014f;
+    float partyPanelFillB = 0.012f;
+    float partyPanelFillAlpha = 0.62f;
+    float partyPanelFrameAlpha = 0.62f;
+    float partyRowGap = 76.0f;
+    float partyPortraitXOffset = 22.0f;
+    float partyPortraitYOffset = 38.0f;
+    float partyPortraitSize = 52.0f;
+    float partyPortraitSourceX = 64.0f;
+    float partyPortraitSourceY = 0.0f;
+    float partyPortraitSourceW = 128.0f;
+    float partyPortraitSourceH = 128.0f;
+    float partyTextXOffset = 86.0f;
+    float partyTextYOffset = 34.0f;
+    float partyLevelTextOffsetY = 24.0f;
+    float partyExpTextOffsetY = 44.0f;
+    float partyLevelUpOffsetX = 130.0f;
+
+    float promptX = 830.0f;
+    float promptY = 332.0f;
+    float promptW = 360.0f;
+    float promptH = 118.0f;
+    float promptOptionGap = 136.0f;
+
+    std::string defeatSigilTexturePath;
+    std::string promptPanelTexturePath;
+    std::string vignetteTexturePath;
+    std::string victoryFlourishTexturePath;
+    float defeatSigilCenterX = 640.0f;
+    float defeatSigilCenterY = 304.0f;
+    float defeatSigilW = 278.0f;
+    float defeatSigilH = 314.0f;
+    float vignetteTextureAlpha = 0.72f;
+    float victoryFlourishX = 82.0f;
+    float victoryFlourishY = 156.0f;
+    float victoryFlourishW = 430.0f;
+    float victoryFlourishH = 82.0f;
+
+    std::string victoryAppearSfxId = "battle_result_victory_appear";
+    std::string defeatAppearSfxId = "battle_result_defeat_appear";
+    std::string statsOpenSfxId = "battle_result_stats_open";
+    std::string closeSfxId = "battle_result_close";
+};
+
+inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& out)
+{
+    namespace fs = std::filesystem;
+
+    fs::path resolvedPath(path);
+    std::ifstream file;
+    file.open(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open battle result layout file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::stringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+
+    detail::WarnIfUTF16(src, path);
+
+    out.scrimAlpha = detail::ParseFloat(detail::ValueOf(src, "scrimAlpha"), out.scrimAlpha);
+    out.vignetteAlpha = detail::ParseFloat(detail::ValueOf(src, "vignetteAlpha"), out.vignetteAlpha);
+    out.victoryEnterDuration = detail::ParseFloat(detail::ValueOf(src, "victoryEnterDuration"), out.victoryEnterDuration);
+    out.defeatSplashDuration = detail::ParseFloat(detail::ValueOf(src, "defeatSplashDuration"), out.defeatSplashDuration);
+    out.noDamageBonusPercent = static_cast<int>(detail::ParseFloat(detail::ValueOf(src, "noDamageBonusPercent"), static_cast<float>(out.noDamageBonusPercent)));
+    const std::string defaultVictoryBgm = detail::ValueOf(src, "defaultVictoryBgmTrackId");
+    if (!defaultVictoryBgm.empty()) out.defaultVictoryBgmTrackId = detail::CleanString(defaultVictoryBgm);
+    const std::string defaultDefeatBgm = detail::ValueOf(src, "defaultDefeatBgmTrackId");
+    if (!defaultDefeatBgm.empty()) out.defaultDefeatBgmTrackId = detail::CleanString(defaultDefeatBgm);
+    out.victoryImpactDuration = detail::ParseFloat(detail::ValueOf(src, "victoryImpactDuration"), out.victoryImpactDuration);
+    out.victoryImpactCenterX = detail::ParseFloat(detail::ValueOf(src, "victoryImpactCenterX"), out.victoryImpactCenterX);
+    out.victoryImpactCenterY = detail::ParseFloat(detail::ValueOf(src, "victoryImpactCenterY"), out.victoryImpactCenterY);
+    out.victoryImpactFadeStartProgress = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFadeStartProgress"), out.victoryImpactFadeStartProgress);
+    out.victoryImpactFlashR = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFlashR"), out.victoryImpactFlashR);
+    out.victoryImpactFlashG = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFlashG"), out.victoryImpactFlashG);
+    out.victoryImpactFlashB = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFlashB"), out.victoryImpactFlashB);
+    out.victoryImpactFlashAlpha = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFlashAlpha"), out.victoryImpactFlashAlpha);
+    out.victoryImpactFlashDuration = detail::ParseFloat(detail::ValueOf(src, "victoryImpactFlashDuration"), out.victoryImpactFlashDuration);
+    out.victoryImpactWarmTintR = detail::ParseFloat(detail::ValueOf(src, "victoryImpactWarmTintR"), out.victoryImpactWarmTintR);
+    out.victoryImpactWarmTintG = detail::ParseFloat(detail::ValueOf(src, "victoryImpactWarmTintG"), out.victoryImpactWarmTintG);
+    out.victoryImpactWarmTintB = detail::ParseFloat(detail::ValueOf(src, "victoryImpactWarmTintB"), out.victoryImpactWarmTintB);
+    out.victoryImpactWarmTintAlpha = detail::ParseFloat(detail::ValueOf(src, "victoryImpactWarmTintAlpha"), out.victoryImpactWarmTintAlpha);
+    out.victoryImpactRayColorR = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayColorR"), out.victoryImpactRayColorR);
+    out.victoryImpactRayColorG = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayColorG"), out.victoryImpactRayColorG);
+    out.victoryImpactRayColorB = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayColorB"), out.victoryImpactRayColorB);
+    out.victoryImpactRayCoreAlpha = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayCoreAlpha"), out.victoryImpactRayCoreAlpha);
+    out.victoryImpactRayGlowAlpha = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayGlowAlpha"), out.victoryImpactRayGlowAlpha);
+    out.victoryImpactRayCount = static_cast<int>(detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayCount"), static_cast<float>(out.victoryImpactRayCount)));
+    out.victoryImpactRayLengthMin = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayLengthMin"), out.victoryImpactRayLengthMin);
+    out.victoryImpactRayLengthMax = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayLengthMax"), out.victoryImpactRayLengthMax);
+    out.victoryImpactRayLengthVarianceMin = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayLengthVarianceMin"), out.victoryImpactRayLengthVarianceMin);
+    out.victoryImpactRayLengthVarianceMax = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayLengthVarianceMax"), out.victoryImpactRayLengthVarianceMax);
+    out.victoryImpactRayThickness = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayThickness"), out.victoryImpactRayThickness);
+    out.victoryImpactRayThicknessVarianceMin = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayThicknessVarianceMin"), out.victoryImpactRayThicknessVarianceMin);
+    out.victoryImpactRayThicknessVarianceMax = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayThicknessVarianceMax"), out.victoryImpactRayThicknessVarianceMax);
+    out.victoryImpactRayAngleJitter = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayAngleJitter"), out.victoryImpactRayAngleJitter);
+    out.victoryImpactRayStartOffsetMin = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayStartOffsetMin"), out.victoryImpactRayStartOffsetMin);
+    out.victoryImpactRayStartOffsetMax = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayStartOffsetMax"), out.victoryImpactRayStartOffsetMax);
+    out.victoryImpactRayGlowThicknessScale = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayGlowThicknessScale"), out.victoryImpactRayGlowThicknessScale);
+    out.victoryImpactRayCoreLengthScale = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayCoreLengthScale"), out.victoryImpactRayCoreLengthScale);
+    out.victoryImpactRayCoreThicknessScale = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayCoreThicknessScale"), out.victoryImpactRayCoreThicknessScale);
+    out.victoryImpactRayCoreMinThickness = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRayCoreMinThickness"), out.victoryImpactRayCoreMinThickness);
+    out.victoryImpactRingStartRadius = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingStartRadius"), out.victoryImpactRingStartRadius);
+    out.victoryImpactRingEndRadius = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingEndRadius"), out.victoryImpactRingEndRadius);
+    out.victoryImpactRingThickness = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingThickness"), out.victoryImpactRingThickness);
+    out.victoryImpactRingColorR = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingColorR"), out.victoryImpactRingColorR);
+    out.victoryImpactRingColorG = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingColorG"), out.victoryImpactRingColorG);
+    out.victoryImpactRingColorB = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingColorB"), out.victoryImpactRingColorB);
+    out.victoryImpactRingAlpha = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingAlpha"), out.victoryImpactRingAlpha);
+    out.victoryImpactRingSegments = static_cast<int>(detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingSegments"), static_cast<float>(out.victoryImpactRingSegments)));
+    out.victoryImpactRingArcScale = detail::ParseFloat(detail::ValueOf(src, "victoryImpactRingArcScale"), out.victoryImpactRingArcScale);
+
+    out.titleX = detail::ParseFloat(detail::ValueOf(src, "titleX"), out.titleX);
+    out.titleY = detail::ParseFloat(detail::ValueOf(src, "titleY"), out.titleY);
+    out.titleScale = detail::ParseFloat(detail::ValueOf(src, "titleScale"), out.titleScale);
+    out.subtitleScale = detail::ParseFloat(detail::ValueOf(src, "subtitleScale"), out.subtitleScale);
+
+    out.lootX = detail::ParseFloat(detail::ValueOf(src, "lootX"), out.lootX);
+    out.lootY = detail::ParseFloat(detail::ValueOf(src, "lootY"), out.lootY);
+    out.statsX = detail::ParseFloat(detail::ValueOf(src, "statsX"), out.statsX);
+    out.statsY = detail::ParseFloat(detail::ValueOf(src, "statsY"), out.statsY);
+    out.rowGap = detail::ParseFloat(detail::ValueOf(src, "rowGap"), out.rowGap);
+
+    out.partyPanelX = detail::ParseFloat(detail::ValueOf(src, "partyPanelX"), out.partyPanelX);
+    out.partyPanelY = detail::ParseFloat(detail::ValueOf(src, "partyPanelY"), out.partyPanelY);
+    out.partyPanelW = detail::ParseFloat(detail::ValueOf(src, "partyPanelW"), out.partyPanelW);
+    out.partyPanelH = detail::ParseFloat(detail::ValueOf(src, "partyPanelH"), out.partyPanelH);
+    out.partyPanelFillR = detail::ParseFloat(detail::ValueOf(src, "partyPanelFillR"), out.partyPanelFillR);
+    out.partyPanelFillG = detail::ParseFloat(detail::ValueOf(src, "partyPanelFillG"), out.partyPanelFillG);
+    out.partyPanelFillB = detail::ParseFloat(detail::ValueOf(src, "partyPanelFillB"), out.partyPanelFillB);
+    out.partyPanelFillAlpha = detail::ParseFloat(detail::ValueOf(src, "partyPanelFillAlpha"), out.partyPanelFillAlpha);
+    out.partyPanelFrameAlpha = detail::ParseFloat(detail::ValueOf(src, "partyPanelFrameAlpha"), out.partyPanelFrameAlpha);
+    out.partyRowGap = detail::ParseFloat(detail::ValueOf(src, "partyRowGap"), out.partyRowGap);
+    out.partyPortraitXOffset = detail::ParseFloat(detail::ValueOf(src, "partyPortraitXOffset"), out.partyPortraitXOffset);
+    out.partyPortraitYOffset = detail::ParseFloat(detail::ValueOf(src, "partyPortraitYOffset"), out.partyPortraitYOffset);
+    out.partyPortraitSize = detail::ParseFloat(detail::ValueOf(src, "partyPortraitSize"), out.partyPortraitSize);
+    out.partyPortraitSourceX = detail::ParseFloat(detail::ValueOf(src, "partyPortraitSourceX"), out.partyPortraitSourceX);
+    out.partyPortraitSourceY = detail::ParseFloat(detail::ValueOf(src, "partyPortraitSourceY"), out.partyPortraitSourceY);
+    out.partyPortraitSourceW = detail::ParseFloat(detail::ValueOf(src, "partyPortraitSourceW"), out.partyPortraitSourceW);
+    out.partyPortraitSourceH = detail::ParseFloat(detail::ValueOf(src, "partyPortraitSourceH"), out.partyPortraitSourceH);
+    out.partyTextXOffset = detail::ParseFloat(detail::ValueOf(src, "partyTextXOffset"), out.partyTextXOffset);
+    out.partyTextYOffset = detail::ParseFloat(detail::ValueOf(src, "partyTextYOffset"), out.partyTextYOffset);
+    out.partyLevelTextOffsetY = detail::ParseFloat(detail::ValueOf(src, "partyLevelTextOffsetY"), out.partyLevelTextOffsetY);
+    out.partyExpTextOffsetY = detail::ParseFloat(detail::ValueOf(src, "partyExpTextOffsetY"), out.partyExpTextOffsetY);
+    out.partyLevelUpOffsetX = detail::ParseFloat(detail::ValueOf(src, "partyLevelUpOffsetX"), out.partyLevelUpOffsetX);
+
+    out.promptX = detail::ParseFloat(detail::ValueOf(src, "promptX"), out.promptX);
+    out.promptY = detail::ParseFloat(detail::ValueOf(src, "promptY"), out.promptY);
+    out.promptW = detail::ParseFloat(detail::ValueOf(src, "promptW"), out.promptW);
+    out.promptH = detail::ParseFloat(detail::ValueOf(src, "promptH"), out.promptH);
+    out.promptOptionGap = detail::ParseFloat(detail::ValueOf(src, "promptOptionGap"), out.promptOptionGap);
+
+    const std::string sigilPath = detail::ValueOf(src, "defeatSigilTexturePath");
+    if (!sigilPath.empty()) out.defeatSigilTexturePath = detail::CleanString(sigilPath);
+    const std::string panelPath = detail::ValueOf(src, "promptPanelTexturePath");
+    if (!panelPath.empty()) out.promptPanelTexturePath = detail::CleanString(panelPath);
+    const std::string vignettePath = detail::ValueOf(src, "vignetteTexturePath");
+    if (!vignettePath.empty()) out.vignetteTexturePath = detail::CleanString(vignettePath);
+    const std::string flourishPath = detail::ValueOf(src, "victoryFlourishTexturePath");
+    if (!flourishPath.empty()) out.victoryFlourishTexturePath = detail::CleanString(flourishPath);
+
+    out.defeatSigilCenterX = detail::ParseFloat(detail::ValueOf(src, "defeatSigilCenterX"), out.defeatSigilCenterX);
+    out.defeatSigilCenterY = detail::ParseFloat(detail::ValueOf(src, "defeatSigilCenterY"), out.defeatSigilCenterY);
+    out.defeatSigilW = detail::ParseFloat(detail::ValueOf(src, "defeatSigilW"), out.defeatSigilW);
+    out.defeatSigilH = detail::ParseFloat(detail::ValueOf(src, "defeatSigilH"), out.defeatSigilH);
+    out.vignetteTextureAlpha = detail::ParseFloat(detail::ValueOf(src, "vignetteTextureAlpha"), out.vignetteTextureAlpha);
+    out.victoryFlourishX = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishX"), out.victoryFlourishX);
+    out.victoryFlourishY = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishY"), out.victoryFlourishY);
+    out.victoryFlourishW = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishW"), out.victoryFlourishW);
+    out.victoryFlourishH = detail::ParseFloat(detail::ValueOf(src, "victoryFlourishH"), out.victoryFlourishH);
+
+    const std::string victorySfx = detail::ValueOf(src, "victoryAppearSfxId");
+    if (!victorySfx.empty()) out.victoryAppearSfxId = detail::CleanString(victorySfx);
+    const std::string defeatSfx = detail::ValueOf(src, "defeatAppearSfxId");
+    if (!defeatSfx.empty()) out.defeatAppearSfxId = detail::CleanString(defeatSfx);
+    const std::string statsSfx = detail::ValueOf(src, "statsOpenSfxId");
+    if (!statsSfx.empty()) out.statsOpenSfxId = detail::CleanString(statsSfx);
+    const std::string closeSfx = detail::ValueOf(src, "closeSfxId");
+    if (!closeSfx.empty()) out.closeSfxId = detail::CleanString(closeSfx);
+
+    LOG("[JsonLoader] Loaded BattleResultLayout from '%s'.", path.c_str());
+    return true;
+}
+
 struct BattleSystemConfig {
     float qteSlowMoScale = 0.1f;
     float qteFadeInRatio = 0.15f;
     float qteFadeOutDuration = 0.20f;
     float qteCameraZoom = 1.4f;
+    std::string qteStartSfxId;
+    std::string qteMissSfxId;
+    std::string qteGoodSfxId;
+    std::string qtePerfectSfxId;
     float introWalkDuration = 1.2f;
     float introWalkDistance = 600.0f;
     std::string introWalkAnim = "walk";
@@ -958,6 +1257,27 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
     out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+
+    const std::string qteStartSfx = detail::ValueOf(src, "qteStartSfxId");
+    if (!qteStartSfx.empty()) {
+        out.qteStartSfxId = detail::CleanString(qteStartSfx);
+    }
+
+    const std::string qteMissSfx = detail::ValueOf(src, "qteMissSfxId");
+    if (!qteMissSfx.empty()) {
+        out.qteMissSfxId = detail::CleanString(qteMissSfx);
+    }
+
+    const std::string qteGoodSfx = detail::ValueOf(src, "qteGoodSfxId");
+    if (!qteGoodSfx.empty()) {
+        out.qteGoodSfxId = detail::CleanString(qteGoodSfx);
+    }
+
+    const std::string qtePerfectSfx = detail::ValueOf(src, "qtePerfectSfxId");
+    if (!qtePerfectSfx.empty()) {
+        out.qtePerfectSfxId = detail::CleanString(qtePerfectSfx);
+    }
+
     out.introWalkDuration = detail::ParseFloat(detail::ValueOf(src, "introWalkDuration"), 1.2f);
     out.introWalkDistance = detail::ParseFloat(detail::ValueOf(src, "introWalkDistance"), 600.0f);
 
@@ -977,8 +1297,23 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
 
 
 struct SkillData {
+    std::string id;
+    std::string kind = "attack";
     std::string nameKey;
     std::string descriptionKey;
+    std::string iconId;
+    std::string targeting = "single_enemy";
+    std::string damageType = "physical";
+    std::string statusEffectId;
+    std::string uiSortGroup;
+    std::string damageGradeKey;
+    std::vector<std::string> extraRuleKeys;
+    int mpCost = 0;
+    int hitCount = 1;
+    bool requiresFullRage = false;
+    bool consumesAllRage = false;
+    float skillMultiplier = 1.0f;
+    float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
     float meleeOffset = 80.0f;
@@ -1027,8 +1362,26 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
 
     detail::WarnIfUTF16(src, path);
 
+    out.id = detail::CleanString(detail::ValueOf(src, "id"));
+    const std::string kind = detail::CleanString(detail::ValueOf(src, "kind"));
+    out.kind = kind.empty() ? "attack" : kind;
     out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
     out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
+    out.iconId = detail::CleanString(detail::ValueOf(src, "iconId"));
+    const std::string targeting = detail::CleanString(detail::ValueOf(src, "targeting"));
+    out.targeting = targeting.empty() ? "single_enemy" : targeting;
+    const std::string damageType = detail::CleanString(detail::ValueOf(src, "damageType"));
+    out.damageType = damageType.empty() ? "physical" : damageType;
+    out.statusEffectId = detail::CleanString(detail::ValueOf(src, "statusEffectId"));
+    out.uiSortGroup = detail::CleanString(detail::ValueOf(src, "uiSortGroup"));
+    out.damageGradeKey = detail::CleanString(detail::ValueOf(src, "damageGradeKey"));
+    out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
+    out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.hitCount = detail::ParseInt(detail::ValueOf(src, "hitCount"), 1);
+    out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
+    out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
+    out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);
+    out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
     out.meleeOffset = detail::ParseFloat(detail::ValueOf(src, "meleeOffset"), 80.0f);

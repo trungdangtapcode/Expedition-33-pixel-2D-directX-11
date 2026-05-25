@@ -25,6 +25,31 @@ static constexpr int kKeyWidth  = 12;
 static constexpr int kNameWidth = 12;
 static constexpr int kLogLines  = 5;   // recent battle-log tail shown in HUD
 
+namespace
+{
+    std::string ToCliAscii(const std::string& text)
+    {
+        std::string out;
+        out.reserve(text.size());
+        for (unsigned char ch : text)
+        {
+            if (ch >= 32 && ch <= 126)
+            {
+                out.push_back(static_cast<char>(ch));
+            }
+            else if (ch == '\t' || ch == '\r' || ch == '\n')
+            {
+                out.push_back(' ');
+            }
+            else
+            {
+                out.push_back('?');
+            }
+        }
+        return out;
+    }
+}
+
 // ============================================================
 // Public
 // ============================================================
@@ -42,7 +67,7 @@ void BattleDebugHUD::Render(const BattleHUDSnapshot& snap)
     // -- OutputDebugStringA path (VS Output / DebugView) --
     for (const auto& line : lines)
     {
-        std::string out = line + "\r\n";
+        std::string out = ToCliAscii(line) + "\r\n";
         OutputDebugStringA(out.c_str());
     }
 
@@ -53,7 +78,7 @@ void BattleDebugHUD::Render(const BattleHUDSnapshot& snap)
     block += "\n";
     for (const auto& line : lines)
     {
-        block += line;
+        block += ToCliAscii(line);
         block += "\n";
     }
     LOG("%s", block.c_str());

@@ -1,0 +1,12 @@
+{
+  "id": "maelle_quickstep",
+  "kind": "support",
+  "iconId": "haste",
+  "nameKey": "skill.maelle_quickstep.name",
+  "descriptionKey": "skill.maelle_quickstep.description",
+  "targeting": "self",
+  "mpCost": 8,
+  "statusEffectId": "haste",
+  "uiSortGroup": "support",
+  "hitCount": 0
+}

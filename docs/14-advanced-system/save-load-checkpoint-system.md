@@ -9,6 +9,7 @@ The system still persists only durable gameplay authority data:
 
 - Party member base stats, current resources, level, EXP, growth, and equipment.
 - Inventory item counts.
+- Wallet coin balance.
 - One-time world flags from `GameProgress`.
 - The scene id, checkpoint id, and overworld player position that should be
   restored after loading.
@@ -29,6 +30,7 @@ It depends on:
 
 - `PartyManager` for party snapshots.
 - `Inventory` for item-count snapshots.
+- `Wallet` for the coin-balance snapshot.
 - `GameProgress` for one-time world flags such as claimed campfire upgrades.
 - `EventManager` for automatic post-battle saves.
 - `JsonLoader::detail` helpers for the project-local JSON parser style.

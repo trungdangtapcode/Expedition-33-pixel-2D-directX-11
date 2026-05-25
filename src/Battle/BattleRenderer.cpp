@@ -500,3 +500,26 @@ void BattleRenderer::GetEnemyDrawOffset(int slot, float& x, float& y) const {
         mEnemySprites[slot]->GetDrawOffset(x, y);
     } else { x = 0; y = 0; }
 }
+
+// ------------------------------------------------------------
+// Function: GetPlayerCameraFocusOffset / GetEnemyCameraFocusOffset
+// Purpose:
+//   Expose the same per-slot visual-center offsets used by battle camera
+//   focus so screen-space UI can anchor to the actor consistently.
+// Why:
+//   Skill menus should follow the acting character's visual center, not the
+//   feet pivot stored in the formation slot.
+// ------------------------------------------------------------
+void BattleRenderer::GetPlayerCameraFocusOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mPlayerActive[slot]) {
+        x = mPlayerCamOffX[slot];
+        y = mPlayerCamOffY[slot];
+    } else { x = 0; y = 0; }
+}
+
+void BattleRenderer::GetEnemyCameraFocusOffset(int slot, float& x, float& y) const {
+    if (slot >= 0 && slot < kMaxSlots && mEnemyActive[slot]) {
+        x = mEnemyCamOffX[slot];
+        y = mEnemyCamOffY[slot];
+    } else { x = 0; y = 0; }
+}

@@ -1,47 +1,53 @@
-# MSVC Standard Incremental Build System
+# MSVC Incremental Build Cache
 
-## 1. Overview
-The project avoids external build generators like **CMake, MSBuild, Ninja, or Make**. In order to achieve extremely fast and scalable compilation without bloated project setups, we utilize standard MSVC execution mechanisms implemented natively via Windows Batch scripting inside `build_src_static.bat`.
+## Overview
 
-## 2. Why Not Custom Python or Regex Parsing?
-During the prototyping of an incremental build system, an attempt was made to write a Python script that evaluated out-of-date files by manually parsing `#include "..."` patterns using Regex.
+`build_src_static.bat` keeps the project on the manual MSVC toolchain while avoiding a full compile on every edit. The source list remains explicit in the batch file, but a small PowerShell helper prepares response files for `cl.exe` and `link.exe`.
 
-From a professional Build Engineering perspective, **this is an anti-pattern for C++**. MSVC compilation paths are highly complex and cannot be perfectly resolved through simple text tracking due to:
-*   **Transitive Dependencies**: Indirectly included headers (headers including other headers via macros) are invisible to shallow Regex tracking.
-*   **Precompiled Headers (PCH)**: PCH alters the global compilation inclusion graph structurally.
-*   **Windows SDK & System Headers**: DirectXTK, ComPtr, and system structures live outside workspace trees and modify local bindings. 
+The build now has three layers:
 
-Attempting to track timestamp dependencies manually outside the compiler will inevitably fracture the build cache, generating elusive `undefined behavior` and phantom `LNK2019` errors that only magically resolve upon a "Clean Rebuild."
+1. Keep one cached `.obj` per `.cpp` under `bin/obj`.
+2. Compile only stale `.cpp` files when source files change.
+3. Rebuild all `.cpp` files when headers or compiler/linker settings change.
 
-## 3. The Correct Native Batch Pattern
-Rather than reinventing Ninja or MSBuild, we simply let `cl.exe` operate precisely how it was engineered. 
-By orchestrating compilation inside a clean object-output `for` loop independently of the linking phase, the MSVC pipeline inherently tracks and isolates Translation Unit configurations flawlessly!
+## Why Header Changes Rebuild Everything
 
-### The Architecture (`build_src_static.bat`)
-We define explicit blocks for Flags, Sources, and Likers in strict accordance with the project rules. We then trigger the pure batch pipeline:
+The project does not yet emit compiler dependency files. Rather than guessing the C++ include graph with fragile text parsing, the script uses a conservative rule:
 
-```bat
-REM 1. Individually Execute compilation isolating object artifacts
-for %%f in (%CL_SOURCES%) do (
-    cl.exe /c %%f /Fo:%OBJ_DIR%\%%~nf.obj /nologo %CL_FLAGS%
-)
+- `.cpp` newer than its `.obj` -> compile that one translation unit.
+- Any `src/**/*.h`, `src/**/*.hpp`, or `src/**/*.inl` newer than the header stamp -> full C++ rebuild.
+- Build type, compiler flags, library paths, or linker inputs changed -> full C++ rebuild.
 
-REM 2. Inherently link evaluated binaries securely linking cache artifacts directly
-link.exe /nologo %OBJ_DIR%\*.obj /OUT:%OUT_DIR%\game.exe %CL_LINKS%
+This keeps incremental builds fast for normal implementation edits while avoiding stale objects after shared interface changes.
+
+## Files
+
+- `build_src_static.bat` owns the MSVC paths, flags, source list, and linker libraries.
+- `tools/prepare_incremental_build.ps1` owns stale-source detection and response-file generation.
+- `bin/obj/__compile_sources.obj` lists only sources that need recompilation. It is a response file with an ignored extension.
+- `bin/obj/__link_objects.obj` lists the complete object set for the linker. It is a response file with an ignored extension.
+- `bin/obj/__build_meta.obj` stores the current build signature.
+- `bin/obj/__headers_stamp.obj` stores the last successful header-validation timestamp.
+
+`bin/obj` is build output and should remain untracked.
+
+## Expected Behavior
+
+After a clean checkout or build-setting change, the first build compiles every source file. The next build should usually print:
+
+```text
+[compile] No C++ source changes detected; reusing cached .obj files.
+Linking cached object set...
+[OK] Build succeeded > bin\game.exe  [Debug]
 ```
 
-**Why this works perfectly:**
-*   MSVC controls the Preprocessor Graph perfectly dynamically.
-*   DirectXTK linkages resolve natively without parsing interference.
-*   The setup is strictly contained in less than 15 lines of raw scripting without launching a single non-native application.
+After editing one `.cpp`, the script compiles only that file and then links the full cached object set.
 
-## 4. Usage
-To compile the game, just use the terminal inside the root directory and allow the native pipeline caching structure to parse securely:
+After editing a header, the script performs a full rebuild because any translation unit may depend on that header.
 
-```powershell
-# For Development (Includes Logging and Debug symbols)
-.\build_src_static.bat
+## Common Mistakes
 
-# For Production (Applies /O2 Optimizations)
-.\build_src_static.bat Release
-```
+1. Adding a new `.cpp` without adding it to `CL_SOURCES` means it will never be compiled or linked.
+2. Creating two `.cpp` files with the same basename creates an object-name collision because objects are still named `%%~nf.obj`.
+3. Deleting `bin/obj/__build_meta.obj` or `bin/obj/__headers_stamp.obj` forces a full cache refresh on the next build.
+4. Switching Debug and Release uses the same object directory, so the build signature intentionally forces a full rebuild when the configuration changes.

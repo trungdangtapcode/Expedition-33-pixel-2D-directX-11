@@ -12,6 +12,7 @@ class BulletHellAction : public IAction
 {
 public:
     BulletHellAction(IBattler* attacker, IBattler* defender, const std::string& patternPath, const BattleContext* context);
+    ~BulletHellAction() override;
 
     bool Execute(float dt) override;
 
@@ -37,7 +38,9 @@ private:
     float mInvincibilityTimer;
     float mInvincibilityDuration;
     int mHitsTaken;
+    bool mResultPublished = false;
 
     void ApplyDamage(float overrideScaling);
     void PublishState(bool isActive) const;
+    void PublishResult(bool completed);
 };

@@ -19,6 +19,16 @@ std::string RageSkill::GetDescription() const
     return LocalizationManager::Get().Text("skill.rage_burst.description");
 }
 
+std::string RageSkill::GetDebugName() const
+{
+    return LocalizationManager::Get().TextEnglish("skill.rage_burst.name");
+}
+
+std::string RageSkill::GetDebugDescription() const
+{
+    return LocalizationManager::Get().TextEnglish("skill.rage_burst.description");
+}
+
 bool RageSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
     // Gated on a full rage bar; prevents accidental activation.
@@ -47,6 +57,11 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
         LocalizationManager::Get().Format("battle.log.rage_burst", {
             { "actor", caster.GetName() },
             { "target", target->GetName() }
+        }),
+        nullptr,
+        LocalizationManager::Get().FormatEnglish("battle.log.rage_burst", {
+            { "actor", caster.GetDebugName() },
+            { "target", target->GetDebugName() }
         })
     ));
 

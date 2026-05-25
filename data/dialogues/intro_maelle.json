@@ -1,0 +1,42 @@
+{
+  "id": "intro_maelle",
+  "completionFlag": "dialogue_completed:intro_maelle",
+  "skippable": false,
+  "lines": [
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.intro_maelle.verso_1",
+      "text": "This square should be louder. I only hear ash falling."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.intro_maelle.maelle_1",
+      "text": "Then listen harder. Paris still remembers every step we take."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.intro_maelle.verso_2",
+      "text": "The road east is open. We move before the patrol finds us."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.intro_maelle.maelle_2",
+      "text": "Not blindly. Check the campfire, keep your blade close, and follow the boulevard."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.intro_maelle.maelle_3",
+      "text": "If the mirrors start singing, do not answer them."
+    }
+  ]
+}

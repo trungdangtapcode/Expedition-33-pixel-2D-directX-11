@@ -19,6 +19,24 @@ changing sounds requires no recompilation.
 
 ---
 
+## Raw Asset Audit
+
+The raw sound library is much larger than the runtime catalog:
+
+| Folder | WAV count | Notes |
+|---|---:|---|
+| `assets/ORIGINAL_sound` | 262 | Battle UI, QTE, rest menu, dialogue, cinematic cues |
+| `assets/Hits` | 135 | Weapon, magic, blunt, feedback, and custom character hit impacts |
+| `assets/sound/SFX` before this pass | 44 | Curated runtime subset used by the game |
+
+The game intentionally does not load directly from `assets/ORIGINAL_sound`
+or `assets/Hits`. Those folders are treated as raw libraries. Any sound used
+by the game is copied into `assets/sound/SFX/...` and referenced from
+`data/audio/sfx.json`. This keeps runtime asset paths stable and makes it
+clear which source assets are production-ready.
+
+---
+
 ## Architecture
 
 ### Voice Pools
@@ -64,12 +82,15 @@ SfxGroup
 
 All SFX source voices route through a single **SFX submix voice** before
 reaching the mastering voice. This lets `SetSfxMasterVolume(float)` control
-all SFX with one call, independent of BGM volume.
+all SFX with one call, independent of BGM and future voice volume.
+
+`masterSfxVolume` in `sfx.json` is the authored baseline for the SFX bus.
+The user setting from `save/settings.json` multiplies that baseline at runtime.
 
 ```
 Source voices --> SFX Submix Voice --> Mastering Voice --> Speakers
                                   ^
-                   SetSfxMasterVolume() applies here
+                   authored baseline * user SFX volume
 ```
 
 ### Audio Format Support
@@ -109,7 +130,7 @@ Both loaders output the same `{WAVEFORMATEX, vector<BYTE>}` pair.
 |---|---|---|
 | `stereoVoiceCount` | int | Preallocated stereo voice pool size |
 | `monoVoiceCount` | int | Preallocated mono voice pool size |
-| `masterSfxVolume` | float | Global SFX volume multiplier (0..1) |
+| `masterSfxVolume` | float | Authored SFX bus baseline (0..1), multiplied by user SFX volume |
 | `groups[].id` | string | Group key used by `PlaySfx("id")` |
 | `groups[].volume` | float | Per-group volume (0..1) |
 | `groups[].paths` | string[] | WAV file paths (all must share format) |
@@ -175,7 +196,48 @@ already use `EventManager`.
 | Trigger | SFX Group | File |
 |---|---|---|
 | Battle encounter start | `battle_start` | `BattleState.cpp` |
-| Damage dealt (hit) | `battle_first_strike` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (mix-presence layer) | `battle_first_strike` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (normal texture layer) | `battle_hit_physical` | `AudioManager.cpp` (event subscriber) |
+| Damage dealt (critical texture layer) | `battle_hit_critical` | `AudioManager.cpp` (event subscriber) |
+
+### QTE Events
+
+QTE timing and SFX group selection are routed through
+`data/battle_system_config.json`:
+
+```json
+{
+  "qteStartSfxId": "battle_qte_start",
+  "qteMissSfxId": "battle_qte_miss",
+  "qteGoodSfxId": "battle_qte_good",
+  "qtePerfectSfxId": "battle_qte_perfect"
+}
+```
+
+`QteAnimDamageAction` reads those fields through the live `BattleContext`.
+It broadcasts `sfx_play` when the QTE window starts and when each node
+resolves. The action never stores file paths, so replacing the QTE sound set
+is a data edit only.
+
+| Trigger | SFX Group | Source assets copied into runtime tree |
+|---|---|---|
+| QTE window starts | `battle_qte_start` | `assets/ORIGINAL_sound/Battle/UI_Battle_QTE/UI_Battle_QTE_Start.wav` |
+| QTE miss | `battle_qte_miss` | `assets/ORIGINAL_sound/Battle/UI_Battle_QTE/UI_Battle_QTE_Miss.wav` |
+| QTE good | `battle_qte_good` | regular success variants from `assets/ORIGINAL_sound/Battle/...` |
+| QTE perfect | `battle_qte_perfect` | perfect validation variants from `assets/ORIGINAL_sound/Battle/...` |
+
+### Hit Impact Expansion
+
+The runtime catalog now exposes more impact banks copied from `assets/Hits`:
+
+| SFX Group | Runtime files | Intended use |
+|---|---|---|
+| `battle_first_strike` | `assets/sound/SFX/Battle/first_strike_01..03.wav` | Main audible hit layer |
+| `battle_hit_physical` | `assets/sound/SFX/Hits/Sword/sword_medium_01..08.wav` | Standard weapon hits |
+| `battle_hit_magic` | `assets/sound/SFX/Hits/Magic/magic_generic_01..04.wav` | Future magical attacks |
+| `battle_hit_blunt` | `assets/sound/SFX/Hits/Blunt/hammer_medium_01..06.wav` | Future hammer or impact attacks |
+| `battle_hit_critical` | `assets/sound/SFX/Hits/Feedback/critical.wav` | Critical hit accent |
+| `battle_hit_weakness` | `assets/sound/SFX/Hits/Feedback/weakness_01..02.wav` | Future weakness feedback |
 
 ---
 
@@ -201,6 +263,13 @@ The track must be registered in `data/audio/bgm.json`:
 If `bgmTrackId` is empty or absent, `BattleState` plays the default
 `"battle"` track.
 
+Current encounter-specific tracks:
+
+| Encounter | `bgmTrackId` | Track path |
+|---|---|---|
+| Zombie Armour | `zombie_armour_battle` | `assets/sound/OST/beneath_the_blue_tree.mp3` |
+| Verso Cloned | `verso_cloned_battle` | `assets/sound/OST/verso-cloned-fight.mp3` |
+
 ---
 
 ## Asset Directory Layout
@@ -216,12 +285,23 @@ assets/sound/
     Battle/                     Battle-specific one-shots
       start.wav                 Encounter sting
       first_strike_01..03.wav   Hit impact (3 variants)
+      QTE/
+        start.wav               QTE prompt appears
+        miss.wav                QTE missed
+        success_good_01..02.wav Regular QTE success
+        success_perfect_01..02.wav Perfect QTE success
       select_ally_01..03.wav    Ally target cursor
       select_enemy_01..03.wav   Enemy target cursor
       skill_open.wav            Skill sub-menu open
       item_open.wav             Item sub-menu open
       no_ap.wav                 Action denied buzzer
       flee.wav                  Flee activation
+    Hits/
+      Sword/sword_medium_01..08.wav
+      Magic/magic_generic_01..04.wav
+      Blunt/hammer_medium_01..06.wav
+      Feedback/critical.wav
+      Feedback/weakness_01..02.wav
 ```
 
 ---

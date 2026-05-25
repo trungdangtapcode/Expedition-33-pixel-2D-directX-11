@@ -127,6 +127,12 @@ public:
                        float             x,
                        float             y,
                        DirectX::FXMVECTOR color = DirectX::Colors::White);
+    void DrawStringRawScaled(const char*       text,
+                             float             x,
+                             float             y,
+                             DirectX::FXMVECTOR color = DirectX::Colors::White,
+                             float             scale = 1.0f,
+                             bool              drawOutline = false);
     void DrawStringCenteredRaw(const char*      text,
                                float            centerX,
                                float            y,

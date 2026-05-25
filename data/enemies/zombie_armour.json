@@ -9,6 +9,8 @@
   "idleClip": "idle",
   "contactRadius": 94.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
+  "bgmTrackId": "zombie_armour_battle",
+  "victoryBgmTrackId": "beneath_the_blue_tree_victory",
 
   "battleParty": [
     {
@@ -24,6 +26,7 @@
       "def": 12,
       "spd": 4,
       "expReward": 85,
+      "coinReward": 24,
       "attackJsonPath": "data/skills/zombie_armour_attack.json",
       "cameraFocusOffsetY": -128.0
     }

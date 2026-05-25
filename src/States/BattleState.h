@@ -53,20 +53,24 @@
 #include "../Renderer/D3DContext.h"
 #include "../Renderer/IrisTransitionRenderer.h"
 #include "../Battle/BattleManager.h"
+#include "../Battle/BattleResultTracker.h"
 #include "../Battle/IBattler.h"
 #include "../Battle/IBattleCommand.h"
 #include "../Battle/BattleRenderer.h"
 #include "../Battle/EnemyEncounterData.h"
 #include "../Battle/BattleInputController.h"
 #include "../UI/HealthBarRenderer.h"
+#include "../UI/StatusIconRenderer.h"
 #include "../UI/ExpBarRenderer.h"
 #include "../UI/EnemyHpBarRenderer.h"
+#include "../UI/BattleSkillMenuRenderer.h"
 #include "../UI/TurnQueueUI.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/PointerRenderer.h"
 #include "../UI/ScrollArrowRenderer.h"
 #include "../UI/BattleQTERenderer.h"
 #include "../UI/BattleBulletHellRenderer.h"
+#include "../UI/BattleResultRenderer.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../Renderer/ItemIconRenderer.h"
 #include "../Renderer/BattleAmbientParticleRenderer.h"
@@ -110,12 +114,25 @@ public:
     void DumpStateToDebugOutput() const;
 
 private:
+    enum class BattleResultPhase
+    {
+        None,
+        VictoryResult,
+        DefeatSplash,
+        DefeatPrompt,
+        Exiting,
+        Retrying
+    };
+
     D3DContext&            mD3D;
     EnemyEncounterData     mEncounter;       // overworld encounter data (may be default/empty)
     BattleManager          mBattle;
     BattleRenderer         mBattleRenderer;
     std::vector<std::unique_ptr<HealthBarRenderer>> mHealthBars;
+    std::vector<DirectX::XMFLOAT2> mHealthBarPositions;
     std::vector<std::unique_ptr<ExpBarRenderer>>    mExpBars;
+    StatusIconRenderer    mStatusIconRenderer;
+    BattleSkillMenuRenderer mSkillMenuRenderer;
     EnemyHpBarRenderer     mEnemyHpBar;
     TurnQueueUI            mTurnQueueUI;
     PointerRenderer        mTargetPointer;
@@ -136,6 +153,7 @@ private:
     // (no regression for items lacking authored art yet).
     ItemIconRenderer       mItemIconRenderer;
     BattleTextRenderer     mTextRenderer;
+    BattleResultRenderer   mResultRenderer;
     EnvironmentRenderer    mEnvRenderer;
     BattleAmbientParticleRenderer mAmbientParticles;
     IrisTransitionRenderer mIris;            // iris overlay (opens on enter, closes on exit)
@@ -143,6 +161,7 @@ private:
 
     JsonLoader::BattleMenuLayout mMenuLayout;
     JsonLoader::BattleSystemConfig mSystemConfig;
+    JsonLoader::BattleResultLayout mResultLayout;
 
     // ---- Deferred exit state ----
     // mWaitingForDeathAnims: set true when a battle outcome is first detected.
@@ -174,12 +193,28 @@ private:
     bool mPendingFlee = false;
 
     void InitAudio();
+    void BeginBattleSession(bool playStartAudio);
+    void ShutdownBattleSessionRenderers();
     void InitBattleSlots();
     void InitUIRenderers();
+    void SubscribeBattleEvents();
+    void UnsubscribeBattleEvents();
+    void BroadcastIntroOffsets();
     void UpdateLogic(float dt);
+    void UpdateResultFlow(float dt);
     void UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool playerSelected);
     void CheckDeathAnimations();
     void CheckBattleEnd();
+    void ActivateResultScreen(BattleOutcome outcome);
+    std::string ResolveResultBgmTrackId(BattleOutcome outcome) const;
+    void PlayResultBgm(BattleOutcome outcome);
+    void BuildAndApplyVictoryResult();
+    void BuildDefeatResult();
+    void RestorePreBattleState();
+    void RetryBattle();
+    void StartExitTransition(const std::string& eventName);
+    bool IsResultVisible() const;
+    void RenderResultOverlay();
 
     // ----------------------------------------------------------------
     // Per-slot alive state from the previous frame.
@@ -231,10 +266,12 @@ private:
     int mDamageTakenListener = -1;
     int mQteUpdateListener = -1;
     int mBulletHellStateListener = -1;
+    int mDodgeResultListener = -1;
     
     void OnDamageTaken(const struct EventData& e);
     void OnQteFeedback(const struct EventData& e);
     void OnBulletHellState(const struct EventData& e);
+    void OnDodgeResult(const struct EventData& e);
 
     // ----------------------------------------------------------------
     // UI Animations
@@ -242,4 +279,13 @@ private:
     float mCmdMenuTimer = 0.0f;
     float mSkillMenuTimer = 0.0f;
     PlayerInputPhase mLastInputPhase = PlayerInputPhase::COMMAND_SELECT;
+
+    BattleResultTracker mResultTracker;
+    BattleResultData mResultData;
+    std::vector<PartyMemberProgress> mPreBattleProgress;
+    int mPreBattleCoins = 0;
+    BattleResultPhase mResultPhase = BattleResultPhase::None;
+    float mResultTimer = 0.0f;
+    int mDefeatPromptIndex = 0;
+    bool mVictoryRewardsApplied = false;
 };

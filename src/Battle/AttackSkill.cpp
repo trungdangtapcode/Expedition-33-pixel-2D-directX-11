@@ -28,6 +28,78 @@ std::string AttackSkill::GetDescription() const
         "Strike the enemy.");
 }
 
+std::string AttackSkill::GetId() const
+{
+    return mData.id.empty() ? "attack" : mData.id;
+}
+
+std::string AttackSkill::GetIconId() const
+{
+    return mData.iconId;
+}
+
+int AttackSkill::GetMpCost() const
+{
+    return mData.mpCost;
+}
+
+SkillResourceKind AttackSkill::GetResourceKind() const
+{
+    return mData.mpCost > 0 ? SkillResourceKind::MP : SkillResourceKind::None;
+}
+
+SkillTargeting AttackSkill::GetTargeting() const
+{
+    return SkillTargeting::SingleEnemy;
+}
+
+std::string AttackSkill::GetKind() const
+{
+    return mData.kind.empty() ? "attack" : mData.kind;
+}
+
+std::string AttackSkill::GetDamageType() const
+{
+    return mData.damageType.empty() ? "physical" : mData.damageType;
+}
+
+std::string AttackSkill::GetStatusEffectId() const
+{
+    return mData.statusEffectId;
+}
+
+std::string AttackSkill::GetDamageGradeKey() const
+{
+    return mData.damageGradeKey;
+}
+
+std::vector<std::string> AttackSkill::GetExtraRuleKeys() const
+{
+    return mData.extraRuleKeys;
+}
+
+int AttackSkill::GetHitCount() const
+{
+    return mData.hitCount;
+}
+
+float AttackSkill::GetSkillMultiplier() const
+{
+    return mData.skillMultiplier;
+}
+
+std::string AttackSkill::GetDebugName() const
+{
+    return LocalizationManager::Get().TextOrFallbackEnglish(mData.nameKey, "Attack");
+}
+
+std::string AttackSkill::GetDebugDescription() const
+{
+    return LocalizationManager::Get().TextOrFallbackEnglish(
+        mData.descriptionKey,
+        "Strike the enemy.");
+}
+
 std::string AttackSkill::SelectBulletHellPatternPath() const
 {
     const std::vector<std::string>& patterns = mData.bulletHellPatternPaths;
@@ -88,6 +160,11 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
         LocalizationManager::Get().Format("battle.log.attack", {
             { "actor", caster.GetName() },
             { "target", target->GetName() }
+        }),
+        nullptr,
+        LocalizationManager::Get().FormatEnglish("battle.log.attack", {
+            { "actor", caster.GetDebugName() },
+            { "target", target->GetDebugName() }
         })
     ));
 

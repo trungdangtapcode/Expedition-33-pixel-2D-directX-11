@@ -4,6 +4,7 @@
 //                handles input via a three-phase FSM, renders combatant
 //                sprites and the HP bar UI.
 // ============================================================
+#define NOMINMAX
 #include "BattleState.h"
 #include "../Battle/BattleEvents.h"
 #include "../Battle/ItemRegistry.h"
@@ -14,10 +15,13 @@
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/Inventory.h"
+#include "../Systems/Wallet.h"
+#include "../Core/InputManager.h"
 #include "../UI/BattleDebugHUD.h"
 #include "../Audio/AudioManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
+#include <Windows.h>
 #include <string>
 #include <algorithm>
 #include <array>
@@ -37,18 +41,26 @@ void BattleState::OnEnter()
 {
     LOG("%s", "[BattleState] OnEnter");
 
-    InitAudio();
-
     if (!JsonLoader::LoadBattleSystemConfig("data/battle_system_config.json", mSystemConfig)) {
         LOG("%s", "[BattleState] WARNING - failed to load data/battle_system_config.json");
     }
 
-    mBattle.Initialize(mEncounter, mSystemConfig);
-    mInputController.Initialize();
+    if (!JsonLoader::LoadBattleResultLayout("data/battle_result_layout.json", mResultLayout)) {
+        LOG("%s", "[BattleState] WARNING - failed to load data/battle_result_layout.json");
+    }
 
-    InitBattleSlots();
-    InitUIRenderers();
-      
+    mPreBattleProgress = PartyManager::Get().CaptureProgress();
+    mPreBattleCoins = Wallet::Get().GetCoins();
+    mResultTracker.CaptureInitialParty(mPreBattleProgress);
+    mResultRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        mResultLayout,
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
+    SubscribeBattleEvents();
+    BeginBattleSession(true);
+
       mEnvRenderer.Initialize(mD3D.GetDevice(), mD3D.GetContext());
       std::string envPath = mEncounter.environmentPath;
       if (envPath.empty()) {
@@ -76,13 +88,6 @@ void BattleState::OnEnter()
     {
         LOG("%s", "[BattleState] WARNING - IrisTransitionRenderer init failed.");
     }
-
-    // Broadcast initial visual offsets for the walk-in sequence
-    for (IBattler* player : mBattle.GetAllPlayers()) {
-        MoveOffsetPayload p = { player, -mSystemConfig.introWalkDistance, 0.f };
-        EventData e; e.payload = &p;
-        EventManager::Get().Broadcast("battler_set_offset", e);
-    }
 }
 
 void BattleState::InitAudio()
@@ -107,6 +112,70 @@ void BattleState::InitAudio()
     AudioManager::Get().PlaySfx("battle_start");
 }
 
+void BattleState::BeginBattleSession(bool playStartAudio)
+{
+    if (playStartAudio)
+    {
+        InitAudio();
+    }
+
+    mBattle.Initialize(mEncounter, mSystemConfig);
+    mInputController.Initialize();
+    InitBattleSlots();
+    InitUIRenderers();
+
+    mEnemyWasAlive[0] = true;
+    mEnemyWasAlive[1] = true;
+    mEnemyWasAlive[2] = true;
+    mPlayerWasAlive[0] = true;
+    mPlayerWasAlive[1] = true;
+    mPlayerWasAlive[2] = true;
+
+    mFloatingTexts.clear();
+    mCmdMenuTimer = 0.0f;
+    mSkillMenuTimer = 0.0f;
+    mLastInputPhase = PlayerInputPhase::COMMAND_SELECT;
+    mWaitingForDeathAnims = false;
+    mExitTransitionStarted = false;
+    mPendingSafeExit = false;
+    mPendingFlee = false;
+    mExitEventName.clear();
+    mResultPhase = BattleResultPhase::None;
+    mResultTimer = 0.0f;
+    mDefeatPromptIndex = 0;
+    mVictoryRewardsApplied = false;
+    mResultData = BattleResultData{};
+
+    mResultTracker.Reset();
+    mResultTracker.CaptureInitialParty(mPreBattleProgress);
+    BroadcastIntroOffsets();
+}
+
+void BattleState::ShutdownBattleSessionRenderers()
+{
+    mBattleRenderer.Shutdown();
+    for (auto& bar : mHealthBars) bar->Shutdown();
+    for (auto& ebar : mExpBars) ebar->Shutdown();
+    mStatusIconRenderer.Shutdown();
+    mSkillMenuRenderer.Shutdown();
+    mHealthBars.clear();
+    mHealthBarPositions.clear();
+    mExpBars.clear();
+    mEnemyHpBar.Shutdown();
+    mTurnQueueUI.Shutdown();
+    mTargetPointer.Shutdown();
+    mChevronUp.Shutdown();
+    mChevronDown.Shutdown();
+    mItemIconRenderer.Shutdown();
+    mDialogBox.Shutdown();
+    mTextRenderer.Shutdown();
+    mQTERenderer.Shutdown();
+    if (mBulletHellRenderer)
+    {
+        mBulletHellRenderer.reset();
+    }
+}
+
 void BattleState::InitBattleSlots()
 {
     JsonLoader::FormationData formation{};
@@ -119,7 +188,7 @@ void BattleState::InitBattleSlots()
     const float battleCenterY = 0.0f;
 
     std::array<BattleRenderer::SlotInfo, BattleRenderer::kMaxSlots> playerSlots{};
-    
+
     const auto& activeParty = PartyManager::Get().GetActiveParty();
     for (size_t i = 0; i < activeParty.size(); ++i) {
         playerSlots[i].occupied    = true;
@@ -170,19 +239,6 @@ void BattleState::InitBattleSlots()
         enemySlots[0].worldY             = battleCenterY + formation.enemy[0].offsetY;
     }
 
-    
-    mPlayAnimListener = EventManager::Get().Subscribe("battler_play_anim", [this](const EventData& e){ OnPlayAnim(e); });
-    mIsAnimDoneListener = EventManager::Get().Subscribe("battler_is_anim_done", [this](const EventData& e){ OnIsAnimDone(e); });
-    mGetAnimProgressListener = EventManager::Get().Subscribe("battler_get_anim_progress", [this](const EventData& e){ OnGetAnimProgress(e); });
-    mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
-    mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
-    mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
-    mCameraPhaseListener = EventManager::Get().Subscribe("battler_set_camera_phase", [this](const EventData& e){ OnCameraSetPhase(e); });
-    
-    mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
-    mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
-    mBulletHellStateListener = EventManager::Get().Subscribe("verso_bullet_hell_state", [this](const EventData& e){ OnBulletHellState(e); });
-
     mBattleRenderer.Initialize(
         mD3D.GetDevice(),
         mD3D.GetContext(),
@@ -203,13 +259,19 @@ void BattleState::InitUIRenderers()
 
     const auto& party = PartyManager::Get().GetActiveParty();
     const auto& players = mBattle.GetAllPlayers();
-    
+
     // Stack health bars visually mapping descending configurations vertically
     for (size_t i = 0; i < players.size(); ++i) {
         auto bar = std::make_unique<HealthBarRenderer>();
         // Using "membername_hp_changed" explicitly!
         std::string hpTopic = (party[i].name == "Verso") ? "verso_hp_changed" : party[i].name + "_hp_changed";
-        
+        const float barX = mMenuLayout.partyHud.align == "bottom-right" ?
+            (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) :
+            (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX));
+        const float barY = mMenuLayout.partyHud.align == "bottom-right" ?
+            (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) :
+            (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY));
+
         if (bar->Initialize(
             mD3D.GetDevice(),
             mD3D.GetContext(),
@@ -218,17 +280,16 @@ void BattleState::InitUIRenderers()
             "assets/UI/HP_description.json",
             mD3D.GetWidth(), mD3D.GetHeight(),
             hpTopic,
-            mMenuLayout.partyHud.align == "bottom-right" ? 
-                (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) :
-                (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)),
-            mMenuLayout.partyHud.align == "bottom-right" ?
-                (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) :
-                (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY))
+            barX,
+            barY
         )) {
             const BattlerStats& s = players[i]->GetStats();
             bar->SetMaxHP(static_cast<float>(s.maxHp));
             bar->SetHP(static_cast<float>(s.hp));
+            bar->SetMaxMP(static_cast<float>(s.maxMp));
+            bar->SetMP(static_cast<float>(s.mp));
             mHealthBars.push_back(std::move(bar));
+            mHealthBarPositions.push_back(DirectX::XMFLOAT2(barX, barY));
         } else {
             LOG("[BattleState] WARNING - HealthBar initialization failed for %s.", party[i].name.c_str());
         }
@@ -238,7 +299,7 @@ void BattleState::InitUIRenderers()
             mD3D.GetDevice(),
             mD3D.GetContext(),
             mD3D.GetWidth(), mD3D.GetHeight(),
-            mMenuLayout.partyHud.align == "bottom-right" ? 
+            mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f :
                 (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 40.0f,
             mMenuLayout.partyHud.align == "bottom-right" ?
@@ -247,7 +308,7 @@ void BattleState::InitUIRenderers()
         )) {
             const BattlerStats& s = players[i]->GetStats();
             // Get correct NextLevel map evaluating exact thresholds seamlessly!
-            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f));
             expBar->SetExp(s.exp, nextThreshold);
             mExpBars.push_back(std::move(expBar));
         } else {
@@ -327,6 +388,22 @@ void BattleState::InitUIRenderers()
         mD3D.GetDevice(), mD3D.GetContext(),
         mD3D.GetWidth(),  mD3D.GetHeight());
     ItemIconCache::Get().Initialize(mD3D.GetDevice(), mD3D.GetContext());
+    mStatusIconRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        L"assets/UI/status_effect_icons.png",
+        "assets/UI/status_effect_icons.json",
+        "data/status_effect_ui.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
+    mSkillMenuRenderer.Initialize(
+        mD3D.GetDevice(),
+        mD3D.GetContext(),
+        "data/battle_skill_menu_layout.json",
+        L"assets/UI/status_effect_icons.png",
+        "assets/UI/status_effect_icons.json",
+        mD3D.GetWidth(),
+        mD3D.GetHeight());
 
     const std::string fontPath = LocalizationManager::Get().GetCurrentFontPath();
     mTextRenderer.Initialize(
@@ -357,42 +434,72 @@ void BattleState::InitUIRenderers()
     mBulletHellRenderer = std::make_unique<BattleBulletHellRenderer>(mD3D.GetDevice(), mD3D.GetContext());
 }
 
+void BattleState::SubscribeBattleEvents()
+{
+    mPlayAnimListener = EventManager::Get().Subscribe("battler_play_anim", [this](const EventData& e){ OnPlayAnim(e); });
+    mIsAnimDoneListener = EventManager::Get().Subscribe("battler_is_anim_done", [this](const EventData& e){ OnIsAnimDone(e); });
+    mGetAnimProgressListener = EventManager::Get().Subscribe("battler_get_anim_progress", [this](const EventData& e){ OnGetAnimProgress(e); });
+    mMoveOffsetListener = EventManager::Get().Subscribe("battler_set_offset", [this](const EventData& e){ OnMoveOffset(e); });
+    mGetWorldPosListener = EventManager::Get().Subscribe("battler_get_world_pos", [this](const EventData& e){ OnGetWorldPos(e); });
+    mGetOffsetListener = EventManager::Get().Subscribe("battler_get_offset", [this](const EventData& e){ OnGetOffset(e); });
+    mCameraPhaseListener = EventManager::Get().Subscribe("battler_set_camera_phase", [this](const EventData& e){ OnCameraSetPhase(e); });
+    mDamageTakenListener = EventManager::Get().Subscribe("battler_damage_taken", [this](const EventData& e){ OnDamageTaken(e); });
+    mQteUpdateListener = EventManager::Get().Subscribe("battler_qte_update", [this](const EventData& e){ OnQteFeedback(e); });
+    mBulletHellStateListener = EventManager::Get().Subscribe("verso_bullet_hell_state", [this](const EventData& e){ OnBulletHellState(e); });
+    mDodgeResultListener = EventManager::Get().Subscribe("battle_dodge_result", [this](const EventData& e){ OnDodgeResult(e); });
+}
+
+void BattleState::UnsubscribeBattleEvents()
+{
+    auto unsubscribe = [](const char* eventName, int& listenerId)
+    {
+        if (listenerId < 0) return;
+        EventManager::Get().Unsubscribe(eventName, listenerId);
+        listenerId = -1;
+    };
+
+    unsubscribe("battler_play_anim", mPlayAnimListener);
+    unsubscribe("battler_is_anim_done", mIsAnimDoneListener);
+    unsubscribe("battler_get_anim_progress", mGetAnimProgressListener);
+    unsubscribe("battler_set_offset", mMoveOffsetListener);
+    unsubscribe("battler_get_world_pos", mGetWorldPosListener);
+    unsubscribe("battler_get_offset", mGetOffsetListener);
+    unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
+    unsubscribe("battler_damage_taken", mDamageTakenListener);
+    unsubscribe("battler_qte_update", mQteUpdateListener);
+    unsubscribe("verso_bullet_hell_state", mBulletHellStateListener);
+    unsubscribe("battle_dodge_result", mDodgeResultListener);
+}
+
+void BattleState::BroadcastIntroOffsets()
+{
+    for (IBattler* player : mBattle.GetAllPlayers())
+    {
+        MoveOffsetPayload payload{ player, -mSystemConfig.introWalkDistance, 0.0f };
+        EventData eventData;
+        eventData.payload = &payload;
+        EventManager::Get().Broadcast("battler_set_offset", eventData);
+    }
+}
+
 void BattleState::OnExit()
 {
     LOG("%s", "[BattleState] OnExit");
 
     EventManager::Get().Broadcast("bgm_play_overworld", {});
 
-        EventManager::Get().Unsubscribe("battler_play_anim", mPlayAnimListener);
-    EventManager::Get().Unsubscribe("battler_is_anim_done", mIsAnimDoneListener);
-    EventManager::Get().Unsubscribe("battler_get_anim_progress", mGetAnimProgressListener);
-    EventManager::Get().Unsubscribe("battler_set_offset", mMoveOffsetListener);
-    EventManager::Get().Unsubscribe("battler_get_world_pos", mGetWorldPosListener);
-    EventManager::Get().Unsubscribe("battler_get_offset", mGetOffsetListener);
-    EventManager::Get().Unsubscribe("battler_set_camera_phase", mCameraPhaseListener);
-    EventManager::Get().Unsubscribe("battler_damage_taken", mDamageTakenListener);
-    EventManager::Get().Unsubscribe("battler_qte_update", mQteUpdateListener);
-    EventManager::Get().Unsubscribe("verso_bullet_hell_state", mBulletHellStateListener);
-    mBattleRenderer.Shutdown();
-    for (auto& bar : mHealthBars) bar->Shutdown();
-    for (auto& ebar : mExpBars) ebar->Shutdown();
-    mEnemyHpBar.Shutdown();
-    mTurnQueueUI.Shutdown();
-    mTargetPointer.Shutdown();
-    mChevronUp.Shutdown();
-    mChevronDown.Shutdown();
-    mItemIconRenderer.Shutdown();
-    mDialogBox.Shutdown();
-    mTextRenderer.Shutdown();
-    mQTERenderer.Shutdown();
+    UnsubscribeBattleEvents();
+    ShutdownBattleSessionRenderers();
     mAmbientParticles.Shutdown();
     mIris.Shutdown();
+    mResultRenderer.Shutdown();
 }
 
 void BattleState::Update(float dt)
 {
     mIris.Update(dt);
     mAmbientParticles.Update(dt);
+    mResultRenderer.Update(dt);
 
     if (mPendingSafeExit)
     {
@@ -405,9 +512,86 @@ void BattleState::Update(float dt)
         return;
     }
 
+    if (IsResultVisible())
+    {
+        UpdateResultFlow(dt);
+        return;
+    }
+
     if (!mExitTransitionStarted)
     {
         UpdateLogic(dt);
+    }
+}
+
+bool BattleState::IsResultVisible() const
+{
+    return mResultPhase != BattleResultPhase::None &&
+           mResultPhase != BattleResultPhase::Retrying;
+}
+
+void BattleState::UpdateResultFlow(float dt)
+{
+    mResultTimer += dt;
+
+    InputManager& input = InputManager::Get();
+    const bool confirmPressed =
+        input.IsKeyPressed(VK_RETURN) ||
+        input.IsKeyPressed(VK_SPACE) ||
+        input.IsKeyPressed(0x46);
+    const bool backPressed = input.IsKeyPressed(VK_ESCAPE);
+
+    if (mResultPhase == BattleResultPhase::VictoryResult)
+    {
+        if (confirmPressed)
+        {
+            AudioManager::Get().PlaySfx(mResultLayout.closeSfxId);
+            StartExitTransition("battle_end_victory");
+        }
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatSplash)
+    {
+        if (mResultTimer >= mResultLayout.defeatSplashDuration || confirmPressed)
+        {
+            mResultPhase = BattleResultPhase::DefeatPrompt;
+            mResultTimer = 0.0f;
+            AudioManager::Get().PlaySfx(mResultLayout.statsOpenSfxId);
+        }
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatPrompt)
+    {
+        if (input.IsKeyPressed(VK_LEFT) || input.IsKeyPressed(VK_RIGHT) ||
+            input.IsKeyPressed(VK_UP) || input.IsKeyPressed(VK_DOWN))
+        {
+            mDefeatPromptIndex = 1 - mDefeatPromptIndex;
+            AudioManager::Get().PlaySfx("ui_navigate");
+        }
+
+        if (backPressed)
+        {
+            mDefeatPromptIndex = 1;
+            AudioManager::Get().PlaySfx("ui_back");
+            RestorePreBattleState();
+            StartExitTransition("battle_end_defeat");
+            return;
+        }
+
+        if (!confirmPressed) return;
+
+        AudioManager::Get().PlaySfx("ui_confirm");
+        if (mDefeatPromptIndex == 0)
+        {
+            RetryBattle();
+        }
+        else
+        {
+            RestorePreBattleState();
+            StartExitTransition("battle_end_defeat");
+        }
     }
 }
 
@@ -416,12 +600,12 @@ void BattleState::UpdateLogic(float dt)
     // Update floating damage texts
     for (auto it = mFloatingTexts.begin(); it != mFloatingTexts.end(); ) {
         it->lifeTimer -= dt;
-        
+
         // Physics logic for 'thrown' effect (Gravity pulls down along +Y, so we start negative vy)
-        it->vy += 800.0f * dt; 
+        it->vy += 800.0f * dt;
         it->worldX += it->vx * dt;
         it->worldY += it->vy * dt;
-        
+
         if (it->lifeTimer <= 0.0f) {
             it = mFloatingTexts.erase(it);
         } else {
@@ -471,7 +655,13 @@ void BattleState::UpdateLogic(float dt)
         mSkillMenuTimer += dt;
     }
 
-    bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN && 
+    const bool skillMenuVisible =
+        phaseAfter == BattlePhase::PLAYER_TURN &&
+        (mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT ||
+         mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT);
+    mSkillMenuRenderer.Update(dt, skillMenuVisible);
+
+    bool playerSelected = (phaseAfter == BattlePhase::PLAYER_TURN &&
                             mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT);
 
     IBattler* targetedEnemyPtr = nullptr;
@@ -499,7 +689,7 @@ void BattleState::UpdateLogic(float dt)
             if (phaseAfter == BattlePhase::PLAYER_TURN)
             {
                 auto inputPhase = mInputController.GetInputPhase();
-                if (inputPhase == PlayerInputPhase::SKILL_SELECT || 
+                if (inputPhase == PlayerInputPhase::SKILL_SELECT ||
                     inputPhase == PlayerInputPhase::TARGET_SELECT)
                 {
                     inStance = true;
@@ -572,6 +762,12 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
                               allPlayers[i] == activePlayer;
         mHealthBars[i]->SetTargetScale(1.0f);
         mHealthBars[i]->SetTargetLift(isActive ? -20.0f : 0.0f);
+        if (i < static_cast<int>(allPlayers.size()))
+        {
+            const BattlerStats& stats = allPlayers[i]->GetStats();
+            mHealthBars[i]->SetMaxMP(static_cast<float>(stats.maxMp));
+            mHealthBars[i]->SetMP(static_cast<float>(stats.mp));
+        }
         mHealthBars[i]->Update(dt);
     }
     mTurnQueueUI.Update(dt);
@@ -591,7 +787,7 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         mEnemyHpBar.SetTargetScale(i, enemySelected ? 1.05f : 1.0f);
 
         const auto& stats = enemies[i]->GetStats();
-        
+
         bool active = enemies[i]->IsAlive() || !mBattleRenderer.IsEnemyClipDone(i);
 
         mEnemyHpBar.SetEnemy(
@@ -602,7 +798,7 @@ void BattleState::UpdateUIRenderers(float dt, IBattler* targetedEnemyPtr, bool p
         );
     }
     mEnemyHpBar.Update(dt);
-    
+
     mQTERenderer.Update(dt);
 }
 
@@ -627,15 +823,11 @@ void BattleState::OnCameraSetPhase(const EventData& d)
 void BattleState::CheckBattleEnd()
 {
     const BattleOutcome outcome = mBattle.GetOutcome();
-    if (outcome != BattleOutcome::NONE && !mExitTransitionStarted && !mWaitingForDeathAnims)
+    if (outcome != BattleOutcome::NONE &&
+        !mExitTransitionStarted &&
+        !mWaitingForDeathAnims &&
+        mResultPhase == BattleResultPhase::None)
     {
-        const auto& players = mBattle.GetAllPlayers();
-        for (size_t i = 0; i < players.size(); ++i) {
-            PartyManager::Get().SetMemberStats(i, players[i]->GetStats());
-            LOG("[BattleState] Saved %s HP: %d/%d",
-                players[i]->GetName().c_str(), players[i]->GetStats().hp, players[i]->GetStats().maxHp);
-        }
-
         mExitEventName = (outcome == BattleOutcome::VICTORY) ? "battle_end_victory" : "battle_end_defeat";
         mWaitingForDeathAnims = true;
         LOG("[BattleState] Outcome detected (%s) - waiting for death animations.", mExitEventName.c_str());
@@ -643,22 +835,176 @@ void BattleState::CheckBattleEnd()
 
     if (mWaitingForDeathAnims && mBattleRenderer.AreAllDeathAnimsDone())
     {
-        mWaitingForDeathAnims  = false;
-        mExitTransitionStarted = true;
-
-        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
-        LOG("[BattleState] Death animations done - starting iris close.");
+        mWaitingForDeathAnims = false;
+        ActivateResultScreen(outcome);
+        LOG("[BattleState] Death animations done - showing battle result.");
     }
 
     if (mPendingFlee && !mExitTransitionStarted)
     {
         mPendingFlee           = false;
-        mExitTransitionStarted = true;
-        mExitEventName         = "battle_flee";
-
-        mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
+        StartExitTransition("battle_flee");
         LOG("%s", "[BattleState] Flee requested - closing iris.");
     }
+}
+
+void BattleState::ActivateResultScreen(BattleOutcome outcome)
+{
+    mResultTimer = 0.0f;
+    mDefeatPromptIndex = 0;
+
+    if (outcome == BattleOutcome::VICTORY)
+    {
+        BuildAndApplyVictoryResult();
+        mResultPhase = BattleResultPhase::VictoryResult;
+        PlayResultBgm(outcome);
+        AudioManager::Get().PlaySfx(mResultLayout.victoryAppearSfxId);
+    }
+    else
+    {
+        BuildDefeatResult();
+        mResultPhase = BattleResultPhase::DefeatSplash;
+        PlayResultBgm(outcome);
+        AudioManager::Get().PlaySfx(mResultLayout.defeatAppearSfxId);
+    }
+}
+
+// ------------------------------------------------------------
+// Function: ResolveResultBgmTrackId
+// Purpose:
+//   Choose the music track for the victory or defeat result screen.
+// Why:
+//   Encounter JSON can provide bespoke victory music, while the result
+//   layout keeps global fallbacks for common enemies and defeat.
+// ------------------------------------------------------------
+std::string BattleState::ResolveResultBgmTrackId(BattleOutcome outcome) const
+{
+    if (outcome == BattleOutcome::VICTORY)
+    {
+        return !mEncounter.victoryBgmTrackId.empty()
+            ? mEncounter.victoryBgmTrackId
+            : mResultLayout.defaultVictoryBgmTrackId;
+    }
+
+    return !mEncounter.defeatBgmTrackId.empty()
+        ? mEncounter.defeatBgmTrackId
+        : mResultLayout.defaultDefeatBgmTrackId;
+}
+
+// ------------------------------------------------------------
+// Function: PlayResultBgm
+// Purpose:
+//   Broadcast a generic BGM request for the resolved result track.
+// Why:
+//   AudioManager already owns track lookup and voice switching, so
+//   BattleState only passes a data-driven track id through EventManager.
+// ------------------------------------------------------------
+void BattleState::PlayResultBgm(BattleOutcome outcome)
+{
+    const std::string trackId = ResolveResultBgmTrackId(outcome);
+    if (trackId.empty()) return;
+
+    EventData eventData;
+    eventData.payload = const_cast<char*>(trackId.c_str());
+    EventManager::Get().Broadcast("bgm_play", eventData);
+}
+
+void BattleState::BuildAndApplyVictoryResult()
+{
+    if (mVictoryRewardsApplied) return;
+
+    const int enemyCount = static_cast<int>(mBattle.GetAllEnemies().size());
+    BattleResultData preview = mResultTracker.BuildResult(
+        BattleResultOutcome::Victory,
+        mBattle.GetTotalExpReward(),
+        mBattle.GetTotalCoinReward(),
+        mResultLayout.noDamageBonusPercent,
+        enemyCount,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+
+    if (preview.totalExp > 0)
+    {
+        PartyManager::Get().AddExp(preview.totalExp);
+    }
+    if (preview.totalCoins > 0)
+    {
+        Wallet::Get().AddCoins(preview.totalCoins);
+    }
+
+    const auto& players = mBattle.GetAllPlayers();
+    for (size_t i = 0; i < players.size(); ++i)
+    {
+        PartyManager::Get().SetMemberStats(i, players[i]->GetStats());
+        LOG("[BattleState] Saved %s HP: %d/%d",
+            players[i]->GetName().c_str(),
+            players[i]->GetStats().hp,
+            players[i]->GetStats().maxHp);
+    }
+
+    mResultData = mResultTracker.BuildResult(
+        BattleResultOutcome::Victory,
+        mBattle.GetTotalExpReward(),
+        mBattle.GetTotalCoinReward(),
+        mResultLayout.noDamageBonusPercent,
+        enemyCount,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+    mResultRenderer.LoadPortraits(mD3D.GetDevice(), mD3D.GetContext(), mResultData);
+    mVictoryRewardsApplied = true;
+}
+
+void BattleState::BuildDefeatResult()
+{
+    int defeatedEnemies = 0;
+    for (IBattler* enemy : mBattle.GetAllEnemies())
+    {
+        if (enemy && !enemy->IsAlive()) ++defeatedEnemies;
+    }
+
+    mResultData = mResultTracker.BuildResult(
+        BattleResultOutcome::Defeat,
+        0,
+        0,
+        mResultLayout.noDamageBonusPercent,
+        defeatedEnemies,
+        mBattle.GetBattleElapsedSeconds(),
+        PartyManager::Get().CaptureProgress(),
+        PartyManager::Get().GetActiveParty());
+}
+
+void BattleState::RestorePreBattleState()
+{
+    PartyManager::Get().ApplyProgress(mPreBattleProgress);
+    Wallet::Get().SetCoins(mPreBattleCoins);
+}
+
+void BattleState::RetryBattle()
+{
+    mResultPhase = BattleResultPhase::Retrying;
+    RestorePreBattleState();
+    ShutdownBattleSessionRenderers();
+    BeginBattleSession(true);
+    mIris.StartOpen(600.0f);
+}
+
+void BattleState::StartExitTransition(const std::string& eventName)
+{
+    if (mExitTransitionStarted) return;
+
+    const bool exitingVisibleResult =
+        mResultPhase == BattleResultPhase::VictoryResult ||
+        mResultPhase == BattleResultPhase::DefeatSplash ||
+        mResultPhase == BattleResultPhase::DefeatPrompt;
+
+    mExitEventName = eventName;
+    mExitTransitionStarted = true;
+    mResultPhase = exitingVisibleResult
+        ? BattleResultPhase::Exiting
+        : BattleResultPhase::None;
+    mIris.StartClose([this]() { mPendingSafeExit = true; }, 600.0f);
 }
 
 void BattleState::Render()
@@ -672,9 +1018,32 @@ void BattleState::Render()
     mAmbientParticles.Render(mD3D.GetContext(), mBattleRenderer.GetCamera(), BattleAmbientParticleLayer::Front);
     mEnvRenderer.RenderForeground(mBattleRenderer.GetCamera());
 
+    if (IsResultVisible())
+    {
+        RenderResultOverlay();
+        mIris.Render(mD3D.GetContext());
+        return;
+    }
+
     // UI Render
     for (auto& bar : mHealthBars) {
         if (bar->IsInitialized()) bar->Render(mD3D.GetContext());
+    }
+    if (mStatusIconRenderer.IsInitialized())
+    {
+        const auto players = mBattle.GetAllPlayers();
+        for (int i = 0;
+             i < static_cast<int>(players.size()) &&
+             i < static_cast<int>(mHealthBarPositions.size());
+             ++i)
+        {
+            mStatusIconRenderer.Render(
+                mD3D.GetContext(),
+                mTextRenderer,
+                players[i]->GetStatusEffectViews(),
+                mHealthBarPositions[i].x,
+                mHealthBarPositions[i].y);
+        }
     }
     if (mBattle.GetOutcome() == BattleOutcome::VICTORY)
     {
@@ -686,28 +1055,49 @@ void BattleState::Render()
         mTextRenderer.BeginBatch(mD3D.GetContext());
         const auto& players = mBattle.GetAllPlayers();
         for (size_t i = 0; i < players.size(); ++i) {
-            float baseX = mMenuLayout.partyHud.align == "bottom-right" ? 
+            float baseX = mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetWidth() + mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f :
                 (mMenuLayout.partyHud.originX + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingX)) + 42.0f;
             float baseY = mMenuLayout.partyHud.align == "bottom-right" ?
                 (mD3D.GetHeight() + mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f :
                 (mMenuLayout.partyHud.originY + ((players.size() - 1 - i) * mMenuLayout.partyHud.spacingY)) + 74.0f;
-            
+
             char bufL[32];
             snprintf(bufL, sizeof(bufL), "Lv. %d", players[i]->GetStats().level);
             mTextRenderer.DrawStringCenteredRaw(bufL, baseX - 20.0f, baseY - 4.0f, DirectX::Colors::DarkOrange, 0.45f, true);
 
             char bufE[32];
             const BattlerStats& s = players[i]->GetStats();
-            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f)); 
+            int nextThreshold = static_cast<int>(100.0f * std::pow(s.level, 1.5f));
             snprintf(bufE, sizeof(bufE), "%d / %d", s.exp, nextThreshold);
             mTextRenderer.DrawStringCenteredRaw(bufE, baseX + 70.0f, baseY - 1.0f, DirectX::Colors::White, 0.35f, true);
         }
         mTextRenderer.EndBatch();
     }
     mEnemyHpBar.Render(mD3D.GetContext());
+    if (mStatusIconRenderer.IsInitialized())
+    {
+        const auto enemies = mBattle.GetAllEnemies();
+        for (int i = 0;
+             i < static_cast<int>(enemies.size()) &&
+             i < EnemyHpBarRenderer::kMaxSlots;
+             ++i)
+        {
+            float anchorX = 0.0f;
+            float anchorY = 0.0f;
+            if (mEnemyHpBar.GetStatusAnchor(i, anchorX, anchorY))
+            {
+                mStatusIconRenderer.RenderAt(
+                    mD3D.GetContext(),
+                    mTextRenderer,
+                    enemies[i]->GetStatusEffectViews(),
+                    anchorX,
+                    anchorY);
+            }
+        }
+    }
     mTurnQueueUI.Render(mD3D.GetContext());
-    
+
     // Draw Floating Damage Texts
     if (!mFloatingTexts.empty()) {
         mTextRenderer.BeginBatch(mD3D.GetContext(), mBattleRenderer.GetCamera().GetViewMatrix());
@@ -727,7 +1117,7 @@ void BattleState::Render()
     mQTERenderer.Render(mD3D.GetContext());
     if (mBulletHellRenderer) mBulletHellRenderer->Render(mD3D.GetContext(), mD3D.GetWidth(), mD3D.GetHeight());
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&  
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&
         mInputController.GetInputPhase() == PlayerInputPhase::COMMAND_SELECT)
     {
         const auto& commands = mInputController.GetCommands();
@@ -740,14 +1130,14 @@ void BattleState::Render()
 
         const float baseDialogWidth = mMenuLayout.command.width;
         const float baseDialogHeight = mMenuLayout.command.height;
-        
+
         // Offset from bottom-left corner
         const float paddingLeft = mMenuLayout.command.paddingLeft;
         const float paddingBottom = mMenuLayout.command.paddingBottom;
         const float itemSpacing = mMenuLayout.command.spacing;
         const float hoverScale = mMenuLayout.command.hoverScale;
         const float sliceScale = mMenuLayout.command.sliceScale;
-        
+
         // Calculate Base Y so the bottom of the list aligns with paddingBottom
         const float startX = paddingLeft;
         const float totalHeight = commandCount * (baseDialogHeight + itemSpacing);
@@ -807,95 +1197,58 @@ void BattleState::Render()
         }
     }
 
-    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && 
-        mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT)
+    if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN &&
+        (mInputController.GetInputPhase() == PlayerInputPhase::SKILL_SELECT ||
+         mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT))
     {
-        const PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
-        const auto& players = mBattle.GetAllPlayers();
-        int slotIndex = 0;
-        for (int i = 0; i < static_cast<int>(players.size()); ++i)
-        {
-            if (players[i] == activePlayer) { slotIndex = i; break; }
-        }
-
-        float worldX, worldY;
-        mBattleRenderer.GetPlayerSlotPos(slotIndex, worldX, worldY);
-
-        auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
+        // Use the same visual-center point that drives actor camera focus.
+        // The skill renderer converts this screen point into its transformed
+        // layout space so the whole menu follows the acting character cleanly.
+        PlayerCombatant* activePlayer = mBattle.GetActivePlayer();
+        bool hasSkillAnchor = false;
+        float skillAnchorScreenX = 0.0f;
+        float skillAnchorScreenY = 0.0f;
 
         if (activePlayer)
         {
-            const int skillCount = activePlayer->GetSkillCount();
-            const int hoveredIndex = mInputController.GetSkillIndex();
-
-            const float baseDialogWidth = mMenuLayout.skill.width;
-            const float baseDialogHeight = mMenuLayout.skill.height;
-            const float itemSpacing = mMenuLayout.skill.spacing;
-            const float hoverScale = mMenuLayout.skill.hoverScale;
-            const float sliceScale = mMenuLayout.skill.sliceScale;
-
-            // Position right from character, centered vertically based on skill count
-            const float baseX = worldX + mMenuLayout.skill.offsetX;
-            const float totalHeight = skillCount * (baseDialogHeight + itemSpacing);
-            const float baseY = worldY + mMenuLayout.skill.offsetY - (totalHeight / 2.0f);
-
-            // Ease interpolation (cubic ease-out)
-            float activeSkillTimer = (std::max)(0.0f, mSkillMenuTimer - mMenuLayout.skill.entryDelay);
-            float t = mMenuLayout.skill.entryDuration > 0.f ? (std::min)(activeSkillTimer / mMenuLayout.skill.entryDuration, 1.0f) : 1.0f;
-            float easeT = 1.0f - std::pow(1.0f - t, 3.0f);
-            float slideOffset = mMenuLayout.skill.slideOffsetX * (1.0f - easeT);
-            float currentAlpha = mMenuLayout.skill.fadeStartAlpha + (1.0f - mMenuLayout.skill.fadeStartAlpha) * easeT;
-            DirectX::XMVECTOR dboxColor = DirectX::XMVectorSet(1.0f, 1.0f, 1.0f, currentAlpha);
-
-            for (int i = 0; i < skillCount; ++i)
+            int activeSlot = -1;
+            bool activeIsPlayer = false;
+            if (GetBattlerSlot(activePlayer, activeSlot, activeIsPlayer) && activeIsPlayer)
             {
-                const ISkill* skill = activePlayer->GetSkill(i);
-                if (!skill) continue;
+                float worldX = 0.0f;
+                float worldY = 0.0f;
+                float drawOffsetX = 0.0f;
+                float drawOffsetY = 0.0f;
+                float cameraOffsetX = 0.0f;
+                float cameraOffsetY = 0.0f;
 
-                bool isHovered = (i == hoveredIndex);
-                float scaleMultiplier = isHovered ? hoverScale : 1.0f;
+                mBattleRenderer.GetPlayerSlotPos(activeSlot, worldX, worldY);
+                mBattleRenderer.GetPlayerDrawOffset(activeSlot, drawOffsetX, drawOffsetY);
+                mBattleRenderer.GetPlayerCameraFocusOffset(activeSlot, cameraOffsetX, cameraOffsetY);
 
-                float dialogWidth = baseDialogWidth * scaleMultiplier;
-                float dialogHeight = baseDialogHeight * scaleMultiplier;
-
-                // Shift by half the difference to scale from center
-                float offsetX = (dialogWidth - baseDialogWidth) / 2.0f;
-                float offsetY = (dialogHeight - baseDialogHeight) / 2.0f;
-
-                float dialogX = baseX - offsetX - slideOffset;
-                float dialogY = baseY + (i * (baseDialogHeight + itemSpacing)) - offsetY;
-
-                // Draw 9-slice in WORLD SPACE
-                mDialogBox.Draw(
-                    mD3D.GetContext(),
-                    dialogX, dialogY,
-                    dialogWidth, dialogHeight,
-                    sliceScale * scaleMultiplier,
-                    cameraMatrix,
-                    dboxColor
-                );
-
-                float textX = dialogX + mMenuLayout.skill.textOffsetX * scaleMultiplier;
-                float textY = dialogY + mMenuLayout.skill.textOffsetY * scaleMultiplier;
-
-                bool canUse = skill->CanUse(*static_cast<const IBattler*>(activePlayer), mBattle.GetContext());
-                DirectX::XMVECTOR textColor = canUse ? DirectX::Colors::White : DirectX::Colors::Gray;
-                if (isHovered) {
-                    textColor = canUse ? DirectX::Colors::Yellow : DirectX::Colors::Orange;
-                }
-                textColor = DirectX::XMVectorSetW(textColor, currentAlpha);
-
-                // Draw Text inside the dialog box (WORLD SPACE)
-                const std::string skillName = skill->GetName();
-                mTextRenderer.DrawString(
-                    mD3D.GetContext(),
-                    skillName.c_str(),
-                    textX, textY,
-                    textColor,
-                    cameraMatrix
-                );
+                const DirectX::XMFLOAT2 activeAnchor = mBattleRenderer.GetCamera().WorldToScreen(
+                    worldX + drawOffsetX + cameraOffsetX,
+                    worldY + drawOffsetY + cameraOffsetY);
+                skillAnchorScreenX = activeAnchor.x;
+                skillAnchorScreenY = activeAnchor.y;
+                hasSkillAnchor = true;
             }
         }
+
+        mSkillMenuRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+        mSkillMenuRenderer.Render(
+            mD3D.GetContext(),
+            mTextRenderer,
+            activePlayer,
+            mInputController.GetSkillIndex(),
+            mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT,
+            mInputController.GetTargetIndex(),
+            mBattle.GetAliveEnemies(),
+            mBattle.GetContext(),
+            mBattleRenderer.GetCamera().GetRotation(),
+            hasSkillAnchor,
+            skillAnchorScreenX,
+            skillAnchorScreenY);
     }
 
     // ---- Item menu (ITEM_SELECT) ----
@@ -1340,6 +1693,38 @@ void BattleState::Render()
     mIris.Render(mD3D.GetContext());
 }
 
+void BattleState::RenderResultOverlay()
+{
+    mResultRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+    mTextRenderer.SetScreenSize(mD3D.GetWidth(), mD3D.GetHeight());
+
+    if (mResultPhase == BattleResultPhase::VictoryResult ||
+        (mResultPhase == BattleResultPhase::Exiting && mResultData.outcome == BattleResultOutcome::Victory))
+    {
+        mResultRenderer.RenderVictory(
+            mD3D.GetContext(),
+            mTextRenderer,
+            mResultData,
+            mResultTimer);
+        return;
+    }
+
+    if (mResultPhase == BattleResultPhase::DefeatSplash)
+    {
+        mResultRenderer.RenderDefeatSplash(
+            mD3D.GetContext(),
+            mTextRenderer,
+            mResultTimer);
+        return;
+    }
+
+    mResultRenderer.RenderDefeatPrompt(
+        mD3D.GetContext(),
+        mTextRenderer,
+        mDefeatPromptIndex,
+        mResultTimer);
+}
+
 void BattleState::DumpStateToDebugOutput() const
 {
     BattleHUDSnapshot snap;
@@ -1377,7 +1762,7 @@ void BattleState::DumpStateToDebugOutput() const
         for (int i = 0; i < static_cast<int>(commands.size()); ++i)
         {
             BattleHUDSnapshot::MenuItem item;
-            item.label    = commands[i]->GetLabel();
+            item.label    = commands[i]->GetDebugLabel();
             item.selected = (i == mInputController.GetCommandIndex());
             snap.menuItems.push_back(item);
         }
@@ -1397,8 +1782,8 @@ void BattleState::DumpStateToDebugOutput() const
 
                 BattleHUDSnapshot::SkillRow row;
                 row.slot        = i + 1;
-                row.name        = skill->GetName();
-                row.description = skill->GetDescription();
+                row.name        = skill->GetDebugName();
+                row.description = skill->GetDebugDescription();
                 row.available   = skill->CanUse(*static_cast<const IBattler*>(player), mBattle.GetContext());
                 row.selected    = (i == mInputController.GetSkillIndex());
                 snap.skillRows.push_back(row);
@@ -1412,12 +1797,12 @@ void BattleState::DumpStateToDebugOutput() const
         if (mInputController.GetTargetIndex() < static_cast<int>(enemies.size()))
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.target"),
-                enemies[mInputController.GetTargetIndex()]->GetName()
+                LocalizationManager::Get().TextEnglish("battle.info.target"),
+                enemies[mInputController.GetTargetIndex()]->GetDebugName()
             });
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.target_select")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.target_select")
             });
         }
 
@@ -1426,8 +1811,8 @@ void BattleState::DumpStateToDebugOutput() const
         {
             const ISkill* skill = player->GetSkill(mInputController.GetSkillIndex());
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.skill"),
-                skill ? skill->GetName() : LocalizationManager::Get().Text("battle.info.none")
+                LocalizationManager::Get().TextEnglish("battle.info.skill"),
+                skill ? skill->GetDebugName() : LocalizationManager::Get().TextEnglish("battle.info.none")
             });
         }
     }
@@ -1459,10 +1844,10 @@ void BattleState::DumpStateToDebugOutput() const
             const ItemData* item = ItemRegistry::Get().Find(ids[i]);
             BattleHUDSnapshot::ItemRow row;
             row.slot        = i + 1;
-            row.name        = item ? item->name        : ids[i];
+            row.name        = item ? (item->debugName.empty() ? item->id : item->debugName) : ids[i];
             row.description = item
-                ? item->description
-                : LocalizationManager::Get().Text("common.missing_registry");
+                ? item->debugDescription
+                : LocalizationManager::Get().TextEnglish("common.missing_registry");
             row.count       = Inventory::Get().GetCount(ids[i]);
             row.selected    = (i == hovered);
             snap.itemRows.push_back(row);
@@ -1471,15 +1856,15 @@ void BattleState::DumpStateToDebugOutput() const
         if (inputPhase == PlayerInputPhase::ITEM_TARGET_SELECT)
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.item_target")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.item_target")
             });
         }
         else
         {
             snap.infoLines.push_back({
-                LocalizationManager::Get().Text("battle.info.hint"),
-                LocalizationManager::Get().Text("battle.hint.item_select")
+                LocalizationManager::Get().TextEnglish("battle.info.hint"),
+                LocalizationManager::Get().TextEnglish("battle.hint.item_select")
             });
         }
     }
@@ -1493,13 +1878,13 @@ void BattleState::DumpStateToDebugOutput() const
         const auto& s = p->GetStats();
         BattleHUDSnapshot::CombatantRow row;
         row.tag          = "[PLAYER]";
-        row.name         = p->GetName();
+        row.name         = p->GetDebugName();
         row.isCurrentTurn = (p == activeCombatant);
         row.hp      = s.hp;      row.maxHp   = s.maxHp;
         row.rage    = s.rage;    row.maxRage = s.maxRage;
         row.atk     = s.atk;     row.def     = s.def;
-        row.spd     = s.spd;     
-        row.level   = s.level;   row.exp     = s.exp; 
+        row.spd     = s.spd;
+        row.level   = s.level;   row.exp     = s.exp;
         row.alive   = p->IsAlive();
         snap.combatants.push_back(row);
     }
@@ -1508,11 +1893,11 @@ void BattleState::DumpStateToDebugOutput() const
         const auto& s = e->GetStats();
         BattleHUDSnapshot::CombatantRow row;
         row.tag           = "[ENEMY ]";
-        row.name          = e->GetName();
+        row.name          = e->GetDebugName();
         row.isCurrentTurn = (e == activeCombatant);
         row.hp      = s.hp;   row.maxHp = s.maxHp;
         row.atk     = s.atk;  row.def   = s.def;
-        row.spd     = s.spd;  
+        row.spd     = s.spd;
         row.level   = s.level; row.exp  = s.exp;
         row.alive = e->IsAlive();
         snap.combatants.push_back(row);
@@ -1523,12 +1908,12 @@ void BattleState::DumpStateToDebugOutput() const
     for (IBattler* b : predictedQueue)
     {
         BattleHUDSnapshot::TimelineRow row;
-        row.name = b->GetName();
+        row.name = b->GetDebugName();
         row.currentAV = 0.0f; // No longer needed for visual queue
         snap.timeline.push_back(row);
     }
 
-    snap.logLines = mBattle.GetBattleLog();
+    snap.logLines = mBattle.GetBattleLogForDebug();
 
     BattleDebugHUD::Render(snap);
 }
@@ -1562,6 +1947,8 @@ void BattleState::OnDamageTaken(const EventData& e)
     bool isPlayer;
     if (GetBattlerSlot(payload->target, slot, isPlayer))
     {
+        mResultTracker.RecordDamage(payload->target, isPlayer, payload->damage);
+
         float worldX, worldY;
         if (isPlayer) {
             mBattleRenderer.GetPlayerSlotPos(slot, worldX, worldY);
@@ -1569,18 +1956,18 @@ void BattleState::OnDamageTaken(const EventData& e)
             mBattleRenderer.GetEnemySlotPos(slot, worldX, worldY);
         }
         // Initial spawn positions
-        worldX += ((rand() % 20) - 10.0f); 
+        worldX += ((rand() % 20) - 10.0f);
         worldY -= 40.0f;
 
         FloatingDamageText ft;
         ft.text = std::to_string(payload->damage);
         ft.worldX = worldX;
         ft.worldY = worldY;
-        
+
         // Toss numbers out and up
-        ft.vx = ((rand() % 160) - 80.0f); 
-        ft.vy = -((rand() % 200) + 300.0f); 
-        
+        ft.vx = ((rand() % 160) - 80.0f);
+        ft.vy = -((rand() % 200) + 300.0f);
+
         ft.scale = 1.3f;
         ft.lifeTimer = 1.0f;
         ft.maxLife = 1.0f;
@@ -1602,9 +1989,10 @@ void BattleState::OnQteFeedback(const EventData& e)
 {
     auto* payload = static_cast<QTEStatePayload*>(e.payload);
     if (!payload) return;
-    
+    mResultTracker.RecordQteResult(payload->result);
+
     if (payload->result == QTEResult::Perfect) {
-        // High intensity shake for perfect 
+        // High intensity shake for perfect
         mBattleRenderer.TriggerCameraShake(40.0f, 0.25f);
     }
     else if (payload->result == QTEResult::Good) {
@@ -1683,4 +2071,11 @@ void BattleState::OnBulletHellState(const EventData& e)
         const BulletHellPayload* payload = static_cast<const BulletHellPayload*>(e.payload);
         mBulletHellRenderer->UpdateState(*payload);
     }
+}
+
+void BattleState::OnDodgeResult(const EventData& e)
+{
+    const auto* payload = static_cast<const BattleDodgeResultPayload*>(e.payload);
+    if (!payload) return;
+    mResultTracker.RecordDodgeResult(*payload);
 }

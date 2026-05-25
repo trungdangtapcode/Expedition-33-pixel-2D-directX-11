@@ -1,0 +1,15 @@
+{
+  "id": "burn",
+  "nameKey": "status.burn.name",
+  "descriptionKey": "status.burn.description",
+  "iconId": "burn",
+  "category": "debuff",
+  "durationTurns": 3,
+  "stackPolicy": "stack_intensity",
+  "maxStacks": 3,
+  "dispellable": true,
+  "tickDamage": 6,
+  "tickDamagePerStack": 4,
+  "shortDescriptionKey": "status.burn.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
+}

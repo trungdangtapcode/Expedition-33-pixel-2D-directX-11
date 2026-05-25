@@ -17,6 +17,7 @@
 #include "IGameState.h"
 #include "../Renderer/NineSliceRenderer.h"
 #include "../UI/BattleTextRenderer.h"
+#include "../UI/CurrencyHudRenderer.h"
 #include <string>
 
 class CampfireState : public IGameState
@@ -71,6 +72,7 @@ private:
 
     NineSliceRenderer mDialogBox;
     BattleTextRenderer mTextRenderer;
+    CurrencyHudRenderer mCurrencyHud;
 
     Phase mPhase = Phase::MainMenu;
     int mCursor = 0;

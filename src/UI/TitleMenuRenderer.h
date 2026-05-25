@@ -47,7 +47,11 @@ enum class TitleMenuVisualPhase
 struct TitleMenuOptionView
 {
     std::string label;
+    std::string value;
     bool enabled = true;
+    bool showMeter = false;
+    bool isFuture = false;
+    float meterValue = 0.0f;
 };
 
 struct TitleMenuSlotView
@@ -112,6 +116,24 @@ private:
         float optionStartY = 514.0f;
         float optionRowHeight = 42.0f;
         float optionTextScale = 1.08f;
+        float optionsPanelWidth = 720.0f;
+        float optionsPanelHeight = 292.0f;
+        float optionsPanelBottom = 56.0f;
+        float optionsPanelAlpha = 0.44f;
+        float optionsBandAlpha = 0.36f;
+        float optionsStartY = 82.0f;
+        float optionsRowHeight = 42.0f;
+        float optionsHighlightHeight = 32.0f;
+        float optionsHighlightInset = 44.0f;
+        float optionsLabelInset = 76.0f;
+        float optionsValueRightInset = 76.0f;
+        float optionsMeterRightInset = 152.0f;
+        float optionsMeterSegmentWidth = 18.0f;
+        float optionsMeterSegmentHeight = 8.0f;
+        float optionsMeterSegmentGap = 5.0f;
+        float optionsFutureTagOffset = 188.0f;
+        float optionsFutureTagWidth = 70.0f;
+        float optionsFutureTagHeight = 20.0f;
         float slotStartY = 96.0f;
         float slotRowHeight = 76.0f;
         float flashDuration = 2.2f;
@@ -135,6 +157,8 @@ private:
                           const TitleMenuRenderState& state);
     void RenderMainOptions(ID3D11DeviceContext* context,
                            const TitleMenuRenderState& state);
+    void RenderOptions(ID3D11DeviceContext* context,
+                       const TitleMenuRenderState& state);
     void RenderLoadSlots(ID3D11DeviceContext* context,
                          const TitleMenuRenderState& state);
 

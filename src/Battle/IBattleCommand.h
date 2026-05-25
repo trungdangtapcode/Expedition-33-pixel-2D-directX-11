@@ -46,6 +46,10 @@ public:
     // ------------------------------------------------------------
     virtual std::string GetLabel() const = 0;
 
+    // Debug labels are English-only because BattleDebugHUD writes to CLI
+    // surfaces that may not render active-language UTF-8 text correctly.
+    virtual std::string GetDebugLabel() const { return GetLabel(); }
+
     // ------------------------------------------------------------
     // Execute: respond to the player pressing Enter on this command.
     //   state — the owning BattleState; use its public API to change

@@ -11,6 +11,7 @@
   "contactRadius": 100.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
   "bgmTrackId": "verso_cloned_battle",
+  "victoryBgmTrackId": "verso_cloned_fight_victory",
 
   "battleParty": [
     {
@@ -23,6 +24,7 @@
       "def": 8,
       "spd": 10,
       "expReward": 200,
+      "coinReward": 75,
       "attackJsonPath": "data/skills/verso_cloned_attack.json",
       "cameraFocusOffsetY": -128.0
     }

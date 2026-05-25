@@ -220,7 +220,8 @@ bool SfxPlayer::LoadConfig(const std::string& path)
     mMonoVoiceCount = static_cast<int>(
         ExtractNumberField(content, 0, "monoVoiceCount",
                            static_cast<float>(mMonoVoiceCount)));
-    mMasterVolume = ExtractNumberField(content, 0, "masterSfxVolume", 1.0f);
+    mConfigMasterVolume = ExtractNumberField(content, 0, "masterSfxVolume", 1.0f);
+    ApplyMasterVolume();
 
     // Walk every group object.  Each one starts with an "id" key followed
     // by a "paths" array.  We scan the array brackets manually so we do
@@ -459,7 +460,7 @@ void SfxPlayer::PlaySfx(const std::string& groupId, float volumeMul)
     IXAudio2SourceVoice* voice = AcquireVoice(*pool);
     if (!voice) return;
 
-    // Effective per-voice gain = group volume × per-call multiplier.
+    // Effective per-voice gain = group volume times per-call multiplier.
     // Master SFX gain lives on mSubmix and applies on top in the mixer.
     voice->SetVolume(group.volume * volumeMul);
 
@@ -490,6 +491,15 @@ void SfxPlayer::SetMasterVolume(float v)
 {
     if (v < 0.0f) v = 0.0f;
     if (v > 1.0f) v = 1.0f;
-    mMasterVolume = v;
-    if (mSubmix) mSubmix->SetVolume(v);
+    mUserMasterVolume = v;
+    ApplyMasterVolume();
+}
+
+void SfxPlayer::ApplyMasterVolume()
+{
+    float config = mConfigMasterVolume;
+    if (config < 0.0f) config = 0.0f;
+    if (config > 1.0f) config = 1.0f;
+
+    if (mSubmix) mSubmix->SetVolume(config * mUserMasterVolume);
 }

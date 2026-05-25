@@ -2,6 +2,7 @@
 // File: BattleInputController.cpp
 // Responsibility: Implements the battle input FSM.
 // ============================================================
+#define NOMINMAX
 #include "BattleInputController.h"
 #include "../States/BattleState.h"
 #include "BattleManager.h"
@@ -14,10 +15,13 @@
 #include "ItemData.h"
 #include "../Systems/Inventory.h"
 #include "../Audio/AudioManager.h"
+#include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
 
-#define NOMINMAX
 #include <Windows.h>
+#include <algorithm>
+#include <fstream>
+#include <sstream>
 
 BattleInputController::BattleInputController(BattleState& state, BattleManager& battle, BattleRenderer& renderer)
     : mState(state), mBattle(battle), mRenderer(renderer)
@@ -33,6 +37,7 @@ void BattleInputController::Initialize()
     mSkillIndex   = 0;
     mTargetIndex  = 0;
     mItemIndex    = 0;
+    LoadSkillMenuInputConfig();
 
     // ItemRegistry is the read-only catalog of every item the game knows
     // about.  Loaded once on first access; safe to call here.  Inventory
@@ -41,6 +46,36 @@ void BattleInputController::Initialize()
     ItemRegistry::Get().EnsureLoaded();
 
     BuildCommandList();
+}
+
+// ------------------------------------------------------------
+// Function: LoadSkillMenuInputConfig
+// Purpose:
+//   Read the visible skill-card page size from the same layout JSON
+//   used by BattleSkillMenuRenderer.
+// Why:
+//   Input and rendering must agree on page boundaries so Up/Down stays
+//   inside the visible cards and Left/Right swaps to the next page.
+// ------------------------------------------------------------
+void BattleInputController::LoadSkillMenuInputConfig()
+{
+    std::ifstream file("data/battle_skill_menu_layout.json");
+    if (!file.is_open())
+    {
+        mSkillPageSize = 4;
+        return;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    mSkillPageSize = JsonLoader::detail::ParseInt(
+        JsonLoader::detail::ValueOf(src, "pageSize"),
+        mSkillPageSize);
+    if (mSkillPageSize < 1)
+    {
+        mSkillPageSize = 1;
+    }
 }
 
 void BattleInputController::BuildCommandList()
@@ -92,7 +127,7 @@ void BattleInputController::HandleCommandSelect()
     {
         mCommandIndex = (mCommandIndex - 1 + cmdCount) % cmdCount;
         AudioManager::Get().PlaySfx("ui_navigate");
-        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        const std::string label = mCommands[mCommandIndex]->GetDebugLabel();
         LOG("[BattleState] Command cursor -> %s", label.c_str());
         mState.DumpStateToDebugOutput();
     }
@@ -100,15 +135,15 @@ void BattleInputController::HandleCommandSelect()
     {
         mCommandIndex = (mCommandIndex + 1) % cmdCount;
         AudioManager::Get().PlaySfx("ui_navigate");
-        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        const std::string label = mCommands[mCommandIndex]->GetDebugLabel();
         LOG("[BattleState] Command cursor -> %s", label.c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
     {
         // Each IBattleCommand plays its own SFX (e.g. battle_skill_open,
-        // battle_item_open, battle_flee) — no generic ui_confirm here.
-        const std::string label = mCommands[mCommandIndex]->GetLabel();
+        // battle_item_open, battle_flee), without a generic ui_confirm here.
+        const std::string label = mCommands[mCommandIndex]->GetDebugLabel();
         LOG("[BattleState] Command confirmed: %s", label.c_str());
         mCommands[mCommandIndex]->Execute(mState);
         mState.DumpStateToDebugOutput();
@@ -127,24 +162,49 @@ void BattleInputController::HandleSkillSelect()
     auto* player = mBattle.GetActivePlayer();
     if (!player) return;
 
-    int skillCount = 0;
-    while (player->GetSkill(skillCount) != nullptr) ++skillCount;
+    const int skillCount = player->GetSkillCount();
     if (skillCount == 0) return;
+
+    const int pageSize = std::max(1, mSkillPageSize);
+    const int pageCount = (skillCount + pageSize - 1) / pageSize;
+    const int currentPage = std::max(0, std::min(mSkillIndex / pageSize, pageCount - 1));
+    const int firstOnPage = currentPage * pageSize;
+    const int lastOnPage = std::min(skillCount, firstOnPage + pageSize);
 
     if (pressed(VK_UP, mKeyUpWasDown))
     {
-        mSkillIndex = (mSkillIndex - 1 + skillCount) % skillCount;
+        mSkillIndex = (mSkillIndex > firstOnPage) ? (mSkillIndex - 1) : (lastOnPage - 1);
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName().c_str());
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
-        mSkillIndex = (mSkillIndex + 1) % skillCount;
+        mSkillIndex = (mSkillIndex + 1 < lastOnPage) ? (mSkillIndex + 1) : firstOnPage;
         AudioManager::Get().PlaySfx("ui_navigate");
         LOG("[BattleState] Skill cursor -> slot %d (%s)",
-            mSkillIndex, player->GetSkill(mSkillIndex)->GetName().c_str());
+            mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
+        mState.DumpStateToDebugOutput();
+    }
+    if (pressed(VK_LEFT, mKeyLeftWasDown))
+    {
+        const int row = mSkillIndex % pageSize;
+        const int nextPage = (currentPage - 1 + pageCount) % pageCount;
+        mSkillIndex = std::min(skillCount - 1, nextPage * pageSize + row);
+        AudioManager::Get().PlaySfx("ui_navigate");
+        LOG("[BattleState] Skill page -> %d, slot %d (%s)",
+            nextPage + 1, mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
+        mState.DumpStateToDebugOutput();
+    }
+    if (pressed(VK_RIGHT, mKeyRightWasDown))
+    {
+        const int row = mSkillIndex % pageSize;
+        const int nextPage = (currentPage + 1) % pageCount;
+        mSkillIndex = std::min(skillCount - 1, nextPage * pageSize + row);
+        AudioManager::Get().PlaySfx("ui_navigate");
+        LOG("[BattleState] Skill page -> %d, slot %d (%s)",
+            nextPage + 1, mSkillIndex, player->GetSkill(mSkillIndex)->GetDebugName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
@@ -159,13 +219,22 @@ void BattleInputController::HandleSkillSelect()
             return;
         }
         AudioManager::Get().PlaySfx("ui_confirm");
-        LOG("[BattleState] Skill confirmed: %s - now pick a target", skill->GetName().c_str());
-        SetInputPhase(PlayerInputPhase::TARGET_SELECT);
+        if (skill->GetTargeting() == SkillTargeting::Self)
+        {
+            mBattle.SetPlayerAction(mSkillIndex, player);
+            LOG("[BattleState] Skill confirmed: %s -> self", skill->GetDebugName().c_str());
+            SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        }
+        else
+        {
+            LOG("[BattleState] Skill confirmed: %s - now pick a target", skill->GetDebugName().c_str());
+            SetInputPhase(PlayerInputPhase::TARGET_SELECT);
+        }
     }
     if (pressed(VK_BACK, mBackWasDown))
     {
         AudioManager::Get().PlaySfx("ui_back");
-        LOG("%s", "[BattleState] Cancelled skill select — back to command menu.");
+        LOG("%s", "[BattleState] Cancelled skill select; back to command menu.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
     }
 }
@@ -187,7 +256,7 @@ void BattleInputController::HandleTargetSelect()
     {
         mTargetIndex = (mTargetIndex + 1) % enemyCount;
         AudioManager::Get().PlaySfx("battle_select_enemy");
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
+        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetDebugName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
@@ -198,7 +267,7 @@ void BattleInputController::HandleTargetSelect()
     {
         mTargetIndex = (mTargetIndex - 1 + enemyCount) % enemyCount;
         AudioManager::Get().PlaySfx("battle_select_enemy");
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetName().c_str());
+        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetDebugName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
@@ -210,7 +279,7 @@ void BattleInputController::HandleTargetSelect()
     if (pressed(VK_BACK, mBackWasDown))
     {
         AudioManager::Get().PlaySfx("ui_back");
-        LOG("%s", "[BattleState] Cancelled target select — back to skill menu.");
+        LOG("%s", "[BattleState] Cancelled target select; back to skill menu.");
         SetInputPhase(PlayerInputPhase::SKILL_SELECT);
     }
 }
@@ -224,7 +293,16 @@ void BattleInputController::ConfirmSkillAndTarget()
     if (!skill || !skill->CanUse(*player, mBattle.GetContext()))
     {
         AudioManager::Get().PlaySfx("battle_no_ap");
-        LOG("%s", "[BattleState] Skill unavailable — action cancelled.");
+        LOG("%s", "[BattleState] Skill unavailable; action cancelled.");
+        SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
+        return;
+    }
+
+    if (skill->GetTargeting() == SkillTargeting::Self)
+    {
+        mBattle.SetPlayerAction(mSkillIndex, player);
+        AudioManager::Get().PlaySfx("ui_confirm");
+        LOG("[BattleState] Action confirmed: %s -> self", skill->GetDebugName().c_str());
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         return;
     }
@@ -240,7 +318,7 @@ void BattleInputController::ConfirmSkillAndTarget()
 
     AudioManager::Get().PlaySfx("ui_confirm");
     LOG("[BattleState] Action confirmed: %s -> %s",
-        skill->GetName().c_str(), target->GetName().c_str());
+        skill->GetDebugName().c_str(), target->GetDebugName().c_str());
 
     SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
 }
@@ -250,7 +328,7 @@ void BattleInputController::ConfirmSkillAndTarget()
 //
 // Targeting shortcut:
 //   Items whose targeting rule does NOT need a battler (SelfOnly /
-//   AllAllies / AllEnemies) commit immediately on Enter — no second
+//   AllAllies / AllEnemies) commit immediately on Enter, with no second
 //   menu.  Single-target items advance to ITEM_TARGET_SELECT.
 //
 // Empty inventory:
@@ -270,11 +348,11 @@ void BattleInputController::HandleItemSelect()
 
     if (count == 0)
     {
-        // Empty bag — only Esc does anything.
+        // Empty bag: only Esc does anything.
         if (pressed(VK_BACK, mBackWasDown))
         {
             AudioManager::Get().PlaySfx("ui_back");
-            LOG("%s", "[BattleState] No items to use — back to command menu.");
+            LOG("%s", "[BattleState] No items to use; back to command menu.");
             SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         }
         return;
@@ -299,7 +377,7 @@ void BattleInputController::HandleItemSelect()
         const ItemData* item = ItemRegistry::Get().Find(mItemIds[mItemIndex]);
         if (!item)
         {
-            // Inventory referenced an id with no registry entry — most
+            // Inventory referenced an id with no registry entry; most
             // likely a typo in a JSON file.  Refuse the action so the
             // player loses neither the item nor the turn.
             AudioManager::Get().PlaySfx("battle_no_ap");
@@ -316,12 +394,13 @@ void BattleInputController::HandleItemSelect()
 
         if (implicit)
         {
-            // Commit immediately with a null primary target — BuildItemActions
+            // Commit immediately with a null primary target. BuildItemActions
             // resolves the actual target list from the targeting rule.
             mBattle.SetPlayerItem(item->id, nullptr);
             AudioManager::Get().PlaySfx("ui_confirm");
+            const std::string itemName = item->debugName.empty() ? item->id : item->debugName;
             LOG("[BattleState] Item confirmed: %s (implicit target)",
-                item->name.c_str());
+                itemName.c_str());
             SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         }
         else
@@ -336,7 +415,7 @@ void BattleInputController::HandleItemSelect()
     if (pressed(VK_BACK, mBackWasDown))
     {
         AudioManager::Get().PlaySfx("ui_back");
-        LOG("%s", "[BattleState] Cancelled item select — back to command menu.");
+        LOG("%s", "[BattleState] Cancelled item select; back to command menu.");
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
     }
 }
@@ -347,7 +426,7 @@ void BattleInputController::HandleItemSelect()
 // Target list source depends on the item's targeting rule:
 //   SingleAlly / SingleAllyAny -> alive (or all) players
 //   SingleEnemy                -> alive enemies
-// Other rules never reach this handler — they auto-commit in HandleItemSelect.
+// Other rules never reach this handler; they auto-commit in HandleItemSelect.
 //
 // SingleAllyAny includes KO'd allies (revive items).  All other ally
 // lookups exclude the dead so the cursor never lands on a corpse.
@@ -386,7 +465,7 @@ void BattleInputController::HandleItemTargetSelect()
 
     if (candidates.empty())
     {
-        // No valid target (rare — e.g. revive with no dead allies).
+        // No valid target, such as revive with no dead allies.
         // Bounce back to ITEM_SELECT so the player can pick something else.
         LOG("%s", "[BattleState] No valid target for this item.");
         SetInputPhase(PlayerInputPhase::ITEM_SELECT);
@@ -396,7 +475,7 @@ void BattleInputController::HandleItemTargetSelect()
     const int n = static_cast<int>(candidates.size());
     if (mTargetIndex >= n) mTargetIndex = 0;
 
-    // SFX varies by targeting context — enemy targets get battle_select_enemy,
+    // SFX varies by targeting context: enemy targets get battle_select_enemy,
     // ally targets get battle_select_ally.  Resolved once from the item's
     // targeting rule instead of per-candidate, since all candidates in a
     // single item-target list share the same combatant side.
@@ -409,7 +488,7 @@ void BattleInputController::HandleItemTargetSelect()
         mTargetIndex = (mTargetIndex - 1 + n) % n;
         AudioManager::Get().PlaySfx(cycleSfx);
         LOG("[BattleState] Item target -> %s",
-            candidates[mTargetIndex]->GetName().c_str());
+            candidates[mTargetIndex]->GetDebugName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_DOWN, mKeyDownWasDown))
@@ -417,7 +496,7 @@ void BattleInputController::HandleItemTargetSelect()
         mTargetIndex = (mTargetIndex + 1) % n;
         AudioManager::Get().PlaySfx(cycleSfx);
         LOG("[BattleState] Item target -> %s",
-            candidates[mTargetIndex]->GetName().c_str());
+            candidates[mTargetIndex]->GetDebugName().c_str());
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))
@@ -427,14 +506,14 @@ void BattleInputController::HandleItemTargetSelect()
     if (pressed(VK_BACK, mBackWasDown))
     {
         AudioManager::Get().PlaySfx("ui_back");
-        LOG("%s", "[BattleState] Cancelled target — back to item select.");
+        LOG("%s", "[BattleState] Cancelled target; back to item select.");
         SetInputPhase(PlayerInputPhase::ITEM_SELECT);
     }
 }
 
 // ------------------------------------------------------------
 // ConfirmItemAndTarget: commit the item + chosen battler to BattleManager.
-// Symmetric with ConfirmSkillAndTarget — both call SetPlayer*() then
+// Symmetric with ConfirmSkillAndTarget: both call SetPlayer*() then
 // reset the input phase to COMMAND_SELECT so the simulation can take over.
 // ------------------------------------------------------------
 void BattleInputController::ConfirmItemAndTarget()
@@ -449,7 +528,7 @@ void BattleInputController::ConfirmItemAndTarget()
     if (!item) return;
 
     // Resolve the target reference one more time using the same rules
-    // as HandleItemTargetSelect — re-querying instead of caching keeps
+    // as HandleItemTargetSelect. Re-querying instead of caching keeps
     // this method tolerant of frame-to-frame roster changes.
     std::vector<IBattler*> candidates;
     if (item->targeting == ItemTargeting::SingleAlly)
@@ -468,17 +547,23 @@ void BattleInputController::ConfirmItemAndTarget()
 
     AudioManager::Get().PlaySfx("ui_confirm");
     LOG("[BattleState] Item confirmed: %s -> %s",
-        item->name.c_str(), target->GetName().c_str());
+        (item->debugName.empty() ? item->id : item->debugName).c_str(),
+        target->GetDebugName().c_str());
 
     SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
 }
 
 void BattleInputController::SetInputPhase(PlayerInputPhase phase)
 {
+    const PlayerInputPhase previousPhase = mInputPhase;
     mInputPhase = phase;
 
     if (phase == PlayerInputPhase::COMMAND_SELECT) mCommandIndex = 0;
-    if (phase == PlayerInputPhase::SKILL_SELECT)   mSkillIndex   = 0;
+    if (phase == PlayerInputPhase::SKILL_SELECT &&
+        previousPhase != PlayerInputPhase::TARGET_SELECT)
+    {
+        mSkillIndex = 0;
+    }
     if (phase == PlayerInputPhase::TARGET_SELECT)  mTargetIndex  = 0;
 
     // Refresh the inventory snapshot the moment the player enters the

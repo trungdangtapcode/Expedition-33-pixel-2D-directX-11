@@ -1,0 +1,12 @@
+{
+  "id": "verso_sunder_guard",
+  "kind": "status",
+  "iconId": "weaken",
+  "nameKey": "skill.verso_sunder_guard.name",
+  "descriptionKey": "skill.verso_sunder_guard.description",
+  "targeting": "single_enemy",
+  "mpCost": 12,
+  "statusEffectId": "weaken",
+  "uiSortGroup": "debuff",
+  "hitCount": 0
+}

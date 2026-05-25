@@ -25,6 +25,7 @@
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
+#include "../Systems/Wallet.h"
 #include "../Utils/Log.h"
 #include <DirectXColors.h>
 #include <Windows.h>
@@ -84,6 +85,10 @@ void CampfireState::OnEnter()
         d3d.GetDevice(), d3d.GetContext(),
         std::wstring(fontPath.begin(), fontPath.end()),
         d3d.GetWidth(), d3d.GetHeight());
+    mCurrencyHud.Initialize(
+        d3d.GetDevice(), d3d.GetContext(),
+        std::wstring(fontPath.begin(), fontPath.end()),
+        d3d.GetWidth(), d3d.GetHeight());
 
     mCursor = 0;
     mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
@@ -114,6 +119,7 @@ void CampfireState::OnEnter()
 void CampfireState::OnExit()
 {
     LOG("[CampfireState] Closed campfire menu for '%s'.", mCampfireId.c_str());
+    mCurrencyHud.Shutdown();
     mTextRenderer.Shutdown();
     mDialogBox.Shutdown();
 }
@@ -459,16 +465,24 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
                 : LocalizationManager::Get().TextOrFallback("party.member." + info.leadMemberId, info.leadMemberId);
             if (info.hasPlayerPosition)
             {
-                char position[64]{};
-                std::snprintf(position, sizeof(position), "%.0f, %.0f", info.playerX, info.playerY);
+                char xText[32]{};
+                char yText[32]{};
+                char positionText[64]{};
+                std::snprintf(xText, sizeof(xText), "%.0f", info.playerX);
+                std::snprintf(yText, sizeof(yText), "%.0f", info.playerY);
+                std::snprintf(positionText, sizeof(positionText), "%s, %s", xText, yText);
                 const std::string text = LocalizationManager::Get().Format(
                     "campfire.slot_with_position",
                     {
                         { "index", std::to_string(i + 1) },
+                        { "label", lead },
+                        { "party", lead },
+                        { "x", xText },
+                        { "y", yText },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint },
-                        { "position", position }
+                        { "position", positionText }
                     });
                 std::snprintf(label, sizeof(label), "%s", text.c_str());
             }
@@ -478,6 +492,8 @@ void CampfireState::RenderSlotMenu(float panelX, float panelY)
                     "campfire.slot",
                     {
                         { "index", std::to_string(i + 1) },
+                        { "label", lead },
+                        { "party", lead },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint }
@@ -532,6 +548,8 @@ void CampfireState::Render()
 
     mDialogBox.Draw(ctx, 0.0f, 0.0f, screenW, screenH, 1.0f, identity, dim);
     mDialogBox.Draw(ctx, panelX, panelY, kPanelW, kPanelH, 1.0f, identity, panelColor);
+    mCurrencyHud.SetScreenSize(d3d.GetWidth(), d3d.GetHeight());
+    mCurrencyHud.RenderCampfirePanel(ctx, Wallet::Get().GetCoins(), panelX, panelY);
 
     mTextRenderer.BeginBatch(ctx);
     const std::string title = LocalizationManager::Get().Text("campfire.title");

@@ -70,6 +70,27 @@ struct BattlerStats
     // Clamp HP to [0, maxHp] after any modification.
     void ClampHp()    { if (hp < 0) hp = 0; if (hp > maxHp) hp = maxHp; }
 
+    // Clamp MP to [0, maxMp] after any modification.
+    void ClampMp()    { if (mp < 0) mp = 0; if (mp > maxMp) mp = maxMp; }
+
+    // Spend MP only when the caller has already committed a valid skill.
+    bool SpendMp(int amount)
+    {
+        if (amount <= 0) return true;
+        if (mp < amount) return false;
+        mp -= amount;
+        ClampMp();
+        return true;
+    }
+
+    // Restore MP from ethers, campfire effects, or future regeneration.
+    void RestoreMp(int amount)
+    {
+        if (amount <= 0) return;
+        mp += amount;
+        ClampMp();
+    }
+
     // Add rage, capped at maxRage.  No-op if maxRage == 0 (enemy).
     void AddRage(int amount)
     {

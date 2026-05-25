@@ -1,11 +1,14 @@
 {
-    "nameKey": "skill.attack.name",
-    "descriptionKey": "skill.attack.description",
-    "moveDuration": 0.3,
-    "returnDuration": 0.3,
-    "meleeOffset": 80.0,
-    "damageTakenOccurMoment": 0.6,
-    "qteSupported": true,
-    "qteStartMoment": 0.3,
-    "qteSlowMoScale": 0.1
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
+  "moveDuration": 0.3,
+  "returnDuration": 0.3,
+  "meleeOffset": 80.0,
+  "damageTakenOccurMoment": 0.6,
+  "qteSupported": true,
+  "qteStartMoment": 0.3,
+  "qteSlowMoScale": 0.1,
+  "uiSortGroup": "basic",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.medium"
 }

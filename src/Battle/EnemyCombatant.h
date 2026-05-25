@@ -18,11 +18,18 @@ class EnemyCombatant : public Combatant
 {
 public:
     // Legacy constructor — uses hardcoded MVP stats.
-    explicit EnemyCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath = "data/skills/attack.json");
+    explicit EnemyCombatant(std::string name,
+                            std::wstring turnViewPath,
+                            std::string attackJsonPath = "data/skills/attack.json",
+                            std::string debugName = std::string());
 
     // Data-driven constructor — stats come from EnemySlotData (loaded from JSON).
     // Use this when building enemies from EnemyEncounterData::battleParty.
-    EnemyCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& stats, std::string attackJsonPath = "data/skills/attack.json");
+    EnemyCombatant(std::string name,
+                   std::wstring turnViewPath,
+                   const BattlerStats& stats,
+                   std::string attackJsonPath = "data/skills/attack.json",
+                   std::string debugName = std::string());
 
     bool IsPlayerControlled() const override { return false; }
 

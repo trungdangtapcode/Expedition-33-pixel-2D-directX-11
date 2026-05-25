@@ -1,0 +1,20 @@
+{
+  "id": "power_up",
+  "nameKey": "status.power_up.name",
+  "descriptionKey": "status.power_up.description",
+  "iconId": "power_up",
+  "category": "buff",
+  "durationTurns": 3,
+  "stackPolicy": "refresh",
+  "maxStacks": 1,
+  "dispellable": true,
+  "modifiers": [
+    {
+      "stat": "atk",
+      "op": "add_percent",
+      "value": 30
+    }
+  ],
+  "shortDescriptionKey": "status.power_up.short",
+  "durationLabelKey": "battle.skill_ui.status_meta"
+}

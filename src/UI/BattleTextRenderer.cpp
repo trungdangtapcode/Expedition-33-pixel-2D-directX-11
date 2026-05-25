@@ -153,6 +153,28 @@ void BattleTextRenderer::DrawStringRaw(const char*  text,
     mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x, y), color);
 }
 
+void BattleTextRenderer::DrawStringRawScaled(const char* text,
+                                             float       x,
+                                             float       y,
+                                             FXMVECTOR   color,
+                                             float       scale,
+                                             bool        drawOutline)
+{
+    if (!IsReady() || !text || !*text) return;
+
+    if (drawOutline) {
+        XMVECTOR outlineColor = Colors::Black;
+        outlineColor.m128_f32[3] = color.m128_f32[3];
+
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x - 2.0f, y), outlineColor, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x + 2.0f, y), outlineColor, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x, y - 2.0f), outlineColor, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+        mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x, y + 2.0f), outlineColor, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+    }
+
+    mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(x, y), color, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+}
+
 void BattleTextRenderer::DrawStringCenteredRaw(const char* text,
                                                float       centerX,
                                                float       y,

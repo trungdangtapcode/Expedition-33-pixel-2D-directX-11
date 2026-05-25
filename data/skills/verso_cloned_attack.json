@@ -13,5 +13,8 @@
     "data/bullet_patterns/skeleton_bones.json",
     "data/bullet_patterns/skeleton_crossfire.json",
     "data/bullet_patterns/archer_pattern.json"
-  ]
+  ],
+  "uiSortGroup": "enemy",
+  "hitCount": 2,
+  "damageGradeKey": "battle.damage_grade.high"
 }

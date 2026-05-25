@@ -5,7 +5,7 @@
 //                 the 300-line per-file ceiling.
 //
 // All methods are screen-space (Identity transform).  No member
-// state changes — these only read mTab/mPhase/cursors and submit
+// state changes; these only read mTab/mPhase/cursors and submit
 // SpriteBatch + text draws.
 // ============================================================
 #define NOMINMAX
@@ -130,7 +130,7 @@ void InventoryState::RenderTabs(float panelX, float panelY, float panelW)
 }
 
 // ------------------------------------------------------------
-// RenderItemsTab — 4-column grid of consumables
+// RenderItemsTab - 4-column grid of consumables
 // ------------------------------------------------------------
 void InventoryState::RenderItemsTab(float leftX, float leftY,
                                       float leftW, float leftH)
@@ -153,7 +153,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
     //   - When the inventory has more than 12 consumables, the window
     //     scrolls to keep the cursor's row in the middle whenever possible
     //     (same centering rule the battle item menu uses).
-    //   - Cells outside the window are NOT submitted to the GPU — this
+    //   - Cells outside the window are NOT submitted to the GPU; this
     //     keeps draw-call count constant regardless of inventory size.
     //   - A scrollbar (track + thumb) plus up/down chevron sprites are
     //     drawn alongside the grid when the list overflows the window.
@@ -163,7 +163,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
     //   battle item menu uses the same rule, so muscle memory transfers.
     // ------------------------------------------------------------
     constexpr int   kCols        = 4;
-    constexpr int   kVisibleRows = 3;       // 3 × 4 = 12 cells visible
+    constexpr int   kVisibleRows = 3;       // 3 x 4 = 12 cells visible
     constexpr float kCellGap     = 10.0f;
     const     float cellSize     = (leftW - kCellGap * (kCols - 1)) / kCols;
 
@@ -186,7 +186,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
         for (int col = 0; col < kCols; ++col)
         {
             const int i = row * kCols + col;
-            if (i >= n) break;   // partial last row — fewer than kCols cells
+            if (i >= n) break;   // partial last row with fewer than kCols cells
 
             // Position uses the WINDOW row, not the absolute row, so
             // visible content always starts at leftY regardless of scroll.
@@ -204,7 +204,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
             mDialogBox.Draw(ctx, cellX, cellY, cellSize, cellSize,
                             0.4f, DirectX::XMMatrixIdentity(), cellColor);
 
-            // Colored frame — always drawn.  Doubles as the icon's
+            // Colored frame is always drawn. It doubles as the icon's
             // "frame" when real art is overlaid below, and as the
             // standalone visual when art is missing.  See IconTintFor
             // doc-comment for the dual-purpose rationale.
@@ -217,7 +217,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
                             DirectX::XMMatrixIdentity(),
                             IconTintFor(item, kAlpha));
 
-            // Real PNG (if loaded) — overlaid with a 10% inset so the
+            // Real PNG, if loaded, is overlaid with a 10% inset so the
             // colored frame remains visible as a 1-2 px halo.
             if (auto* srv = ItemIconCache::Get().GetIcon(item))
             {
@@ -252,7 +252,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
     //       thumb pos    = (firstRow / (totalRows - kVisibleRows)) * remainder
     //
     // Skipped entirely when totalRows <= kVisibleRows because there's
-    // nothing to indicate — drawing them anyway is visual noise.
+    // nothing to indicate, and drawing them anyway is visual noise.
     // ------------------------------------------------------------
     if (totalRows > kVisibleRows)
     {
@@ -279,7 +279,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
                               DirectX::XMMatrixIdentity(), chevronColor);
         }
 
-        // Scrollbar — thin vertical strip flush against the right edge.
+        // Scrollbar: thin vertical strip flush against the right edge.
         const float trackW = 8.0f;
         const float trackX = gridRight + 4.0f;
         const float trackY = leftY;
@@ -305,7 +305,7 @@ void InventoryState::RenderItemsTab(float leftX, float leftY,
 }
 
 // ------------------------------------------------------------
-// RenderEquipmentTab — slot list (4 rows) OR picker overlay
+// RenderEquipmentTab - slot list (4 rows) OR picker overlay
 // ------------------------------------------------------------
 void InventoryState::RenderEquipmentTab(float leftX, float leftY,
                                           float leftW, float leftH)
@@ -482,7 +482,7 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
                                   leftX + 130.0f, rowY + 8.0f,
                                   hovered ? DirectX::Colors::Black : DirectX::Colors::Gray);
 
-        // Inline icon swatch on the right edge — colored frame always
+        // Inline icon swatch on the right edge: colored frame always
         // (so an empty slot would be invisible; this only runs when item
         // is non-null), real PNG overlaid when available.
         if (item)
@@ -507,12 +507,12 @@ void InventoryState::RenderEquipmentTab(float leftX, float leftY,
 }
 
 // ------------------------------------------------------------
-// RenderDetailPanel lives in InventoryStateDetailPanel.cpp — it was
+// RenderDetailPanel lives in InventoryStateDetailPanel.cpp; it was
 // extracted to keep this file under the 300-line CLAUDE.md ceiling.
 // ------------------------------------------------------------
 
 // ------------------------------------------------------------
-// RenderStatsFooter — single line of effective Verso stats.
+// RenderStatsFooter - single line of effective Verso stats.
 // Always shows EFFECTIVE values (with current equipment), not base.
 // ------------------------------------------------------------
 void InventoryState::RenderStatsFooter(float panelX, float footerY,
@@ -535,7 +535,7 @@ void InventoryState::RenderStatsFooter(float panelX, float footerY,
 }
 
 // ------------------------------------------------------------
-// RenderHintFooter — bottom hint line + flash message.
+// RenderHintFooter - bottom hint line + flash message.
 // ------------------------------------------------------------
 void InventoryState::RenderHintFooter(float panelX, float footerY,
                                         float panelW, float footerH)
@@ -558,7 +558,10 @@ void InventoryState::RenderHintFooter(float panelX, float footerY,
         hint = LocalizationManager::Get().Text("inventory.hint.items");
         break;
     case Phase::EquipmentSlots:
-        hint = LocalizationManager::Get().Text("inventory.hint.equipment");
+        hint = LocalizationManager::Get().Text(
+            mAllowEquipmentChanges
+                ? "inventory.hint.equipment"
+                : "inventory.hint.equipment_locked");
         break;
     case Phase::EquipmentPicker:
         hint = LocalizationManager::Get().Text("inventory.hint.picker");

@@ -14,6 +14,7 @@ class FightCommand : public IBattleCommand
 {
 public:
     std::string GetLabel() const override;
+    std::string GetDebugLabel() const override;
 
     // Advance the BattleState input phase to SKILL_SELECT.
     void Execute(BattleState& state) const override;

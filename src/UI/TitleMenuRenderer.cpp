@@ -35,6 +35,7 @@ namespace
     constexpr float kHighlightH = 32.0f;
     constexpr size_t kSlotSecondaryLimit = 62;
     constexpr int kParticleCount = 56;
+    constexpr int kMeterSegmentCount = 10;
 
     // ------------------------------------------------------------
     // Function: ReadTextFile
@@ -224,6 +225,24 @@ bool TitleMenuRenderer::LoadLayout(const std::string& layoutPath)
     mLayout.optionStartY = ReadJsonFloat(src, "optionStartY", mLayout.optionStartY);
     mLayout.optionRowHeight = ReadJsonFloat(src, "optionRowHeight", mLayout.optionRowHeight);
     mLayout.optionTextScale = ReadJsonFloat(src, "optionTextScale", mLayout.optionTextScale);
+    mLayout.optionsPanelWidth = ReadJsonFloat(src, "optionsPanelWidth", mLayout.optionsPanelWidth);
+    mLayout.optionsPanelHeight = ReadJsonFloat(src, "optionsPanelHeight", mLayout.optionsPanelHeight);
+    mLayout.optionsPanelBottom = ReadJsonFloat(src, "optionsPanelBottom", mLayout.optionsPanelBottom);
+    mLayout.optionsPanelAlpha = Clamp01(ReadJsonFloat(src, "optionsPanelAlpha", mLayout.optionsPanelAlpha));
+    mLayout.optionsBandAlpha = Clamp01(ReadJsonFloat(src, "optionsBandAlpha", mLayout.optionsBandAlpha));
+    mLayout.optionsStartY = ReadJsonFloat(src, "optionsStartY", mLayout.optionsStartY);
+    mLayout.optionsRowHeight = ReadJsonFloat(src, "optionsRowHeight", mLayout.optionsRowHeight);
+    mLayout.optionsHighlightHeight = ReadJsonFloat(src, "optionsHighlightHeight", mLayout.optionsHighlightHeight);
+    mLayout.optionsHighlightInset = ReadJsonFloat(src, "optionsHighlightInset", mLayout.optionsHighlightInset);
+    mLayout.optionsLabelInset = ReadJsonFloat(src, "optionsLabelInset", mLayout.optionsLabelInset);
+    mLayout.optionsValueRightInset = ReadJsonFloat(src, "optionsValueRightInset", mLayout.optionsValueRightInset);
+    mLayout.optionsMeterRightInset = ReadJsonFloat(src, "optionsMeterRightInset", mLayout.optionsMeterRightInset);
+    mLayout.optionsMeterSegmentWidth = ReadJsonFloat(src, "optionsMeterSegmentWidth", mLayout.optionsMeterSegmentWidth);
+    mLayout.optionsMeterSegmentHeight = ReadJsonFloat(src, "optionsMeterSegmentHeight", mLayout.optionsMeterSegmentHeight);
+    mLayout.optionsMeterSegmentGap = ReadJsonFloat(src, "optionsMeterSegmentGap", mLayout.optionsMeterSegmentGap);
+    mLayout.optionsFutureTagOffset = ReadJsonFloat(src, "optionsFutureTagOffset", mLayout.optionsFutureTagOffset);
+    mLayout.optionsFutureTagWidth = ReadJsonFloat(src, "optionsFutureTagWidth", mLayout.optionsFutureTagWidth);
+    mLayout.optionsFutureTagHeight = ReadJsonFloat(src, "optionsFutureTagHeight", mLayout.optionsFutureTagHeight);
     mLayout.slotStartY = ReadJsonFloat(src, "slotStartY", mLayout.slotStartY);
     mLayout.slotRowHeight = ReadJsonFloat(src, "slotRowHeight", mLayout.slotRowHeight);
     mLayout.flashDuration = ReadJsonFloat(src, "flashDuration", mLayout.flashDuration);
@@ -549,6 +568,10 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
     {
         RenderLoadSlots(context, state);
     }
+    else if (state.phase == TitleMenuVisualPhase::Options)
+    {
+        RenderOptions(context, state);
+    }
     else
     {
         RenderMainOptions(context, state);
@@ -595,7 +618,7 @@ void TitleMenuRenderer::RenderPressStart(ID3D11DeviceContext* context,
 //   the screen from becoming a floating dialog box.
 // ------------------------------------------------------------
 void TitleMenuRenderer::RenderMainOptions(ID3D11DeviceContext* context,
-                                          const TitleMenuRenderState& state)
+                                           const TitleMenuRenderState& state)
 {
     const float screenW = static_cast<float>(mScreenW);
     const float screenH = static_cast<float>(mScreenH);
@@ -647,6 +670,164 @@ void TitleMenuRenderer::RenderMainOptions(ID3D11DeviceContext* context,
         mTextRenderer.DrawStringCenteredRaw(state.flashMessage.c_str(),
                                             screenW * 0.5f,
                                             listY + mLayout.optionRowHeight * 4.5f,
+                                            DirectX::XMVectorSet(0.72f, 1.0f, 0.72f,
+                                                                  Clamp01(state.flashAlpha)));
+    }
+
+    mTextRenderer.EndBatch();
+}
+
+// ------------------------------------------------------------
+// Function: RenderOptions
+// Purpose:
+//   Draw the language and audio settings panel with value columns and
+//   compact volume meters.
+// Why:
+//   The Options screen needs denser controls than the main command list
+//   while preserving the quiet title composition.
+// ------------------------------------------------------------
+void TitleMenuRenderer::RenderOptions(ID3D11DeviceContext* context,
+                                      const TitleMenuRenderState& state)
+{
+    const float screenW = static_cast<float>(mScreenW);
+    const float screenH = static_cast<float>(mScreenH);
+    const float panelW = std::min(mLayout.optionsPanelWidth, screenW - kPanelMargin * 2.0f);
+    const float panelH = std::min(mLayout.optionsPanelHeight, screenH - kPanelMargin * 2.0f);
+    const float panelX = (screenW - panelW) * 0.5f;
+    float panelY = screenH - panelH - mLayout.optionsPanelBottom;
+    panelY = std::max(kPanelMargin, panelY);
+
+    DrawFillRect(context,
+                 0.0f,
+                 panelY - 20.0f,
+                 screenW,
+                 panelH + 40.0f,
+                 DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, mLayout.optionsBandAlpha));
+    DrawFillRect(context,
+                 panelX,
+                 panelY,
+                 panelW,
+                 panelH,
+                 DirectX::XMVectorSet(0.03f, 0.03f, 0.035f, mLayout.optionsPanelAlpha));
+
+    const float highlightW = std::max(0.0f, panelW - mLayout.optionsHighlightInset * 2.0f);
+    const float pulse = 0.22f + 0.10f * std::sin(state.elapsed * 5.4f);
+    if (state.cursor >= 0 && state.cursor < static_cast<int>(state.options.size()))
+    {
+        const float rowY = panelY + mLayout.optionsStartY +
+            static_cast<float>(state.cursor) * mLayout.optionsRowHeight - 7.0f;
+        DrawFillRect(context,
+                     panelX + mLayout.optionsHighlightInset,
+                     rowY,
+                     highlightW,
+                     mLayout.optionsHighlightHeight,
+                     DirectX::XMVectorSet(0.82f, 0.56f, 0.24f, pulse));
+    }
+
+    const float segmentTotalW =
+        static_cast<float>(kMeterSegmentCount) * mLayout.optionsMeterSegmentWidth +
+        static_cast<float>(kMeterSegmentCount - 1) * mLayout.optionsMeterSegmentGap;
+    const float meterX = panelX + panelW - mLayout.optionsMeterRightInset - segmentTotalW;
+
+    for (int i = 0; i < static_cast<int>(state.options.size()); ++i)
+    {
+        const TitleMenuOptionView& option = state.options[static_cast<size_t>(i)];
+        if (!option.showMeter) continue;
+
+        const bool selected = (i == state.cursor);
+        const int filledSegments = static_cast<int>(
+            std::round(Clamp01(option.meterValue) * static_cast<float>(kMeterSegmentCount)));
+        const float rowCenterY = panelY + mLayout.optionsStartY +
+            static_cast<float>(i) * mLayout.optionsRowHeight + 9.0f;
+        const float segmentY = rowCenterY + 8.0f;
+
+        for (int segment = 0; segment < kMeterSegmentCount; ++segment)
+        {
+            const bool filled = segment < filledSegments;
+            const float segmentX = meterX +
+                static_cast<float>(segment) *
+                (mLayout.optionsMeterSegmentWidth + mLayout.optionsMeterSegmentGap);
+            const float alpha = option.isFuture ? 0.72f : 1.0f;
+            const DirectX::XMVECTOR color = filled
+                ? DirectX::XMVectorSet(0.83f, 0.61f, 0.31f, selected ? alpha : alpha * 0.82f)
+                : DirectX::XMVectorSet(0.42f, 0.40f, 0.36f, selected ? 0.46f : 0.28f);
+
+            DrawFillRect(context,
+                         segmentX,
+                         segmentY,
+                         mLayout.optionsMeterSegmentWidth,
+                         mLayout.optionsMeterSegmentHeight,
+                         color);
+        }
+    }
+
+    for (int i = 0; i < static_cast<int>(state.options.size()); ++i)
+    {
+        const TitleMenuOptionView& option = state.options[static_cast<size_t>(i)];
+        if (!option.isFuture) continue;
+
+        const bool selected = (i == state.cursor);
+        const float rowY = panelY + mLayout.optionsStartY +
+            static_cast<float>(i) * mLayout.optionsRowHeight;
+        DrawFillRect(context,
+                     panelX + mLayout.optionsLabelInset + mLayout.optionsFutureTagOffset,
+                     rowY + 1.0f,
+                     mLayout.optionsFutureTagWidth,
+                     mLayout.optionsFutureTagHeight,
+                     DirectX::XMVectorSet(0.58f, 0.50f, 0.34f, selected ? 0.24f : 0.14f));
+    }
+
+    mTextRenderer.BeginBatch(context);
+    for (int i = 0; i < static_cast<int>(state.options.size()); ++i)
+    {
+        const TitleMenuOptionView& option = state.options[static_cast<size_t>(i)];
+        const bool selected = (i == state.cursor);
+        const float rowY = panelY + mLayout.optionsStartY +
+            static_cast<float>(i) * mLayout.optionsRowHeight;
+        const float labelAlpha = option.isFuture ? 0.72f : 0.92f;
+        const DirectX::XMVECTOR labelColor = !option.enabled
+            ? DirectX::Colors::DimGray
+            : (selected
+                ? DirectX::XMVectorSet(1.0f, 0.91f, 0.58f, 1.0f)
+                : DirectX::XMVectorSet(0.88f, 0.86f, 0.80f, labelAlpha));
+        const DirectX::XMVECTOR valueColor = option.isFuture
+            ? DirectX::XMVectorSet(0.72f, 0.70f, 0.64f, selected ? 0.92f : 0.68f)
+            : DirectX::XMVectorSet(0.92f, 0.88f, 0.78f, selected ? 1.0f : 0.82f);
+
+        char label[128]{};
+        std::snprintf(label, sizeof(label), selected ? ">  %s" : "%s", option.label.c_str());
+        mTextRenderer.DrawStringRaw(label,
+                                    panelX + mLayout.optionsLabelInset,
+                                    rowY,
+                                    labelColor);
+
+        if (option.isFuture)
+        {
+            const float tagX = panelX + mLayout.optionsLabelInset + mLayout.optionsFutureTagOffset;
+            const float tagY = rowY + 1.0f;
+            mTextRenderer.DrawStringCenteredRaw(
+                LocalizationManager::Get().Text("menu.option_future").c_str(),
+                tagX + mLayout.optionsFutureTagWidth * 0.5f,
+                tagY,
+                DirectX::XMVectorSet(0.72f, 0.68f, 0.54f, selected ? 0.96f : 0.62f),
+                0.78f,
+                false);
+        }
+
+        if (!option.value.empty())
+        {
+            mTextRenderer.DrawStringRaw(option.value.c_str(),
+                                        panelX + panelW - mLayout.optionsValueRightInset,
+                                        rowY,
+                                        valueColor);
+        }
+    }
+
+    if (!state.flashMessage.empty() && state.flashAlpha > 0.0f)
+    {
+        mTextRenderer.DrawStringCenteredRaw(state.flashMessage.c_str(),
+                                            panelX + panelW * 0.5f,
+                                            panelY + panelH - 36.0f,
                                             DirectX::XMVectorSet(0.72f, 1.0f, 0.72f,
                                                                   Clamp01(state.flashAlpha)));
     }

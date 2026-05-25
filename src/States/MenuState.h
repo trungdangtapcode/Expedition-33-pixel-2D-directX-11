@@ -49,6 +49,9 @@ private:
     enum class OptionsOption
     {
         Language,
+        BgmVolume,
+        SfxVolume,
+        VoiceVolume,
         Back,
         Count
     };
@@ -70,6 +73,7 @@ private:
     void ActivateOptionsSelection();
     void ActivateSlotSelection();
     void CycleLanguage(int direction);
+    void AdjustVolume(OptionsOption option, int direction, bool wrap);
     void StartNewGame(int slotIndex);
     void ContinueFirstSlot();
     bool LoadSlot(int slotIndex);
@@ -85,6 +89,7 @@ private:
     static std::string MainOptionLabel(MainOption option);
     static int MainOptionCount();
     static int OptionsOptionCount();
+    static bool IsVolumeOption(OptionsOption option);
 
     TitleMenuRenderer mRenderer;
     Phase mPhase = Phase::PressStart;

@@ -8,6 +8,7 @@
 #include "GameProgress.h"
 #include "Inventory.h"
 #include "PartyManager.h"
+#include "Wallet.h"
 #include "../Events/EventManager.h"
 #include "../Utils/JsonLoader.h"
 #include "../Utils/Log.h"
@@ -413,6 +414,7 @@ SaveSlotInfo SaveManager::GetSlotInfo(int slotIndex) const
     info.checkpointId = ReadJsonString(src, "checkpointId");
     info.sceneId = ReadJsonString(src, "sceneId");
     info.reason = ReadJsonString(src, "reason");
+    info.coins = ReadJsonInt(src, "coins");
     info.playerX = ReadJsonFloat(src, "playerX", mConfig.defaultPlayerX);
     info.playerY = ReadJsonFloat(src, "playerY", mConfig.defaultPlayerY);
     info.hasPlayerPosition = !JsonLoader::detail::ValueOf(src, "playerX").empty() &&
@@ -476,6 +478,7 @@ bool SaveManager::SaveCheckpointToSlot(int slotIndex, const std::string& reason)
 
     const std::vector<PartyMemberProgress> party = PartyManager::Get().CaptureProgress();
     const std::vector<InventoryEntry> inventory = Inventory::Get().CaptureEntries();
+    const int coins = Wallet::Get().GetCoins();
     const std::vector<std::string> flags = GameProgress::Get().CaptureFlags();
     const OverworldProgressSnapshot world =
         ResolveWorldSnapshot(GameProgress::Get().CaptureOverworldSnapshot(), mConfig);
@@ -513,6 +516,7 @@ bool SaveManager::SaveCheckpointToSlot(int slotIndex, const std::string& reason)
     file << "  \"playerX\": " << world.playerX << ",\n";
     file << "  \"playerY\": " << world.playerY << ",\n";
     file << "  \"reason\": " << JsonString(reason) << ",\n";
+    file << "  \"coins\": " << coins << ",\n";
     file << "  \"party\": [\n";
 
     for (size_t i = 0; i < party.size(); ++i)
@@ -602,6 +606,7 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
     }
 
     const std::string reason = ReadJsonString(src, "reason");
+    const int savedCoins = ReadJsonInt(src, "coins", Wallet::Get().GetDefaultCoins());
     OverworldProgressSnapshot world{};
     world.sceneId = ReadJsonString(src, "sceneId", mConfig.autoSceneId);
     world.checkpointId = ReadJsonString(src, "checkpointId", mConfig.defaultCheckpointId);
@@ -663,6 +668,7 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
 
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ReplaceAll(entries);
+    Wallet::Get().SetCoins(savedCoins);
     GameProgress::Get().ReplaceFlags(flags);
     GameProgress::Get().ReplaceOverworldSnapshot(world);
     PartyManager::Get().ApplyProgress(partyProgress);

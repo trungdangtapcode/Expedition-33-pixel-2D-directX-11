@@ -1,5 +1,5 @@
 {
-  "comment":  "Skeleton Horde — group encounter (3 enemies in battle).",
+  "comment":  "Skeleton Horde -- group encounter (3 enemies in battle).",
   "comment2": "Top-level fields: overworld sprite + collision radius.",
   "comment3": "battleParty: three entries = 3-vs-party fight.",
 
@@ -8,50 +8,54 @@
   "texturePath": "assets/animations/skeleton.png",
   "jsonPath": "assets/animations/skeleton.json",
   "turnViewPath": "assets/UI/turn-view-skeleton.png",
-        "idleClip": "idle",
+  "idleClip": "idle",
   "contactRadius": 90.0,
   "environmentPath": "assets/environments/battle-paris-view.json",
+  "victoryBgmTrackId": "the_end_in_me_victory",
 
   "battleParty": [
     {
-      "comment": "Slot 0 — front-line skeleton: higher HP and ATK.",
+      "comment": "Slot 0 -- front-line skeleton: higher HP and ATK.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
       "turnViewPath": "assets/UI/turn-view-skeleton.png",
-            "idleClip": "idle",
+      "idleClip": "idle",
       "hp": 60,
       "atk": 12,
       "def": 6,
       "spd": 4,
       "expReward": 45,
+      "coinReward": 12,
       "attackJsonPath": "data/skills/skeleton_attack.json",
       "cameraFocusOffsetY": -128.0
     },
     {
-      "comment": "Slot 1 — fast scout: low HP but high SPD.",
+      "comment": "Slot 1 -- fast scout: low HP but high SPD.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
       "turnViewPath": "assets/UI/turn-view-skeleton.png",
-            "idleClip": "idle",
+      "idleClip": "idle",
       "hp": 30,
       "atk": 7,
       "def": 3,
       "spd": 8,
       "expReward": 35,
+      "coinReward": 9,
       "attackJsonPath": "data/skills/skeleton_scout_attack.json",
       "cameraFocusOffsetY": -128.0
     },
     {
-      "comment": "Slot 2 — archer skeleton: balanced stats.",
+      "comment": "Slot 2 -- archer skeleton: balanced stats.",
       "texturePath": "assets/animations/skeleton.png",
       "jsonPath": "assets/animations/skeleton.json",
       "turnViewPath": "assets/UI/turn-view-skeleton.png",
-            "idleClip": "idle",
+      "idleClip": "idle",
       "hp": 35,
       "atk": 8,
       "def": 4,
       "spd": 5,
       "expReward": 40,
+      "coinReward": 10,
       "attackJsonPath": "data/skills/skeleton_archer_attack.json",
       "cameraFocusOffsetY": -128.0
     }

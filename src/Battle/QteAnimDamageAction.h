@@ -57,6 +57,8 @@ private:
     const BattleContext* mCtx;
 
     void BroadcastQteFeedback(QTEResult result, float ratio);
+    void PlayQteStartSfx() const;
+    void PlayQteResultSfx(QTEResult result) const;
 
     bool mHasStarted = false;
     bool mQteActive = false;

@@ -13,5 +13,8 @@
     "data/bullet_patterns/archer_pattern.json"
   ],
   "qteSupported": false,
-  "damageTakenOccurMoment": 0.5
+  "damageTakenOccurMoment": 0.5,
+  "uiSortGroup": "enemy",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.high"
 }

@@ -185,6 +185,9 @@ bool ItemRegistry::LoadFile(const std::string& path)
     data.description = StripQuotes(JsonLoader::detail::ValueOf(src, "description"));
     data.iconPath    = StripQuotes(JsonLoader::detail::ValueOf(src, "iconPath"));
 
+    const std::string rawName = data.name;
+    const std::string rawDescription = data.description;
+
     if (data.id.empty())
     {
         LOG("[ItemRegistry] '%s' has no 'id' field — skipping.", path.c_str());
@@ -193,10 +196,16 @@ bool ItemRegistry::LoadFile(const std::string& path)
 
     data.name = LocalizationManager::Get().TextOrFallback(
         data.nameKey,
-        data.name.empty() ? data.id : data.name);
+        rawName.empty() ? data.id : rawName);
     data.description = LocalizationManager::Get().TextOrFallback(
         data.descriptionKey,
-        data.description);
+        rawDescription);
+    data.debugName = LocalizationManager::Get().TextOrFallbackEnglish(
+        data.nameKey,
+        rawName.empty() ? data.id : rawName);
+    data.debugDescription = LocalizationManager::Get().TextOrFallbackEnglish(
+        data.descriptionKey,
+        rawDescription);
 
     data.targeting = ParseTargeting(JsonLoader::detail::ValueOf(src, "targeting"));
     data.effect    = ParseEffect   (JsonLoader::detail::ValueOf(src, "effect"));

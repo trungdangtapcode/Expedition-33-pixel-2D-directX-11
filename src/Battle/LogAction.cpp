@@ -1,24 +1,44 @@
 // ============================================================
 // File: LogAction.cpp
+// Responsibility: Append localized and English debug battle log lines.
 // ============================================================
 #include "LogAction.h"
+#include <utility>
 
-LogAction::LogAction(std::vector<std::string>* log, std::string message)
+namespace
+{
+    constexpr std::size_t kMaxLogLines = 64;
+
+    void PushCapped(std::vector<std::string>* log, const std::string& line)
+    {
+        if (!log) return;
+
+        log->push_back(line);
+        if (log->size() > kMaxLogLines)
+        {
+            log->erase(log->begin());
+        }
+    }
+}
+
+LogAction::LogAction(std::vector<std::string>* log,
+                     std::string message,
+                     std::vector<std::string>* debugLog,
+                     std::string debugMessage)
     : mLog(log)
+    , mDebugLog(debugLog)
     , mMessage(std::move(message))
+    , mDebugMessage(std::move(debugMessage))
 {}
+
+const std::string& LogAction::GetDebugText() const
+{
+    return mDebugMessage.empty() ? mMessage : mDebugMessage;
+}
 
 bool LogAction::Execute(float /*dt*/)
 {
-    if (mLog)
-    {
-        mLog->push_back(mMessage);
-
-        // Cap the log so it doesn't grow unbounded across a long battle.
-        // BattleState only renders the last N lines anyway; keep tail only.
-        constexpr std::size_t kMaxLogLines = 64;
-        if (mLog->size() > kMaxLogLines)
-            mLog->erase(mLog->begin());
-    }
+    PushCapped(mLog, mMessage);
+    PushCapped(mDebugLog, GetDebugText());
     return true;
 }

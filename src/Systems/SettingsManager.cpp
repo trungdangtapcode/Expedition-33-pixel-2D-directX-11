@@ -8,11 +8,13 @@
 #include "../Utils/Log.h"
 #include <filesystem>
 #include <fstream>
+#include <cmath>
 #include <sstream>
 
 namespace
 {
     constexpr const char* kSettingsPath = "save/settings.json";
+    constexpr float kVolumeChangeEpsilon = 0.0001f;
 
     std::filesystem::path ResolveReadablePath(const std::string& path)
     {
@@ -84,6 +86,13 @@ namespace
         if (raw.empty()) return fallback;
         return JsonLoader::detail::CleanString(raw);
     }
+
+    float ClampVolume(float value)
+    {
+        if (value < 0.0f) return 0.0f;
+        if (value > 1.0f) return 1.0f;
+        return value;
+    }
 }
 
 SettingsManager& SettingsManager::Get()
@@ -100,6 +109,7 @@ void SettingsManager::Initialize()
     if (!Load())
     {
         LOG("[SettingsManager] No settings file found. Using defaults.");
+        Save();
     }
 }
 
@@ -112,10 +122,38 @@ bool SettingsManager::Load()
     JsonLoader::detail::WarnIfUTF16(src, kSettingsPath);
 
     mLanguageId = ReadJsonString(src, "language", mLanguageId);
+    bool needsSave = false;
+
+    const std::string bgmRaw = JsonLoader::detail::ValueOf(src, "bgmVolume");
+    const std::string sfxRaw = JsonLoader::detail::ValueOf(src, "sfxVolume");
+    const std::string voiceRaw = JsonLoader::detail::ValueOf(src, "voiceVolume");
+
     mBgmVolume = JsonLoader::detail::ParseFloat(
-        JsonLoader::detail::ValueOf(src, "bgmVolume"), mBgmVolume);
+        bgmRaw, mBgmVolume);
     mSfxVolume = JsonLoader::detail::ParseFloat(
-        JsonLoader::detail::ValueOf(src, "sfxVolume"), mSfxVolume);
+        sfxRaw, mSfxVolume);
+    mVoiceVolume = JsonLoader::detail::ParseFloat(
+        voiceRaw, mVoiceVolume);
+
+    const float clampedBgm = ClampVolume(mBgmVolume);
+    const float clampedSfx = ClampVolume(mSfxVolume);
+    const float clampedVoice = ClampVolume(mVoiceVolume);
+    needsSave = needsSave ||
+        bgmRaw.empty() ||
+        sfxRaw.empty() ||
+        voiceRaw.empty() ||
+        std::fabs(clampedBgm - mBgmVolume) > kVolumeChangeEpsilon ||
+        std::fabs(clampedSfx - mSfxVolume) > kVolumeChangeEpsilon ||
+        std::fabs(clampedVoice - mVoiceVolume) > kVolumeChangeEpsilon;
+
+    mBgmVolume = clampedBgm;
+    mSfxVolume = clampedSfx;
+    mVoiceVolume = clampedVoice;
+
+    if (needsSave)
+    {
+        Save();
+    }
 
     LOG("[SettingsManager] Loaded settings from '%s'.", path.string().c_str());
     return true;
@@ -145,7 +183,8 @@ bool SettingsManager::Save() const
     file << "{\n";
     file << "  \"language\": " << JsonString(mLanguageId) << ",\n";
     file << "  \"bgmVolume\": " << mBgmVolume << ",\n";
-    file << "  \"sfxVolume\": " << mSfxVolume << "\n";
+    file << "  \"sfxVolume\": " << mSfxVolume << ",\n";
+    file << "  \"voiceVolume\": " << mVoiceVolume << "\n";
     file << "}\n";
 
     LOG("[SettingsManager] Saved settings to '%s'.", path.string().c_str());
@@ -157,5 +196,32 @@ void SettingsManager::SetLanguageId(const std::string& languageId)
     if (languageId.empty() || languageId == mLanguageId) return;
 
     mLanguageId = languageId;
+    Save();
+}
+
+void SettingsManager::SetBgmVolume(float volume)
+{
+    const float clamped = ClampVolume(volume);
+    if (std::fabs(clamped - mBgmVolume) <= kVolumeChangeEpsilon) return;
+
+    mBgmVolume = clamped;
+    Save();
+}
+
+void SettingsManager::SetSfxVolume(float volume)
+{
+    const float clamped = ClampVolume(volume);
+    if (std::fabs(clamped - mSfxVolume) <= kVolumeChangeEpsilon) return;
+
+    mSfxVolume = clamped;
+    Save();
+}
+
+void SettingsManager::SetVoiceVolume(float volume)
+{
+    const float clamped = ClampVolume(volume);
+    if (std::fabs(clamped - mVoiceVolume) <= kVolumeChangeEpsilon) return;
+
+    mVoiceVolume = clamped;
     Save();
 }

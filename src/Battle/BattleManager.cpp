@@ -20,7 +20,57 @@
 #include "WaitAction.h"
 #include "ParallelAction.h"
 
+namespace
+{
+    constexpr std::size_t kMaxBattleLogLines = 64;
+
+    std::string ToCliAscii(const std::string& text)
+    {
+        std::string out;
+        out.reserve(text.size());
+        for (unsigned char ch : text)
+        {
+            if (ch >= 32 && ch <= 126)
+            {
+                out.push_back(static_cast<char>(ch));
+            }
+            else if (ch == '\t' || ch == '\r' || ch == '\n')
+            {
+                out.push_back(' ');
+            }
+            else
+            {
+                out.push_back('?');
+            }
+        }
+        return out;
+    }
+
+    const std::string& DebugItemName(const ItemData& item)
+    {
+        return item.debugName.empty() ? item.id : item.debugName;
+    }
+}
+
 BattleManager::BattleManager() = default;
+
+void BattleManager::Reset()
+{
+    mPlayers.clear();
+    mEnemies.clear();
+    mTimeline.clear();
+    mQueue.Clear();
+    mPhase = BattlePhase::INIT;
+    mOutcome = BattleOutcome::NONE;
+    mBattleLog.clear();
+    mDebugBattleLog.clear();
+    mTotalExpPool = 0;
+    mTotalCoinPool = 0;
+    mContext = BattleContext{};
+    mPendingTurnStartCombatant = nullptr;
+    mPendingTurnEndCombatant = nullptr;
+    mResolvingTurnStartEffects = false;
+}
 
 // ------------------------------------------------------------
 // Initialize: create combatants from encounter data and build the
@@ -36,21 +86,25 @@ BattleManager::BattleManager() = default;
 // ------------------------------------------------------------
 void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLoader::BattleSystemConfig& config)
 {
+    Reset();
     mContext.config = config;
-    mTotalExpPool   = 0;
 
     // -- Spawn player party natively pulling from PartyManager arrays! --
     auto& activeParty = PartyManager::Get().GetActiveParty();
     for (size_t i = 0; i < activeParty.size(); ++i) {
         mPlayers.push_back(std::make_unique<PlayerCombatant>(
             activeParty[i].name, activeParty[i].turnViewPath,
-            PartyManager::Get().GetEffectiveStats(i)));
+            PartyManager::Get().GetEffectiveStats(i),
+            activeParty[i].skillPaths));
     }
 
     // -- Spawn enemy team from encounter.battleParty (data-driven) --
     // Name scheme: single enemy uses the encounter name; multiple enemies
     // append " A", " B", " C" so the HUD can distinguish them.
     const std::string encounterName = LocalizationManager::Get().TextOrFallback(
+        encounter.nameKey,
+        encounter.name);
+    const std::string debugEncounterName = LocalizationManager::Get().TextOrFallbackEnglish(
         encounter.nameKey,
         encounter.name);
     const bool multipleEnemies = encounter.battleParty.size() > 1;
@@ -61,11 +115,14 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         // Build a name: "Skeleton" for single, "Skeleton A" for multi.
         std::string slotName = encounterName;
         if (multipleEnemies) { slotName += ' '; slotName += static_cast<char>('A' + i); }
+        std::string debugSlotName = debugEncounterName;
+        if (multipleEnemies) { debugSlotName += ' '; debugSlotName += static_cast<char>('A' + i); }
 
         // Build BattlerStats from JSON-sourced values.
         // mp=0 and maxMp=0: enemies do not use MP in the current design.
         // rage=0 and maxRage=0: rage resource is player-only.
         mTotalExpPool += sd.expReward;
+        mTotalCoinPool += sd.coinReward;
         BattlerStats stats{};
         stats.hp     = sd.hp;
         stats.maxHp  = sd.hp;
@@ -79,14 +136,24 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
         stats.rage   = 0;
         stats.maxRage= 0;
 
-        mEnemies.push_back(std::make_unique<EnemyCombatant>(slotName, sd.turnViewPath, stats, sd.attackJsonPath));
+        mEnemies.push_back(std::make_unique<EnemyCombatant>(
+            slotName,
+            sd.turnViewPath,
+            stats,
+            sd.attackJsonPath,
+            debugSlotName));
     }
 
-    Log(LocalizationManager::Get().Text("battle.log.start"));
+    Log(LocalizationManager::Get().Text("battle.log.start"),
+        LocalizationManager::Get().TextEnglish("battle.log.start"));
     for (auto& p : mPlayers)
     {
         Log(LocalizationManager::Get().Format("battle.log.hp_line", {
             { "name", p->GetName() },
+            { "hp", std::to_string(p->GetStats().hp) }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.hp_line", {
+            { "name", p->GetDebugName() },
             { "hp", std::to_string(p->GetStats().hp) }
         }));
     }
@@ -94,6 +161,10 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
     {
         Log(LocalizationManager::Get().Format("battle.log.hp_line", {
             { "name", e->GetName() },
+            { "hp", std::to_string(e->GetStats().hp) }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.hp_line", {
+            { "name", e->GetDebugName() },
             { "hp", std::to_string(e->GetStats().hp) }
         }));
     }
@@ -242,6 +313,10 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
             Log(LocalizationManager::Get().Format("battle.log.no_item_left", {
                 { "actor", player->GetName() },
                 { "item", itemId }
+            }),
+            LocalizationManager::Get().FormatEnglish("battle.log.no_item_left", {
+                { "actor", player->GetDebugName() },
+                { "item", itemId }
             }));
         }
         else
@@ -254,20 +329,23 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         ISkill* skill = player->GetSkill(player->GetPendingSkillIndex());
         player->ClearPendingAction();
 
-        if (skill && target && skill->CanUse(*player, mContext))
+        if (skill && skill->CanUse(*player, mContext))
         {
-            std::vector<IBattler*> targets = { target };
+            std::vector<IBattler*> targets = ResolveSkillTargets(*player, *skill, target);
             EnqueueSkillActions(*player, *skill, targets);
         }
         else
         {
             Log(LocalizationManager::Get().Format("battle.log.cannot_use_skill", {
                 { "actor", player->GetName() }
+            }),
+            LocalizationManager::Get().FormatEnglish("battle.log.cannot_use_skill", {
+                { "actor", player->GetDebugName() }
             }));
         }
     }
 
-    player->OnTurnEnd();
+    mPendingTurnEndCombatant = player;
     mPhase = BattlePhase::RESOLVING;
 }
 
@@ -293,7 +371,7 @@ void BattleManager::HandleEnemyTurn(float /*dt*/)
         EnqueueSkillActions(*enemy, *enemy->GetAttackSkill(), targets);
     }
 
-    enemy->OnTurnEnd();
+    mPendingTurnEndCombatant = enemy;
     mPhase = BattlePhase::RESOLVING;
 }
 
@@ -328,7 +406,8 @@ void BattleManager::FinishDefeat()
     mQueue.Clear();
     ClearBulletHellOverlay();
 
-    Log(LocalizationManager::Get().Text("battle.log.defeat"));
+    Log(LocalizationManager::Get().Text("battle.log.defeat"),
+        LocalizationManager::Get().TextEnglish("battle.log.defeat"));
     mOutcome = BattleOutcome::DEFEAT;
     mPhase   = BattlePhase::LOSE;
 }
@@ -352,6 +431,31 @@ void BattleManager::HandleResolving(float dt)
 
     if (!mQueue.IsEmpty()) return;  // still executing actions
 
+    if (mResolvingTurnStartEffects)
+    {
+        mResolvingTurnStartEffects = false;
+        IBattler* actor = mPendingTurnStartCombatant;
+        mPendingTurnStartCombatant = nullptr;
+
+        if (AllEnemiesDefeated())
+        {
+            Log(LocalizationManager::Get().Text("battle.log.victory"),
+                LocalizationManager::Get().TextEnglish("battle.log.victory"));
+            mOutcome = BattleOutcome::VICTORY;
+            mPhase   = BattlePhase::WIN;
+            return;
+        }
+        if (AllPlayersDefeated())
+        {
+            FinishDefeat();
+            return;
+        }
+
+        if (actor && actor->IsAlive()) BeginTurnFor(actor);
+        else AdvanceTurn();
+        return;
+    }
+
     // All actions in this turn's queue have resolved.
     // Broadcast the current HP of every player combatant so UI elements
     // (HealthBarRenderer) can react to damage without polling each frame.
@@ -374,15 +478,17 @@ void BattleManager::HandleResolving(float dt)
         EventManager::Get().Broadcast(eventName, data);
     }
 
+    if (mPendingTurnEndCombatant)
+    {
+        mPendingTurnEndCombatant->OnTurnEnd();
+        mPendingTurnEndCombatant = nullptr;
+    }
+
     // All actions done — check outcome before advancing turn.
     if (AllEnemiesDefeated())
     {
-        Log(LocalizationManager::Get().Text("battle.log.victory"));
-        Log(LocalizationManager::Get().Format("battle.log.exp_earned", {
-            { "exp", std::to_string(mTotalExpPool) }
-        }));
-        PartyManager::Get().AddExp(mTotalExpPool);
-
+        Log(LocalizationManager::Get().Text("battle.log.victory"),
+            LocalizationManager::Get().TextEnglish("battle.log.victory"));
         mOutcome = BattleOutcome::VICTORY;
         mPhase   = BattlePhase::WIN;
         return;
@@ -432,6 +538,9 @@ void BattleManager::AdvanceTurn()
         mTimeline.push_back(node);
         Log(LocalizationManager::Get().Format("battle.log.reenter", {
             { "actor", b->GetName() }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.reenter", {
+            { "actor", b->GetDebugName() }
         }));
     };
     for (auto& p : mPlayers) reinsertIfMissing(p.get());
@@ -462,14 +571,17 @@ void BattleManager::AdvanceTurn()
     if (!next) return;
 
     next->OnTurnStart();
-    Log(LocalizationManager::Get().Format("battle.log.turn", {
-        { "actor", next->GetName() }
-    }));
+    mPendingTurnStartCombatant = next;
+    auto startActions = next->BuildTurnStartActions(mContext);
+    if (!startActions.empty())
+    {
+        mResolvingTurnStartEffects = true;
+        EnqueueActionList(std::move(startActions));
+        mPhase = BattlePhase::RESOLVING;
+        return;
+    }
 
-    if (next->IsPlayerControlled())
-        mPhase = BattlePhase::PLAYER_TURN;
-    else
-        mPhase = BattlePhase::ENEMY_TURN;
+    BeginTurnFor(next);
 }
 
 // ------------------------------------------------------------
@@ -495,6 +607,11 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
     // Pass mContext to skill.Execute so DamageAction / AnimDamageAction
     // constructors receive &mContext and see LIVE state when they fire.
     auto actions = skill.Execute(caster, targets, mContext);
+    EnqueueActionList(std::move(actions));
+}
+
+void BattleManager::EnqueueActionList(std::vector<std::unique_ptr<IAction>> actions)
+{
     for (auto& action : actions)
     {
         std::unique_ptr<IAction> finalAction;
@@ -505,9 +622,14 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
         if (auto* logAct = dynamic_cast<LogAction*>(action.get()))
         {
             // Re-create with the correct log pointer so messages appear
-            // in the BattleState scrolling log panel.
+            // in both the localized UI log and the English debug log.
             std::string msg = logAct->GetText();
-            finalAction = std::make_unique<LogAction>(&mBattleLog, std::move(msg));
+            std::string debugMsg = logAct->GetDebugText();
+            finalAction = std::make_unique<LogAction>(
+                &mBattleLog,
+                std::move(msg),
+                &mDebugBattleLog,
+                std::move(debugMsg));
         }
         else
         {
@@ -516,6 +638,52 @@ void BattleManager::EnqueueSkillActions(IBattler& caster, ISkill& skill,
 
         mQueue.Enqueue(std::move(finalAction));
     }
+}
+
+void BattleManager::BeginTurnFor(IBattler* battler)
+{
+    if (!battler) return;
+
+    Log(LocalizationManager::Get().Format("battle.log.turn", {
+        { "actor", battler->GetName() }
+    }),
+    LocalizationManager::Get().FormatEnglish("battle.log.turn", {
+        { "actor", battler->GetDebugName() }
+    }));
+
+    if (battler->IsPlayerControlled())
+        mPhase = BattlePhase::PLAYER_TURN;
+    else
+        mPhase = BattlePhase::ENEMY_TURN;
+}
+
+std::vector<IBattler*> BattleManager::ResolveSkillTargets(
+    IBattler& caster,
+    const ISkill& skill,
+    IBattler* primaryTarget)
+{
+    std::vector<IBattler*> targets;
+    switch (skill.GetTargeting())
+    {
+    case SkillTargeting::Self:
+        targets.push_back(&caster);
+        break;
+    case SkillTargeting::SingleAlly:
+        if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        else targets.push_back(&caster);
+        break;
+    case SkillTargeting::AllAllies:
+        targets = GetAlivePlayers();
+        break;
+    case SkillTargeting::AllEnemies:
+        targets = GetAliveEnemies();
+        break;
+    case SkillTargeting::SingleEnemy:
+    default:
+        if (primaryTarget && !primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        break;
+    }
+    return targets;
 }
 
 // ------------------------------------------------------------
@@ -541,6 +709,10 @@ void BattleManager::EnqueueItemActions(IBattler& user,
         Log(LocalizationManager::Get().Format("battle.log.no_such_item", {
             { "actor", user.GetName() },
             { "item", itemId }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.no_such_item", {
+            { "actor", user.GetDebugName() },
+            { "item", itemId }
         }));
         return;
     }
@@ -550,6 +722,10 @@ void BattleManager::EnqueueItemActions(IBattler& user,
         Log(LocalizationManager::Get().Format("battle.log.out_of_item", {
             { "actor", user.GetName() },
             { "item", item->name }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.out_of_item", {
+            { "actor", user.GetDebugName() },
+            { "item", DebugItemName(*item) }
         }));
         return;
     }
@@ -561,6 +737,10 @@ void BattleManager::EnqueueItemActions(IBattler& user,
         Log(LocalizationManager::Get().Format("battle.log.could_not_aim_item", {
             { "actor", user.GetName() },
             { "item", item->name }
+        }),
+        LocalizationManager::Get().FormatEnglish("battle.log.could_not_aim_item", {
+            { "actor", user.GetDebugName() },
+            { "item", DebugItemName(*item) }
         }));
         return;
     }
@@ -575,7 +755,12 @@ void BattleManager::EnqueueItemActions(IBattler& user,
         if (auto* logAct = dynamic_cast<LogAction*>(action.get()))
         {
             std::string msg = logAct->GetText();
-            finalAction = std::make_unique<LogAction>(&mBattleLog, std::move(msg));
+            std::string debugMsg = logAct->GetDebugText();
+            finalAction = std::make_unique<LogAction>(
+                &mBattleLog,
+                std::move(msg),
+                &mDebugBattleLog,
+                std::move(debugMsg));
         }
         else
         {
@@ -709,14 +894,16 @@ std::vector<IBattler*> BattleManager::GetFutureTurnQueue(int queueSize) const
     return queueOut;
 }
 
-void BattleManager::Log(const std::string& msg)
+void BattleManager::Log(const std::string& msg, const std::string& debugMsg)
 {
     mBattleLog.push_back(msg);
-    LOG("[Battle] %s", msg.c_str());
+    mDebugBattleLog.push_back(debugMsg.empty() ? msg : debugMsg);
+    LOG("[Battle] %s", ToCliAscii(mDebugBattleLog.back()).c_str());
 
-    constexpr std::size_t kMaxLines = 64;
-    if (mBattleLog.size() > kMaxLines)
+    if (mBattleLog.size() > kMaxBattleLogLines)
         mBattleLog.erase(mBattleLog.begin());
+    if (mDebugBattleLog.size() > kMaxBattleLogLines)
+        mDebugBattleLog.erase(mDebugBattleLog.begin());
 }
 
 bool BattleManager::AllPlayersDefeated() const

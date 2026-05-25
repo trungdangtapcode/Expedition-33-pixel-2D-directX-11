@@ -3,9 +3,23 @@
   "defaultArea": "Ashen Meadow",
   "defaultObjectiveKey": "story.default_objective",
   "defaultObjective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
+  "defaultThemeId": "ashen_meadow",
   "regions": [
     {
+      "id": "paris_square",
+      "themeId": "silent_market",
+      "nameKey": "story.region.paris_square.name",
+      "name": "Rue Cendre",
+      "objectiveKey": "story.region.paris_square.objective",
+      "objective": "Paris is quiet. Talk to Maelle before leaving the square by the eastern boulevard.",
+      "minX": -640.0,
+      "minY": -520.0,
+      "maxX": 640.0,
+      "maxY": 520.0
+    },
+    {
       "id": "meadow_wake",
+      "themeId": "ashen_meadow",
       "nameKey": "story.region.meadow_wake.name",
       "name": "Meadow Wake",
       "objectiveKey": "story.region.meadow_wake.objective",
@@ -17,6 +31,7 @@
     },
     {
       "id": "silent_market",
+      "themeId": "silent_market",
       "nameKey": "story.region.silent_market.name",
       "name": "Silent Market",
       "objectiveKey": "story.region.silent_market.objective",
@@ -28,6 +43,7 @@
     },
     {
       "id": "western_watch",
+      "themeId": "western_watch",
       "nameKey": "story.region.western_watch.name",
       "name": "Western Watch",
       "objectiveKey": "story.region.western_watch.objective",
@@ -39,6 +55,7 @@
     },
     {
       "id": "pilgrim_crossing",
+      "themeId": "pilgrim_crossing",
       "nameKey": "story.region.pilgrim_crossing.name",
       "name": "Pilgrim Crossing",
       "objectiveKey": "story.region.pilgrim_crossing.objective",
@@ -50,6 +67,7 @@
     },
     {
       "id": "glass_shrine",
+      "themeId": "glass_shrine",
       "nameKey": "story.region.glass_shrine.name",
       "name": "Glass Shrine",
       "objectiveKey": "story.region.glass_shrine.objective",
@@ -61,6 +79,7 @@
     },
     {
       "id": "mirror_gate",
+      "themeId": "mirror_gate",
       "nameKey": "story.region.mirror_gate.name",
       "name": "Mirror Gate",
       "objectiveKey": "story.region.mirror_gate.objective",

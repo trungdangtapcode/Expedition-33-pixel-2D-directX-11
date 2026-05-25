@@ -7,7 +7,7 @@
 //     has 1..N WAV variants; PlaySfx() picks one at random (avoiding
 //     the most-recently-played variant when the group has 2+ entries).
 //   - Maintains two voice pools keyed by channel count -- 16 stereo
-//     and 4 mono by default.  All SFX in the asset library share
+//     and 4 mono by default. All SFX in the asset library share
 //     16-bit PCM 48kHz, so two channel-count buckets cover every file.
 //   - Routes every SFX voice through a single submix voice.  One call
 //     to SetMasterVolume() controls all SFX without touching BGM.
@@ -85,9 +85,10 @@ public:
     // ------------------------------------------------------------
     void PlaySfx(const std::string& groupId, float volumeMul = 1.0f);
 
-    // Master gain for the whole SFX submix (0..1).  Independent of BGM.
+    // User gain for the whole SFX submix (0..1). It multiplies the
+    // authored master baseline loaded from sfx.json.
     void  SetMasterVolume(float v);
-    float GetMasterVolume() const { return mMasterVolume; }
+    float GetMasterVolume() const { return mUserMasterVolume; }
 
 private:
     // ------------------------------------------------------------
@@ -125,6 +126,7 @@ private:
                                      int count);
     IXAudio2SourceVoice*  AcquireVoice(VoicePool& pool);
     VoicePool*            PickPool(const WAVEFORMATEX& fmt);
+    void                  ApplyMasterVolume();
 
     IXAudio2*                    mEngine = nullptr;   // borrowed from AudioManager
     IXAudio2SubmixVoice*         mSubmix = nullptr;   // owned
@@ -137,7 +139,8 @@ private:
     int mStereoVoiceCount = 16;
     int mMonoVoiceCount   = 4;
 
-    float mMasterVolume = 1.0f;
+    float mConfigMasterVolume = 1.0f;
+    float mUserMasterVolume = 1.0f;
 
     bool mInitialized = false;
 };

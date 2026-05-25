@@ -1,12 +1,10 @@
-#include "../Utils/JsonLoader.h"
 // ============================================================
 // File: PlayerCombatant.cpp
 // ============================================================
 #include "PlayerCombatant.h"
-#include "AttackSkill.h"
-#include "RageSkill.h"
-#include "WeakenSkill.h"
+#include "SkillFactory.h"
 #include "../Utils/Log.h"
+#include <utility>
 
 // ------------------------------------------------------------
 // MVP stats — hardcoded constants only; in production these come from JSON.
@@ -18,7 +16,9 @@ static constexpr int kPlayerDef     = 10;
 static constexpr int kPlayerSpd     = 10;
 static constexpr int kPlayerMaxRage = 100;
 
-PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, std::string attackJsonPath)
+PlayerCombatant::PlayerCombatant(std::string name,
+                                 std::wstring turnViewPath,
+                                 std::vector<std::string> skillPaths)
     : Combatant(std::move(name), std::move(turnViewPath), BattlerStats{
         kPlayerMaxHp, kPlayerMaxHp,       // hp, maxHp
         kPlayerMaxMp, kPlayerMaxMp,       // mp, maxMp
@@ -26,17 +26,7 @@ PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, st
         0, kPlayerMaxRage                 // rage starts at 0
     })
 {
-    // Register the three default player skills.
-    mSkills.push_back([&]() {
-            JsonLoader::SkillData attackData;
-            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
-                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
-            }
-            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
-            return std::make_unique<AttackSkill>(attackData);
-        }());
-    mSkills.push_back(std::make_unique<RageSkill>());
-    mSkills.push_back(std::make_unique<WeakenSkill>());
+    BuildSkills(skillPaths);
 }
 
 // ------------------------------------------------------------
@@ -44,20 +34,35 @@ PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, st
 // to restore persistent HP from PartyManager.
 // The skill list is always rebuilt fresh — skills are not persisted.
 // ------------------------------------------------------------
-PlayerCombatant::PlayerCombatant(std::string name, std::wstring turnViewPath, const BattlerStats& seedStats, std::string attackJsonPath)
+PlayerCombatant::PlayerCombatant(std::string name,
+                                 std::wstring turnViewPath,
+                                 const BattlerStats& seedStats,
+                                 std::vector<std::string> skillPaths)
     : Combatant(std::move(name), std::move(turnViewPath), seedStats)
 {
-    // Register the three default player skills.
-    mSkills.push_back([&]() {
-            JsonLoader::SkillData attackData;
-            if (!JsonLoader::LoadSkillData(attackJsonPath, attackData)) {
-                LOG("[PlayerCombatant] WARNING: Failed to load attack data '%s'. Using fallback defaults.", attackJsonPath.c_str());
-            }
-            LOG("[PlayerCombatant] LOADED %s move=%.2f ret=%.2f dmg=%.2f", attackJsonPath.c_str(), attackData.moveDuration, attackData.returnDuration, attackData.damageTakenOccurMoment);
-            return std::make_unique<AttackSkill>(attackData);
-        }());
-    mSkills.push_back(std::make_unique<RageSkill>());
-    mSkills.push_back(std::make_unique<WeakenSkill>());
+    BuildSkills(skillPaths);
+}
+
+void PlayerCombatant::BuildSkills(const std::vector<std::string>& skillPaths)
+{
+    std::vector<std::string> paths = skillPaths;
+    if (paths.empty())
+    {
+        paths.push_back("data/skills/verso_attack.json");
+        paths.push_back("data/skills/verso_sunder_guard.json");
+        paths.push_back("data/skills/verso_rage_burst.json");
+    }
+
+    for (const std::string& path : paths)
+    {
+        auto skill = SkillFactory::CreateFromFile(path);
+        if (!skill)
+        {
+            LOG("[PlayerCombatant] WARNING: failed to build skill '%s'.", path.c_str());
+            continue;
+        }
+        mSkills.push_back(std::move(skill));
+    }
 }
 
 int PlayerCombatant::GetSkillCount() const

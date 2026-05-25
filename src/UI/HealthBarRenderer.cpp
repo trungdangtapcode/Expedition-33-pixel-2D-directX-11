@@ -246,6 +246,24 @@ void HealthBarRenderer::SetMaxHP(float maxHp)
     mMaxHP = (maxHp > 0.0f) ? maxHp : 1.0f;
 }
 
+void HealthBarRenderer::SetMP(float mp)
+{
+    if (mp < mTargetMP)
+    {
+        mMpDelayTimer = 0.0f;
+        mEffectState.TriggerShake();
+    }
+    mTargetMP = mp;
+}
+
+void HealthBarRenderer::SetMaxMP(float maxMp)
+{
+    mMaxMP = (maxMp > 0.0f) ? maxMp : 1.0f;
+    if (mRedMP > mMaxMP) mRedMP = mMaxMP;
+    if (mWhiteMP > mMaxMP) mWhiteMP = mMaxMP;
+    if (mTargetMP > mMaxMP) mTargetMP = mMaxMP;
+}
+
 // ============================================================
 // SetScreenSize
 // ============================================================
@@ -293,6 +311,25 @@ void HealthBarRenderer::Update(float dt)
         mWhiteHP = mTargetHP;
     }
 
+    const float mpGap = mTargetMP - mRedMP;
+    mRedMP += mpGap * kRedLerpSpeed * dt;
+    if (std::abs(mpGap) < 0.5f) mRedMP = mTargetMP;
+
+    if (mWhiteMP > mTargetMP)
+    {
+        mMpDelayTimer += dt;
+        if (mMpDelayTimer >= kDelayDuration)
+        {
+            const float whiteMpGap = mTargetMP - mWhiteMP;
+            mWhiteMP += whiteMpGap * kWhiteLerpSpeed * dt;
+            if (std::abs(whiteMpGap) < 0.5f) mWhiteMP = mTargetMP;
+        }
+    }
+    else
+    {
+        mWhiteMP = mTargetMP;
+    }
+
     // Evaluate AAA sink state mathematically evaluating death cleanly
     if (mTargetHP <= 0.0f)
     {
@@ -329,10 +366,16 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
 
     const float redRatio   = clampedRedHP / mMaxHP;
     const float whiteRatio = clampedWhiteHP / mMaxHP;
+    const float clampedRedMP = std::max(0.0f, std::min(mRedMP, mMaxMP));
+    const float clampedWhiteMP = std::max(0.0f, std::min(mWhiteMP, mMaxMP));
+    const float redMpRatio = clampedRedMP / mMaxMP;
+    const float whiteMpRatio = clampedWhiteMP / mMaxMP;
 
     // Compute fill widths
     const int redFillWidth   = static_cast<int>(mConfig.HpBarWidth() * redRatio);
     const int whiteFillWidth = static_cast<int>(mConfig.HpBarWidth() * whiteRatio);
+    const int redMpFillWidth = static_cast<int>(mConfig.MpBarWidth() * redMpRatio);
+    const int whiteMpFillWidth = static_cast<int>(mConfig.MpBarWidth() * whiteMpRatio);
 
     // Active-character highlight uses scale + vertical lift.
     //
@@ -397,7 +440,7 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
     //   1. White delayed bar (behind the red bar, draws full delayed width).
     //   2. Red front bar (draws on top of the white bar).
     // ----------------------------------------------------------------
-    if (whiteFillWidth > 0 || redFillWidth > 0)
+    if (whiteFillWidth > 0 || redFillWidth > 0 || whiteMpFillWidth > 0 || redMpFillWidth > 0)
     {
         mSpriteBatch->Begin(
             SpriteSortMode_Deferred,
@@ -409,6 +452,10 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
         const XMFLOAT2 fillPos(
             originX + static_cast<float>(mConfig.hpBarLeft) * scale,
             originY + static_cast<float>(mConfig.hpBarTop) * scale
+        );
+        const XMFLOAT2 mpFillPos(
+            originX + static_cast<float>(mConfig.mpBarLeft) * scale,
+            originY + static_cast<float>(mConfig.mpBarTop) * scale
         );
         const XMFLOAT2 pivot(0.0f, 0.0f);
         
@@ -440,6 +487,33 @@ void HealthBarRenderer::Render(ID3D11DeviceContext* context)
             };
             mSpriteBatch->Draw(mFillSRV.Get(), fillPos, nullptr,
                                redColor, 0.0f, pivot, redScale);
+        }
+
+        if (whiteMpFillWidth > 0 && mConfig.MpBarWidth() > 0)
+        {
+            const XMFLOAT2 whiteMpScale(
+                static_cast<float>(whiteMpFillWidth) * scale,
+                static_cast<float>(mConfig.MpBarHeight()) * scale
+            );
+            DirectX::XMVECTORF32 whiteMpColor = { 0.80f, 0.90f, 1.0f, mSinkAlpha };
+            mSpriteBatch->Draw(mFillSRV.Get(), mpFillPos, nullptr,
+                               whiteMpColor, 0.0f, pivot, whiteMpScale);
+        }
+
+        if (redMpFillWidth > 0 && mConfig.MpBarWidth() > 0)
+        {
+            const XMFLOAT2 blueScale(
+                static_cast<float>(redMpFillWidth) * scale,
+                static_cast<float>(mConfig.MpBarHeight()) * scale
+            );
+            DirectX::XMVECTORF32 blueColor = {
+                70.f / 255.f * mTintColor.f[0],
+                120.f / 255.f * mTintColor.f[1],
+                230.f / 255.f * mTintColor.f[2],
+                mSinkAlpha
+            };
+            mSpriteBatch->Draw(mFillSRV.Get(), mpFillPos, nullptr,
+                               blueColor, 0.0f, pivot, blueScale);
         }
 
         mSpriteBatch->End();

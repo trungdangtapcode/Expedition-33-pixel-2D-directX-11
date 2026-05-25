@@ -19,5 +19,11 @@
   "growth_def": 1,
   "growth_matk": 5,
   "growth_mdef": 4,
-  "growth_spd": 3
+  "growth_spd": 3,
+  "skillPaths": [
+    "data/skills/maelle_attack.json",
+    "data/skills/maelle_ember.json",
+    "data/skills/maelle_aegis_verse.json",
+    "data/skills/maelle_quickstep.json"
+  ]
 }

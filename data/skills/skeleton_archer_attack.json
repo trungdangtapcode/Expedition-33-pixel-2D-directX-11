@@ -1,10 +1,13 @@
 {
-    "nameKey": "skill.attack.name",
-    "descriptionKey": "skill.attack.description",
-    "moveDuration": 0.4,
-    "returnDuration": 0.4,
-    "meleeOffset": 80.0,
-    "bulletHellSupported": true,
-    "bulletHellPatternPath": "data/bullet_patterns/archer_pattern.json",
-    "damageTakenOccurMoment": 0.4
+  "nameKey": "skill.attack.name",
+  "descriptionKey": "skill.attack.description",
+  "moveDuration": 0.4,
+  "returnDuration": 0.4,
+  "meleeOffset": 80.0,
+  "bulletHellSupported": true,
+  "bulletHellPatternPath": "data/bullet_patterns/archer_pattern.json",
+  "damageTakenOccurMoment": 0.4,
+  "uiSortGroup": "enemy",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.medium"
 }

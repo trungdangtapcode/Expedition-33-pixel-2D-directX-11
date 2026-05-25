@@ -20,7 +20,8 @@ The first version stores:
 {
   "language": "en_us",
   "bgmVolume": 1.0,
-  "sfxVolume": 1.0
+  "sfxVolume": 1.0,
+  "voiceVolume": 1.0
 }
 ```
 
@@ -39,6 +40,7 @@ Each language has a flat UTF-8 string table:
 
 ```text
 data/localization/en_us.json
+data/localization/fr_fr.json
 data/localization/vi_vn.json
 ```
 
@@ -73,6 +75,39 @@ LocalizationManager::Get().Format("battle.log.attack", {
 });
 ```
 
+Callers must pass the exact token names used by the localized string. For save
+slot summaries, the title menu provides `party`, `x`, and `y` because the
+current strings are shaped as `"{party} - X {x}, Y {y}"`. Campfire slot rows
+also provide `label`, `party`, `x`, and `y`. Older tokens such as `lead`,
+`level`, `checkpoint`, and `position` are still supplied by those callers so
+copy changes can use either compact or detailed wording without leaving raw
+placeholders on screen.
+
+## Debug And CLI Output
+
+Player-facing UI uses the active language. Debug and CLI output do not.
+
+The console, `OutputDebugStringA`, and `log_output.txt` are treated as an
+English-only diagnostic channel because some Windows console/debug viewers do
+not render active-language UTF-8 text consistently. Battle code therefore keeps
+two log streams:
+
+- `BattleManager::GetBattleLog()` returns localized gameplay text for the
+  on-screen battle log.
+- `BattleManager::GetBattleLogForDebug()` returns English text for
+  `BattleDebugHUD` and CLI output.
+
+Combatants expose `GetName()` for localized display and `GetDebugName()` for
+diagnostics. Skills, commands, and items follow the same split with debug label
+helpers or English item fields. `LocalizationManager` provides English lookup
+helpers (`TextEnglish`, `TextOrFallbackEnglish`, and `FormatEnglish`) so debug
+messages can still use the same localization keys without depending on the
+active language.
+
+`LOG()` also sanitizes formatted output to printable ASCII before writing it to
+CLI destinations. This is a last-resort guard; gameplay code should still pass
+English debug strings to logs instead of localized UI strings.
+
 ## Font Generation
 
 DirectXTK `MakeSpriteFont` defaults to ASCII-only unless character regions are
@@ -86,18 +121,27 @@ tools\MakeSpriteFont.exe "Arial" assets\fonts\arial_16_vietnamese.spritefont /Fo
 ```
 
 The extra `0x180-0x24F` range is required for the horned O and horned U
-codepoints used by Vietnamese text.
+codepoints used by Vietnamese text. French uses the same extended font because
+its accented Latin glyphs are already covered by the Latin-1 and extended
+regions.
 
 ## Menu Options
 
 The title menu has an `Options` entry. Version 1 contains:
 
 - `Language`
+- `BGM Volume`
+- `SFX Volume`
+- `Voice Volume`
 - `Back`
 
 Changing the language cycles through `languages.json`, saves
 `save/settings.json` immediately, and reloads the title font so the current
 screen updates without a restart.
+
+Changing an audio row also saves `save/settings.json` immediately. The display
+labels and flash messages use localization keys, while the numeric values stay
+as percentages.
 
 ## Migrating Content
 
@@ -119,6 +163,12 @@ remain gameplay snapshots only.
 
 ## Verified Coverage
 
+The current shipped language tables are:
+
+- English (`en_us`)
+- French (`fr_fr`)
+- Vietnamese (`vi_vn`)
+
 The first pass localizes:
 
 - Title menu, options, save-slot headings, and slot feedback.
@@ -126,6 +176,7 @@ The first pass localizes:
 - Battle commands, skill labels/descriptions, item names/descriptions, and
   primary battle log messages.
 - Inventory and lineup item/equipment text.
+- Currency HUD labels and battle coin rewards.
 - Overworld story area names and objectives.
 
 Build verification:

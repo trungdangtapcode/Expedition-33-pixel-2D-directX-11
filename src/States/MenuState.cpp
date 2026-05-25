@@ -33,14 +33,17 @@
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Systems/SettingsManager.h"
+#include "../Systems/Wallet.h"
 #include "../Utils/Log.h"
 #include <Windows.h>
+#include <cmath>
 #include <cstdio>
 #include <memory>
 
 namespace
 {
     constexpr const char* kLayoutPath = "data/main_menu_layout.json";
+    constexpr int kVolumeStepPercent = 10;
 
     // ------------------------------------------------------------
     // Function: WrapIndex
@@ -82,6 +85,20 @@ namespace
         }
         return false;
     }
+
+    int VolumeToPercent(float value)
+    {
+        if (value < 0.0f) value = 0.0f;
+        if (value > 1.0f) value = 1.0f;
+        return static_cast<int>(std::round(value * 100.0f));
+    }
+
+    float PercentToVolume(int percent)
+    {
+        if (percent < 0) percent = 0;
+        if (percent > 100) percent = 100;
+        return static_cast<float>(percent) / 100.0f;
+    }
 }
 
 // ------------------------------------------------------------
@@ -99,6 +116,13 @@ int MenuState::MainOptionCount()
 int MenuState::OptionsOptionCount()
 {
     return static_cast<int>(OptionsOption::Count);
+}
+
+bool MenuState::IsVolumeOption(OptionsOption option)
+{
+    return option == OptionsOption::BgmVolume ||
+           option == OptionsOption::SfxVolume ||
+           option == OptionsOption::VoiceVolume;
 }
 
 // ------------------------------------------------------------
@@ -358,6 +382,7 @@ void MenuState::StartNewGame(int slotIndex)
 
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ResetToDefaults();
+    Wallet::Get().ResetToDefaults();
     GameProgress::Get().Reset();
     if (!SaveManager::Get().SaveCheckpointToSlot(slotIndex, "new_game"))
     {
@@ -551,6 +576,84 @@ void MenuState::CycleLanguage(int direction)
     }
 }
 
+// ------------------------------------------------------------
+// Function: AdjustVolume
+// Purpose:
+//   Apply one settings-step change to the selected audio bus.
+// Why:
+//   Options should update the live mix and the persisted settings together,
+//   so the menu never displays a value different from the active audio graph.
+// ------------------------------------------------------------
+void MenuState::AdjustVolume(OptionsOption option, int direction, bool wrap)
+{
+    if (!IsVolumeOption(option)) return;
+
+    float currentVolume = 1.0f;
+    std::string labelKey;
+    switch (option)
+    {
+    case OptionsOption::BgmVolume:
+        currentVolume = SettingsManager::Get().GetBgmVolume();
+        labelKey = "menu.option_bgm_volume";
+        break;
+    case OptionsOption::SfxVolume:
+        currentVolume = SettingsManager::Get().GetSfxVolume();
+        labelKey = "menu.option_sfx_volume";
+        break;
+    case OptionsOption::VoiceVolume:
+        currentVolume = SettingsManager::Get().GetVoiceVolume();
+        labelKey = "menu.option_voice_volume";
+        break;
+    default:
+        return;
+    }
+
+    const int currentPercent = VolumeToPercent(currentVolume);
+    int nextPercent = currentPercent + direction * kVolumeStepPercent;
+    if (wrap)
+    {
+        if (nextPercent > 100) nextPercent = 0;
+        if (nextPercent < 0) nextPercent = 100;
+    }
+    else
+    {
+        if (nextPercent < 0) nextPercent = 0;
+        if (nextPercent > 100) nextPercent = 100;
+    }
+
+    if (nextPercent == currentPercent) return;
+
+    const float nextVolume = PercentToVolume(nextPercent);
+    switch (option)
+    {
+    case OptionsOption::BgmVolume:
+        SettingsManager::Get().SetBgmVolume(nextVolume);
+        AudioManager::Get().SetBgmMasterVolume(nextVolume);
+        break;
+    case OptionsOption::SfxVolume:
+        SettingsManager::Get().SetSfxVolume(nextVolume);
+        AudioManager::Get().SetSfxMasterVolume(nextVolume);
+        break;
+    case OptionsOption::VoiceVolume:
+        SettingsManager::Get().SetVoiceVolume(nextVolume);
+        AudioManager::Get().SetVoiceMasterVolume(nextVolume);
+        break;
+    default:
+        break;
+    }
+
+    const std::string valueText = LocalizationManager::Get().Format(
+        "menu.option_percent",
+        { { "value", std::to_string(nextPercent) } });
+    Flash(LocalizationManager::Get().Format(
+        "menu.flash.audio_saved",
+        {
+            { "label", LocalizationManager::Get().Text(labelKey) },
+            { "value", valueText }
+        }));
+    AudioManager::Get().PlaySfx("ui_confirm");
+}
+
 void MenuState::ActivateOptionsSelection()
 {
     const OptionsOption option = static_cast<OptionsOption>(mCursor);
@@ -558,6 +661,11 @@ void MenuState::ActivateOptionsSelection()
     {
     case OptionsOption::Language:
         CycleLanguage(1);
+        break;
+    case OptionsOption::BgmVolume:
+    case OptionsOption::SfxVolume:
+    case OptionsOption::VoiceVolume:
+        AdjustVolume(option, 1, true);
         break;
     case OptionsOption::Back:
         mPhase = Phase::MainOptions;
@@ -685,15 +793,30 @@ void MenuState::Update(float dt)
         AudioManager::Get().PlaySfx("ui_navigate");
     }
 
-    if (mPhase == Phase::Options && mCursor == static_cast<int>(OptionsOption::Language))
+    if (mPhase == Phase::Options)
     {
+        const OptionsOption selectedOption = static_cast<OptionsOption>(mCursor);
         if (Pressed(VK_LEFT, mLeftWasDown))
         {
-            CycleLanguage(-1);
+            if (selectedOption == OptionsOption::Language)
+            {
+                CycleLanguage(-1);
+            }
+            else if (IsVolumeOption(selectedOption))
+            {
+                AdjustVolume(selectedOption, -1, false);
+            }
         }
         if (Pressed(VK_RIGHT, mRightWasDown))
         {
-            CycleLanguage(1);
+            if (selectedOption == OptionsOption::Language)
+            {
+                CycleLanguage(1);
+            }
+            else if (IsVolumeOption(selectedOption))
+            {
+                AdjustVolume(selectedOption, 1, false);
+            }
         }
     }
 
@@ -758,11 +881,36 @@ std::vector<TitleMenuOptionView> MenuState::BuildOptionsViews() const
     }
 
     TitleMenuOptionView language{};
-    language.label = LocalizationManager::Get().Format(
-        "menu.option_language",
-        { { "language", languageName } });
+    language.label = LocalizationManager::Get().Text("menu.option_language");
+    language.value = languageName;
     language.enabled = true;
     options.push_back(language);
+
+    auto makePercentText = [](int percent)
+    {
+        return LocalizationManager::Get().Format(
+            "menu.option_percent",
+            { { "value", std::to_string(percent) } });
+    };
+
+    auto pushVolume = [&options, &makePercentText](
+        const std::string& labelKey,
+        float volume,
+        bool isFuture)
+    {
+        TitleMenuOptionView view{};
+        view.label = LocalizationManager::Get().Text(labelKey);
+        view.value = makePercentText(VolumeToPercent(volume));
+        view.enabled = true;
+        view.showMeter = true;
+        view.isFuture = isFuture;
+        view.meterValue = volume;
+        options.push_back(view);
+    };
+
+    pushVolume("menu.option_bgm_volume", SettingsManager::Get().GetBgmVolume(), false);
+    pushVolume("menu.option_sfx_volume", SettingsManager::Get().GetSfxVolume(), false);
+    pushVolume("menu.option_voice_volume", SettingsManager::Get().GetVoiceVolume(), true);
 
     TitleMenuOptionView back{};
     back.label = LocalizationManager::Get().Text("menu.back");
@@ -814,18 +962,24 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
                 ? reason
                 : info.checkpointId;
 
-            char secondary[192]{};
             if (info.hasPlayerPosition)
             {
-                std::snprintf(secondary, sizeof(secondary), "%.0f, %.0f",
-                              info.playerX, info.playerY);
+                char xText[32]{};
+                char yText[32]{};
+                char positionText[64]{};
+                std::snprintf(xText, sizeof(xText), "%.0f", info.playerX);
+                std::snprintf(yText, sizeof(yText), "%.0f", info.playerY);
+                std::snprintf(positionText, sizeof(positionText), "%s, %s", xText, yText);
                 view.secondary = LocalizationManager::Get().Format(
                     "menu.slot_secondary_with_position",
                     {
+                        { "party", lead },
+                        { "x", xText },
+                        { "y", yText },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint },
-                        { "position", secondary }
+                        { "position", positionText }
                     });
             }
             else
@@ -833,6 +987,7 @@ std::vector<TitleMenuSlotView> MenuState::BuildSlotViews() const
                 view.secondary = LocalizationManager::Get().Format(
                     "menu.slot_secondary",
                     {
+                        { "party", lead },
                         { "lead", lead },
                         { "level", std::to_string(info.leadLevel) },
                         { "checkpoint", checkpoint }

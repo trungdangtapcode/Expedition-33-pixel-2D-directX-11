@@ -263,6 +263,44 @@ std::string LocalizationManager::Format(
     return text;
 }
 
+std::string LocalizationManager::TextEnglish(const std::string& key) const
+{
+    auto it = mEnglishText.find(key);
+    if (it != mEnglishText.end()) return it->second;
+
+    LogMissingKeyOnce(key);
+    return key;
+}
+
+std::string LocalizationManager::TextOrFallbackEnglish(const std::string& key,
+                                                       const std::string& fallback) const
+{
+    auto it = mEnglishText.find(key);
+    if (it != mEnglishText.end()) return it->second;
+    if (!fallback.empty()) return fallback;
+
+    LogMissingKeyOnce(key);
+    return key;
+}
+
+std::string LocalizationManager::FormatEnglish(
+    const std::string& key,
+    const std::vector<std::pair<std::string, std::string>>& values) const
+{
+    std::string text = TextEnglish(key);
+    for (const auto& entry : values)
+    {
+        const std::string token = "{" + entry.first + "}";
+        size_t pos = 0;
+        while ((pos = text.find(token, pos)) != std::string::npos)
+        {
+            text.replace(pos, token.size(), entry.second);
+            pos += entry.second.size();
+        }
+    }
+    return text;
+}
+
 std::string LocalizationManager::GetCurrentFontPath() const
 {
     const LanguageInfo* language = FindLanguage(mCurrentLanguageId);

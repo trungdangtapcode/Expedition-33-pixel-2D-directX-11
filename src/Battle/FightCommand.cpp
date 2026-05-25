@@ -11,6 +11,11 @@ std::string FightCommand::GetLabel() const
     return LocalizationManager::Get().Text("battle.command.fight");
 }
 
+std::string FightCommand::GetDebugLabel() const
+{
+    return LocalizationManager::Get().TextEnglish("battle.command.fight");
+}
+
 void FightCommand::Execute(BattleState& state) const
 {
     // Audible feedback that the skill sub-menu is opening.

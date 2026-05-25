@@ -103,6 +103,7 @@ namespace
         {
             LOG("[PartyManager] WARNING: Failed to load character data '%s'.", dataPath.c_str());
         }
+        member.skillPaths = JsonLoader::LoadStringArrayFromFile(dataPath, "skillPaths");
         ClampCurrentResources(member.baseStats);
         return member;
     }

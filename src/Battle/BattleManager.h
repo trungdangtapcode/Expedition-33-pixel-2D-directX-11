@@ -73,8 +73,12 @@ public:
     // -- Queries for BattleState UI --
     BattlePhase   GetPhase()   const { return mPhase; }
     BattleOutcome GetOutcome() const { return mOutcome; }
+    int GetTotalExpReward() const { return mTotalExpPool; }
+    int GetTotalCoinReward() const { return mTotalCoinPool; }
+    float GetBattleElapsedSeconds() const { return mContext.battleElapsed; }
 
     const std::vector<std::string>& GetBattleLog() const { return mBattleLog; }
+    const std::vector<std::string>& GetBattleLogForDebug() const { return mDebugBattleLog; }
 
     // Alive combatant lists for UI rendering.
     std::vector<IBattler*> GetAlivePlayers() const;
@@ -114,6 +118,7 @@ public:
     const std::vector<TurnNode>& GetTimeline() const { return mTimeline; }
 
     void QueueAction(std::unique_ptr<IAction> action) { mQueue.Enqueue(std::move(action)); }
+    void Reset();
 
     // Simulate the future actions in the queue based on the current AV timeline
     std::vector<IBattler*> GetFutureTurnQueue(int queueSize) const;
@@ -139,13 +144,18 @@ private:
     BattleOutcome          mOutcome = BattleOutcome::NONE;
 
     std::vector<std::string> mBattleLog;
+    std::vector<std::string> mDebugBattleLog;
     int mTotalExpPool = 0;
+    int mTotalCoinPool = 0;
 
     // Live battle context refreshed at the top of Update each frame.
     // Systems that need to read live state (skills, damage calculator,
     // UI predicates) hold pointers into this single member — the ADDRESS
     // is stable for the entire battle, the CONTENTS change per frame.
     BattleContext            mContext;
+    IBattler*                mPendingTurnStartCombatant = nullptr;
+    IBattler*                mPendingTurnEndCombatant = nullptr;
+    bool                     mResolvingTurnStartEffects = false;
 
     // -- Internal helpers --
     void BuildTurnOrder();
@@ -158,6 +168,11 @@ private:
 
     void EnqueueSkillActions(IBattler& caster, ISkill& skill,
                              std::vector<IBattler*> targets);
+    void EnqueueActionList(std::vector<std::unique_ptr<IAction>> actions);
+    void BeginTurnFor(IBattler* battler);
+    std::vector<IBattler*> ResolveSkillTargets(IBattler& caster,
+                                               const ISkill& skill,
+                                               IBattler* primaryTarget);
 
     // Build the action sequence for one item use and enqueue it.
     // Mirrors EnqueueSkillActions but takes an item id + primary target
@@ -166,7 +181,7 @@ private:
                             const std::string& itemId,
                             IBattler* primaryTarget);
 
-    void Log(const std::string& msg);
+    void Log(const std::string& msg, const std::string& debugMsg = std::string());
 
     bool AllPlayersDefeated() const;
     bool AllEnemiesDefeated()  const;

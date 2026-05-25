@@ -10,8 +10,9 @@
 //   Camera follow is the only reason OverworldState holds a ControllableCharacter*,
 //   and only the narrow GetX()/GetY() interface is used.
 //
-//   OverworldEnemy entities are spawned the same way.  OverworldState only holds
-//   non-owning pointers to call IsPlayerNearby() and GetEncounterData().
+//   OverworldEnemy and OverworldStaticProp entities are spawned the same way.
+//   OverworldState only keeps non-owning enemy pointers for battle proximity;
+//   static props need no tracking after SceneGraph takes ownership.
 //
 // Battle trigger (2-phase sequence - NO iris in overworld):
 //   1. PINCUSHION  - B pressed near enemy:
@@ -25,33 +26,38 @@
 //   BattleState pops -> OverworldState resumes normally (no iris state to manage).
 //
 // Scene:
-//   Blue circle              - static world-space landmark, CircleRenderer SDF.
 //   ControllableCharacter    - Verso sprite, WASD controlled, SceneGraph-owned.
+//   CheckpointCampfire       - save/load and campfire hub anchors.
+//   OverworldStaticProp      - large data-driven props sorted with entities.
 //   OverworldEnemy (1..N)    - stationary enemies, SceneGraph-owned.
 //   Camera2D                 - follows ControllableCharacter with smooth lerp.
 //   Story overlay            - data-driven area and objective text.
+//   ColorGradeFilter         - subtle world-only biome mood pass.
 //   PincushionDistortionFilter - fullscreen warp effect during transition phase.
 //
 // Input:
 //   W / A / S / D - move the Verso character
-//   ESC           - return to MenuState
+//   ESC           - open PauseState while the overworld is idle
 //   B (near enemy) - trigger battle transition (pincushion -> push BattleState)
 //   U (near campfire) - open the CampfireState hub
 //   L (near campfire) - open the party lineup
 // ============================================================
 #include "OverworldState.h"
 #include "StateManager.h"
-#include "MenuState.h"
 #include "BattleState.h"
 #include "InventoryState.h"
 #include "CampfireState.h"
 #include "LineupState.h"
+#include "PauseState.h"
+#include "DialogueState.h"
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/SaveManager.h"
+#include "../Systems/Wallet.h"
 #include "../Core/TimeSystem.h"
+#include "../Core/InputManager.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
@@ -93,16 +99,15 @@ namespace
 // ------------------------------------------------------------
 // Function: OnEnter
 // Purpose:
-//   1. Initialize CircleRenderer (static blue landmark).
-//   2. Build Camera2D from current screen dimensions.
+//   1. Build Camera2D from current screen dimensions.
+//   2. Load the tile map and data-driven story/theme data.
 //   3. Load the Verso SpriteSheet from JSON.
 //   4. Spawn ControllableCharacter into SceneGraph.
-//   5. Spawn OverworldEnemy entities from data/enemies/*.json.
-//   6. Load story regions and initialize the objective overlay.
-//   7. Initialize PincushionDistortionFilter for the battle transition.
-//   8. Subscribe to window_resized to keep Camera2D in sync.
-//   9. Subscribe to battle_end_victory to remove defeated enemies.
-//   10. Subscribe to checkpoint_loaded so campfire slot loads rebuild the map.
+//   5. Spawn campfires, static props, and overworld enemies from JSON.
+//   6. Initialize world color grade and battle transition filters.
+//   7. Subscribe to window_resized to keep Camera2D in sync.
+//   8. Subscribe to battle_end_victory to remove defeated enemies.
+//   9. Subscribe to checkpoint_loaded so campfire slot loads rebuild the map.
 // ------------------------------------------------------------
 void OverworldState::OnEnter()
 {
@@ -113,11 +118,6 @@ void OverworldState::OnEnter()
     ID3D11DeviceContext* context = D3DContext::Get().GetContext();
     const int W = D3DContext::Get().GetWidth();
     const int H = D3DContext::Get().GetHeight();
-
-    // --- CircleRenderer - still used for the blue static landmark ---
-    if (!mCircleRenderer.Initialize(device)) {
-        LOG("[OverworldState] ERROR - CircleRenderer initialization failed.");
-    }
 
     // --- Tile Map ---
     if (!mTileMap.Initialize(device, context, "assets/environments/overworld_map.json")) {
@@ -132,9 +132,30 @@ void OverworldState::OnEnter()
         device, context,
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
+    mCurrencyHud.Initialize(
+        device, context,
+        std::wstring(storyFontPath.begin(), storyFontPath.end()),
+        W, H);
     LoadStoryData();
     mCurrentArea = mDefaultArea;
     mCurrentObjective = mDefaultObjective;
+
+    if (!mThemeManager.Initialize("data/overworld_themes.json"))
+    {
+        LOG("[OverworldState] WARNING - Overworld themes failed to load; using neutral grade.");
+    }
+    mThemeManager.SetTheme(mDefaultThemeId, true);
+
+    mColorGradeFilter = std::make_unique<ColorGradeFilter>();
+    if (!mColorGradeFilter->Initialize(device, W, H))
+    {
+        LOG("[OverworldState] WARNING - ColorGradeFilter init failed; overworld themes will skip post-process.");
+        mColorGradeFilter.reset();
+    }
+    else
+    {
+        mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
+    }
 
     // --- Load Verso sprite sheet ---
     SpriteSheet sheet;
@@ -164,6 +185,23 @@ void OverworldState::OnEnter()
         &mTileMap.GetData().colliders
     );
 
+    UpdateStoryRegion(startX, startY);
+    if (const OverworldStoryRegion* initialRegion = FindStoryRegion(startX, startY))
+    {
+        mThemeManager.SetTheme(initialRegion->themeId.empty()
+                                   ? mDefaultThemeId
+                                   : initialRegion->themeId,
+                               true);
+    }
+    else
+    {
+        mThemeManager.SetTheme(mDefaultThemeId, true);
+    }
+    if (mColorGradeFilter)
+    {
+        mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
+    }
+
     std::vector<CheckpointCampfireData> campfireData;
     if (LoadCampfireData(campfireData))
     {
@@ -177,6 +215,34 @@ void OverworldState::OnEnter()
     else
     {
         LOG("[OverworldState] WARNING: No checkpoint campfires were loaded.");
+    }
+
+    std::vector<OverworldStaticPropData> propData;
+    if (LoadStaticPropData(propData))
+    {
+        for (const OverworldStaticPropData& data : propData)
+        {
+            mScene.Spawn<OverworldStaticProp>(device, context, data, mCamera.get());
+        }
+    }
+    else
+    {
+        LOG("[OverworldState] WARNING: No overworld static props were loaded.");
+    }
+
+    std::vector<OverworldNpcData> npcData;
+    if (LoadNpcData(npcData))
+    {
+        for (const OverworldNpcData& data : npcData)
+        {
+            OverworldNpc* npc = mScene.Spawn<OverworldNpc>(
+                device, context, data, mCamera.get());
+            if (npc) mNpcs.push_back(npc);
+        }
+    }
+    else
+    {
+        LOG("[OverworldState] WARNING: No overworld NPCs were loaded.");
     }
 
     // --- Spawn overworld enemies ---
@@ -237,9 +303,6 @@ void OverworldState::OnEnter()
     // Reset transition state in case this state is re-entered (e.g., returning from battle).
     mBattleTransitionPhase = BattleTransitionPhase::IDLE;
 
-    // DEBUG: load the raw texture to verify SpriteBatch works at all.
-    mDebugView.Load(device, context, L"assets/animations/test.png");
-
     // Subscribe to window resize so Camera2D stays in sync.
     mResizeListenerID = EventManager::Get().Subscribe("window_resized",
         [this](const EventData&)
@@ -248,7 +311,16 @@ void OverworldState::OnEnter()
             const int nH = D3DContext::Get().GetHeight();
             if (mCamera) mCamera->SetScreenSize(nW, nH);
             if (mTransitionController) mTransitionController->OnResize(nW, nH);
+            if (mColorGradeFilter)
+            {
+                mColorGradeFilter->Shutdown();
+                if (mColorGradeFilter->Initialize(D3DContext::Get().GetDevice(), nW, nH))
+                {
+                    mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
+                }
+            }
             mStoryTextRenderer.SetScreenSize(nW, nH);
+            mCurrencyHud.SetScreenSize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -334,10 +406,15 @@ void OverworldState::OnExit()
     mPendingEnemySource = nullptr;
     mPendingEnemySpawnId.clear();
 
-    mCircleRenderer.Shutdown();
     mTileMap.Shutdown();
-    mDebugView.Shutdown();
     mStoryTextRenderer.Shutdown();
+    mCurrencyHud.Shutdown();
+
+    if (mColorGradeFilter)
+    {
+        mColorGradeFilter->Shutdown();
+        mColorGradeFilter.reset();
+    }
 
     // Release transition controller GPU resources.
     if (mTransitionController)
@@ -355,6 +432,7 @@ void OverworldState::OnExit()
     mOverworldEnemies.clear();
     mEnemySpawnIds.clear();
     mCampfires.clear();
+    mNpcs.clear();
 
     // Destroy all SceneGraph entities (ControllableCharacter, OverworldEnemy, etc.).
     mScene.Clear();
@@ -363,10 +441,12 @@ void OverworldState::OnExit()
     mBWasDown = false;
     mIWasDown = false;
     mLWasDown = false;
+    mEWasDown = false;
     mFWasDown = false;
     mCWasDown = false;
     mUWasDown = false;
     mReloadFromCheckpoint = false;
+    mInteractionPrompt.clear();
 }
 
 bool OverworldState::LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const
@@ -497,6 +577,196 @@ bool OverworldState::LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& ou
 }
 
 // ------------------------------------------------------------
+// Function: LoadStaticPropData
+// Purpose:
+//   Load large overworld prop placements from data/overworld_props.json.
+// Why:
+//   Props that must sort against the player need entity rendering, but their
+//   placement remains map data and should not be hardcoded in OverworldState.
+// Parameters:
+//   outProps - appended with validated static prop records.
+// Returns:
+//   true when at least one prop record was loaded.
+// ------------------------------------------------------------
+bool OverworldState::LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_props.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_props.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld prop config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "props");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldStaticPropData data{};
+        data.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+
+        const std::string texturePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "texturePath"));
+        data.texturePath = std::wstring(texturePath.begin(), texturePath.end());
+
+        data.sourceX = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "sourceX"), 0);
+        data.sourceY = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "sourceY"), 0);
+        data.sourceWidth = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "sourceWidth"), 0);
+        data.sourceHeight = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "sourceHeight"), 0);
+        data.worldX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
+        data.worldY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldY"), 0.0f);
+        data.pivotX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "pivotX"), 0.0f);
+        data.pivotY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "pivotY"), 0.0f);
+        data.scale = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "scale"), 1.0f);
+        data.layer = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "layer"), 50);
+        data.sortYOffset = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "sortYOffset"), 0.0f);
+
+        if (data.id.empty() ||
+            texturePath.empty() ||
+            data.sourceWidth <= 0 ||
+            data.sourceHeight <= 0)
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid static prop entry.");
+            continue;
+        }
+
+        outProps.push_back(data);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld static prop(s).", outProps.size());
+    return !outProps.empty();
+}
+
+// ------------------------------------------------------------
+// Function: LoadNpcData
+// Purpose:
+//   Load story NPC placement, dialogue, and route gate data.
+// Why:
+//   The opening story beat should be editable from JSON without recompiling
+//   OverworldState or hardcoding character coordinates in C++.
+// ------------------------------------------------------------
+bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_npcs.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_npcs.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld NPC config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "npcs");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldNpcData data{};
+        data.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+        data.displayName = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayName"));
+        data.displayNameKey = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayNameKey"));
+
+        const std::string texturePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "texturePath"));
+        data.texturePath = std::wstring(texturePath.begin(), texturePath.end());
+
+        data.jsonPath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "jsonPath"));
+        data.idleClip = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "idleClip"));
+        if (data.idleClip.empty()) data.idleClip = "idle";
+
+        data.worldX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
+        data.worldY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldY"), 0.0f);
+        data.contactRadius = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "contactRadius"), 96.0f);
+        data.renderScale = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "renderScale"), 1.0f);
+        data.facingLeft = JsonLoader::detail::ParseBool(
+            JsonLoader::detail::ValueOf(objectSrc, "facingLeft"), true);
+
+        data.dialoguePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "dialoguePath"));
+        data.repeatDialoguePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "repeatDialoguePath"));
+        data.completionFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "completionFlag"));
+
+        data.routeBlockUntilFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "routeBlockUntilFlag"));
+        data.blockMinX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "blockMinX"), 0.0f);
+        data.blockMinY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "blockMinY"), 0.0f);
+        data.blockMaxX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "blockMaxX"), 0.0f);
+        data.blockMaxY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "blockMaxY"), 0.0f);
+        data.pushbackX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "pushbackX"), data.worldX);
+        data.pushbackY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "pushbackY"), data.worldY);
+
+        if (data.id.empty() || texturePath.empty() || data.jsonPath.empty() ||
+            data.dialoguePath.empty())
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid NPC entry.");
+            continue;
+        }
+
+        outNpcs.push_back(data);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld NPC(s).", outNpcs.size());
+    return !outNpcs.empty();
+}
+
+// ------------------------------------------------------------
 // Function: LoadStoryData
 // Purpose:
 //   Load area names and objectives for the overworld story overlay.
@@ -548,6 +818,13 @@ bool OverworldState::LoadStoryData()
             defaultObjective);
     }
 
+    const std::string defaultThemeId = JsonLoader::detail::CleanString(
+        JsonLoader::detail::ValueOf(src, "defaultThemeId"));
+    if (!defaultThemeId.empty())
+    {
+        mDefaultThemeId = defaultThemeId;
+    }
+
     mStoryRegions.clear();
     const std::vector<std::string> objects =
         JsonLoader::detail::ExtractObjectsFromArray(src, "regions");
@@ -565,6 +842,8 @@ bool OverworldState::LoadStoryData()
             JsonLoader::detail::ValueOf(objectSrc, "objective"));
         region.objectiveKey = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "objectiveKey"));
+        region.themeId = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "themeId"));
         region.name = LocalizationManager::Get().TextOrFallback(region.nameKey, region.name);
         region.objective = LocalizationManager::Get().TextOrFallback(
             region.objectiveKey,
@@ -603,6 +882,18 @@ CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const
     return nullptr;
 }
 
+OverworldNpc* OverworldState::FindNearbyNpc(float px, float py) const
+{
+    for (OverworldNpc* npc : mNpcs)
+    {
+        if (npc && npc->IsAlive() && npc->IsPlayerNearby(px, py))
+        {
+            return npc;
+        }
+    }
+    return nullptr;
+}
+
 const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) const
 {
     for (const OverworldStoryRegion& region : mStoryRegions)
@@ -630,11 +921,13 @@ void OverworldState::UpdateStoryRegion(float px, float py)
     {
         mCurrentArea = region->name;
         mCurrentObjective = region->objective;
+        mThemeManager.SetTheme(region->themeId.empty() ? mDefaultThemeId : region->themeId);
         return;
     }
 
     mCurrentArea = mDefaultArea;
     mCurrentObjective = mDefaultObjective;
+    mThemeManager.SetTheme(mDefaultThemeId);
 }
 
 // ------------------------------------------------------------
@@ -654,6 +947,80 @@ void OverworldState::UpdateSavedOverworldSnapshot(const std::string& checkpointI
     snapshot.playerY = py;
     snapshot.hasPlayerPosition = true;
     GameProgress::Get().SetOverworldSnapshot(snapshot);
+}
+
+// ------------------------------------------------------------
+// Function: ApplyNpcRouteBlocks
+// Purpose:
+//   Prevent the player from bypassing required story dialogue gates.
+// Why:
+//   The opening route should teach that Maelle is part of the story flow
+//   before combat and exploration expand outward.
+// ------------------------------------------------------------
+void OverworldState::ApplyNpcRouteBlocks(float px, float py)
+{
+    if (!mPlayer) return;
+
+    for (OverworldNpc* npc : mNpcs)
+    {
+        if (!npc || !npc->IsPlayerInsideRouteBlock(px, py)) continue;
+
+        const OverworldNpcData& data = npc->GetData();
+        mPlayer->SetPosition(data.pushbackX, data.pushbackY);
+        mPlayer->ResetVelocity();
+        mInteractionPrompt = LocalizationManager::Get().TextOrFallback(
+            "overworld.prompt.talk_to_maelle",
+            "Talk to Maelle before leaving the square.");
+        LOG("[OverworldState] Route block '%s' pushed player to (%.1f, %.1f).",
+            data.id.c_str(),
+            data.pushbackX,
+            data.pushbackY);
+        return;
+    }
+}
+
+// ------------------------------------------------------------
+// Function: HandleNpcInput
+// Purpose:
+//   Show the talk prompt and open DialogueState on a fresh E press.
+// Why:
+//   NPC interaction belongs in OverworldState because it coordinates entity
+//   proximity, input ownership, and state-stack transitions.
+// ------------------------------------------------------------
+bool OverworldState::HandleNpcInput(float px, float py)
+{
+    const bool eDown = (GetAsyncKeyState('E') & 0x8000) != 0;
+    const bool ePressed = eDown && !mEWasDown;
+    mEWasDown = eDown;
+
+    OverworldNpc* npc = FindNearbyNpc(px, py);
+    if (!npc)
+    {
+        return false;
+    }
+
+    mInteractionPrompt = LocalizationManager::Get().Format(
+        "overworld.prompt.talk",
+        {{"name", npc->GetDisplayName()}});
+
+    if (!ePressed)
+    {
+        return false;
+    }
+
+    const std::string dialoguePath = npc->GetActiveDialoguePath();
+    if (dialoguePath.empty())
+    {
+        LOG("[OverworldState] NPC '%s' has no dialogue path.",
+            npc->GetData().id.c_str());
+        return false;
+    }
+
+    StateManager::Get().PushState(std::make_unique<DialogueState>(dialoguePath));
+    LOG("[OverworldState] Opened dialogue '%s' for NPC '%s'.",
+        dialoguePath.c_str(),
+        npc->GetData().id.c_str());
+    return true;
 }
 
 bool OverworldState::HandleCampfireInput(float px, float py)
@@ -733,12 +1100,14 @@ bool OverworldState::HandleCampfireInput(float px, float py)
 // ------------------------------------------------------------
 // Function: Update
 // Purpose:
-//   1. Handle ESC -> transition to MenuState.
+//   1. Handle ESC -> push PauseState when no battle transition is active.
 //   2. Delegate all entity logic to SceneGraph::Update(dt).
-//   3. Check proximity to overworld enemies; if B pressed near one -> start transition.
-//   4. Handle pincushion phase: ramp filter intensity using UI clock dt.
-//   5. Push BattleState directly when pincushion completes (no iris in overworld).
-//   6. Camera follow via the narrow GetX()/GetY() interface.
+//   3. Apply data-driven NPC story gates and dialogue prompts.
+//   4. Refresh story region and blend its world color theme.
+//   5. Check proximity to overworld enemies; if B pressed near one -> start transition.
+//   6. Handle pincushion phase: ramp filter intensity using UI clock dt.
+//   7. Push BattleState directly when pincushion completes (no iris in overworld).
+//   8. Camera follow via the narrow GetX()/GetY() interface.
 //
 // Battle trigger sequence:
 //   Phase IDLE:
@@ -770,10 +1139,10 @@ void OverworldState::Update(float dt)
         return;
     }
 
-    if (GetAsyncKeyState(VK_ESCAPE) & 0x8000) {
-        // Restore normal time scale before leaving, in case transition was active.
-        TimeSystem::Get().SetSlowMotion(1.0f);
-        StateManager::Get().ChangeState(std::make_unique<MenuState>());
+    if (InputManager::Get().IsKeyPressed(VK_ESCAPE) &&
+        mBattleTransitionPhase == BattleTransitionPhase::IDLE)
+    {
+        StateManager::Get().PushState(std::make_unique<PauseState>());
         return;
     }
 
@@ -793,10 +1162,18 @@ void OverworldState::Update(float dt)
         mIWasDown = iDown;
         if (iPressed)
         {
-            StateManager::Get().PushState(std::make_unique<InventoryState>());
+            const bool allowEquipmentChanges =
+                mPlayer &&
+                FindNearbyCampfire(mPlayer->GetX(), mPlayer->GetY()) != nullptr;
+            StateManager::Get().PushState(
+                std::make_unique<InventoryState>(allowEquipmentChanges));
+            LOG("[OverworldState] Inventory opened with equipment changes %s.",
+                allowEquipmentChanges ? "enabled" : "locked outside campfire");
             return;  // do NOT run the rest of Update - the new state owns this frame
         }
     }
+
+    mInteractionPrompt.clear();
 
     // All entity logic (WASD, physics, animation, enemy idle) runs here.
     // dt is gameplay-clock-scaled so entities respect slow-motion automatically.
@@ -804,7 +1181,27 @@ void OverworldState::Update(float dt)
 
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
+        ApplyNpcRouteBlocks(mPlayer->GetX(), mPlayer->GetY());
+    }
+
+    if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
+    {
         UpdateStoryRegion(mPlayer->GetX(), mPlayer->GetY());
+    }
+
+    mThemeManager.Update(dt);
+    if (mColorGradeFilter)
+    {
+        mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
+        mColorGradeFilter->Update(dt, 1.0f);
+    }
+
+    if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
+    {
+        if (HandleNpcInput(mPlayer->GetX(), mPlayer->GetY()))
+        {
+            return;
+        }
 
         if (HandleCampfireInput(mPlayer->GetX(), mPlayer->GetY()))
         {
@@ -946,19 +1343,60 @@ void OverworldState::RenderStoryOverlay()
 }
 
 // ------------------------------------------------------------
+// Function: RenderInteractionPrompt
+// Purpose:
+//   Draw the current contextual overworld interaction prompt.
+// Why:
+//   The player needs clear feedback when Maelle can be talked to or when a
+//   story gate redirects them before the next route opens.
+// ------------------------------------------------------------
+void OverworldState::RenderInteractionPrompt()
+{
+    if (!mStoryTextRenderer.IsReady() || mInteractionPrompt.empty()) return;
+
+    ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
+    const float centerX = static_cast<float>(D3DContext::Get().GetWidth()) * 0.5f;
+    const float y = static_cast<float>(D3DContext::Get().GetHeight()) - 72.0f;
+
+    mStoryTextRenderer.BeginBatch(ctx);
+    mStoryTextRenderer.DrawStringCenteredRaw(mInteractionPrompt.c_str(),
+                                             centerX,
+                                             y + 2.0f,
+                                             DirectX::Colors::Black,
+                                             1.0f,
+                                             false);
+    mStoryTextRenderer.DrawStringCenteredRaw(mInteractionPrompt.c_str(),
+                                             centerX,
+                                             y,
+                                             DirectX::Colors::PaleGoldenrod,
+                                             1.0f,
+                                             true);
+    mStoryTextRenderer.EndBatch();
+}
+
+void OverworldState::RenderCurrencyOverlay()
+{
+    ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
+    mCurrencyHud.RenderTopRight(ctx, Wallet::Get().GetCoins());
+}
+
+// ------------------------------------------------------------
 // Function: Render
 // Purpose:
-//   1. If pincushion filter is active: redirect scene draws to offscreen RT.
-//   2. Draw the static blue circle (world-space SDF, CPU WorldToScreen).
-//   3. Call SceneGraph::Render(ctx) - draws all entities in layer order.
-//   4. If pincushion filter is active: restore back buffer, apply warp.
-//   5. Draw the iris transition overlay on top of everything.
+//   1. Let the transition controller prepare any active world effect.
+//   2. Draw background map layers behind SceneGraph entities.
+//   3. Call SceneGraph::Render(ctx) - draws entities in layer and Y order.
+//   4. Draw foreground map layers that should occlude entities.
+//   5. Apply world-only color grade before screen-space UI.
+//   6. If pincushion filter is active: restore back buffer, apply warp.
 //
 // Draw order:
-//   [BeginCapture if filter active]
-//   Blue circle      -> background landmark (world-space)
-//   SceneGraph       -> ascending layer order (enemies @48, player @50)
-//   [EndCapture + Render filter if active - replaces back buffer with warped scene]
+//   [BeginCapture if transition controller needs it]
+//   TileMap background -> ground, roads, normal static map objects
+//   SceneGraph         -> ascending layer order (enemies @48, player @50)
+//   TileMap foreground -> canopies, roofs, and above-player map overlays
+//   ColorGradeFilter   -> biome mood on world content only
+//   [EndCapture + transition render if active - applies battle transition]
 //
 // No iris in OverworldState - BattleState owns its own iris that opens on entry.
 // ------------------------------------------------------------
@@ -967,33 +1405,27 @@ void OverworldState::Render()
     if (!mCamera) return;
 
     ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
-    const int W = D3DContext::Get().GetWidth();
-    const int H = D3DContext::Get().GetHeight();
-
-    // Determine whether the pincushion filter should capture this frame.
-    // IsActive() returns false when intensity is below kActivationThreshold,
-    // avoiding the overhead of an offscreen RT bind when not needed.
+    // Determine whether the transition effect should run this frame.
+    // The concrete controller decides internally whether it captures or uses
+    // a copy-based post-process path.
     const bool filterActive = mTransitionController && mTransitionController->IsActive();
 
     // --- Redirect scene draws to offscreen render target ---
     if (filterActive)
         mTransitionController->BeginCapture(ctx);
 
-    // --- Blue static circle (world-space SDF landmark) ---
-    DirectX::XMFLOAT2 blueScreen = mCamera->WorldToScreen(kBlueX, kBlueY);
-    const float zoomedBlueRadius = kBlueRadius * mCamera->GetZoom();
-
-    mDebugView.Draw(ctx, W, H, { true });
-
-    mTileMap.Render(ctx, *mCamera);
-
-    mCircleRenderer.Draw(ctx,
-        blueScreen.x, blueScreen.y, zoomedBlueRadius,
-        0.15f, 0.35f, 1.0f,
-        W, H);
+    mTileMap.RenderBackground(ctx, *mCamera);
 
     // --- All SceneGraph entities (sorted by layer, self-rendering) ---
     mScene.Render(ctx);
+
+    // --- Above-player map layers ---
+    mTileMap.RenderForeground(ctx, *mCamera);
+
+    if (mColorGradeFilter && mColorGradeFilter->IsActive())
+    {
+        mColorGradeFilter->Render(ctx);
+    }
 
     // --- Restore back buffer and apply pincushion distortion ---
     // EndCapture restores the saved RTV; Render draws the warped scene quad.
@@ -1003,4 +1435,6 @@ void OverworldState::Render()
     }
 
     RenderStoryOverlay();
+    RenderInteractionPrompt();
+    RenderCurrencyOverlay();
 }

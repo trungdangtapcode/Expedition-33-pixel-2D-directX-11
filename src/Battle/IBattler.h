@@ -18,6 +18,10 @@
 #include "IStatusEffect.h"
 #include "IDamageCalculator.h"  // For DamageResult
 #include "StatModifier.h"       // Stat modifier pipeline
+#include "StatusEffectView.h"
+
+class IAction;
+struct BattleContext;
 
 class IBattler
 {
@@ -28,6 +32,7 @@ public:
     // Identity
     // --------------------------------------------------------
     virtual const std::string& GetName() const = 0;
+    virtual const std::string& GetDebugName() const = 0;
     virtual const std::wstring& GetTurnViewPath() const = 0;
 
     // --------------------------------------------------------
@@ -60,6 +65,9 @@ public:
     // afflicted targets without caring which effect is attached.
     virtual bool HasAnyStatusEffect() const = 0;
 
+    // UI-safe snapshots of every active status effect.
+    virtual std::vector<StatusEffectView> GetStatusEffectViews() const = 0;
+
     // --------------------------------------------------------
     // Stat modifier pipeline (StatResolver / StatModifier.h).
     //
@@ -80,6 +88,7 @@ public:
     // --------------------------------------------------------
     virtual void OnTurnStart() = 0;   // trigger any start-of-turn effects
     virtual void OnTurnEnd()   = 0;   // decrement effect durations + purge expired
+    virtual std::vector<std::unique_ptr<IAction>> BuildTurnStartActions(const BattleContext& ctx) = 0;
 
     // --------------------------------------------------------
     // Query

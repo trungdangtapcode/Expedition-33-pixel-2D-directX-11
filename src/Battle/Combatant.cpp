@@ -9,6 +9,7 @@
 #include "../Events/EventManager.h"
 #include "BattleEvents.h"
 #include "CombatantAnim.h"
+#include "IAction.h"
 
 // Convenience wrapper: LOG() only accepts printf-style args, so convert        
 // std::string messages to C-strings before passing to the macro.
@@ -17,13 +18,18 @@ static inline void LogStr(const std::string& msg)
     LOG("%s", msg.c_str());
 }
 
-Combatant::Combatant(std::string name, std::wstring turnViewPath, BattlerStats stats)
+Combatant::Combatant(std::string name,
+                     std::wstring turnViewPath,
+                     BattlerStats stats,
+                     std::string debugName)
     : mName(std::move(name))
+    , mDebugName(debugName.empty() ? mName : std::move(debugName))
     , mTurnViewPath(std::move(turnViewPath))
     , mStats(stats)
 {}
 
 const std::string& Combatant::GetName() const { return mName; }
+const std::string& Combatant::GetDebugName() const { return mDebugName; }
 const std::wstring& Combatant::GetTurnViewPath() const { return mTurnViewPath; }
       BattlerStats& Combatant::GetStats()       { return mStats; }
 const BattlerStats& Combatant::GetStats() const { return mStats; }
@@ -40,7 +46,7 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
     mStats.ClampHp();
 
     LOG("%s takes %d damage (raw=%d def=%d) HP=%d/%d",
-        mName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
+        mDebugName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
 
     // Receiver gains rage from the pain of being hit.
     mStats.AddRage(result.effectiveDamage / 8);
@@ -82,11 +88,34 @@ void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
 
 void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)
 {
+    if (!effect) return;
+
+    for (auto& active : mEffects)
+    {
+        if (active && active->GetId() == effect->GetId() &&
+            active->TryMergeFrom(*this, *effect))
+        {
+            LOG("%s refreshed effect: %s", mDebugName.c_str(), active->GetName());
+            return;
+        }
+    }
+
     // Apply the effect immediately — it may push stat modifiers via
     // AddStatModifier or begin a countdown.  Then store it.
     effect->Apply(*this);
-    LOG("%s afflicted with: %s", mName.c_str(), effect->GetName());
+    LOG("%s afflicted with: %s", mDebugName.c_str(), effect->GetName());
     mEffects.push_back(std::move(effect));
+}
+
+std::vector<StatusEffectView> Combatant::GetStatusEffectViews() const
+{
+    std::vector<StatusEffectView> views;
+    views.reserve(mEffects.size());
+    for (const auto& effect : mEffects)
+    {
+        if (effect) views.push_back(effect->GetView());
+    }
+    return views;
 }
 
 // ------------------------------------------------------------
@@ -103,7 +132,7 @@ void Combatant::ClearAllStatusEffects()
 
     for (auto& effect : mEffects)
     {
-        LOG("%s cleansed of: %s", mName.c_str(), effect->GetName());
+        LOG("%s cleansed of: %s", mDebugName.c_str(), effect->GetName());
         effect->Revert(*this);
     }
     mEffects.clear();
@@ -146,6 +175,22 @@ void Combatant::OnTurnStart()
     // Base no-op — subclasses may override for regen, burn, etc.
 }
 
+std::vector<std::unique_ptr<IAction>> Combatant::BuildTurnStartActions(const BattleContext& ctx)
+{
+    std::vector<std::unique_ptr<IAction>> actions;
+    for (auto& effect : mEffects)
+    {
+        if (!effect) continue;
+
+        auto effectActions = effect->BuildTurnStartActions(*this, ctx);
+        for (auto& action : effectActions)
+        {
+            actions.push_back(std::move(action));
+        }
+    }
+    return actions;
+}
+
 // ------------------------------------------------------------
 // OnTurnEnd: decrement all effect durations, then purge expired ones.
 // Order matters: run OnTurnEnd first so the effect's last-tick logic fires
@@ -175,7 +220,7 @@ void Combatant::PurgeExpiredEffects()
     {
         if (mEffects[i]->IsExpired())
         {
-            LOG("%s effect expired: %s", mName.c_str(), mEffects[i]->GetName());
+            LOG("%s effect expired: %s", mDebugName.c_str(), mEffects[i]->GetName());
             mEffects[i]->Revert(*this);
             mEffects.erase(mEffects.begin() + i);
         }

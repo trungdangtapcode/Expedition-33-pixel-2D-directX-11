@@ -1210,7 +1210,8 @@ void BattleState::Render()
             mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT,
             mInputController.GetTargetIndex(),
             mBattle.GetAliveEnemies(),
-            mBattle.GetContext());
+            mBattle.GetContext(),
+            mBattleRenderer.GetCamera().GetRotation());
     }
 
     // ---- Item menu (ITEM_SELECT) ----

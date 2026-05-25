@@ -112,7 +112,8 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
                                      bool targetSelectActive,
                                      int targetIndex,
                                      const std::vector<IBattler*>& enemies,
-                                     const BattleContext& battleContext)
+                                     const BattleContext& battleContext,
+                                     float cameraRotationRadians)
 {
     if (!IsInitialized() || !activePlayer || !text.IsReady()) return;
 
@@ -138,7 +139,7 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
     const XMVECTOR disabledText = XMVectorSet(mLayout.disabledTextR, mLayout.disabledTextG, mLayout.disabledTextB, alpha);
     const XMVECTOR costText = XMVectorSet(mLayout.costR, mLayout.costG, mLayout.costB, alpha);
     const XMVECTOR warningText = XMVectorSet(mLayout.warningR, mLayout.warningG, mLayout.warningB, alpha);
-    const XMMATRIX uiTransform = BuildUiTransform();
+    const XMMATRIX uiTransform = BuildUiTransform(cameraRotationRadians);
 
     const ISkill* selectedSkill = activePlayer->GetSkill(selectedSkillIndex);
     const IBattler* previewTarget = nullptr;
@@ -571,6 +572,8 @@ bool BattleSkillMenuRenderer::LoadLayout(const std::string& path)
     mLayout.descriptionMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "descriptionMaxBytes"), mLayout.descriptionMaxBytes);
     mLayout.statusSummaryMaxBytes = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "statusSummaryMaxBytes"), mLayout.statusSummaryMaxBytes);
     mLayout.transformEnabled = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "transformEnabled"), mLayout.transformEnabled);
+    mLayout.transformFollowCameraRotation = JsonLoader::detail::ParseBool(JsonLoader::detail::ValueOf(src, "transformFollowCameraRotation"), mLayout.transformFollowCameraRotation);
+    mLayout.transformCameraRotationMultiplier = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformCameraRotationMultiplier"), mLayout.transformCameraRotationMultiplier);
     mLayout.transformRotationDegrees = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformRotationDegrees"), mLayout.transformRotationDegrees);
     mLayout.transformPivotX = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformPivotX"), mLayout.transformPivotX);
     mLayout.transformPivotY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "transformPivotY"), mLayout.transformPivotY);
@@ -657,7 +660,7 @@ void BattleSkillMenuRenderer::DrawPanel(float x, float y, float w, float h, XMVE
     mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(x, y), nullptr, color, 0.0f, origin, XMFLOAT2(w, h));
 }
 
-XMMATRIX BattleSkillMenuRenderer::BuildUiTransform() const
+XMMATRIX BattleSkillMenuRenderer::BuildUiTransform(float cameraRotationRadians) const
 {
     if (!mLayout.transformEnabled)
     {
@@ -668,7 +671,10 @@ XMMATRIX BattleSkillMenuRenderer::BuildUiTransform() const
     const XMVECTOR rotationOrigin = scaleOrigin;
     const XMVECTOR scale = XMVectorSet(mLayout.transformScaleX, mLayout.transformScaleY, 0.0f, 0.0f);
     const XMVECTOR translation = XMVectorSet(mLayout.transformOffsetX, mLayout.transformOffsetY, 0.0f, 0.0f);
-    const float radians = XMConvertToRadians(mLayout.transformRotationDegrees);
+    const float cameraDegrees = mLayout.transformFollowCameraRotation
+        ? XMConvertToDegrees(cameraRotationRadians) * mLayout.transformCameraRotationMultiplier
+        : 0.0f;
+    const float radians = XMConvertToRadians(mLayout.transformRotationDegrees + cameraDegrees);
     return XMMatrixTransformation2D(scaleOrigin, 0.0f, scale, rotationOrigin, radians, translation);
 }
 

@@ -115,6 +115,8 @@ struct BattleSkillMenuLayout
     int descriptionMaxBytes = 72;
     int statusSummaryMaxBytes = 54;
     bool transformEnabled = true;
+    bool transformFollowCameraRotation = true;
+    float transformCameraRotationMultiplier = -1.0f;
     float transformRotationDegrees = -2.0f;
     float transformPivotX = 640.0f;
     float transformPivotY = 360.0f;
@@ -153,7 +155,8 @@ public:
                 bool targetSelectActive,
                 int targetIndex,
                 const std::vector<IBattler*>& enemies,
-                const BattleContext& battleContext);
+                const BattleContext& battleContext,
+                float cameraRotationRadians);
 
     void SetScreenSize(int w, int h);
     void Shutdown();
@@ -184,7 +187,7 @@ private:
     bool LoadLayout(const std::string& path);
     bool LoadIconMetadata(const std::string& path);
     bool CreateFillTexture(ID3D11Device* device);
-    DirectX::XMMATRIX BuildUiTransform() const;
+    DirectX::XMMATRIX BuildUiTransform(float cameraRotationRadians) const;
     void DrawPanel(float x, float y, float w, float h, DirectX::XMVECTOR color);
     void DrawIcon(const std::string& iconId, float x, float y, float size, DirectX::XMVECTOR color);
     void DrawNineSlice(ID3D11DeviceContext* context,

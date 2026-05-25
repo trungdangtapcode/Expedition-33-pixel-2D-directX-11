@@ -8,6 +8,8 @@ The presentation uses the existing `ui-dialog-box-hd` 9-slice chrome rather than
 
 The tilt is intentionally applied as one parent transform to every panel, icon, accent, and text draw. Do not rotate child components independently; doing so causes the visible mismatch where the panel edge, icon, and label drift away from each other.
 
+By default the parent transform follows the live battle camera rotation through `transformFollowCameraRotation` and `transformCameraRotationMultiplier`. `transformRotationDegrees` is only an art-direction offset on top of the camera-follow value, not a replacement for the camera angle.
+
 ## Renderer Ownership
 
 - `BattleState` owns `BattleSkillMenuRenderer`.

@@ -46,6 +46,7 @@ namespace
 
     StoryDirector::TriggerKind ParseTriggerKind(const std::string& value)
     {
+        if (value == "on_load") return StoryDirector::TriggerKind::OnLoad;
         if (value == "dialogue_completed") return StoryDirector::TriggerKind::DialogueCompleted;
         if (value == "battle_victory") return StoryDirector::TriggerKind::BattleVictory;
         if (value == "battle_defeat") return StoryDirector::TriggerKind::BattleDefeat;
@@ -90,7 +91,12 @@ bool StoryDirector::Initialize(const std::string& path)
     }
 
     JsonLoader::detail::WarnIfUTF16(src, path);
-    return LoadEventsFromSource(src, path);
+    const bool loaded = LoadEventsFromSource(src, path);
+    if (loaded)
+    {
+        EvaluateTrigger(TriggerKind::OnLoad, "");
+    }
+    return loaded;
 }
 
 // ------------------------------------------------------------

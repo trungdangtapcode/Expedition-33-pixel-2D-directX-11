@@ -49,6 +49,7 @@ class StoryDirector
 public:
     enum class TriggerKind
     {
+        OnLoad,
         EnterArea,
         DialogueCompleted,
         BattleVictory,

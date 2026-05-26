@@ -104,6 +104,29 @@
           "saveReason": "story_maelle_joined"
         }
       ]
+    },
+    {
+      "id": "maelle_recruit_repair",
+      "trigger": "on_load",
+      "requiresFlags": [
+        "story.maelle_duel_won",
+        "dialogue_completed:maelle_reconcile"
+      ],
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "commands": [
+        {
+          "type": "recruit_member",
+          "memberId": "maelle"
+        },
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_joined"
+        },
+        {
+          "type": "save_checkpoint",
+          "saveReason": "story_maelle_joined"
+        }
+      ]
     }
   ]
 }

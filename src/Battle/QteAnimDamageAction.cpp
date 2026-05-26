@@ -12,6 +12,7 @@
 #include <windows.h>
 #include <cmath>
 #include <algorithm>
+#include <utility>
 
 namespace
 {
@@ -42,7 +43,45 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
                                          float fadeInRatio,
                                          float fadeOutDuration,
                                          const BattleContext* ctx)
-    : mRequest(request)
+    : QteAnimDamageAction(
+        std::vector<DamageRequest>{ request },
+        animType,
+        qteStartMoment,
+        damageMoment,
+        slowMoScale,
+        perfectMult,
+        goodMult,
+        missMult,
+        perfectThreshold,
+        goodThreshold,
+        minCount,
+        maxCount,
+        bonusQteCount,
+        qteSpacing,
+        fadeInRatio,
+        fadeOutDuration,
+        ctx)
+{
+}
+
+QteAnimDamageAction::QteAnimDamageAction(std::vector<DamageRequest> requests,
+                                         CombatantAnim animType,
+                                         float qteStartMoment,
+                                         float damageMoment,
+                                         float slowMoScale,
+                                         float perfectMult,
+                                         float goodMult,
+                                         float missMult,
+                                         float perfectThreshold,
+                                         float goodThreshold,
+                                         int minCount,
+                                         int maxCount,
+                                         float bonusQteCount,
+                                         float qteSpacing,
+                                         float fadeInRatio,
+                                         float fadeOutDuration,
+                                         const BattleContext* ctx)
+    : mRequests(std::move(requests))
     , mAnimType(animType)
     , mQteStartMoment(qteStartMoment)
     , mDamageMoment(damageMoment)
@@ -57,6 +96,9 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
     , mFadeOutDuration(fadeOutDuration)
     , mCtx(ctx)
 {
+    minCount = std::clamp(minCount, 1, MAX_QTE_NODES);
+    maxCount = std::clamp(maxCount, minCount, MAX_QTE_NODES);
+
     int count = minCount;
     if (maxCount > minCount) {
         count = minCount + (rand() % (maxCount - minCount + 1));
@@ -92,6 +134,11 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
     });
 }
 
+IBattler* QteAnimDamageAction::GetAttacker() const
+{
+    return mRequests.empty() ? nullptr : mRequests.front().attacker;
+}
+
 void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
 {
     // A micro burst of UI via battle payload.
@@ -104,7 +151,7 @@ void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
     qteState.results[mActiveNodeIndex] = result;
     qteState.progressRatios[mActiveNodeIndex] = ratio;
     qteState.result = result; // maintain legacy compat for GameState flash
-    qteState.target = mRequest.attacker;
+    qteState.target = GetAttacker();
     qteState.activeIndex = mActiveNodeIndex;
     qteState.totalCount = static_cast<int>(mNodes.size());
     qteState.fadeInRatio = mFadeInRatio;
@@ -149,14 +196,14 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
 {
     if (!mHasStarted)
     {
-        PlayAnimPayload p = { mRequest.attacker, mAnimType };
+        PlayAnimPayload p = { GetAttacker(), mAnimType };
         EventData e; e.payload = &p;
         EventManager::Get().Broadcast("battler_play_anim", e);
         mHasStarted = true;
     }
 
     // Measure real animation progression
-    GetAnimProgressPayload pProg = { mRequest.attacker, 0.0f };
+    GetAnimProgressPayload pProg = { GetAttacker(), 0.0f };
     EventData eProg; eProg.payload = &pProg;
     EventManager::Get().Broadcast("battler_get_anim_progress", eProg);
 
@@ -175,7 +222,7 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
     {
         QTEStatePayload qteState;
         qteState.isActive = true;
-        qteState.target = mRequest.attacker;
+        qteState.target = GetAttacker();
         qteState.activeIndex = mActiveNodeIndex;
         qteState.totalCount = static_cast<int>(mNodes.size());
         qteState.fadeInRatio = mFadeInRatio;
@@ -241,17 +288,22 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
                 else sum += mMissMult;
             }
             // Strict averaging based on user performance across all randomly spawned nodes
-            mRequest.qteMultiplier = sum / static_cast<float>(mNodes.size());
+            const float averagedMultiplier = sum / static_cast<float>(mNodes.size());
             
             // Safely push explicitly earned raw count bonuses onto the average!
-            mRequest.qteMultiplier += (perfectCount * mBonusQteCount);
-            mRequest.qteMultiplier += (goodCount * (mBonusQteCount * 0.5f));
+            const float earnedBonus =
+                (perfectCount * mBonusQteCount) +
+                (goodCount * (mBonusQteCount * 0.5f));
+            for (DamageRequest& request : mRequests)
+            {
+                request.qteMultiplier = averagedMultiplier + earnedBonus;
+            }
         }
     }
 
     if (!mDamageApplied && prog >= mDamageMoment)
     {
-        if (mRequest.defender)
+        if (!mRequests.empty())
         {
             // If lag spike somehow jumped over the entire QTE window, default it
             if (!mActionResolved) {
@@ -264,13 +316,17 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
             const BattleContext& ctxRef = mCtx ? *mCtx : fallback;
 
             DefaultDamageCalculator calculator;
-            DamageResult result = calculator.Calculate(mRequest, ctxRef);
-            mRequest.defender->TakeDamage(result, mRequest.attacker);
+            for (DamageRequest& request : mRequests)
+            {
+                if (!request.defender) continue;
+                DamageResult result = calculator.Calculate(request, ctxRef);
+                request.defender->TakeDamage(result, request.attacker);
+            }
         }
         mDamageApplied = true;
     }
 
-    IsAnimDonePayload pDone = { mRequest.attacker, false };
+    IsAnimDonePayload pDone = { GetAttacker(), false };
     EventData eDone; eDone.payload = &pDone;
     EventManager::Get().Broadcast("battler_is_anim_done", eDone);
 
@@ -279,7 +335,7 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
         if (!mActionResolved) TimeSystem::Get().SetSlowMotion(1.0f);
         QTEStatePayload qteState; 
         qteState.isActive = false; 
-        qteState.target = mRequest.attacker;
+        qteState.target = GetAttacker();
         EventData qteEvent; qteEvent.payload = &qteState;
         EventManager::Get().Broadcast("battler_qte_update", qteEvent);
     }

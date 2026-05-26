@@ -6,7 +6,14 @@ The battle skill system now supports direct damage, HP healing, MP recovery, rev
 
 ## Skill Data
 
-Skill JSON uses `kind` for broad UI grouping and `effect` for the actual gameplay branch. Existing damage skills can omit `effect` because `attack`, `damage`, and `rage` resolve to `damage`.
+Skill JSON uses three separate axes:
+
+- `kind`: broad UI/combat category, such as `damage`, `support`, `heal`, or `rage`.
+- `effect`: the gameplay branch, such as `damage`, `heal_hp`, `revive`, or `cleanse`.
+- `mechanism`: how the action plays, such as `attack` for the full melee/camera/animation path.
+- `attackMotion`: attack-mechanism motion style. `melee` dashes to the target; `stationary` keeps the caster in place for magic and ranged techniques.
+
+Existing damage skills can omit `effect` because `attack`, `damage`, and `rage` resolve to `damage`.
 
 Supported `effect` values:
 
@@ -16,6 +23,20 @@ Supported `effect` values:
 - `revive`: build one `ReviveAction` for the selected fallen ally.
 - `cleanse`: build one `CleanseAction` for the selected ally.
 - `status`: apply `statusEffectId` without direct damage.
+
+Supported `mechanism` values:
+
+- Empty/default: use the generic data-driven cast/support path.
+- `attack`: use the full attack mechanism: fight stance, camera follow, melee movement, animation-timed damage, optional QTE or bullet-hell, optional status application, and return to origin.
+
+Damage skills may set `flatBonus` when they need a small guaranteed floor against high-defense enemies. The bonus is still passed through the normal `DamageRequest` and damage pipeline; it is not applied directly by UI or input code.
+
+QTE complexity is per skill:
+
+- Basic attacks use fewer nodes and wider spacing.
+- Debuff attacks use medium node counts so the status application still feels earned.
+- Finishers and large fire techniques use more nodes, tighter spacing, and higher perfect bonuses.
+- `qteMinCount` and `qteMaxCount` are clamped to the renderer limit so a data mistake cannot spawn invisible prompts.
 
 Supported targeting values:
 
@@ -44,11 +65,15 @@ New skill actions:
 Verso:
 
 - `Crescent Sweep`: all-enemy physical damage.
+- `Sunder Guard`: attack-mechanism damage plus Weaken.
+- `Mark Prey`: attack-mechanism damage plus Vulnerable.
 - `Second Wind`: self HP recovery.
+- `Rage Burst`: attack-mechanism rage finisher.
 
 Maelle:
 
-- `Flame Bloom`: all-enemy magic damage with burn chance.
+- `Ember`: stationary attack-mechanism fire damage plus Burn.
+- `Flame Bloom`: stationary all-enemy attack-mechanism fire damage with burn chance.
 - `Mending Verse`: single-ally HP recovery.
 - `Aegis Verse`: all-ally Guard Up.
 - `Quickstep`: single-ally Haste.
@@ -62,7 +87,7 @@ The existing Expedition-style skill menu remains in place. It now shows support 
 ## Adding A Skill
 
 1. Add a JSON file under `data/skills/`.
-2. Choose `targeting`, `effect`, `mpCost`, `amount`, and optional `statusEffectId`.
+2. Choose `mechanism`, `attackMotion`, `targeting`, `effect`, `mpCost`, `amount`, `flatBonus`, and optional `statusEffectId`.
 3. Add the path to the character's `skillPaths` array.
 4. Add English, Vietnamese, and French localization keys.
 5. Reuse an existing icon id from `assets/UI/status_effect_icons.json` or add a new atlas frame.

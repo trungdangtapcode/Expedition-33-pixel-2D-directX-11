@@ -1300,6 +1300,8 @@ struct SkillData {
     std::string id;
     std::string kind = "attack";
     std::string effect;
+    std::string mechanism;
+    std::string attackMotion = "melee";
     std::string nameKey;
     std::string descriptionKey;
     std::string iconId;
@@ -1316,6 +1318,7 @@ struct SkillData {
     bool requiresFullRage = false;
     bool consumesAllRage = false;
     float skillMultiplier = 1.0f;
+    int flatBonus = 0;
     float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
@@ -1369,6 +1372,9 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     const std::string kind = detail::CleanString(detail::ValueOf(src, "kind"));
     out.kind = kind.empty() ? "attack" : kind;
     out.effect = detail::CleanString(detail::ValueOf(src, "effect"));
+    out.mechanism = detail::CleanString(detail::ValueOf(src, "mechanism"));
+    const std::string attackMotion = detail::CleanString(detail::ValueOf(src, "attackMotion"));
+    out.attackMotion = attackMotion.empty() ? "melee" : attackMotion;
     out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
     out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
     out.iconId = detail::CleanString(detail::ValueOf(src, "iconId"));
@@ -1387,6 +1393,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
     out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
     out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);
+    out.flatBonus = detail::ParseInt(detail::ValueOf(src, "flatBonus"), 0);
     out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);

@@ -1,6 +1,7 @@
 // ============================================================
 // File: AttackSkill.h
-// Responsibility: Basic attack - deals (atk - def) damage; grants rage to both sides.
+// Responsibility: Execute attack-mechanism skills with movement, camera,
+//                 animation-timed damage, optional QTE, and optional status.
 //
 // Rage formula (handled inside Combatant::TakeDamage):
 //   Attacker rage += effective / 4
@@ -30,6 +31,7 @@ public:
     SkillResourceKind GetResourceKind() const override;
     SkillTargeting GetTargeting() const override;
     std::string GetKind() const override;
+    std::string GetEffect() const override;
     std::string GetDamageType() const override;
     std::string GetStatusEffectId() const override;
     std::string GetDamageGradeKey() const override;
@@ -39,7 +41,7 @@ public:
     std::string GetDebugName() const override;
     std::string GetDebugDescription() const override;
 
-    // Always available because the basic attack has no resource cost.
+    // Availability depends on the skill's data-driven MP and rage gates.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
     // Produces: LogAction + DamageAction

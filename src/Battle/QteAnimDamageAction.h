@@ -1,6 +1,7 @@
 // ============================================================
 // File: QteAnimDamageAction.h
-// Responsibility: Extends standard anim-damage with slow motion QTE mechanics.
+// Responsibility: Extends animation-timed damage with slow-motion QTE
+//                 mechanics for one target or a grouped AoE hit.
 // ============================================================
 #pragma once
 #include "IAction.h"
@@ -24,11 +25,21 @@ public:
                         int minCount, int maxCount, float bonusQteCount, float qteSpacing,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
+    QteAnimDamageAction(std::vector<DamageRequest> requests,
+                        CombatantAnim animType,
+                        float qteStartMoment,
+                        float damageMoment,
+                        float slowMoScale,
+                        float perfectMult, float goodMult, float missMult,
+                        float perfectThreshold, float goodThreshold,
+                        int minCount, int maxCount, float bonusQteCount, float qteSpacing,
+                        float fadeInRatio, float fadeOutDuration,
+                        const BattleContext* ctx);
 
     bool Execute(float dt) override;
 
 private:
-    DamageRequest mRequest;
+    std::vector<DamageRequest> mRequests;
     CombatantAnim mAnimType;
 
     float mQteStartMoment;
@@ -56,6 +67,7 @@ private:
     // The context pointer is stable because it points into BattleManager
     const BattleContext* mCtx;
 
+    IBattler* GetAttacker() const;
     void BroadcastQteFeedback(QTEResult result, float ratio);
     void PlayQteStartSfx() const;
     void PlayQteResultSfx(QTEResult result) const;

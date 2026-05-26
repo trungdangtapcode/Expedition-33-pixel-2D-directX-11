@@ -227,6 +227,7 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
             request.defender = target;
             request.type = ParseDamageType(mData.damageType);
             request.skillMultiplier = mData.skillMultiplier;
+            request.flatBonus = mData.flatBonus;
             actions.push_back(std::make_unique<DamageAction>(request, &ctx));
         }
     }

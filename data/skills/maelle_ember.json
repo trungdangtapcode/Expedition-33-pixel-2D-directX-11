@@ -3,7 +3,7 @@
   "kind": "damage",
   "effect": "damage",
   "mechanism": "attack",
-  "attackMotion": "stationary",
+  "attackMotion": "melee",
   "iconId": "burn",
   "nameKey": "skill.maelle_ember.name",
   "descriptionKey": "skill.maelle_ember.description",

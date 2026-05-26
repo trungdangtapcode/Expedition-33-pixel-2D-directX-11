@@ -72,8 +72,8 @@ Verso:
 
 Maelle:
 
-- `Ember`: stationary attack-mechanism fire damage plus Burn.
-- `Flame Bloom`: stationary all-enemy attack-mechanism fire damage with burn chance.
+- `Ember`: melee-motion attack-mechanism fire damage plus Burn.
+- `Flame Bloom`: melee-motion all-enemy attack-mechanism fire damage with burn chance.
 - `Mending Verse`: single-ally HP recovery.
 - `Aegis Verse`: all-ally Guard Up.
 - `Quickstep`: single-ally Haste.

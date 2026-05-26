@@ -3,7 +3,7 @@
   "kind": "damage",
   "effect": "damage",
   "mechanism": "attack",
-  "attackMotion": "stationary",
+  "attackMotion": "melee",
   "iconId": "burn",
   "nameKey": "skill.maelle_flame_bloom.name",
   "descriptionKey": "skill.maelle_flame_bloom.description",

@@ -1,0 +1,35 @@
+{
+  "id": "maelle_confrontation",
+  "completionFlag": "dialogue_completed:maelle_confrontation",
+  "skippable": false,
+  "lines": [
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.maelle_confrontation.verso_1",
+      "text": "Maelle? I thought the boulevard swallowed everyone."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_confrontation.maelle_1",
+      "text": "Do not use my name like a memory. The mirrors learned his voice too."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.maelle_confrontation.verso_2",
+      "text": "I am not a clone. I am your brother."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_confrontation.maelle_2",
+      "text": "Then survive like him. Draw your blade."
+    }
+  ]
+}

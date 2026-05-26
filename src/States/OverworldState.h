@@ -12,6 +12,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
 #include "../Renderer/ColorGradeFilter.h"
+#include "../Systems/StoryDirector.h"
 #include <memory>
 #include <string>
 #include <unordered_map>
@@ -173,6 +174,7 @@ private:
     // Stable spawn id for the pending enemy; saved as enemy_defeated:<id>
     // after battle victory so the enemy does not respawn on load.
     std::string mPendingEnemySpawnId;
+    std::string mPendingStoryBattleId;
 
     // Maps live SceneGraph-owned enemies back to data/overworld_spawns.json ids.
     // The map is cleared before SceneGraph destroys the entities.
@@ -217,6 +219,9 @@ private:
     // ListenerID for "battle_end_victory" - marks the source overworld enemy
     // as defeated so SceneGraph::PurgeDead() removes it on the next frame.
     int mVictoryListenerID = -1;
+    int mDefeatListenerID = -1;
+    int mFleeListenerID = -1;
+    int mDialogueCompletedListenerID = -1;
 
     // ListenerID for "checkpoint_loaded" - campfire slot loads mutate managers
     // first, then this state rebuilds itself from the loaded snapshot.
@@ -234,9 +239,18 @@ private:
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);
     void ApplyNpcRouteBlocks(float px, float py);
+    void ApplyNpcVisibilityFlags();
+    bool BeginBattleTransition(const EnemyEncounterData& encounter,
+                               OverworldEnemy* enemySource,
+                               const std::string& enemySpawnId,
+                               const std::string& storyBattleId);
+    bool ProcessStoryCommands();
+    bool ExecuteStoryCommand(const StoryCommand& command);
     bool HandleNpcInput(float px, float py);
     void RenderStoryOverlay();
     void RenderInteractionPrompt();
     void RenderCurrencyOverlay();
     bool HandleCampfireInput(float px, float py);
+
+    StoryDirector mStoryDirector;
 };

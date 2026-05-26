@@ -46,6 +46,16 @@
       "loop": false
     },
     {
+      "id":   "maelle_duel",
+      "path": "assets/sound/OST/maelle.mp3",
+      "loop": true
+    },
+    {
+      "id":   "maelle_duel_victory",
+      "path": "assets/sound/OST/maelle_victory.mp3",
+      "loop": false
+    },
+    {
       "id":   "battle_defeat",
       "path": "assets/sound/OST/defeat.mp3",
       "loop": false

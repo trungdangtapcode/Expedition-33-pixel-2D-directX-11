@@ -666,6 +666,26 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
         if (!id.empty()) flags.push_back(id);
     }
 
+    const bool saveAlreadyHasMaelle = std::any_of(
+        partyProgress.begin(),
+        partyProgress.end(),
+        [](const PartyMemberProgress& member)
+        {
+            return member.id == "maelle";
+        });
+    if (saveAlreadyHasMaelle)
+    {
+        auto addFlagIfMissing = [&flags](const std::string& id)
+        {
+            if (std::find(flags.begin(), flags.end(), id) == flags.end())
+            {
+                flags.push_back(id);
+            }
+        };
+        addFlagIfMissing("story.maelle_duel_won");
+        addFlagIfMissing("story.maelle_joined");
+    }
+
     PartyManager::Get().ResetToDefaults();
     Inventory::Get().ReplaceAll(entries);
     Wallet::Get().SetCoins(savedCoins);

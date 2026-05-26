@@ -54,6 +54,7 @@
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
 #include "../Systems/LocalizationManager.h"
+#include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Systems/Wallet.h"
 #include "../Core/TimeSystem.h"
@@ -137,6 +138,10 @@ void OverworldState::OnEnter()
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
     LoadStoryData();
+    if (!mStoryDirector.Initialize("data/story_events.json"))
+    {
+        LOG("[OverworldState] WARNING - Story events failed to load.");
+    }
     mCurrentArea = mDefaultArea;
     mCurrentObjective = mDefaultObjective;
 
@@ -337,6 +342,8 @@ void OverworldState::OnEnter()
     mVictoryListenerID = EventManager::Get().Subscribe("battle_end_victory",
         [this](const EventData&)
         {
+            const std::string storyBattleId = mPendingStoryBattleId;
+
             if (mPendingEnemySource)
             {
                 if (!mPendingEnemySpawnId.empty())
@@ -370,6 +377,44 @@ void OverworldState::OnEnter()
                 mPendingEnemySource = nullptr;
                 mPendingEnemySpawnId.clear();
             }
+
+            if (!storyBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleVictory(storyBattleId);
+                mPendingStoryBattleId.clear();
+            }
+        });
+
+    mDefeatListenerID = EventManager::Get().Subscribe("battle_end_defeat",
+        [this](const EventData&)
+        {
+            if (!mPendingStoryBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleDefeat(mPendingStoryBattleId);
+                mPendingStoryBattleId.clear();
+            }
+
+            mPendingEnemySource = nullptr;
+            mPendingEnemySpawnId.clear();
+        });
+
+    mFleeListenerID = EventManager::Get().Subscribe("battle_flee",
+        [this](const EventData&)
+        {
+            if (!mPendingStoryBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleDefeat(mPendingStoryBattleId);
+                mPendingStoryBattleId.clear();
+            }
+
+            mPendingEnemySource = nullptr;
+            mPendingEnemySpawnId.clear();
+        });
+
+    mDialogueCompletedListenerID = EventManager::Get().Subscribe("dialogue_completed",
+        [this](const EventData& data)
+        {
+            mStoryDirector.NotifyDialogueCompleted(data.name);
         });
 
     mCheckpointLoadedListenerID = EventManager::Get().Subscribe("checkpoint_loaded",
@@ -398,6 +443,9 @@ void OverworldState::OnExit()
 
     EventManager::Get().Unsubscribe("window_resized", mResizeListenerID);
     EventManager::Get().Unsubscribe("battle_end_victory", mVictoryListenerID);
+    EventManager::Get().Unsubscribe("battle_end_defeat", mDefeatListenerID);
+    EventManager::Get().Unsubscribe("battle_flee", mFleeListenerID);
+    EventManager::Get().Unsubscribe("dialogue_completed", mDialogueCompletedListenerID);
     EventManager::Get().Unsubscribe("checkpoint_loaded", mCheckpointLoadedListenerID);
 
     // Clear the source pointer regardless of whether a battle was in progress.
@@ -405,6 +453,7 @@ void OverworldState::OnExit()
     // (e.g., a forced state change that bypasses the normal victory path).
     mPendingEnemySource = nullptr;
     mPendingEnemySpawnId.clear();
+    mPendingStoryBattleId.clear();
 
     mTileMap.Shutdown();
     mStoryTextRenderer.Shutdown();
@@ -736,6 +785,10 @@ bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
             JsonLoader::detail::ValueOf(objectSrc, "repeatDialoguePath"));
         data.completionFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "completionFlag"));
+        data.showIfFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "showIfFlag"));
+        data.hideIfFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "hideIfFlag"));
 
         data.routeBlockUntilFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "routeBlockUntilFlag"));
@@ -756,6 +809,11 @@ bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
             data.dialoguePath.empty())
         {
             LOG("[OverworldState] WARNING: Skipping invalid NPC entry.");
+            continue;
+        }
+
+        if (!data.hideIfFlag.empty() && GameProgress::Get().HasFlag(data.hideIfFlag))
+        {
             continue;
         }
 
@@ -980,6 +1038,176 @@ void OverworldState::ApplyNpcRouteBlocks(float px, float py)
 }
 
 // ------------------------------------------------------------
+// Function: ApplyNpcVisibilityFlags
+// Purpose:
+//   Hide live NPC entities whose data-driven hide flag is now set.
+// Why:
+//   Recruitment can happen while OverworldState stays alive beneath
+//   DialogueState, so visibility changes must apply without reloading the map.
+// ------------------------------------------------------------
+void OverworldState::ApplyNpcVisibilityFlags()
+{
+    for (OverworldNpc* npc : mNpcs)
+    {
+        if (!npc || !npc->IsAlive()) continue;
+
+        const OverworldNpcData& data = npc->GetData();
+        if (!data.hideIfFlag.empty() && GameProgress::Get().HasFlag(data.hideIfFlag))
+        {
+            npc->Hide();
+        }
+    }
+
+    mNpcs.erase(
+        std::remove_if(mNpcs.begin(), mNpcs.end(),
+            [](const OverworldNpc* npc)
+            {
+                return !npc || !npc->IsAlive();
+            }),
+        mNpcs.end());
+}
+
+// ------------------------------------------------------------
+// Function: BeginBattleTransition
+// Purpose:
+//   Start the shared overworld-to-battle transition for world and story fights.
+// Why:
+//   Enemy proximity battles and StoryDirector battles need identical visual
+//   handoff behavior while preserving different completion callbacks.
+// ------------------------------------------------------------
+bool OverworldState::BeginBattleTransition(const EnemyEncounterData& encounter,
+                                           OverworldEnemy* enemySource,
+                                           const std::string& enemySpawnId,
+                                           const std::string& storyBattleId)
+{
+    if (mBattleTransitionPhase != BattleTransitionPhase::IDLE)
+    {
+        return false;
+    }
+
+    mPendingEncounter = encounter;
+    mPendingEnemySource = enemySource;
+    mPendingEnemySpawnId = enemySpawnId;
+    mPendingStoryBattleId = storyBattleId;
+    mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;
+
+    if (mTransitionController)
+    {
+        mTransitionController->StartTransition(mPendingEncounter, mPendingEnemySource);
+    }
+    TimeSystem::Get().SetSlowMotion(0.25f);
+
+    LOG("[OverworldState] Battle transition started for '%s'.",
+        mPendingEncounter.name.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: ProcessStoryCommands
+// Purpose:
+//   Drain queued StoryDirector commands and execute them in author order.
+// Why:
+//   Commands queued by a popped DialogueState or BattleState must run before
+//   area triggers evaluate again on the next overworld frame.
+// ------------------------------------------------------------
+bool OverworldState::ProcessStoryCommands()
+{
+    std::vector<StoryCommand> commands = mStoryDirector.ConsumeCommands();
+    for (const StoryCommand& command : commands)
+    {
+        if (ExecuteStoryCommand(command))
+        {
+            return true;
+        }
+    }
+    return false;
+}
+
+// ------------------------------------------------------------
+// Function: ExecuteStoryCommand
+// Purpose:
+//   Apply one story command to the systems owned by OverworldState.
+// Why:
+//   StoryDirector stays state-agnostic while OverworldState remains the only
+//   owner of player position, state pushes, and battle transitions.
+// ------------------------------------------------------------
+bool OverworldState::ExecuteStoryCommand(const StoryCommand& command)
+{
+    switch (command.type)
+    {
+    case StoryCommandType::StartDialogue:
+        if (!command.dialoguePath.empty())
+        {
+            StateManager::Get().PushState(std::make_unique<DialogueState>(command.dialoguePath));
+            LOG("[OverworldState] Story opened dialogue '%s'.",
+                command.dialoguePath.c_str());
+            return true;
+        }
+        return false;
+
+    case StoryCommandType::StartBattle:
+        if (command.encounterPath.empty()) return false;
+        {
+            EnemyEncounterData encounter{};
+            if (!JsonLoader::LoadEnemyEncounterData(command.encounterPath, encounter))
+            {
+                LOG("[OverworldState] WARNING: Story battle encounter '%s' failed to load.",
+                    command.encounterPath.c_str());
+                return false;
+            }
+            if (!EnemyAssetsExist(encounter))
+            {
+                LOG("[OverworldState] WARNING: Story battle '%s' has missing assets.",
+                    command.encounterPath.c_str());
+                return false;
+            }
+
+            const std::string storyBattleId = command.storyBattleId.empty()
+                ? encounter.name
+                : command.storyBattleId;
+            return BeginBattleTransition(encounter, nullptr, "", storyBattleId);
+        }
+
+    case StoryCommandType::RecruitMember:
+        if (PartyManager::Get().RecruitMember(command.memberId))
+        {
+            LOG("[OverworldState] Story recruited party member '%s'.",
+                command.memberId.c_str());
+        }
+        return false;
+
+    case StoryCommandType::SetFlag:
+        GameProgress::Get().SetFlag(command.flagId);
+        ApplyNpcVisibilityFlags();
+        return false;
+
+    case StoryCommandType::SaveCheckpoint:
+        if (mPlayer)
+        {
+            const std::string reason = command.saveReason.empty()
+                ? std::string("story_checkpoint")
+                : command.saveReason;
+            UpdateSavedOverworldSnapshot(reason, mPlayer->GetX(), mPlayer->GetY());
+            SaveManager::Get().SaveCheckpoint(reason);
+        }
+        return false;
+
+    case StoryCommandType::PushPlayer:
+        if (mPlayer)
+        {
+            mPlayer->SetPosition(command.x, command.y);
+            mPlayer->ResetVelocity();
+            LOG("[OverworldState] Story pushed player to (%.1f, %.1f).",
+                command.x,
+                command.y);
+        }
+        return false;
+    }
+
+    return false;
+}
+
+// ------------------------------------------------------------
 // Function: HandleNpcInput
 // Purpose:
 //   Show the talk prompt and open DialogueState on a fresh E press.
@@ -1146,6 +1374,11 @@ void OverworldState::Update(float dt)
         return;
     }
 
+    if (ProcessStoryCommands())
+    {
+        return;
+    }
+
     // ---------------------------------------------------------------
     // 'I' key - open the inventory.  One-press semantics via mIWasDown
     // so the same press that opens InventoryState does not also
@@ -1187,6 +1420,11 @@ void OverworldState::Update(float dt)
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
         UpdateStoryRegion(mPlayer->GetX(), mPlayer->GetY());
+        mStoryDirector.Update(mPlayer->GetX(), mPlayer->GetY());
+        if (ProcessStoryCommands())
+        {
+            return;
+        }
     }
 
     mThemeManager.Update(dt);
@@ -1240,17 +1478,9 @@ void OverworldState::Update(float dt)
             // entity must NOT be accessed from the iris-close callback because
             // it might have been purged by the time the callback fires.
             mPendingEncounter   = target->GetEncounterData();
-            mPendingEnemySource = target;
             const auto idIt = mEnemySpawnIds.find(target);
-            mPendingEnemySpawnId = (idIt != mEnemySpawnIds.end()) ? idIt->second : "";
-
-            // Start the transition phase: slow gameplay and begin distortion ramp.
-            mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;
-            if (mTransitionController)
-            {
-                mTransitionController->StartTransition(mPendingEncounter, mPendingEnemySource);
-            }
-            TimeSystem::Get().SetSlowMotion(0.25f);
+            const std::string spawnId = (idIt != mEnemySpawnIds.end()) ? idIt->second : "";
+            BeginBattleTransition(mPendingEncounter, target, spawnId, "");
 
             LOG("[OverworldState] Battle triggered vs '%s' - transition started.",
                 mPendingEncounter.name.c_str());

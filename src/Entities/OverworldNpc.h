@@ -44,6 +44,8 @@ struct OverworldNpcData
     std::string dialoguePath;
     std::string repeatDialoguePath;
     std::string completionFlag;
+    std::string showIfFlag;
+    std::string hideIfFlag;
 
     std::string routeBlockUntilFlag;
     float blockMinX = 0.0f;
@@ -77,9 +79,11 @@ public:
     const OverworldNpcData& GetData() const { return mData; }
     std::string GetActiveDialoguePath() const;
     std::string GetDisplayName() const;
+    void Hide();
 
 private:
     void Shutdown();
+    bool IsStoryVisible() const;
 
     OverworldNpcData mData;
     Camera2D* mCamera = nullptr;

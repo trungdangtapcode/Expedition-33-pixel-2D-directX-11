@@ -73,7 +73,7 @@ OverworldNpc::~OverworldNpc()
 // ------------------------------------------------------------
 void OverworldNpc::Update(float dt)
 {
-    if (!mInitialized) return;
+    if (!mAlive || !mInitialized || !IsStoryVisible()) return;
     mRenderer.Update(dt);
 }
 
@@ -87,7 +87,7 @@ void OverworldNpc::Update(float dt)
 // ------------------------------------------------------------
 void OverworldNpc::Render(ID3D11DeviceContext* ctx)
 {
-    if (!mInitialized || !mCamera) return;
+    if (!mAlive || !mInitialized || !mCamera || !IsStoryVisible()) return;
 
     mRenderer.Draw(ctx,
                    *mCamera,
@@ -106,6 +106,8 @@ void OverworldNpc::Render(ID3D11DeviceContext* ctx)
 // ------------------------------------------------------------
 bool OverworldNpc::IsPlayerNearby(float px, float py) const
 {
+    if (!mAlive || !IsStoryVisible()) return false;
+
     const float dx = px - mData.worldX;
     const float dy = py - mData.worldY;
     const float radiusSq = mData.contactRadius * mData.contactRadius;
@@ -121,6 +123,7 @@ bool OverworldNpc::IsPlayerInsideRouteBlock(float px, float py) const
 
 bool OverworldNpc::IsRouteBlockActive() const
 {
+    if (!IsStoryVisible()) return false;
     if (mData.routeBlockUntilFlag.empty()) return false;
     return !GameProgress::Get().HasFlag(mData.routeBlockUntilFlag);
 }
@@ -141,6 +144,40 @@ std::string OverworldNpc::GetDisplayName() const
 {
     return LocalizationManager::Get().TextOrFallback(mData.displayNameKey,
                                                      mData.displayName);
+}
+
+// ------------------------------------------------------------
+// Function: Hide
+// Purpose:
+//   Mark this NPC dead so SceneGraph can purge it.
+// Why:
+//   Story recruitment can happen without rebuilding OverworldState, so the
+//   NPC needs a narrow runtime removal hook.
+// ------------------------------------------------------------
+void OverworldNpc::Hide()
+{
+    mAlive = false;
+}
+
+// ------------------------------------------------------------
+// Function: IsStoryVisible
+// Purpose:
+//   Evaluate data-driven show/hide flags without destroying the entity.
+// Why:
+//   Maelle should appear immediately after the scout flag is set, even if the
+//   entity was spawned earlier while hidden.
+// ------------------------------------------------------------
+bool OverworldNpc::IsStoryVisible() const
+{
+    if (!mData.showIfFlag.empty() && !GameProgress::Get().HasFlag(mData.showIfFlag))
+    {
+        return false;
+    }
+    if (!mData.hideIfFlag.empty() && GameProgress::Get().HasFlag(mData.hideIfFlag))
+    {
+        return false;
+    }
+    return true;
 }
 
 void OverworldNpc::Shutdown()

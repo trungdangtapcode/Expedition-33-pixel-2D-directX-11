@@ -59,6 +59,18 @@ struct PartyMemberProgress
     std::array<std::string, kEquipSlotCount> equipped;
 };
 
+struct PartyRosterEntry
+{
+    std::string id;
+    std::string name;
+    std::wstring animationPath;
+    std::string animJsonPath;
+    std::wstring hpFramePath;
+    std::wstring turnViewPath;
+    std::string dataPath;
+    bool startingMember = false;
+};
+
 class PartyManager
 {
 public:
@@ -89,6 +101,9 @@ public:
 
     const std::vector<PartyMember>& GetActiveParty() const { return mActiveParty; }
     std::vector<PartyMember>& GetActiveParty() { return mActiveParty; }
+
+    bool RecruitMember(const std::string& id);
+    bool IsMemberActive(const std::string& id) const;
 
     const BattlerStats& GetMemberStats(size_t index) const { return mActiveParty[index].baseStats; }
 
@@ -174,5 +189,11 @@ private:
     PartyManager(const PartyManager&)            = delete;
     PartyManager& operator=(const PartyManager&) = delete;
 
+    bool EnsureRosterLoaded();
+    const PartyRosterEntry* FindRosterEntry(const std::string& id) const;
+    PartyMember BuildMemberFromRoster(const PartyRosterEntry& entry) const;
+    PartyMember BuildFallbackVerso() const;
+
+    std::vector<PartyRosterEntry> mRoster;
     std::vector<PartyMember> mActiveParty;
 };

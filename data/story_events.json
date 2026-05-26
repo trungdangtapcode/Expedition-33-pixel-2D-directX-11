@@ -1,0 +1,109 @@
+{
+  "events": [
+    {
+      "id": "maelle_confrontation_area",
+      "trigger": "enter_area",
+      "requiresFlags": [ "enemy_defeated:meadow_scout" ],
+      "blockedByFlags": [
+        "dialogue_completed:maelle_confrontation",
+        "story.maelle_joined"
+      ],
+      "onceFlag": "story.maelle_confrontation_started",
+      "minX": 940.0,
+      "minY": -340.0,
+      "maxX": 1180.0,
+      "maxY": 80.0,
+      "commands": [
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/maelle_confrontation.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_after_confrontation",
+      "trigger": "dialogue_completed",
+      "triggerId": "maelle_confrontation",
+      "blockedByFlags": [
+        "story.maelle_duel_won",
+        "story.maelle_joined"
+      ],
+      "commands": [
+        {
+          "type": "start_battle",
+          "storyBattleId": "maelle_duel",
+          "encounterPath": "data/enemies/maelle_duel.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_reentry",
+      "trigger": "enter_area",
+      "requiresFlags": [ "dialogue_completed:maelle_confrontation" ],
+      "blockedByFlags": [
+        "story.maelle_duel_won",
+        "story.maelle_joined"
+      ],
+      "minX": 940.0,
+      "minY": -340.0,
+      "maxX": 1180.0,
+      "maxY": 80.0,
+      "commands": [
+        {
+          "type": "start_battle",
+          "storyBattleId": "maelle_duel",
+          "encounterPath": "data/enemies/maelle_duel.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_victory",
+      "trigger": "battle_victory",
+      "triggerId": "maelle_duel",
+      "onceFlag": "story.maelle_duel_won",
+      "commands": [
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_duel_won"
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/maelle_reconcile.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_defeat_leave",
+      "trigger": "battle_defeat",
+      "triggerId": "maelle_duel",
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "commands": [
+        {
+          "type": "push_player",
+          "x": 820.0,
+          "y": -120.0
+        }
+      ]
+    },
+    {
+      "id": "maelle_recruit_after_reconcile",
+      "trigger": "dialogue_completed",
+      "triggerId": "maelle_reconcile",
+      "onceFlag": "story.maelle_joined",
+      "commands": [
+        {
+          "type": "recruit_member",
+          "memberId": "maelle"
+        },
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_joined"
+        },
+        {
+          "type": "save_checkpoint",
+          "saveReason": "story_maelle_joined"
+        }
+      ]
+    }
+  ]
+}

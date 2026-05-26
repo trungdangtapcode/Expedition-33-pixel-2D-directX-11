@@ -1,0 +1,35 @@
+{
+  "id": "maelle_reconcile",
+  "completionFlag": "dialogue_completed:maelle_reconcile",
+  "skippable": false,
+  "lines": [
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_reconcile.maelle_1",
+      "text": "Only Verso hesitates before the final cut."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.maelle_reconcile.verso_1",
+      "text": "I was afraid you would make me prove it again."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_reconcile.maelle_2",
+      "text": "No. From here, we test the world together."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.maelle_reconcile.maelle_3",
+      "text": "Lead on, brother."
+    }
+  ]
+}

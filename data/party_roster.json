@@ -1,0 +1,24 @@
+{
+  "members": [
+    {
+      "id": "verso",
+      "name": "Verso",
+      "animationPath": "assets/animations/verso.png",
+      "animJsonPath": "assets/animations/verso.json",
+      "hpFramePath": "assets/UI/UI_verso_hp.png",
+      "turnViewPath": "assets/UI/turn-view-verso.png",
+      "dataPath": "data/characters/verso.json",
+      "startingMember": true
+    },
+    {
+      "id": "maelle",
+      "name": "Maelle",
+      "animationPath": "assets/animations/maelle.png",
+      "animJsonPath": "assets/animations/maelle.json",
+      "hpFramePath": "assets/UI/UI_maelle_hp.png",
+      "turnViewPath": "assets/UI/turn-view-maelle.png",
+      "dataPath": "data/characters/maelle.json",
+      "startingMember": false
+    }
+  ]
+}

@@ -1,27 +1,22 @@
 {
   "npcs": [
     {
-      "id": "maelle_intro",
+      "id": "maelle_confrontation",
       "displayNameKey": "party.member.Maelle",
       "displayName": "Maelle",
       "texturePath": "assets/animations/maelle.png",
       "jsonPath": "assets/animations/maelle.json",
       "idleClip": "idle",
-      "worldX": 330.0,
-      "worldY": 96.0,
+      "worldX": 1080.0,
+      "worldY": -160.0,
       "contactRadius": 110.0,
       "renderScale": 1.0,
       "facingLeft": true,
-      "dialoguePath": "data/dialogues/intro_maelle.json",
-      "repeatDialoguePath": "data/dialogues/maelle_repeat.json",
-      "completionFlag": "dialogue_completed:intro_maelle",
-      "routeBlockUntilFlag": "dialogue_completed:intro_maelle",
-      "blockMinX": 520.0,
-      "blockMinY": -260.0,
-      "blockMaxX": 980.0,
-      "blockMaxY": 360.0,
-      "pushbackX": 440.0,
-      "pushbackY": 96.0
+      "dialoguePath": "data/dialogues/maelle_confrontation.json",
+      "repeatDialoguePath": "data/dialogues/maelle_confrontation.json",
+      "completionFlag": "dialogue_completed:maelle_confrontation",
+      "showIfFlag": "enemy_defeated:meadow_scout",
+      "hideIfFlag": "story.maelle_joined"
     }
   ]
 }

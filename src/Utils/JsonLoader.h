@@ -1319,6 +1319,8 @@ struct SkillData {
     bool consumesAllRage = false;
     float skillMultiplier = 1.0f;
     int flatBonus = 0;
+    float mpRestorePercent = 0.0f;
+    std::string mpRestoreTiming = "after_damage";
     float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
@@ -1394,6 +1396,9 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
     out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);
     out.flatBonus = detail::ParseInt(detail::ValueOf(src, "flatBonus"), 0);
+    out.mpRestorePercent = detail::ParseFloat(detail::ValueOf(src, "mpRestorePercent"), 0.0f);
+    const std::string mpRestoreTiming = detail::CleanString(detail::ValueOf(src, "mpRestoreTiming"));
+    out.mpRestoreTiming = mpRestoreTiming.empty() ? "after_damage" : mpRestoreTiming;
     out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);

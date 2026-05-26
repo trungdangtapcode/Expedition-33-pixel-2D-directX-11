@@ -31,6 +31,8 @@ Supported `mechanism` values:
 
 Damage skills may set `flatBonus` when they need a small guaranteed floor against high-defense enemies. The bonus is still passed through the normal `DamageRequest` and damage pipeline; it is not applied directly by UI or input code.
 
+Basic attacks may set `mpRestorePercent` to rebuild resources after their damage resolves. The V1 default is `0.05`, meaning 5% of the attacker's current Max MP, rounded up and clamped by Max MP. This is implemented through `RestoreMpPercentAction`, so the restoration remains inside the action queue and automatically respects progression or equipment that changes Max MP. Costed skills leave this field at `0` unless a future skill is intentionally designed as a refund or drain technique.
+
 QTE complexity is per skill:
 
 - Basic attacks use fewer nodes and wider spacing.
@@ -55,6 +57,7 @@ New skill actions:
 
 - `HealAction`
 - `RestoreMpAction`
+- `RestoreMpPercentAction`
 - `ReviveAction`
 - `CleanseAction`
 
@@ -87,7 +90,7 @@ The existing Expedition-style skill menu remains in place. It now shows support 
 ## Adding A Skill
 
 1. Add a JSON file under `data/skills/`.
-2. Choose `mechanism`, `attackMotion`, `targeting`, `effect`, `mpCost`, `amount`, `flatBonus`, and optional `statusEffectId`.
+2. Choose `mechanism`, `attackMotion`, `targeting`, `effect`, `mpCost`, `amount`, `flatBonus`, `mpRestorePercent`, and optional `statusEffectId`.
 3. Add the path to the character's `skillPaths` array.
 4. Add English, Vietnamese, and French localization keys.
 5. Reuse an existing icon id from `assets/UI/status_effect_icons.json` or add a new atlas frame.

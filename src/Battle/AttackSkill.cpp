@@ -15,6 +15,7 @@
 #include "BulletHellAction.h"
 #include "BattleContext.h"
 #include "ConsumeMpAction.h"
+#include "RestoreMpPercentAction.h"
 #include "StatusEffectAction.h"
 #include "StatusEffectRegistry.h"
 #include "../Systems/LocalizationManager.h"
@@ -336,6 +337,11 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
             enqueueTimedDamage(std::vector<IBattler*>{ target });
             enqueueStatusApplication(std::vector<IBattler*>{ target });
         }
+    }
+
+    if (mData.mpRestorePercent > 0.0f && mData.mpRestoreTiming == "after_damage")
+    {
+        actions.push_back(std::make_unique<RestoreMpPercentAction>(&caster, mData.mpRestorePercent));
     }
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)

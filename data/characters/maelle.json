@@ -23,7 +23,11 @@
   "skillPaths": [
     "data/skills/maelle_attack.json",
     "data/skills/maelle_ember.json",
+    "data/skills/maelle_flame_bloom.json",
+    "data/skills/maelle_mending_verse.json",
     "data/skills/maelle_aegis_verse.json",
-    "data/skills/maelle_quickstep.json"
+    "data/skills/maelle_quickstep.json",
+    "data/skills/maelle_revival_thread.json",
+    "data/skills/maelle_cleansing_note.json"
   ]
 }

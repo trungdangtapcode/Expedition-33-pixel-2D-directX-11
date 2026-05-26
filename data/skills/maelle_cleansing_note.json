@@ -1,0 +1,12 @@
+{
+  "id": "maelle_cleansing_note",
+  "kind": "cleanse",
+  "effect": "cleanse",
+  "iconId": "cleanse",
+  "nameKey": "skill.maelle_cleansing_note.name",
+  "descriptionKey": "skill.maelle_cleansing_note.description",
+  "targeting": "single_ally",
+  "mpCost": 8,
+  "uiSortGroup": "support",
+  "hitCount": 0
+}

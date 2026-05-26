@@ -672,6 +672,9 @@ std::vector<IBattler*> BattleManager::ResolveSkillTargets(
         if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
         else targets.push_back(&caster);
         break;
+    case SkillTargeting::SingleAllyAny:
+        if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        break;
     case SkillTargeting::AllAllies:
         targets = GetAlivePlayers();
         break;

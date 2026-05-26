@@ -1,0 +1,13 @@
+{
+  "id": "maelle_mending_verse",
+  "kind": "heal",
+  "effect": "heal_hp",
+  "iconId": "heal",
+  "nameKey": "skill.maelle_mending_verse.name",
+  "descriptionKey": "skill.maelle_mending_verse.description",
+  "targeting": "single_ally",
+  "mpCost": 10,
+  "amount": 38,
+  "uiSortGroup": "support",
+  "hitCount": 0
+}

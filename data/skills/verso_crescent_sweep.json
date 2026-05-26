@@ -1,0 +1,15 @@
+{
+  "id": "verso_crescent_sweep",
+  "kind": "damage",
+  "effect": "damage",
+  "iconId": "attack",
+  "nameKey": "skill.verso_crescent_sweep.name",
+  "descriptionKey": "skill.verso_crescent_sweep.description",
+  "targeting": "all_enemies",
+  "damageType": "physical",
+  "skillMultiplier": 0.62,
+  "mpCost": 14,
+  "uiSortGroup": "offense",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.low"
+}

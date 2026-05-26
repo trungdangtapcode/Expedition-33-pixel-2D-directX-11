@@ -1,0 +1,20 @@
+{
+  "id": "maelle_flame_bloom",
+  "kind": "damage",
+  "effect": "damage",
+  "iconId": "burn",
+  "nameKey": "skill.maelle_flame_bloom.name",
+  "descriptionKey": "skill.maelle_flame_bloom.description",
+  "targeting": "all_enemies",
+  "damageType": "magical",
+  "skillMultiplier": 0.72,
+  "mpCost": 16,
+  "statusEffectId": "burn",
+  "statusChance": 0.45,
+  "uiSortGroup": "offense",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.low",
+  "extraRuleKeys": [
+    "skill.rule.low_burn_chance"
+  ]
+}

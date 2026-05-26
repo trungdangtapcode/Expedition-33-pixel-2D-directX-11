@@ -1,0 +1,13 @@
+{
+  "id": "verso_second_wind",
+  "kind": "heal",
+  "effect": "heal_hp",
+  "iconId": "heal",
+  "nameKey": "skill.verso_second_wind.name",
+  "descriptionKey": "skill.verso_second_wind.description",
+  "targeting": "self",
+  "mpCost": 10,
+  "amount": 35,
+  "uiSortGroup": "support",
+  "hitCount": 0
+}

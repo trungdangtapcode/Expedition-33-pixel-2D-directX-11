@@ -1299,6 +1299,7 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
 struct SkillData {
     std::string id;
     std::string kind = "attack";
+    std::string effect;
     std::string nameKey;
     std::string descriptionKey;
     std::string iconId;
@@ -1308,7 +1309,9 @@ struct SkillData {
     std::string uiSortGroup;
     std::string damageGradeKey;
     std::vector<std::string> extraRuleKeys;
+    std::string effectTiming;
     int mpCost = 0;
+    int amount = 0;
     int hitCount = 1;
     bool requiresFullRage = false;
     bool consumesAllRage = false;
@@ -1365,6 +1368,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.id = detail::CleanString(detail::ValueOf(src, "id"));
     const std::string kind = detail::CleanString(detail::ValueOf(src, "kind"));
     out.kind = kind.empty() ? "attack" : kind;
+    out.effect = detail::CleanString(detail::ValueOf(src, "effect"));
     out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
     out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
     out.iconId = detail::CleanString(detail::ValueOf(src, "iconId"));
@@ -1376,7 +1380,9 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.uiSortGroup = detail::CleanString(detail::ValueOf(src, "uiSortGroup"));
     out.damageGradeKey = detail::CleanString(detail::ValueOf(src, "damageGradeKey"));
     out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
+    out.effectTiming = detail::CleanString(detail::ValueOf(src, "effectTiming"));
     out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.amount = detail::ParseInt(detail::ValueOf(src, "amount"), 0);
     out.hitCount = detail::ParseInt(detail::ValueOf(src, "hitCount"), 1);
     out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
     out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);

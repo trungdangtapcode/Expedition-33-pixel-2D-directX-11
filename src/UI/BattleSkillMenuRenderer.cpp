@@ -360,13 +360,22 @@ void BattleSkillMenuRenderer::Render(ID3D11DeviceContext* context,
         DrawTextLine(text, targetLine, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
-        const std::string damageLine = LocalizationManager::Get().Format("battle.skill_ui.damage", {
-            { "damage", DamageGradeText(*selectedSkill) },
-            { "hits", selectedSkill->GetHitCount() > 0
-                ? std::to_string(selectedSkill->GetHitCount())
-                : std::string("-") }
-        });
-        DrawTextLine(text, damageLine, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), muted, mLayout.detailTextScale);
+        const bool selectedDealsDamage =
+            selectedSkill->GetEffect() == "damage" ||
+            selectedSkill->GetKind() == "attack" ||
+            selectedSkill->GetKind() == "damage" ||
+            selectedSkill->GetKind() == "rage";
+        const std::string effectLine = selectedDealsDamage
+            ? LocalizationManager::Get().Format("battle.skill_ui.damage", {
+                { "damage", DamageGradeText(*selectedSkill) },
+                { "hits", selectedSkill->GetHitCount() > 0
+                    ? std::to_string(selectedSkill->GetHitCount())
+                    : std::string("-") }
+            })
+            : LocalizationManager::Get().Format("battle.skill_ui.effect", {
+                { "effect", DamageGradeText(*selectedSkill) }
+            });
+        DrawTextLine(text, effectLine, layoutX(mLayout.detailX + mLayout.detailBodyOffsetX), layoutY(lineY), muted, mLayout.detailTextScale);
         lineY += mLayout.detailLineSpacing;
 
         const std::string availability = AvailabilityText(*selectedSkill, *activePlayer, battleContext);
@@ -795,6 +804,7 @@ std::string BattleSkillMenuRenderer::TargetText(SkillTargeting targeting) const
     {
     case SkillTargeting::Self: return LocalizationManager::Get().Text("battle.skill_target.self");
     case SkillTargeting::SingleAlly: return LocalizationManager::Get().Text("battle.skill_target.single_ally");
+    case SkillTargeting::SingleAllyAny: return LocalizationManager::Get().Text("battle.skill_target.single_ally_any");
     case SkillTargeting::AllAllies: return LocalizationManager::Get().Text("battle.skill_target.all_allies");
     case SkillTargeting::AllEnemies: return LocalizationManager::Get().Text("battle.skill_target.all_enemies");
     case SkillTargeting::SingleEnemy:
@@ -806,6 +816,12 @@ std::string BattleSkillMenuRenderer::TargetText(SkillTargeting targeting) const
 std::string BattleSkillMenuRenderer::DamageTypeText(const ISkill& skill) const
 {
     const std::string type = skill.GetDamageType();
+    const std::string effect = skill.GetEffect();
+    if (effect == "heal_hp") return LocalizationManager::Get().Text("battle.skill_effect.heal_hp");
+    if (effect == "heal_mp") return LocalizationManager::Get().Text("battle.skill_effect.heal_mp");
+    if (effect == "revive") return LocalizationManager::Get().Text("battle.skill_effect.revive");
+    if (effect == "cleanse") return LocalizationManager::Get().Text("battle.skill_effect.cleanse");
+    if (effect == "status") return LocalizationManager::Get().Text("battle.damage_type.none");
     if (type == "magical") return LocalizationManager::Get().Text("battle.damage_type.magical");
     if (type == "true") return LocalizationManager::Get().Text("battle.damage_type.true");
     if (skill.GetKind() == "support" || skill.GetKind() == "status")

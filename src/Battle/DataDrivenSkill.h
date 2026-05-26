@@ -19,6 +19,7 @@ public:
     SkillResourceKind GetResourceKind() const override;
     SkillTargeting GetTargeting() const override;
     std::string GetKind() const override;
+    std::string GetEffect() const override;
     std::string GetDamageType() const override;
     std::string GetStatusEffectId() const override;
     std::string GetDamageGradeKey() const override;

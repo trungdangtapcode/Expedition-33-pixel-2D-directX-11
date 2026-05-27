@@ -6,6 +6,7 @@
 #include "BattleContext.h"
 #include "../Events/EventManager.h"
 #include "../Utils/Log.h"
+#include "BattleResourceRules.h"
 #include "DefaultDamageCalculator.h"
 #include "../Core/TimeSystem.h"
 #include "../Core/InputManager.h"
@@ -298,6 +299,12 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
             {
                 request.qteMultiplier = averagedMultiplier + earnedBonus;
             }
+            if (!mQteRageGranted && !mRequests.empty() && mRequests.front().grantsRage)
+            {
+                BattleResourceRules::Get().EnsureLoaded();
+                BattleResourceRules::Get().GrantQteRage(GetAttacker(), perfectCount, goodCount);
+                mQteRageGranted = true;
+            }
         }
     }
 
@@ -320,7 +327,18 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
             {
                 if (!request.defender) continue;
                 DamageResult result = calculator.Calculate(request, ctxRef);
+                const bool defenderWasAlive = request.defender->IsAlive();
                 request.defender->TakeDamage(result, request.attacker);
+                const bool defenderWasKilled = defenderWasAlive && !request.defender->IsAlive();
+                if (request.grantsRage)
+                {
+                    BattleResourceRules::Get().EnsureLoaded();
+                    BattleResourceRules::Get().GrantDamageRage(
+                        request.attacker,
+                        request.defender,
+                        result,
+                        defenderWasKilled);
+                }
             }
         }
         mDamageApplied = true;

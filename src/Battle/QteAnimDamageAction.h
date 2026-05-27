@@ -77,4 +77,5 @@ private:
     bool mActionResolved = false;
     bool mDamageApplied = false;
     bool mKeyWasDown = false;
+    bool mQteRageGranted = false;
 };

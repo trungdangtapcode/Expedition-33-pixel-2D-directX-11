@@ -1312,7 +1312,9 @@ struct SkillData {
     std::string damageGradeKey;
     std::vector<std::string> extraRuleKeys;
     std::string effectTiming;
+    std::string rageGainRule;
     int mpCost = 0;
+    int rageCost = 0;
     int amount = 0;
     int hitCount = 1;
     bool requiresFullRage = false;
@@ -1321,6 +1323,7 @@ struct SkillData {
     int flatBonus = 0;
     float mpRestorePercent = 0.0f;
     std::string mpRestoreTiming = "after_damage";
+    bool grantsRage = true;
     float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
@@ -1389,7 +1392,9 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.damageGradeKey = detail::CleanString(detail::ValueOf(src, "damageGradeKey"));
     out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
     out.effectTiming = detail::CleanString(detail::ValueOf(src, "effectTiming"));
+    out.rageGainRule = detail::CleanString(detail::ValueOf(src, "rageGainRule"));
     out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.rageCost = detail::ParseInt(detail::ValueOf(src, "rageCost"), 0);
     out.amount = detail::ParseInt(detail::ValueOf(src, "amount"), 0);
     out.hitCount = detail::ParseInt(detail::ValueOf(src, "hitCount"), 1);
     out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
@@ -1399,6 +1404,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.mpRestorePercent = detail::ParseFloat(detail::ValueOf(src, "mpRestorePercent"), 0.0f);
     const std::string mpRestoreTiming = detail::CleanString(detail::ValueOf(src, "mpRestoreTiming"));
     out.mpRestoreTiming = mpRestoreTiming.empty() ? "after_damage" : mpRestoreTiming;
+    out.grantsRage = detail::ParseBool(detail::ValueOf(src, "grantsRage"), true);
     out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);

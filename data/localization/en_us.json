@@ -304,6 +304,7 @@
   "battle.skill_ui.active_effects": "Active effects",
   "battle.skill_ui.not_enough_mp": "Not enough MP.",
   "battle.skill_ui.rage_not_full": "Rage is not full.",
+  "battle.skill_ui.rage_progress": "Rage is not full: {current}/{max}.",
   "battle.skill_ui.unavailable": "Unavailable now.",
   "battle.skill_target.self": "Self",
   "battle.skill_target.single_ally": "One ally",

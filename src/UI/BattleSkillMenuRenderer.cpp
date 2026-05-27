@@ -864,7 +864,10 @@ std::string BattleSkillMenuRenderer::AvailabilityText(const ISkill& skill, const
     }
     if (skill.GetResourceKind() == SkillResourceKind::Rage && !caster.GetStats().IsRageFull())
     {
-        return LocalizationManager::Get().Text("battle.skill_ui.rage_not_full");
+        return LocalizationManager::Get().Format("battle.skill_ui.rage_progress", {
+            { "current", std::to_string(caster.GetStats().rage) },
+            { "max", std::to_string(caster.GetStats().maxRage) }
+        });
     }
     return LocalizationManager::Get().Text("battle.skill_ui.unavailable");
 }

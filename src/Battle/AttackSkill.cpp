@@ -4,6 +4,7 @@
 #include "AttackSkill.h"
 #include "IBattler.h"
 #include "IAction.h"
+#include "BattleResourceRules.h"
 #include "DamageAction.h"
 #include "DataDrivenStatusEffect.h"
 #include "LogAction.h"
@@ -16,6 +17,8 @@
 #include "BattleContext.h"
 #include "ConsumeMpAction.h"
 #include "RestoreMpPercentAction.h"
+#include "RageGainAction.h"
+#include "RageSpendAction.h"
 #include "StatusEffectAction.h"
 #include "StatusEffectRegistry.h"
 #include "../Systems/LocalizationManager.h"
@@ -47,20 +50,12 @@ namespace
         return data.kind;
     }
 
-    class ConsumeRageAction final : public IAction
+    int EffectiveRageCost(const JsonLoader::SkillData& data)
     {
-    public:
-        explicit ConsumeRageAction(IBattler* caster) : mCaster(caster) {}
-
-        bool Execute(float) override
-        {
-            if (mCaster) mCaster->GetStats().rage = 0;
-            return true;
-        }
-
-    private:
-        IBattler* mCaster = nullptr;
-    };
+        if (data.rageCost > 0) return data.rageCost;
+        BattleResourceRules::Get().EnsureLoaded();
+        return BattleResourceRules::Get().RageCostForSkill(data.id);
+    }
 }
 
 std::string AttackSkill::GetName() const
@@ -93,7 +88,7 @@ int AttackSkill::GetMpCost() const
 SkillResourceKind AttackSkill::GetResourceKind() const
 {
     if (mData.mpCost > 0) return SkillResourceKind::MP;
-    if (mData.requiresFullRage || mData.consumesAllRage) return SkillResourceKind::Rage;
+    if (mData.requiresFullRage || mData.consumesAllRage || EffectiveRageCost(mData) > 0) return SkillResourceKind::Rage;
     return SkillResourceKind::None;
 }
 
@@ -188,7 +183,10 @@ std::string AttackSkill::SelectBulletHellPatternPath() const
 
 bool AttackSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
+    BattleResourceRules::Get().EnsureLoaded();
     if (mData.mpCost > 0 && caster.GetStats().mp < mData.mpCost) return false;
+    const int rageCost = EffectiveRageCost(mData);
+    if (rageCost > 0 && caster.GetStats().rage < rageCost) return false;
     if (mData.requiresFullRage && !caster.GetStats().IsRageFull()) return false;
     return true;
 }
@@ -225,9 +223,10 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     ));
 
     actions.push_back(std::make_unique<ConsumeMpAction>(&caster, mData.mpCost));
-    if (mData.consumesAllRage)
+    const int rageCost = EffectiveRageCost(mData);
+    if (rageCost > 0 || mData.consumesAllRage)
     {
-        actions.push_back(std::make_unique<ConsumeRageAction>(&caster));
+        actions.push_back(std::make_unique<RageSpendAction>(&caster, rageCost, mData.consumesAllRage));
     }
 
     // 1. Enter fight state
@@ -247,6 +246,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
         req.type = ParseDamageType(mData.damageType);
         req.skillMultiplier = mData.skillMultiplier;
         req.flatBonus = mData.flatBonus;
+        req.grantsRage = mData.grantsRage;
         return req;
     };
 
@@ -342,6 +342,12 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
     if (mData.mpRestorePercent > 0.0f && mData.mpRestoreTiming == "after_damage")
     {
         actions.push_back(std::make_unique<RestoreMpPercentAction>(&caster, mData.mpRestorePercent));
+    }
+    if (!mData.rageGainRule.empty())
+    {
+        BattleResourceRules::Get().EnsureLoaded();
+        const int rageGain = BattleResourceRules::Get().RageGainForRule(mData.rageGainRule);
+        actions.push_back(std::make_unique<RageGainAction>(&caster, rageGain, mData.rageGainRule.c_str()));
     }
 
     // 6. Move back to origin (automatically manages BattleMove and BattleUnmove inside MoveAction)

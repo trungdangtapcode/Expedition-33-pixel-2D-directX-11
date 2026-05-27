@@ -61,7 +61,7 @@ set CL_SOURCES=%CL_SOURCES% src\States\DialogueState.cpp src\Systems\DialogueMan
 
 set CL_SOURCES=%CL_SOURCES% src\Battle\ShieldWallSpawner.cpp
 
-set CL_SOURCES=%CL_SOURCES% src\Battle\ConsumeMpAction.cpp src\Battle\HealAction.cpp src\Battle\RestoreMpAction.cpp src\Battle\RestoreMpPercentAction.cpp src\Battle\ReviveAction.cpp src\Battle\CleanseAction.cpp src\Battle\DataDrivenSkill.cpp src\Battle\DataDrivenStatusEffect.cpp src\Battle\SkillFactory.cpp src\Battle\StatusDamageAction.cpp src\Battle\StatusEffectRegistry.cpp src\UI\StatusIconRenderer.cpp src\UI\BattleSkillMenuRenderer.cpp
+set CL_SOURCES=%CL_SOURCES% src\Battle\BattleResourceRules.cpp src\Battle\ConsumeMpAction.cpp src\Battle\HealAction.cpp src\Battle\RestoreMpAction.cpp src\Battle\RestoreMpPercentAction.cpp src\Battle\RageGainAction.cpp src\Battle\RageSpendAction.cpp src\Battle\ReviveAction.cpp src\Battle\CleanseAction.cpp src\Battle\DataDrivenSkill.cpp src\Battle\DataDrivenStatusEffect.cpp src\Battle\SkillFactory.cpp src\Battle\StatusDamageAction.cpp src\Battle\StatusEffectRegistry.cpp src\UI\StatusIconRenderer.cpp src\UI\BattleSkillMenuRenderer.cpp
 
 
 set CL_LINKS=/LIBPATH:"%MSVC_DIR%\lib\x64" /LIBPATH:"%WINSDK_DIR%\Lib\%WINSDK_VER%\um\x64" /LIBPATH:"%WINSDK_DIR%\Lib\%WINSDK_VER%\ucrt\x64" /LIBPATH:"%DXTK_LIB_DIR%" user32.lib gdi32.lib d3d11.lib dxgi.lib d3dcompiler.lib DirectXTK.lib ole32.lib mfplat.lib mfreadwrite.lib mfuuid.lib /SUBSYSTEM:WINDOWS

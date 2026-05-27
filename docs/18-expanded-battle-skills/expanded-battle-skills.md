@@ -33,6 +33,23 @@ Damage skills may set `flatBonus` when they need a small guaranteed floor agains
 
 Basic attacks may set `mpRestorePercent` to rebuild resources after their damage resolves. The V1 default is `0.05`, meaning 5% of the attacker's current Max MP, rounded up and clamped by Max MP. This is implemented through `RestoreMpPercentAction`, so the restoration remains inside the action queue and automatically respects progression or equipment that changes Max MP. Costed skills leave this field at `0` unless a future skill is intentionally designed as a refund or drain technique.
 
+Basic attacks also set `rageGainRule` to `basic_attack`, which looks up the actual rage amount in `data/battle_resource_rules.json`. Rage finishers set `rageCost` and can set `grantsRage` to `false` so the finisher does not immediately rebuild the resource it spent.
+
+## Resource Rules
+
+`data/battle_resource_rules.json` is the tuning source for global combat resources. The rage section currently controls:
+
+- `max`: the global rage bar cap used by combatants in battle.
+- `resetPolicy`: `battle_start` clears rage when a battle session is created.
+- `gain.rules`: named non-damage gains such as `basic_attack`.
+- `gain.damageDealtMin` and `gain.damageDealtPercent`: rage gained by the attacker after final damage is known.
+- `gain.damageTakenMin` and `gain.damageTakenPercentOfMaxHp`: rage gained by the defender after final damage is known.
+- `gain.qteGood` and `gain.qtePerfect`: extra rage granted after a QTE sequence resolves.
+- `gain.killBonus`: extra attacker rage when the defender is defeated.
+- `spend.skillCosts`: named skill costs used by legacy skill wrappers and UI fallback paths.
+
+Damage-derived rage is applied by `DamageAction`, `AnimDamageAction`, `QteAnimDamageAction`, and `BulletHellAction` after `DamageResult` exists. This keeps rage gain based on real damage instead of preview damage. Non-damage gains and spends use `RageGainAction` and `RageSpendAction`, so resource changes still happen inside the action queue.
+
 QTE complexity is per skill:
 
 - Basic attacks use fewer nodes and wider spacing.
@@ -58,6 +75,8 @@ New skill actions:
 - `HealAction`
 - `RestoreMpAction`
 - `RestoreMpPercentAction`
+- `RageGainAction`
+- `RageSpendAction`
 - `ReviveAction`
 - `CleanseAction`
 
@@ -90,7 +109,7 @@ The existing Expedition-style skill menu remains in place. It now shows support 
 ## Adding A Skill
 
 1. Add a JSON file under `data/skills/`.
-2. Choose `mechanism`, `attackMotion`, `targeting`, `effect`, `mpCost`, `amount`, `flatBonus`, `mpRestorePercent`, and optional `statusEffectId`.
+2. Choose `mechanism`, `attackMotion`, `targeting`, `effect`, `mpCost`, `rageCost`, `amount`, `flatBonus`, `mpRestorePercent`, `rageGainRule`, `grantsRage`, and optional `statusEffectId`.
 3. Add the path to the character's `skillPaths` array.
 4. Add English, Vietnamese, and French localization keys.
 5. Reuse an existing icon id from `assets/UI/status_effect_icons.json` or add a new atlas frame.

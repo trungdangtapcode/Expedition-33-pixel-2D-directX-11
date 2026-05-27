@@ -5,6 +5,7 @@
 #define NOMINMAX
 #include "DataDrivenSkill.h"
 #include "BattleContext.h"
+#include "BattleResourceRules.h"
 #include "CleanseAction.h"
 #include "ConsumeMpAction.h"
 #include "CombatantAnim.h"
@@ -15,6 +16,7 @@
 #include "IAction.h"
 #include "LogAction.h"
 #include "PlayAnimationAction.h"
+#include "RageSpendAction.h"
 #include "RestoreMpAction.h"
 #include "ReviveAction.h"
 #include "StatusEffectAction.h"
@@ -41,19 +43,6 @@ namespace
         return DamageType::Physical;
     }
 
-    class ConsumeRageAction final : public IAction
-    {
-    public:
-        explicit ConsumeRageAction(IBattler* caster) : mCaster(caster) {}
-        bool Execute(float) override
-        {
-            if (mCaster) mCaster->GetStats().rage = 0;
-            return true;
-        }
-    private:
-        IBattler* mCaster = nullptr;
-    };
-
     std::string EffectiveEffect(const JsonLoader::SkillData& data)
     {
         if (!data.effect.empty()) return data.effect;
@@ -75,13 +64,20 @@ namespace
     {
         return effect != "revive";
     }
+
+    int EffectiveRageCost(const JsonLoader::SkillData& data)
+    {
+        if (data.rageCost > 0) return data.rageCost;
+        BattleResourceRules::Get().EnsureLoaded();
+        return BattleResourceRules::Get().RageCostForSkill(data.id);
+    }
 }
 
 DataDrivenSkill::DataDrivenSkill(JsonLoader::SkillData data)
     : mData(std::move(data))
     , mTargeting(ParseTargeting(mData.targeting))
     , mResourceKind(mData.mpCost > 0 ? SkillResourceKind::MP :
-        (mData.requiresFullRage || mData.consumesAllRage ? SkillResourceKind::Rage : SkillResourceKind::None))
+        (mData.requiresFullRage || mData.consumesAllRage || EffectiveRageCost(mData) > 0 ? SkillResourceKind::Rage : SkillResourceKind::None))
 {
 }
 
@@ -172,7 +168,9 @@ std::string DataDrivenSkill::GetDebugDescription() const
 
 bool DataDrivenSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
+    const int rageCost = EffectiveRageCost(mData);
     if (mData.mpCost > 0 && caster.GetStats().mp < mData.mpCost) return false;
+    if (rageCost > 0 && caster.GetStats().rage < rageCost) return false;
     if (mData.requiresFullRage && !caster.GetStats().IsRageFull()) return false;
     return true;
 }
@@ -186,9 +184,10 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
     if (!CanUse(caster, ctx)) return actions;
 
     actions.push_back(std::make_unique<ConsumeMpAction>(&caster, mData.mpCost));
-    if (mData.consumesAllRage)
+    const int rageCost = EffectiveRageCost(mData);
+    if (mData.consumesAllRage || rageCost > 0)
     {
-        actions.push_back(std::make_unique<ConsumeRageAction>(&caster));
+        actions.push_back(std::make_unique<RageSpendAction>(&caster, rageCost, mData.consumesAllRage));
     }
 
     const std::string targetName = targets.empty() || !targets[0]
@@ -228,6 +227,7 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
             request.type = ParseDamageType(mData.damageType);
             request.skillMultiplier = mData.skillMultiplier;
             request.flatBonus = mData.flatBonus;
+            request.grantsRage = mData.grantsRage;
             actions.push_back(std::make_unique<DamageAction>(request, &ctx));
         }
     }

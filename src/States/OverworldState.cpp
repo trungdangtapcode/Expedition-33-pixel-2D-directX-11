@@ -1043,6 +1043,26 @@ OverworldNpc* OverworldState::FindNearbyNpc(float px, float py) const
     return nullptr;
 }
 
+// ------------------------------------------------------------
+// Function: FindNearbyEnemy
+// Purpose:
+//   Return the first living overworld enemy inside battle contact range.
+// Why:
+//   Prompt rendering and battle input should resolve proximity the same way,
+//   so standing near an enemy always shows the same action the B key uses.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindNearbyEnemy(float px, float py) const
+{
+    for (OverworldEnemy* enemy : mOverworldEnemies)
+    {
+        if (enemy && enemy->IsAlive() && enemy->IsPlayerNearby(px, py))
+        {
+            return enemy;
+        }
+    }
+    return nullptr;
+}
+
 const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) const
 {
     for (const OverworldStoryRegion& region : mStoryRegions)
@@ -1610,6 +1630,17 @@ void OverworldState::Update(float dt)
         {
             return;
         }
+
+        if (OverworldEnemy* nearbyEnemy = FindNearbyEnemy(mPlayer->GetX(), mPlayer->GetY()))
+        {
+            const EnemyEncounterData& encounter = nearbyEnemy->GetEncounterData();
+            const std::string enemyName = LocalizationManager::Get().TextOrFallback(
+                encounter.nameKey,
+                encounter.name);
+            mInteractionPrompt = LocalizationManager::Get().Format(
+                "overworld.prompt.fight",
+                { { "name", enemyName } });
+        }
     }
 
     // ---------------------------------------------------------------
@@ -1627,15 +1658,7 @@ void OverworldState::Update(float dt)
 
         // Find the closest enemy within contact radius.
         // First match wins - ties resolved by vector order (spawn order).
-        OverworldEnemy* target = nullptr;
-        for (OverworldEnemy* enemy : mOverworldEnemies)
-        {
-            if (enemy && enemy->IsAlive() && enemy->IsPlayerNearby(px, py))
-            {
-                target = enemy;
-                break;
-            }
-        }
+        OverworldEnemy* target = FindNearbyEnemy(px, py);
 
         if (target)
         {

@@ -54,6 +54,23 @@ namespace
     {
         return !flag.empty() && GameProgress::Get().HasFlag(flag);
     }
+
+    std::string ReplaceAll(
+        std::string text,
+        const std::vector<std::pair<std::string, std::string>>& values)
+    {
+        for (const auto& entry : values)
+        {
+            const std::string token = "{" + entry.first + "}";
+            size_t pos = 0;
+            while ((pos = text.find(token, pos)) != std::string::npos)
+            {
+                text.replace(pos, token.size(), entry.second);
+                pos += entry.second.size();
+            }
+        }
+        return text;
+    }
 }
 
 // ------------------------------------------------------------
@@ -124,6 +141,9 @@ bool ObjectiveDirector::LoadFromSource(const std::string& src, const std::string
     mDistanceUnitsPerMeter = JsonLoader::detail::ParseFloat(
         JsonLoader::detail::ValueOf(src, "distanceUnitsPerMeter"),
         64.0f);
+    mArrivalDistanceUnits = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "arrivalDistanceUnits"),
+        96.0f);
 
     const std::vector<std::string> objects =
         JsonLoader::detail::ExtractObjectsFromArray(src, "objectives");
@@ -138,6 +158,8 @@ bool ObjectiveDirector::LoadFromSource(const std::string& src, const std::string
         stage.bodyFallback = ReadString(objectSrc, "body");
         stage.waypointLabelKey = ReadString(objectSrc, "waypointLabelKey");
         stage.waypointLabelFallback = ReadString(objectSrc, "waypointLabel");
+        stage.arrivalHintKey = ReadString(objectSrc, "arrivalHintKey");
+        stage.arrivalHintFallback = ReadString(objectSrc, "arrivalHint");
         stage.requiresFlags =
             JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
         stage.blockedByFlags =
@@ -148,6 +170,9 @@ bool ObjectiveDirector::LoadFromSource(const std::string& src, const std::string
             0.0f);
         stage.waypointY = JsonLoader::detail::ParseFloat(
             JsonLoader::detail::ValueOf(objectSrc, "waypointY"),
+            0.0f);
+        stage.arrivalDistanceUnits = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "arrivalDistanceUnits"),
             0.0f);
 
         if (stage.id.empty() || stage.bodyKey.empty())
@@ -208,11 +233,28 @@ std::string ObjectiveDirector::BuildWaypointHint(
     const float scale = mDistanceUnitsPerMeter > 0.0f
         ? mDistanceUnitsPerMeter
         : 64.0f;
-    const int distance = static_cast<int>(std::round(distanceUnits / scale));
+    int distance = static_cast<int>(std::round(distanceUnits / scale));
+    if (distance < 1) distance = 1;
 
     const std::string label = LocalizationManager::Get().TextOrFallback(
         stage.waypointLabelKey,
         stage.waypointLabelFallback);
+
+    const float arrivalDistanceUnits = stage.arrivalDistanceUnits > 0.0f
+        ? stage.arrivalDistanceUnits
+        : mArrivalDistanceUnits;
+    if (distanceUnits <= arrivalDistanceUnits)
+    {
+        const std::string hint = stage.arrivalHintKey.empty()
+            ? LocalizationManager::Get().TextOrFallback(
+                  "objective.arrival.reached",
+                  stage.arrivalHintFallback)
+            : LocalizationManager::Get().TextOrFallback(
+                  stage.arrivalHintKey,
+                  stage.arrivalHintFallback);
+        return ReplaceAll(hint, { { "label", label } });
+    }
+
     const std::string direction =
         LocalizationManager::Get().Text(ResolveDirectionKey(dx, dy));
 

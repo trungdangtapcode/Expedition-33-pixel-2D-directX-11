@@ -243,6 +243,7 @@ private:
     bool IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const;
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
+    OverworldEnemy* FindNearbyEnemy(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);

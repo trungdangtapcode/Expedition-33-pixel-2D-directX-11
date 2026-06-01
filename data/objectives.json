@@ -1,5 +1,6 @@
 {
   "distanceUnitsPerMeter": 64.0,
+  "arrivalDistanceUnits": 96.0,
   "objectives": [
     {
       "id": "defeat_meadow_scout",
@@ -12,7 +13,9 @@
       "waypointX": 720.0,
       "waypointY": -180.0,
       "waypointLabelKey": "objective.waypoint.scout",
-      "waypointLabel": "Scout"
+      "waypointLabel": "Scout",
+      "arrivalHintKey": "objective.arrival.fight",
+      "arrivalHint": "{label}: Press B to fight."
     },
     {
       "id": "meet_maelle",
@@ -29,7 +32,9 @@
       "waypointX": 1080.0,
       "waypointY": -160.0,
       "waypointLabelKey": "objective.waypoint.maelle",
-      "waypointLabel": "Maelle"
+      "waypointLabel": "Maelle",
+      "arrivalHintKey": "objective.arrival.talk",
+      "arrivalHint": "{label}: Press E to talk."
     },
     {
       "id": "win_maelle_duel",
@@ -46,7 +51,9 @@
       "waypointX": 1080.0,
       "waypointY": -160.0,
       "waypointLabelKey": "objective.waypoint.duel",
-      "waypointLabel": "Duel"
+      "waypointLabel": "Duel",
+      "arrivalHintKey": "objective.arrival.reached",
+      "arrivalHint": "{label}: stay in the area."
     },
     {
       "id": "reconcile_maelle",
@@ -60,7 +67,9 @@
       "waypointX": 1080.0,
       "waypointY": -160.0,
       "waypointLabelKey": "objective.waypoint.maelle",
-      "waypointLabel": "Maelle"
+      "waypointLabel": "Maelle",
+      "arrivalHintKey": "objective.arrival.talk",
+      "arrivalHint": "{label}: Press E to talk."
     },
     {
       "id": "clear_silent_market",
@@ -74,7 +83,9 @@
       "waypointX": -420.0,
       "waypointY": -1320.0,
       "waypointLabelKey": "objective.waypoint.market",
-      "waypointLabel": "Market"
+      "waypointLabel": "Market",
+      "arrivalHintKey": "objective.arrival.fight",
+      "arrivalHint": "{label}: Press B to fight."
     },
     {
       "id": "win_pilgrim_crossing",
@@ -88,7 +99,9 @@
       "waypointX": 1780.0,
       "waypointY": -900.0,
       "waypointLabelKey": "objective.waypoint.crossing",
-      "waypointLabel": "Crossing"
+      "waypointLabel": "Crossing",
+      "arrivalHintKey": "objective.arrival.fight",
+      "arrivalHint": "{label}: Press B to fight."
     },
     {
       "id": "recover_glass_shrine",
@@ -102,7 +115,9 @@
       "waypointX": 840.0,
       "waypointY": 1860.0,
       "waypointLabelKey": "objective.waypoint.shrine",
-      "waypointLabel": "Shrine"
+      "waypointLabel": "Shrine",
+      "arrivalHintKey": "objective.arrival.fight",
+      "arrivalHint": "{label}: Press B to fight."
     },
     {
       "id": "reach_mirror_gate",
@@ -116,7 +131,9 @@
       "waypointX": 3260.0,
       "waypointY": -1560.0,
       "waypointLabelKey": "objective.waypoint.mirror_gate",
-      "waypointLabel": "Mirror Gate"
+      "waypointLabel": "Mirror Gate",
+      "arrivalHintKey": "objective.arrival.fight",
+      "arrivalHint": "{label}: Press B to fight."
     },
     {
       "id": "chapter_clear",

@@ -27,7 +27,8 @@ the active objective.
   "hasWaypoint": true,
   "waypointX": 1080.0,
   "waypointY": -160.0,
-  "waypointLabelKey": "objective.waypoint.maelle"
+  "waypointLabelKey": "objective.waypoint.maelle",
+  "arrivalHintKey": "objective.arrival.talk"
 }
 ```
 
@@ -37,6 +38,10 @@ Fields:
 - `blockedByFlags`: if any listed flag exists, the objective is skipped.
 - `hasWaypoint`: enables a compact distance and compass hint.
 - `distanceUnitsPerMeter`: controls how world units convert to displayed meters.
+- `arrivalDistanceUnits`: controls when a waypoint stops showing distance text
+  and starts showing the action hint.
+- `arrivalHintKey`: localized template shown at the waypoint, such as
+  `{label}: Press B to fight.` or `{label}: Press E to talk.`
 
 ## Runtime Flow
 
@@ -56,6 +61,8 @@ chapter-level guidance.
   systems.
 - Keep objectives ordered from most immediate to most complete.
 - Keep waypoint hints compact; the overworld HUD has limited horizontal space.
+- Author arrival hints for every actionable waypoint so the HUD never displays
+  a useless `0m` direction when the player is already standing at the objective.
 - Localized display strings live in `data/localization/*.json`; C++ stores keys
   and English fallback only.
 
@@ -67,8 +74,11 @@ The initial route now resolves these objectives:
 2. Find Maelle at the boulevard trigger.
 3. Win Maelle's duel.
 4. Speak with Maelle so she joins the party.
-5. Reach the mirror gate after Maelle joins.
-6. Prepare for the next route after the mirror clone is defeated.
+5. Clear the silent market ambush.
+6. Win the pilgrim crossing patrol.
+7. Recover the glass shrine route.
+8. Reach the mirror gate and defeat the clone.
+9. Prepare for the next route after the mirror clone is defeated.
 
 ## Future Work
 

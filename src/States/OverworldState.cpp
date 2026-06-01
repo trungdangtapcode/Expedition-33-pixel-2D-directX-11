@@ -53,6 +53,7 @@
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
+#include "../Systems/Inventory.h"
 #include "../Systems/LocalizationManager.h"
 #include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
@@ -146,6 +147,7 @@ void OverworldState::OnEnter()
     {
         LOG("[OverworldState] WARNING - Objective data failed to load; using region objectives.");
     }
+    LoadFeedbackData();
     mCurrentArea = mDefaultArea;
     mCurrentObjective = mDefaultObjective;
 
@@ -353,6 +355,7 @@ void OverworldState::OnEnter()
         [this](const EventData&)
         {
             const std::string storyBattleId = mPendingStoryBattleId;
+            const std::string enemyBattleId = mPendingEnemySpawnId;
 
             if (mPendingEnemySource)
             {
@@ -386,6 +389,11 @@ void OverworldState::OnEnter()
                 SaveManager::Get().SaveCheckpoint("battle_victory");
                 mPendingEnemySource = nullptr;
                 mPendingEnemySpawnId.clear();
+            }
+
+            if (!enemyBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleVictory(enemyBattleId);
             }
 
             if (!storyBattleId.empty())
@@ -506,6 +514,8 @@ void OverworldState::OnExit()
     mUWasDown = false;
     mReloadFromCheckpoint = false;
     mInteractionPrompt.clear();
+    mTimedPrompt.clear();
+    mTimedPromptTimer = 0.0f;
 }
 
 bool OverworldState::LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const
@@ -943,6 +953,44 @@ bool OverworldState::LoadStoryData()
 }
 
 // ------------------------------------------------------------
+// Function: LoadFeedbackData
+// Purpose:
+//   Load screen prompt timing for overworld rewards and story feedback.
+// Why:
+//   Reward prompt duration is presentation tuning, so it belongs in data
+//   instead of being embedded in story command handling.
+// ------------------------------------------------------------
+bool OverworldState::LoadFeedbackData()
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_feedback.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_feedback.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Overworld feedback config missing; using defaults.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    mTimedPromptDuration = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "rewardPromptDuration"),
+        mTimedPromptDuration);
+    return true;
+}
+
+// ------------------------------------------------------------
 // Function: IsEnemySpawnAvailable
 // Purpose:
 //   Gate an overworld enemy spawn by durable story flags.
@@ -1251,6 +1299,36 @@ bool OverworldState::ExecuteStoryCommand(const StoryCommand& command)
         }
         return false;
 
+    case StoryCommandType::GrantCoins:
+        if (command.amount > 0)
+        {
+            Wallet::Get().AddCoins(command.amount);
+            SetTimedPrompt(LocalizationManager::Get().Format(
+                "overworld.reward.coins",
+                { { "amount", std::to_string(command.amount) } }));
+            LOG("[OverworldState] Story granted %d coins.", command.amount);
+        }
+        return false;
+
+    case StoryCommandType::GrantItem:
+        if (!command.itemId.empty() && command.amount > 0)
+        {
+            Inventory::Get().Add(command.itemId, command.amount);
+            const std::string itemName = LocalizationManager::Get().TextOrFallback(
+                "item." + command.itemId + ".name",
+                command.itemId);
+            SetTimedPrompt(LocalizationManager::Get().Format(
+                "overworld.reward.item",
+                {
+                    { "item", itemName },
+                    { "count", std::to_string(command.amount) }
+                }));
+            LOG("[OverworldState] Story granted item '%s' x%d.",
+                command.itemId.c_str(),
+                command.amount);
+        }
+        return false;
+
     case StoryCommandType::PushPlayer:
         if (mPlayer)
         {
@@ -1264,6 +1342,22 @@ bool OverworldState::ExecuteStoryCommand(const StoryCommand& command)
     }
 
     return false;
+}
+
+// ------------------------------------------------------------
+// Function: SetTimedPrompt
+// Purpose:
+//   Queue a short-lived bottom prompt for rewards and story feedback.
+// Why:
+//   Story commands often run between states. A timed prompt gives the player
+//   immediate feedback without coupling StoryDirector to UI rendering.
+// ------------------------------------------------------------
+void OverworldState::SetTimedPrompt(const std::string& text)
+{
+    if (text.empty()) return;
+
+    mTimedPrompt = text;
+    mTimedPromptTimer = mTimedPromptDuration;
 }
 
 // ------------------------------------------------------------
@@ -1466,6 +1560,18 @@ void OverworldState::Update(float dt)
     }
 
     mInteractionPrompt.clear();
+    if (mTimedPromptTimer > 0.0f)
+    {
+        mTimedPromptTimer -= TimeSystem::Get().GetUIClock().GetDeltaTime();
+        if (mTimedPromptTimer > 0.0f)
+        {
+            mInteractionPrompt = mTimedPrompt;
+        }
+        else
+        {
+            mTimedPrompt.clear();
+        }
+    }
 
     // All entity logic (WASD, physics, animation, enemy idle) runs here.
     // dt is gameplay-clock-scaled so entities respect slow-motion automatically.

@@ -127,6 +127,91 @@
           "saveReason": "story_maelle_joined"
         }
       ]
+    },
+    {
+      "id": "reward_meadow_scout",
+      "trigger": "battle_victory",
+      "triggerId": "meadow_scout",
+      "onceFlag": "reward.meadow_scout",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 20
+        },
+        {
+          "type": "grant_item",
+          "itemId": "potion_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_silent_market",
+      "trigger": "battle_victory",
+      "triggerId": "silent_market_ambush",
+      "onceFlag": "reward.silent_market_ambush",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 35
+        },
+        {
+          "type": "grant_item",
+          "itemId": "ether_small",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_pilgrim_crossing",
+      "trigger": "battle_victory",
+      "triggerId": "pilgrim_crossing_patrol",
+      "onceFlag": "reward.pilgrim_crossing_patrol",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 45
+        },
+        {
+          "type": "grant_item",
+          "itemId": "phoenix_down",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_glass_shrine",
+      "trigger": "battle_victory",
+      "triggerId": "glass_shrine_sentinel",
+      "onceFlag": "reward.glass_shrine_sentinel",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 40
+        },
+        {
+          "type": "grant_item",
+          "itemId": "ether_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_mirror_gate",
+      "trigger": "battle_victory",
+      "triggerId": "mirror_gate_clone",
+      "onceFlag": "reward.mirror_gate_clone",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 80
+        },
+        {
+          "type": "grant_item",
+          "itemId": "elixir",
+          "amount": 1
+        }
+      ]
     }
   ]
 }

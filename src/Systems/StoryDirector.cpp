@@ -60,6 +60,8 @@ namespace
         if (value == "recruit_member") return StoryCommandType::RecruitMember;
         if (value == "save_checkpoint") return StoryCommandType::SaveCheckpoint;
         if (value == "push_player") return StoryCommandType::PushPlayer;
+        if (value == "grant_coins") return StoryCommandType::GrantCoins;
+        if (value == "grant_item") return StoryCommandType::GrantItem;
         return StoryCommandType::SetFlag;
     }
 
@@ -224,6 +226,10 @@ bool StoryDirector::LoadEventsFromSource(const std::string& src, const std::stri
             command.memberId = ReadString(commandSrc, "memberId");
             command.flagId = ReadString(commandSrc, "flagId");
             command.saveReason = ReadString(commandSrc, "saveReason");
+            command.itemId = ReadString(commandSrc, "itemId");
+            command.amount = JsonLoader::detail::ParseInt(
+                JsonLoader::detail::ValueOf(commandSrc, "amount"),
+                0);
             command.x = JsonLoader::detail::ParseFloat(
                 JsonLoader::detail::ValueOf(commandSrc, "x"), 0.0f);
             command.y = JsonLoader::detail::ParseFloat(

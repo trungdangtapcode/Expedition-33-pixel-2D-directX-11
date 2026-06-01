@@ -28,7 +28,9 @@ enum class StoryCommandType
     RecruitMember,
     SetFlag,
     SaveCheckpoint,
-    PushPlayer
+    PushPlayer,
+    GrantCoins,
+    GrantItem
 };
 
 struct StoryCommand
@@ -40,6 +42,8 @@ struct StoryCommand
     std::string memberId;
     std::string flagId;
     std::string saveReason;
+    std::string itemId;
+    int amount = 0;
     float x = 0.0f;
     float y = 0.0f;
 };

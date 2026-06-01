@@ -67,6 +67,8 @@
   "dialogue.maelle_reconcile.maelle_3": "Lead on, brother.",
   "overworld.prompt.talk": "Press E to talk to {name}",
   "overworld.prompt.talk_to_maelle": "Talk to Maelle before leaving the square.",
+  "overworld.reward.coins": "Received {amount} coins.",
+  "overworld.reward.item": "Received {item} x{count}.",
   "campfire.title": "Campfire",
   "campfire.subtitle_main": "The flame remembers your route.",
   "campfire.subtitle_save": "Choose a slot to save the current checkpoint.",

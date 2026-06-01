@@ -215,6 +215,9 @@ private:
     std::string mCurrentArea;
     std::string mCurrentObjective;
     std::string mInteractionPrompt;
+    std::string mTimedPrompt;
+    float mTimedPromptTimer = 0.0f;
+    float mTimedPromptDuration = 2.5f;
 
     // ListenerID for "window_resized" - stored so we can Unsubscribe in OnExit.
     int mResizeListenerID = -1;
@@ -236,6 +239,7 @@ private:
     bool LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const;
     bool LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const;
     bool LoadStoryData();
+    bool LoadFeedbackData();
     bool IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const;
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
@@ -250,6 +254,7 @@ private:
                                const std::string& storyBattleId);
     bool ProcessStoryCommands();
     bool ExecuteStoryCommand(const StoryCommand& command);
+    void SetTimedPrompt(const std::string& text);
     bool HandleNpcInput(float px, float py);
     void RenderStoryOverlay();
     void RenderInteractionPrompt();

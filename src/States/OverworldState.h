@@ -12,6 +12,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
 #include "../Renderer/ColorGradeFilter.h"
+#include "../Systems/ObjectiveDirector.h"
 #include "../Systems/StoryDirector.h"
 #include <memory>
 #include <string>
@@ -201,8 +202,8 @@ private:
     bool mCWasDown = false;
     bool mUWasDown = false;
 
-    // Story objective text is data-driven by overworld_story.json so the map
-    // can communicate player motivation without hardcoding text in rendering.
+    // Story and objective text are data-driven so the map can communicate
+    // player motivation without hardcoding route logic in rendering.
     BattleTextRenderer mStoryTextRenderer;
     CurrencyHudRenderer mCurrencyHud;
     std::vector<OverworldStoryRegion> mStoryRegions;
@@ -253,4 +254,7 @@ private:
     bool HandleCampfireInput(float px, float py);
 
     StoryDirector mStoryDirector;
+    // ObjectiveDirector reads the same durable progress flags as save/load and
+    // StoryDirector, but never mutates them. It only returns HUD guidance.
+    ObjectiveDirector mObjectiveDirector;
 };

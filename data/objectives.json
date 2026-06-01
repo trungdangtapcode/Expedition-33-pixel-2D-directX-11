@@ -1,0 +1,89 @@
+{
+  "distanceUnitsPerMeter": 64.0,
+  "objectives": [
+    {
+      "id": "defeat_meadow_scout",
+      "titleKey": "objective.defeat_meadow_scout.title",
+      "title": "First Contact",
+      "bodyKey": "objective.defeat_meadow_scout.body",
+      "body": "Verso is alone. Defeat the road scout before pushing deeper into Paris.",
+      "blockedByFlags": [ "enemy_defeated:meadow_scout" ],
+      "hasWaypoint": true,
+      "waypointX": 720.0,
+      "waypointY": -180.0,
+      "waypointLabelKey": "objective.waypoint.scout",
+      "waypointLabel": "Scout"
+    },
+    {
+      "id": "meet_maelle",
+      "titleKey": "objective.meet_maelle.title",
+      "title": "A Familiar Voice",
+      "bodyKey": "objective.meet_maelle.body",
+      "body": "Follow the boulevard east and find Maelle before the mirrors close in.",
+      "requiresFlags": [ "enemy_defeated:meadow_scout" ],
+      "blockedByFlags": [
+        "dialogue_completed:maelle_confrontation",
+        "story.maelle_joined"
+      ],
+      "hasWaypoint": true,
+      "waypointX": 1080.0,
+      "waypointY": -160.0,
+      "waypointLabelKey": "objective.waypoint.maelle",
+      "waypointLabel": "Maelle"
+    },
+    {
+      "id": "win_maelle_duel",
+      "titleKey": "objective.win_maelle_duel.title",
+      "title": "Prove the Memory",
+      "bodyKey": "objective.win_maelle_duel.body",
+      "body": "Maelle thinks Verso is a clone. Win the duel and prove the memory is real.",
+      "requiresFlags": [ "dialogue_completed:maelle_confrontation" ],
+      "blockedByFlags": [
+        "story.maelle_duel_won",
+        "story.maelle_joined"
+      ],
+      "hasWaypoint": true,
+      "waypointX": 1080.0,
+      "waypointY": -160.0,
+      "waypointLabelKey": "objective.waypoint.duel",
+      "waypointLabel": "Duel"
+    },
+    {
+      "id": "reconcile_maelle",
+      "titleKey": "objective.reconcile_maelle.title",
+      "title": "Together Again",
+      "bodyKey": "objective.reconcile_maelle.body",
+      "body": "Speak with Maelle after the duel so she can rejoin the expedition.",
+      "requiresFlags": [ "story.maelle_duel_won" ],
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "hasWaypoint": true,
+      "waypointX": 1080.0,
+      "waypointY": -160.0,
+      "waypointLabelKey": "objective.waypoint.maelle",
+      "waypointLabel": "Maelle"
+    },
+    {
+      "id": "reach_mirror_gate",
+      "titleKey": "objective.reach_mirror_gate.title",
+      "title": "Mirror Gate",
+      "bodyKey": "objective.reach_mirror_gate.body",
+      "body": "Recover at campfires, clear the road patrols, and reach the eastern mirror gate.",
+      "requiresFlags": [ "story.maelle_joined" ],
+      "blockedByFlags": [ "enemy_defeated:mirror_gate_clone" ],
+      "hasWaypoint": true,
+      "waypointX": 3260.0,
+      "waypointY": -1560.0,
+      "waypointLabelKey": "objective.waypoint.mirror_gate",
+      "waypointLabel": "Mirror Gate"
+    },
+    {
+      "id": "chapter_clear",
+      "titleKey": "objective.chapter_clear.title",
+      "title": "Ashen Route Clear",
+      "bodyKey": "objective.chapter_clear.body",
+      "body": "The gate is quiet for now. Use campfires to prepare for the next route.",
+      "requiresFlags": [ "enemy_defeated:mirror_gate_clone" ],
+      "hasWaypoint": false
+    }
+  ]
+}

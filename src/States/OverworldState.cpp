@@ -142,6 +142,10 @@ void OverworldState::OnEnter()
     {
         LOG("[OverworldState] WARNING - Story events failed to load.");
     }
+    if (!mObjectiveDirector.Initialize("data/objectives.json"))
+    {
+        LOG("[OverworldState] WARNING - Objective data failed to load; using region objectives.");
+    }
     mCurrentArea = mDefaultArea;
     mCurrentObjective = mDefaultObjective;
 
@@ -968,24 +972,40 @@ const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) 
 // ------------------------------------------------------------
 // Function: UpdateStoryRegion
 // Purpose:
-//   Refresh the active area label and objective from the player's position.
+//   Refresh the active area label, biome theme, and objective line.
 // Why:
-//   Region-specific objectives give the large map short-term goals without
-//   adding a full quest system yet.
+//   Region text explains the current place, while ObjectiveDirector resolves
+//   the chapter goal from durable progress flags so guidance survives save/load.
 // ------------------------------------------------------------
 void OverworldState::UpdateStoryRegion(float px, float py)
 {
+    std::string fallbackObjective = mDefaultObjective;
+
     if (const OverworldStoryRegion* region = FindStoryRegion(px, py))
     {
         mCurrentArea = region->name;
-        mCurrentObjective = region->objective;
+        fallbackObjective = region->objective;
         mThemeManager.SetTheme(region->themeId.empty() ? mDefaultThemeId : region->themeId);
+    }
+    else
+    {
+        mCurrentArea = mDefaultArea;
+        mThemeManager.SetTheme(mDefaultThemeId);
+    }
+
+    const ObjectiveView objective = mObjectiveDirector.Resolve(px, py);
+    if (!objective.active)
+    {
+        mCurrentObjective = fallbackObjective;
         return;
     }
 
-    mCurrentArea = mDefaultArea;
-    mCurrentObjective = mDefaultObjective;
-    mThemeManager.SetTheme(mDefaultThemeId);
+    mCurrentObjective = objective.body;
+    if (!objective.waypointHint.empty())
+    {
+        mCurrentObjective += "  ";
+        mCurrentObjective += objective.waypointHint;
+    }
 }
 
 // ------------------------------------------------------------

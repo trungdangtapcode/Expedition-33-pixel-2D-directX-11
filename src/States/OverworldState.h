@@ -72,6 +72,8 @@ struct OverworldEnemySpawnData
 {
     std::string id;
     std::string encounterPath;
+    std::vector<std::string> requiresFlags;
+    std::vector<std::string> blockedByFlags;
     float worldX = 0.0f;
     float worldY = 0.0f;
 };
@@ -234,6 +236,7 @@ private:
     bool LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const;
     bool LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const;
     bool LoadStoryData();
+    bool IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const;
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;

@@ -269,6 +269,12 @@ void OverworldState::OnEnter()
                     spawn.id.c_str());
                 continue;
             }
+            if (!IsEnemySpawnAvailable(spawn))
+            {
+                LOG("[OverworldState] Spawn '%s' skipped because its story gates are not open.",
+                    spawn.id.c_str());
+                continue;
+            }
 
             EnemyEncounterData encounterData{};
             if (JsonLoader::LoadEnemyEncounterData(spawn.encounterPath, encounterData))
@@ -611,6 +617,10 @@ bool OverworldState::LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& ou
             JsonLoader::detail::ValueOf(objectSrc, "id"));
         data.encounterPath = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "encounterPath"));
+        data.requiresFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
+        data.blockedByFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "blockedByFlags");
         data.worldX = JsonLoader::detail::ParseFloat(
             JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
         data.worldY = JsonLoader::detail::ParseFloat(
@@ -930,6 +940,35 @@ bool OverworldState::LoadStoryData()
 
     LOG("[OverworldState] Loaded %zu overworld story region(s).", mStoryRegions.size());
     return !mStoryRegions.empty();
+}
+
+// ------------------------------------------------------------
+// Function: IsEnemySpawnAvailable
+// Purpose:
+//   Gate an overworld enemy spawn by durable story flags.
+// Why:
+//   Encounter pacing should be data-authored. The opening chapter can start
+//   with Verso alone, then unlock wider patrols after Maelle joins.
+// ------------------------------------------------------------
+bool OverworldState::IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const
+{
+    for (const std::string& flag : spawn.requiresFlags)
+    {
+        if (!GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    for (const std::string& flag : spawn.blockedByFlags)
+    {
+        if (GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    return true;
 }
 
 CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const

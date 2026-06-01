@@ -3,9 +3,8 @@
 // Responsibility: Execute attack-mechanism skills with movement, camera,
 //                 animation-timed damage, optional QTE, and optional status.
 //
-// Rage formula (handled inside Combatant::TakeDamage):
-//   Attacker rage += effective / 4
-//   Defender rage += effective / 8
+// Rage and mana recovery are handled by explicit actions and resource
+// rule helpers after final damage is known.
 // ============================================================
 #pragma once
 #include "ISkill.h"

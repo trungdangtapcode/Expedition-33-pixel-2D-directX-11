@@ -1,0 +1,13 @@
+{
+  "id": "scout_slash",
+  "inputKey": "space",
+  "startMoment": 0.32,
+  "damageMoment": 0.66,
+  "goodThreshold": 0.52,
+  "perfectThreshold": 0.82,
+  "perfectDamageMultiplier": 0.0,
+  "goodDamageMultiplier": 0.35,
+  "missDamageMultiplier": 1.0,
+  "fadeInRatio": 0.16,
+  "fadeOutDuration": 0.22
+}

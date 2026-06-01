@@ -4,7 +4,8 @@
   "moveDuration": 0.4,
   "returnDuration": 0.35,
   "meleeOffset": 80.0,
-  "bulletHellSupported": true,
+  "reactionWindowPath": "data/reaction_windows/scout_slash.json",
+  "bulletHellSupported": false,
   "bulletHellPatternPath": "data/bullet_patterns/skeleton_bones.json",
   "bulletHellPatternSelection": "random_no_repeat",
   "bulletHellPatternPaths": [

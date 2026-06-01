@@ -19,6 +19,7 @@
 #include "RestoreMpPercentAction.h"
 #include "RageGainAction.h"
 #include "RageSpendAction.h"
+#include "ReactionDefenseAction.h"
 #include "StatusEffectAction.h"
 #include "StatusEffectRegistry.h"
 #include "../Systems/LocalizationManager.h"
@@ -260,7 +261,20 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
         }
         if (requests.empty()) return;
 
-        if (mData.bulletHellSupported && requests.size() == 1) {
+        if (!mData.reactionWindowPath.empty() && requests.size() == 1) {
+            JsonLoader::ReactionWindowData reactionWindow;
+            if (JsonLoader::LoadReactionWindowData(mData.reactionWindowPath, reactionWindow)) {
+                actions.push_back(std::make_unique<ReactionDefenseAction>(
+                    requests.front(),
+                    reactionWindow,
+                    CombatantAnim::Attack,
+                    &ctx));
+            } else {
+                actions.push_back(std::make_unique<AnimDamageAction>(
+                    std::move(requests), CombatantAnim::Attack, mData.damageTakenOccurMoment, &ctx
+                ));
+            }
+        } else if (mData.bulletHellSupported && requests.size() == 1) {
             const std::string patternPath = SelectBulletHellPatternPath();
             if (!patternPath.empty()) {
                 actions.push_back(std::make_unique<BulletHellAction>(&caster, requests.front().defender, patternPath, &ctx));

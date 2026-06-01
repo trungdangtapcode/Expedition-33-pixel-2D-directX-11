@@ -1313,6 +1313,7 @@ struct SkillData {
     std::vector<std::string> extraRuleKeys;
     std::string effectTiming;
     std::string rageGainRule;
+    std::string reactionWindowPath;
     int mpCost = 0;
     int rageCost = 0;
     int amount = 0;
@@ -1393,6 +1394,7 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
     out.effectTiming = detail::CleanString(detail::ValueOf(src, "effectTiming"));
     out.rageGainRule = detail::CleanString(detail::ValueOf(src, "rageGainRule"));
+    out.reactionWindowPath = detail::CleanString(detail::ValueOf(src, "reactionWindowPath"));
     out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
     out.rageCost = detail::ParseInt(detail::ValueOf(src, "rageCost"), 0);
     out.amount = detail::ParseInt(detail::ValueOf(src, "amount"), 0);
@@ -1437,6 +1439,66 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
         path.c_str(),
         resolvedPath.string().c_str(),
         out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadReactionWindowData
+// Purpose:
+//   Parse a data/reaction_windows/*.json file that configures one
+//   defensive timing prompt for an incoming enemy attack.
+// ------------------------------------------------------------
+struct ReactionWindowData {
+    std::string id = "reaction";
+    std::string inputKey = "space";
+    float startMoment = 0.30f;
+    float damageMoment = 0.62f;
+    float goodThreshold = 0.55f;
+    float perfectThreshold = 0.82f;
+    float perfectDamageMultiplier = 0.0f;
+    float goodDamageMultiplier = 0.35f;
+    float missDamageMultiplier = 1.0f;
+    float fadeInRatio = 0.15f;
+    float fadeOutDuration = 0.20f;
+};
+
+inline bool LoadReactionWindowData(const std::string& path, ReactionWindowData& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open reaction window file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    const std::string id = detail::CleanString(detail::ValueOf(src, "id"));
+    if (!id.empty()) out.id = id;
+    const std::string inputKey = detail::CleanString(detail::ValueOf(src, "inputKey"));
+    if (!inputKey.empty()) out.inputKey = inputKey;
+
+    out.startMoment = detail::ParseFloat(detail::ValueOf(src, "startMoment"), out.startMoment);
+    out.damageMoment = detail::ParseFloat(detail::ValueOf(src, "damageMoment"), out.damageMoment);
+    out.goodThreshold = detail::ParseFloat(detail::ValueOf(src, "goodThreshold"), out.goodThreshold);
+    out.perfectThreshold = detail::ParseFloat(detail::ValueOf(src, "perfectThreshold"), out.perfectThreshold);
+    out.perfectDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "perfectDamageMultiplier"), out.perfectDamageMultiplier);
+    out.goodDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "goodDamageMultiplier"), out.goodDamageMultiplier);
+    out.missDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "missDamageMultiplier"), out.missDamageMultiplier);
+    out.fadeInRatio = detail::ParseFloat(detail::ValueOf(src, "fadeInRatio"), out.fadeInRatio);
+    out.fadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "fadeOutDuration"), out.fadeOutDuration);
+
+    LOG("[JsonLoader] Loaded ReactionWindowData from '%s'.", resolvedPath.string().c_str());
     return true;
 }
 

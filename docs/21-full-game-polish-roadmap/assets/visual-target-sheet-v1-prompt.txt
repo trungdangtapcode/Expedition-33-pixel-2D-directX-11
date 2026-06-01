@@ -1,0 +1,11 @@
+Use case: stylized-concept
+Asset type: game polish visual target sheet for a 2D pixel-art dark fantasy JRPG
+Primary request: Create an original visual target sheet for a playable 2D JRPG inspired by Belle Epoque Paris ruins and reactive turn-based battles. Do not copy any existing game logo, character, UI, or screenshot.
+Scene/backdrop: ash-covered Paris boulevard, ruined wrought-iron gates, cracked cobblestones, pale moonlight, drifting petals and leaves.
+Subject: four clear asset concepts arranged in a polished concept sheet: 1) angled black-and-gold battle skill card UI with readable empty text lines, 2) compact status effect icon set with burn, guard, haste, vulnerable, weak, revive, cleanse, focus, 3) campfire upgrade/save hub prop with warm fire, lantern, small shop cloth, and journal, 4) victory/defeat result overlay motifs with gold flourish and red broken sigil.
+Style/medium: original high-quality pixel-art concept sheet, clean game-production presentation, 2D sprites and UI elements, alpha-friendly shapes but on a neutral dark matte background.
+Composition/framing: 16:9 sheet, each concept separated into labeled visual zones without relying on tiny text; UI frames centered and icons large enough to crop later.
+Lighting/mood: melancholy, premium, readable, restrained gold highlights, crimson danger accents, cool smoky shadows.
+Color palette: dark charcoal, antique gold, muted red, blue-gray stone, warm campfire orange.
+Materials/textures: aged metal, scratched glass, inked UI borders, soft smoke, pixel-art dithering.
+Constraints: original assets only; no existing copyrighted logos; no real readable title text; no watermark; no photorealism; no 3D render; keep silhouettes crisp for later slicing; avoid cluttered micro-details.

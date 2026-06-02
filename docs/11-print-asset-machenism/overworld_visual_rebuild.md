@@ -18,6 +18,7 @@ The generated v2 art lives in:
 ```text
 assets/environments/overworld_tiles_v2.png
 assets/environments/overworld_objects_v2.png
+assets/environments/overworld_route_props.png
 ```
 
 Regenerate deterministic ground and road tiles:
@@ -30,6 +31,10 @@ python patches\compile_assets.py
 `overworld_objects_v2.png`. The object atlas is imagegen-sourced art, then
 locally chroma-keyed and resized into the existing 8x8 64px atlas contract.
 Do not reintroduce Python-drawn rectangle/circle props for that atlas.
+
+`overworld_route_props.png` is also imagegen-sourced. It contains larger 128px
+landmarks for route readability: barricades, lamps, signal posts, statue
+fragments, carts, glass monuments, and mirror shards.
 
 Regenerate the map and prop placement data:
 
@@ -49,6 +54,7 @@ be force-added when committing:
 
 ```bat
 git add -f assets\environments\overworld_tiles_v2.png assets\environments\overworld_objects_v2.png
+git add -f assets\environments\overworld_route_props.png
 ```
 
 ## Dirt Road Style
@@ -84,6 +90,10 @@ Small tile-layer props and larger static props come from
 They should not carry interaction logic. If an object becomes interactive or
 needs Y-sorting against the player, move it into `data/overworld_props.json`
 and render it through `OverworldStaticProp`.
+
+Route landmark props come from `assets/environments/overworld_route_props.png`
+and are placed only through `data/overworld_props.json`. Keep them off the main
+walk line unless the matching collision rectangle is meant to block the path.
 
 ## Tiled Layer Rules
 

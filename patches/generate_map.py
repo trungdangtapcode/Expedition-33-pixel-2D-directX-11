@@ -15,6 +15,8 @@ WIDTH = 128
 HEIGHT = 96
 GROUND_TILE_COUNT = 40
 OBJECT_FIRST_GID = GROUND_TILE_COUNT + 1
+OBJECT_ATLAS_PATH = "assets/environments/overworld_objects_v2.png"
+ROUTE_PROP_ATLAS_PATH = "assets/environments/overworld_route_props.png"
 
 GRASS = (1, 2, 3, 4)
 WILD = (5, 6, 7, 8)
@@ -293,9 +295,30 @@ def prop(prop_id: str, local_id: int, tx: int, ty: int, w: int, h_: int, scale: 
     wx, wy = world_from_tile(tx, ty, sw * 0.5, sh - 8)
     return {
         "id": prop_id,
-        "texturePath": "assets/environments/overworld_objects_v2.png",
+        "texturePath": OBJECT_ATLAS_PATH,
         "sourceX": sx,
         "sourceY": sy,
+        "sourceWidth": sw,
+        "sourceHeight": sh,
+        "worldX": round(wx, 2),
+        "worldY": round(wy, 2),
+        "pivotX": round(sw * 0.5, 2),
+        "pivotY": sh - 8,
+        "scale": scale,
+        "layer": 50,
+        "sortYOffset": 0.0,
+    }
+
+
+def route_prop(prop_id: str, cell_x: int, cell_y: int, tx: int, ty: int, scale: float = 1.0) -> dict[str, object]:
+    sw = 128
+    sh = 128
+    wx, wy = world_from_tile(tx, ty, sw * 0.5, sh - 8)
+    return {
+        "id": prop_id,
+        "texturePath": ROUTE_PROP_ATLAS_PATH,
+        "sourceX": cell_x * sw,
+        "sourceY": cell_y * sh,
         "sourceWidth": sw,
         "sourceHeight": sh,
         "worldX": round(wx, 2),
@@ -328,6 +351,21 @@ def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
     for prop_id, local_id, tx, ty, sw, sh in specs:
         out.append(prop(prop_id, local_id, tx, ty, sw, sh))
         add_collider(colliders, prop_id, tx, ty, sw // TILE, sh // TILE)
+
+    route_specs = [
+        ("meadow_lamp", 1, 0, 62, 45),
+        ("meadow_barricade", 0, 0, 58, 53),
+        ("silent_market_cart", 0, 1, 58, 20),
+        ("western_watch_signal", 1, 1, 30, 33),
+        ("western_watch_statue", 3, 0, 23, 41),
+        ("pilgrim_crossing_milestone", 2, 0, 101, 31),
+        ("glass_shrine_echo_monument", 2, 1, 75, 77),
+        ("mirror_gate_statue", 3, 0, 118, 19),
+        ("mirror_gate_shards", 1, 2, 112, 28),
+    ]
+    for prop_id, cell_x, cell_y, tx, ty in route_specs:
+        out.append(route_prop(prop_id, cell_x, cell_y, tx, ty))
+        add_collider(colliders, prop_id, tx, ty, 2, 2)
     return out
 
 

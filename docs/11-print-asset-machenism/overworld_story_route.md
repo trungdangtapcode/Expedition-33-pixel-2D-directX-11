@@ -45,7 +45,8 @@ The generator creates:
 - A diagonal eastern road into the mirror gate.
 - Landmark clearings large enough to read on camera.
 - Low object-layer tables, rocks, walls, and signs.
-- Data-driven static props for ruins, tents, shrines, and the mirror gate.
+- Data-driven static props for ruins, tents, shrines, route lamps, barricades,
+  signal posts, carts, statues, and mirror shards.
 - Collision rectangles matching low objects and static props.
 
 ## Story Data
@@ -167,6 +168,7 @@ The player motivation is layered:
 - Region objectives answer "why am I here?"
 - Campfires answer "what did I gain for exploring?"
 - Enemy gates answer "what is blocking progress?"
+- Route landmarks answer "what kind of place is this beat?"
 - The mirror gate answers "what is the destination?"
 
 ## Editing Workflow

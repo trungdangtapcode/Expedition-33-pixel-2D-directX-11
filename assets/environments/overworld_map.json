@@ -11,7 +11,7 @@
   "tilewidth": 64,
   "tileheight": 64,
   "nextlayerid": 9,
-  "nextobjectid": 39,
+  "nextobjectid": 48,
   "tilesets": [
     {
       "firstgid": 1,
@@ -86262,6 +86262,78 @@
         },
         {
           "id": 14,
+          "name": "meadow_lamp",
+          "x": 3968,
+          "y": 2880,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 15,
+          "name": "meadow_barricade",
+          "x": 3712,
+          "y": 3392,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 16,
+          "name": "silent_market_cart",
+          "x": 3712,
+          "y": 1280,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 17,
+          "name": "western_watch_signal",
+          "x": 1920,
+          "y": 2112,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 18,
+          "name": "western_watch_statue",
+          "x": 1472,
+          "y": 2624,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 19,
+          "name": "pilgrim_crossing_milestone",
+          "x": 6464,
+          "y": 1984,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 20,
+          "name": "glass_shrine_echo_monument",
+          "x": 4800,
+          "y": 4928,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 21,
+          "name": "mirror_gate_statue",
+          "x": 7552,
+          "y": 1216,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 22,
+          "name": "mirror_gate_shards",
+          "x": 7168,
+          "y": 1792,
+          "width": 128,
+          "height": 128
+        },
+        {
+          "id": 23,
           "name": "BoundaryNorth",
           "x": 0,
           "y": 0,
@@ -86269,7 +86341,7 @@
           "height": 64
         },
         {
-          "id": 15,
+          "id": 24,
           "name": "BoundarySouth",
           "x": 0,
           "y": 6080,
@@ -86277,7 +86349,7 @@
           "height": 64
         },
         {
-          "id": 16,
+          "id": 25,
           "name": "BoundaryWest",
           "x": 0,
           "y": 0,
@@ -86285,7 +86357,7 @@
           "height": 6144
         },
         {
-          "id": 17,
+          "id": 26,
           "name": "BoundaryEast",
           "x": 8128,
           "y": 0,
@@ -86293,7 +86365,7 @@
           "height": 6144
         },
         {
-          "id": 18,
+          "id": 27,
           "name": "Table58_44",
           "x": 3712,
           "y": 2816,
@@ -86301,7 +86373,7 @@
           "height": 64
         },
         {
-          "id": 19,
+          "id": 28,
           "name": "Table64_26",
           "x": 4096,
           "y": 1664,
@@ -86309,7 +86381,7 @@
           "height": 64
         },
         {
-          "id": 20,
+          "id": 29,
           "name": "Table33_38",
           "x": 2112,
           "y": 2432,
@@ -86317,7 +86389,7 @@
           "height": 64
         },
         {
-          "id": 21,
+          "id": 30,
           "name": "Table40_26",
           "x": 2560,
           "y": 1664,
@@ -86325,7 +86397,7 @@
           "height": 64
         },
         {
-          "id": 22,
+          "id": 31,
           "name": "Table96_34",
           "x": 6144,
           "y": 2176,
@@ -86333,7 +86405,7 @@
           "height": 64
         },
         {
-          "id": 23,
+          "id": 32,
           "name": "Table73_83",
           "x": 4672,
           "y": 5312,
@@ -86341,7 +86413,7 @@
           "height": 64
         },
         {
-          "id": 24,
+          "id": 33,
           "name": "Rock53_24",
           "x": 3392,
           "y": 1536,
@@ -86349,7 +86421,7 @@
           "height": 64
         },
         {
-          "id": 25,
+          "id": 34,
           "name": "Rock70_31",
           "x": 4480,
           "y": 1984,
@@ -86357,7 +86429,7 @@
           "height": 64
         },
         {
-          "id": 26,
+          "id": 35,
           "name": "Rock25_35",
           "x": 1600,
           "y": 2240,
@@ -86365,7 +86437,7 @@
           "height": 64
         },
         {
-          "id": 27,
+          "id": 36,
           "name": "Rock37_24",
           "x": 2368,
           "y": 1536,
@@ -86373,7 +86445,7 @@
           "height": 64
         },
         {
-          "id": 28,
+          "id": 37,
           "name": "Rock45_27",
           "x": 2880,
           "y": 1728,
@@ -86381,7 +86453,7 @@
           "height": 64
         },
         {
-          "id": 29,
+          "id": 38,
           "name": "Rock84_81",
           "x": 5376,
           "y": 5184,
@@ -86389,7 +86461,7 @@
           "height": 64
         },
         {
-          "id": 30,
+          "id": 39,
           "name": "Rock112_23",
           "x": 7168,
           "y": 1472,
@@ -86397,7 +86469,7 @@
           "height": 64
         },
         {
-          "id": 31,
+          "id": 40,
           "name": "MarketSouthWall",
           "x": 3328,
           "y": 1984,
@@ -86405,7 +86477,7 @@
           "height": 64
         },
         {
-          "id": 32,
+          "id": 41,
           "name": "WatchArchSouthWall",
           "x": 2304,
           "y": 1792,
@@ -86413,7 +86485,7 @@
           "height": 64
         },
         {
-          "id": 33,
+          "id": 42,
           "name": "WatchArchEastWall",
           "x": 2752,
           "y": 1536,
@@ -86421,7 +86493,7 @@
           "height": 320
         },
         {
-          "id": 34,
+          "id": 43,
           "name": "MarketEastWall",
           "x": 4608,
           "y": 1280,
@@ -86429,7 +86501,7 @@
           "height": 448
         },
         {
-          "id": 35,
+          "id": 44,
           "name": "CrossingNorthWall",
           "x": 5888,
           "y": 1920,
@@ -86437,7 +86509,7 @@
           "height": 64
         },
         {
-          "id": 36,
+          "id": 45,
           "name": "CrossingSouthWall",
           "x": 5824,
           "y": 2496,
@@ -86445,7 +86517,7 @@
           "height": 64
         },
         {
-          "id": 37,
+          "id": 46,
           "name": "MirrorNorthWall",
           "x": 6976,
           "y": 1152,
@@ -86453,7 +86525,7 @@
           "height": 64
         },
         {
-          "id": 38,
+          "id": 47,
           "name": "MirrorSouthWall",
           "x": 6976,
           "y": 1920,

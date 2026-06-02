@@ -53,6 +53,12 @@ The input controller reads `pageSize` from `data/battle_skill_menu_layout.json` 
 
 `EnemyHpBarRenderer::GetStatusAnchor()` exposes a stable status strip position under each active enemy bar.  The offsets live in `assets/UI/enemy-hp-ui.json` as `status_anchor_offset_x` and `status_anchor_offset_y`.
 
+The shared status/skill icon atlas is `assets/UI/status_effect_icons.png`.
+The atlas is imagegen-sourced and validated by
+`patches/generate_status_effect_icons.py`; the validator preserves the icon ID
+order used by both status effects and skill cards without redrawing placeholder
+art.
+
 ## Localization
 
 All player-facing labels are localization keys.  Debug HUD and log labels remain English-only so CLI output does not depend on terminal Unicode support.

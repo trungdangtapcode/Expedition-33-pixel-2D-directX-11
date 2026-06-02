@@ -80,18 +80,33 @@ The renderer displays:
 - Stack count when greater than one.
 - Overflow count when more effects are active than the configured visible limit.
 
-## Asset Generation
-Run:
+## Icon Asset Pipeline
+Status and skill icons use:
+
+```text
+assets/UI/status_effect_icons.png
+assets/UI/status_effect_icons.json
+```
+
+The current atlas is imagegen-sourced art, processed into a 13-icon, 32px-wide
+row while preserving the existing `iconId` contract. It replaces the older
+primitive icon generator so the battle UI does not regress to rectangle/circle
+placeholder symbols.
+
+Run this validator after replacing the art:
 
 ```bat
 python patches\generate_status_effect_icons.py
 ```
 
-The script writes a deterministic icon atlas and metadata. The output is intentionally simple and replaceable. Production art can replace the PNG and JSON while keeping the same `iconId` contract.
+The script validates atlas dimensions, alpha coverage, metadata size, and icon
+ID order. It intentionally does not draw or overwrite icon pixels.
 
 ## Extension Rules
 - Add a new skill by creating a JSON file and adding it to a character's `skillPaths`.
 - Add a new status by creating a JSON file under `data/status_effects`.
-- Add a new status icon by updating `patches/generate_status_effect_icons.py`, regenerating the atlas, and using the new `iconId`.
+- Add a new status icon by extending `assets/UI/status_effect_icons.png`,
+  updating `assets/UI/status_effect_icons.json`, and then updating the
+  validator's expected icon list.
 - Add a new status behavior only when modifiers and tick damage cannot express it; implement that behavior inside an `IStatusEffect` or an `IAction`, not inside `BattleManager`.
 - Keep CLI/debug names English by using debug localization fallback paths.

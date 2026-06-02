@@ -44,6 +44,7 @@ private:
         Rest,
         Save,
         Load,
+        MemoryArchive,
         Training,
         Lineup,
         Exit,

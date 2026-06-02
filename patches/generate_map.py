@@ -15,7 +15,7 @@ WIDTH = 128
 HEIGHT = 96
 GROUND_TILE_COUNT = 40
 OBJECT_FIRST_GID = GROUND_TILE_COUNT + 1
-OBJECT_ATLAS_PATH = "assets/environments/overworld_objects_v2.png"
+OBJECT_ATLAS_PATH = "assets/environments/overworld_objects_v3.png"
 ROUTE_PROP_ATLAS_PATH = "assets/environments/overworld_route_props.png"
 
 GRASS = (1, 2, 3, 4)
@@ -333,19 +333,12 @@ def route_prop(prop_id: str, cell_x: int, cell_y: int, tx: int, ty: int, scale: 
 
 def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
     specs = [
-        ("paris_ruin_west", 16, 55, 42, 128, 128),
-        ("paris_ruin_east", 16, 78, 42, 128, 128),
-        ("paris_market_tent", 18, 59, 54, 128, 128),
-        ("market_ruin_west", 16, 55, 18, 128, 128),
-        ("market_ruin_east", 16, 66, 19, 128, 128),
-        ("market_ruin_south", 16, 48, 27, 128, 128),
-        ("western_watch_tent", 18, 30, 36, 128, 128),
-        ("western_watch_ruin", 16, 38, 23, 128, 128),
-        ("western_watch_shrine", 32, 23, 62, 128, 128),
-        ("glass_shrine_north", 32, 70, 74, 128, 128),
-        ("glass_shrine_east", 32, 81, 75, 128, 128),
-        ("glass_shrine_south", 32, 71, 85, 128, 128),
-        ("mirror_gate_shrine", 32, 115, 21, 128, 128),
+        ("paris_supply_crate", 5, 56, 43, 64, 64),
+        ("paris_barrel_cache", 6, 77, 43, 64, 64),
+        ("market_crystal_cache", 9, 67, 21, 64, 64),
+        ("western_watch_rocks", 12, 39, 24, 64, 64),
+        ("glass_shrine_flowers", 10, 72, 82, 64, 64),
+        ("mirror_gate_rubble", 15, 114, 26, 64, 64),
     ]
     out: list[dict[str, object]] = []
     for prop_id, local_id, tx, ty, sw, sh in specs:
@@ -353,6 +346,19 @@ def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
         add_collider(colliders, prop_id, tx, ty, sw // TILE, sh // TILE)
 
     route_specs = [
+        ("paris_ruined_barricade_west", 0, 0, 55, 42),
+        ("paris_ruined_barricade_east", 0, 0, 78, 42),
+        ("paris_market_canvas", 3, 1, 59, 54),
+        ("market_ruined_barricade_west", 0, 0, 55, 18),
+        ("market_ruined_barricade_east", 0, 0, 66, 19),
+        ("market_ruined_barricade_south", 0, 0, 48, 27),
+        ("western_watch_tent", 3, 1, 30, 36),
+        ("western_watch_ruin", 0, 0, 38, 23),
+        ("western_watch_shrine", 2, 1, 23, 62),
+        ("glass_shrine_north", 2, 1, 70, 74),
+        ("glass_shrine_east", 2, 1, 81, 75),
+        ("glass_shrine_south", 2, 1, 71, 85),
+        ("mirror_gate_shrine", 2, 1, 115, 21),
         ("meadow_lamp", 1, 0, 62, 45),
         ("meadow_barricade", 0, 0, 58, 53),
         ("silent_market_cart", 0, 1, 58, 20),
@@ -415,7 +421,7 @@ def build_map() -> tuple[dict[str, object], list[dict[str, object]]]:
             {
                 "firstgid": OBJECT_FIRST_GID,
                 "name": "objects_v2",
-                "image": "overworld_objects_v2.png",
+                "image": "overworld_objects_v3.png",
                 "imagewidth": 512,
                 "imageheight": 512,
                 "tilewidth": TILE,

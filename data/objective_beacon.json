@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "texturePath": "assets/UI/objective_beacon_v2.png",
+  "texturePath": "assets/UI/objective_beacon_v3.png",
   "layoutPath": "assets/UI/objective-beacon-ui.json",
   "hideWithinDistanceUnits": 192.0,
   "hideEnemyWithinDistanceUnits": 520.0,

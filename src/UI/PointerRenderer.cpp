@@ -1,13 +1,31 @@
 // ============================================================
 // File: PointerRenderer.cpp
+// Responsibility: Render a data-driven world-space pointer sprite.
 // ============================================================
 #include "PointerRenderer.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
 #include <WICTextureLoader.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <cmath>
+
+namespace
+{
+    std::filesystem::path ResolveReadablePath(const std::string& path)
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path direct(path);
+        if (fs::exists(direct)) return direct;
+
+        const fs::path parent = fs::path("..") / path;
+        if (fs::exists(parent)) return parent;
+
+        return direct;
+    }
+}
 
 bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* context, 
                                  const std::wstring& texturePath, const std::string& jsonPath,
@@ -37,7 +55,8 @@ bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         return false;
     }
 
-    std::ifstream file(jsonPath);
+    const std::filesystem::path resolvedJsonPath = ResolveReadablePath(jsonPath);
+    std::ifstream file(resolvedJsonPath, std::ios::binary);
     if (file.is_open())
     {
         std::stringstream buf;

@@ -51,4 +51,4 @@ Text wrapping uses `BattleTextRenderer::MeasureStringRaw`, so it is based on the
 
 `OverworldState` owns one `ObjectiveTrackerRenderer` and one shared `BattleTextRenderer`. The tracker owns no GPU resources, so language font reload remains centralized in `OverworldState`.
 
-The current objective beacon uses `assets/UI/objective_beacon_v2.png`, generated with the built-in imagegen tool on a chroma-key background and processed locally into a transparent 64x64 PNG. Visual tuning stays in `assets/UI/objective-beacon-ui.json`.
+The current objective beacon uses `assets/UI/objective_beacon_v3.png`, generated with the built-in imagegen tool on a chroma-key background and processed locally into a transparent 64x64 PNG. Visual tuning stays in `assets/UI/objective-beacon-ui.json`.

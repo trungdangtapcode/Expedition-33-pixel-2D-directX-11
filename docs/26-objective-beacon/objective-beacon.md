@@ -37,7 +37,7 @@ route from a distance, while prompts tell the player what to press at the target
 ```json
 {
   "enabled": true,
-  "texturePath": "assets/UI/objective_beacon_v2.png",
+  "texturePath": "assets/UI/objective_beacon_v3.png",
   "layoutPath": "assets/UI/objective-beacon-ui.json",
   "hideWithinDistanceUnits": 192.0,
   "hideEnemyWithinDistanceUnits": 520.0,
@@ -55,10 +55,10 @@ route from a distance, while prompts tell the player what to press at the target
   "width": 64,
   "height": 64,
   "pivot": [32, 32],
-  "y_offset": -56.0,
+  "y_offset": -48.0,
   "bob_speed": 2.4,
   "bob_amplitude": 2.0,
-  "scale": 0.38
+  "scale": 0.48
 }
 ```
 
@@ -69,7 +69,7 @@ flat chroma-key background, then processed locally into an alpha PNG.
 
 Final committed asset:
 
-- `assets/UI/objective_beacon_v2.png`
+- `assets/UI/objective_beacon_v3.png`
 
 Intermediate chroma-key files are not required by the game and should not be
 referenced by data.
@@ -91,6 +91,6 @@ referenced by data.
 
 - Build with `.\build_src_static.bat 2>&1`.
 - Confirm `ObjectiveBeaconRenderer.cpp` is listed in `build_src_static.bat`.
-- Confirm `assets/UI/objective_beacon.png` has alpha and loads through WIC.
+- Confirm `assets/UI/objective_beacon_v3.png` has alpha and loads through WIC.
 - Start a route objective with a waypoint and confirm the beacon appears in the
   world, follows camera movement, and hides near the waypoint.

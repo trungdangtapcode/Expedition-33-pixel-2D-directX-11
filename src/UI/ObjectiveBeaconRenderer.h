@@ -31,7 +31,7 @@
 struct ObjectiveBeaconConfig
 {
     bool enabled = true;
-    std::string texturePath = "assets/UI/objective_beacon.png";
+    std::string texturePath = "assets/UI/objective_beacon_v3.png";
     std::string layoutPath = "assets/UI/objective-beacon-ui.json";
     float hideWithinDistanceUnits = 48.0f;
     float hideEnemyWithinDistanceUnits = 520.0f;

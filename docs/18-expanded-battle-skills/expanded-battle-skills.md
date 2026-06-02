@@ -31,6 +31,8 @@ Supported `mechanism` values:
 
 Damage skills may set `flatBonus` when they need a small guaranteed floor against high-defense enemies. The bonus is still passed through the normal `DamageRequest` and damage pipeline; it is not applied directly by UI or input code.
 
+Debuff status effects should prefer percentage modifiers for core combat stats unless the design intentionally needs a fixed-value counter. Early enemies often have low base ATK and DEF, so large flat debuffs can resolve ATK to zero and make enemy turns feel broken. `Weaken` uses `-25% ATK` and `-20% DEF` for two turns to reduce threat without shutting enemy damage off.
+
 Basic attacks may set `mpRestorePercent` to rebuild resources after their damage resolves. The V1 default is `0.05`, meaning 5% of the attacker's current Max MP, rounded up and clamped by Max MP. This is implemented through `RestoreMpPercentAction`, so the restoration remains inside the action queue and automatically respects progression or equipment that changes Max MP. Costed skills leave this field at `0` unless a future skill is intentionally designed as a refund or drain technique.
 
 Basic attacks also set `rageGainRule` to `basic_attack`, which looks up the actual rage amount in `data/battle_resource_rules.json`. Rage finishers set `rageCost` and can set `grantsRage` to `false` so the finisher does not immediately rebuild the resource it spent.

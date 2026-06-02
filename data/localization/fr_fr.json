@@ -224,7 +224,7 @@
   "status.burn.name": "Brûlure",
   "status.burn.description": "Subit des dégâts de feu au début de chaque tour. Les brûlures répétées cumulent leurs dégâts.",
   "status.weaken.name": "Affaibli",
-  "status.weaken.description": "ATK et DEF sont réduites.",
+  "status.weaken.description": "ATK est réduite de 25% et DEF de 20%.",
   "status.power_up.name": "Puissance accrue",
   "status.power_up.description": "ATK est augmentée.",
   "status.guard_up.name": "Garde accrue",
@@ -422,5 +422,5 @@
   "status.haste.short": "Augmente la SPD et le rythme des tours.",
   "status.power_up.short": "Augmente l'ATK pendant la durée.",
   "status.vulnerable.short": "Réduit la DEF contre les prochains coups.",
-  "status.weaken.short": "Réduit à la fois ATK et DEF."
+  "status.weaken.short": "-25% ATK, -20% DEF."
 }

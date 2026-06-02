@@ -224,7 +224,7 @@
   "status.burn.name": "Bỏng",
   "status.burn.description": "Nhận sát thương lửa ở đầu mỗi lượt. Bỏng lặp lại sẽ cộng dồn sát thương.",
   "status.weaken.name": "Suy yếu",
-  "status.weaken.description": "ATK và DEF bị giảm.",
+  "status.weaken.description": "ATK giảm 25% và DEF giảm 20%.",
   "status.power_up.name": "Tăng sức mạnh",
   "status.power_up.description": "ATK được tăng.",
   "status.guard_up.name": "Tăng phòng thủ",
@@ -422,5 +422,5 @@
   "status.haste.short": "Tăng SPD và nhịp lượt.",
   "status.power_up.short": "Tăng ATK trong thời gian hiệu lực.",
   "status.vulnerable.short": "Giảm DEF trước các đòn đánh tới.",
-  "status.weaken.short": "Giảm cả ATK và DEF."
+  "status.weaken.short": "-25% ATK, -20% DEF."
 }

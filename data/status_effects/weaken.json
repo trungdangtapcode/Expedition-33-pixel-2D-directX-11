@@ -11,13 +11,13 @@
   "modifiers": [
     {
       "stat": "atk",
-      "op": "add_flat",
-      "value": -15
+      "op": "add_percent",
+      "value": -25
     },
     {
       "stat": "def",
-      "op": "add_flat",
-      "value": -10
+      "op": "add_percent",
+      "value": -20
     }
   ],
   "shortDescriptionKey": "status.weaken.short",

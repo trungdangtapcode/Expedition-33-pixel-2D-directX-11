@@ -224,7 +224,7 @@
   "status.burn.name": "Burn",
   "status.burn.description": "Takes fire damage at the start of each turn. Repeated burns stack damage.",
   "status.weaken.name": "Weaken",
-  "status.weaken.description": "ATK and DEF are reduced.",
+  "status.weaken.description": "ATK is reduced by 25% and DEF by 20%.",
   "status.power_up.name": "Power Up",
   "status.power_up.description": "ATK is increased.",
   "status.guard_up.name": "Guard Up",
@@ -422,5 +422,5 @@
   "status.haste.short": "Raises SPD and turn frequency.",
   "status.power_up.short": "Raises ATK while it lasts.",
   "status.vulnerable.short": "Lowers DEF against incoming hits.",
-  "status.weaken.short": "Lowers ATK and DEF together."
+  "status.weaken.short": "-25% ATK, -20% DEF."
 }

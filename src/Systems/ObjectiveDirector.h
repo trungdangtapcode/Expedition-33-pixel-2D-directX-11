@@ -24,6 +24,9 @@ struct ObjectiveView
     std::string title;
     std::string body;
     std::string waypointHint;
+    float waypointX = 0.0f;
+    float waypointY = 0.0f;
+    bool hasWaypoint = false;
 };
 
 class ObjectiveDirector

@@ -11,6 +11,7 @@
 #include "../Battle/EnemyEncounterData.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
+#include "../UI/ObjectiveBeaconRenderer.h"
 #include "../Renderer/ColorGradeFilter.h"
 #include "../Systems/ObjectiveDirector.h"
 #include "../Systems/StoryDirector.h"
@@ -208,10 +209,12 @@ private:
     // player motivation without hardcoding route logic in rendering.
     BattleTextRenderer mStoryTextRenderer;
     CurrencyHudRenderer mCurrencyHud;
+    ObjectiveBeaconRenderer mObjectiveBeacon;
     std::vector<OverworldStoryRegion> mStoryRegions;
     std::string mDefaultArea = "Ashen Meadow";
     std::string mDefaultObjective = "Follow the dirt road to the eastern gate.";
     std::string mDefaultThemeId = "ashen_meadow";
+    ObjectiveView mCurrentObjectiveView;
     std::string mCurrentArea;
     std::string mCurrentObjective;
     std::string mInteractionPrompt;

@@ -115,6 +115,12 @@ void PointerRenderer::Draw(ID3D11DeviceContext* context, float worldX, float wor
     mSpriteBatch->End();
 }
 
+void PointerRenderer::SetScreenSize(int screenW, int screenH)
+{
+    mScreenW = screenW;
+    mScreenH = screenH;
+}
+
 void PointerRenderer::Shutdown()
 {
     mSpriteBatch.reset();

@@ -32,6 +32,7 @@
 //   OverworldEnemy (1..N)    - stationary enemies, SceneGraph-owned.
 //   Camera2D                 - follows ControllableCharacter with smooth lerp.
 //   Story overlay            - data-driven area and objective text.
+//   Objective beacon         - data-driven world marker for active waypoint.
 //   ColorGradeFilter         - subtle world-only biome mood pass.
 //   PincushionDistortionFilter - fullscreen warp effect during transition phase.
 //
@@ -138,6 +139,7 @@ void OverworldState::OnEnter()
         device, context,
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
+    mObjectiveBeacon.Initialize(device, context, W, H);
     LoadStoryData();
     if (!mStoryDirector.Initialize("data/story_events.json"))
     {
@@ -338,6 +340,7 @@ void OverworldState::OnEnter()
             }
             mStoryTextRenderer.SetScreenSize(nW, nH);
             mCurrencyHud.SetScreenSize(nW, nH);
+            mObjectiveBeacon.SetScreenSize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -476,6 +479,7 @@ void OverworldState::OnExit()
     mTileMap.Shutdown();
     mStoryTextRenderer.Shutdown();
     mCurrencyHud.Shutdown();
+    mObjectiveBeacon.Shutdown();
 
     if (mColorGradeFilter)
     {
@@ -1104,9 +1108,11 @@ void OverworldState::UpdateStoryRegion(float px, float py)
     if (!objective.active)
     {
         mCurrentObjective = fallbackObjective;
+        mCurrentObjectiveView = ObjectiveView{};
         return;
     }
 
+    mCurrentObjectiveView = objective;
     mCurrentObjective = objective.body;
     if (!objective.waypointHint.empty())
     {
@@ -1613,6 +1619,7 @@ void OverworldState::Update(float dt)
     }
 
     mThemeManager.Update(dt);
+    mObjectiveBeacon.Update(dt);
     if (mColorGradeFilter)
     {
         mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
@@ -1813,6 +1820,7 @@ void OverworldState::RenderCurrencyOverlay()
 //   TileMap background -> ground, roads, normal static map objects
 //   SceneGraph         -> ascending layer order (enemies @48, player @50)
 //   TileMap foreground -> canopies, roofs, and above-player map overlays
+//   Objective beacon   -> active route marker tied to world coordinates
 //   ColorGradeFilter   -> biome mood on world content only
 //   [EndCapture + transition render if active - applies battle transition]
 //
@@ -1839,6 +1847,15 @@ void OverworldState::Render()
 
     // --- Above-player map layers ---
     mTileMap.RenderForeground(ctx, *mCamera);
+
+    if (mPlayer)
+    {
+        mObjectiveBeacon.Render(ctx,
+                                mCurrentObjectiveView,
+                                mPlayer->GetX(),
+                                mPlayer->GetY(),
+                                *mCamera);
+    }
 
     if (mColorGradeFilter && mColorGradeFilter->IsActive())
     {

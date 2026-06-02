@@ -121,6 +121,9 @@ ObjectiveView ObjectiveDirector::Resolve(float playerX, float playerY) const
         view.body = LocalizationManager::Get().TextOrFallback(
             stage.bodyKey,
             stage.bodyFallback);
+        view.waypointX = stage.waypointX;
+        view.waypointY = stage.waypointY;
+        view.hasWaypoint = stage.hasWaypoint;
         view.waypointHint = BuildWaypointHint(stage, playerX, playerY);
         return view;
     }

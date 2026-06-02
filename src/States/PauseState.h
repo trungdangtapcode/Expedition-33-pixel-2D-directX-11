@@ -41,6 +41,7 @@ private:
     enum class MainOption
     {
         Resume,
+        ExpeditionJournal,
         ReturnToTitle,
         QuitGame,
         Count

@@ -13,6 +13,7 @@
 // ============================================================
 #define NOMINMAX
 #include "PauseState.h"
+#include "ExpeditionJournalState.h"
 #include "MenuState.h"
 #include "StateManager.h"
 #include "../Audio/AudioManager.h"
@@ -167,6 +168,12 @@ void PauseState::ActivateMainSelection()
         return;
     }
 
+    if (option == MainOption::ExpeditionJournal)
+    {
+        StateManager::Get().PushState(std::make_unique<ExpeditionJournalState>());
+        return;
+    }
+
     mConfirmCursor = 1;
     if (option == MainOption::ReturnToTitle)
     {
@@ -300,6 +307,8 @@ std::string PauseState::MainOptionLabel(MainOption option)
     {
     case MainOption::Resume:
         return LocalizationManager::Get().Text("pause.resume");
+    case MainOption::ExpeditionJournal:
+        return LocalizationManager::Get().Text("pause.expedition_journal");
     case MainOption::ReturnToTitle:
         return LocalizationManager::Get().Text("pause.return_to_title");
     case MainOption::QuitGame:

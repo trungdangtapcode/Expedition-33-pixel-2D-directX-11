@@ -1,7 +1,7 @@
 // ============================================================
 // File: CampfireState.h
 // Responsibility: Modal campfire hub for rest, save, load,
-//                 training, and party lineup access.
+//                 journal review, training, and party lineup access.
 //
 // Lifetime:
 //   Pushed in  -> OverworldState when the player presses U near a campfire.
@@ -44,6 +44,7 @@ private:
         Rest,
         Save,
         Load,
+        ExpeditionJournal,
         MemoryArchive,
         Training,
         Lineup,

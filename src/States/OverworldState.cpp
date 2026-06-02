@@ -1240,6 +1240,24 @@ OverworldMemoryShard* OverworldState::FindNearbyMemoryShard(float px, float py) 
 }
 
 // ------------------------------------------------------------
+// Function: RemoveMemoryShardObserver
+// Purpose:
+//   Remove a collected shard from the non-owning observer list.
+// Why:
+//   SceneGraph owns memory shards and destroys dead objects in PurgeDead().
+//   Keeping a raw pointer after Collect() would leave mMemoryShards with a
+//   dangling pointer after dialogue closes and the overworld updates again.
+// ------------------------------------------------------------
+void OverworldState::RemoveMemoryShardObserver(OverworldMemoryShard* shard)
+{
+    if (!shard) return;
+
+    mMemoryShards.erase(
+        std::remove(mMemoryShards.begin(), mMemoryShards.end(), shard),
+        mMemoryShards.end());
+}
+
+// ------------------------------------------------------------
 // Function: FindNearbyEnemy
 // Purpose:
 //   Return the first living overworld enemy inside battle contact range.
@@ -1819,6 +1837,7 @@ bool OverworldState::HandleMemoryShardInput(float px, float py)
     }
 
     GameProgress::Get().SetFlag(data.collectedFlag);
+    RemoveMemoryShardObserver(shard);
     shard->Collect();
 
     if (data.coinReward > 0)

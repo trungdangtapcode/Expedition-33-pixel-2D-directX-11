@@ -258,6 +258,7 @@ private:
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
     OverworldMemoryShard* FindNearbyMemoryShard(float px, float py) const;
+    void RemoveMemoryShardObserver(OverworldMemoryShard* shard);
     OverworldEnemy* FindNearbyEnemy(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);

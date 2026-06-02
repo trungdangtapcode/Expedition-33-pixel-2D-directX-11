@@ -11,9 +11,12 @@ Memory shards add optional exploration rewards to the overworld. They are inspir
 When the player stands near a shard, the overworld prompt asks for `E`. On collection:
 
 1. `GameProgress` sets the shard's `collectedFlag`.
-2. The shard entity is marked dead and removed by `SceneGraph`.
-3. Optional coins and items are granted.
-4. Optional lore dialogue is pushed through `DialogueState`.
+2. `OverworldState` removes the shard from its non-owning observer list.
+3. The shard entity is marked dead and removed by `SceneGraph`.
+4. Optional coins and items are granted.
+5. Optional lore dialogue is pushed through `DialogueState`.
+
+The observer-list removal must happen before `Collect()`. `SceneGraph` owns the entity as a `unique_ptr` and purges dead objects after update. If `mMemoryShards` keeps the raw observer pointer after collection, the next proximity scan can dereference freed memory after the dialogue closes.
 
 ## Data Contract
 
@@ -46,3 +49,4 @@ The asset is committed as a real PNG because it is consumed by runtime data. The
 - Keep rewards small so shards motivate exploration without replacing battle rewards.
 - Put all player-facing text in localization JSON.
 - Keep C++ limited to loading, rendering, interaction, and progress ownership.
+- Any SceneGraph-owned object referenced by an auxiliary raw-pointer list must be removed from that list before it can be purged.

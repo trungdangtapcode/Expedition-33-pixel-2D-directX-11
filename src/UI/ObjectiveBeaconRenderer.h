@@ -34,6 +34,11 @@ struct ObjectiveBeaconConfig
     std::string texturePath = "assets/UI/objective_beacon.png";
     std::string layoutPath = "assets/UI/objective-beacon-ui.json";
     float hideWithinDistanceUnits = 48.0f;
+    float hideEnemyWithinDistanceUnits = 520.0f;
+    float hideNpcWithinDistanceUnits = 420.0f;
+    float hideOnScreenPaddingPx = 80.0f;
+    float enemyDrawOffsetY = -96.0f;
+    float npcDrawOffsetY = -80.0f;
 };
 
 class ObjectiveBeaconRenderer
@@ -55,7 +60,15 @@ public:
 
 private:
     bool LoadConfig(const std::string& path);
-    bool ShouldRender(const ObjectiveView& objective, float playerX, float playerY) const;
+    bool ShouldRender(const ObjectiveView& objective,
+                      float playerX,
+                      float playerY,
+                      const Camera2D& camera) const;
+    float ResolveDrawOffsetY(const ObjectiveView& objective) const;
+    bool IsInteractableTarget(const ObjectiveView& objective) const;
+    float ResolveInteractableHideDistance(const ObjectiveView& objective) const;
+    bool IsWaypointVisibleOnScreen(const ObjectiveView& objective,
+                                   const Camera2D& camera) const;
 
     ObjectiveBeaconConfig mConfig;
     PointerRenderer mPointer;

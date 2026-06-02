@@ -100,6 +100,21 @@ bool ObjectiveBeaconRenderer::LoadConfig(const std::string& path)
     mConfig.hideWithinDistanceUnits = JsonLoader::detail::ParseFloat(
         JsonLoader::detail::ValueOf(src, "hideWithinDistanceUnits"),
         mConfig.hideWithinDistanceUnits);
+    mConfig.hideEnemyWithinDistanceUnits = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "hideEnemyWithinDistanceUnits"),
+        mConfig.hideEnemyWithinDistanceUnits);
+    mConfig.hideNpcWithinDistanceUnits = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "hideNpcWithinDistanceUnits"),
+        mConfig.hideNpcWithinDistanceUnits);
+    mConfig.hideOnScreenPaddingPx = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "hideOnScreenPaddingPx"),
+        mConfig.hideOnScreenPaddingPx);
+    mConfig.enemyDrawOffsetY = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "enemyDrawOffsetY"),
+        mConfig.enemyDrawOffsetY);
+    mConfig.npcDrawOffsetY = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "npcDrawOffsetY"),
+        mConfig.npcDrawOffsetY);
     return true;
 }
 
@@ -115,12 +130,12 @@ void ObjectiveBeaconRenderer::Render(ID3D11DeviceContext* context,
                                      float playerY,
                                      const Camera2D& camera)
 {
-    if (!mInitialized || !ShouldRender(objective, playerX, playerY)) return;
+    if (!mInitialized || !ShouldRender(objective, playerX, playerY, camera)) return;
 
     mPointer.Draw(
         context,
         objective.waypointX,
-        objective.waypointY,
+        objective.waypointY + ResolveDrawOffsetY(objective),
         camera.GetViewMatrix());
 }
 
@@ -138,7 +153,8 @@ void ObjectiveBeaconRenderer::Shutdown()
 bool ObjectiveBeaconRenderer::ShouldRender(
     const ObjectiveView& objective,
     float playerX,
-    float playerY) const
+    float playerY,
+    const Camera2D& camera) const
 {
     if (!mConfig.enabled || !objective.active || !objective.hasWaypoint)
     {
@@ -149,5 +165,62 @@ bool ObjectiveBeaconRenderer::ShouldRender(
     const float dy = objective.waypointY - playerY;
     const float distanceSq = (dx * dx) + (dy * dy);
     const float hideDistance = mConfig.hideWithinDistanceUnits;
-    return distanceSq > (hideDistance * hideDistance);
+    if (distanceSq <= (hideDistance * hideDistance))
+    {
+        return false;
+    }
+
+    if (IsInteractableTarget(objective))
+    {
+        const float interactableHideDistance =
+            ResolveInteractableHideDistance(objective);
+        if (distanceSq <= (interactableHideDistance * interactableHideDistance))
+        {
+            return false;
+        }
+
+        // Objective beacons guide navigation. Once an interactable target is
+        // visible, the local prompt should carry the input affordance instead.
+        if (IsWaypointVisibleOnScreen(objective, camera))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+float ObjectiveBeaconRenderer::ResolveDrawOffsetY(
+    const ObjectiveView& objective) const
+{
+    if (objective.targetKind == "enemy") return mConfig.enemyDrawOffsetY;
+    if (objective.targetKind == "npc") return mConfig.npcDrawOffsetY;
+    return 0.0f;
+}
+
+bool ObjectiveBeaconRenderer::IsInteractableTarget(
+    const ObjectiveView& objective) const
+{
+    return objective.targetKind == "enemy" || objective.targetKind == "npc";
+}
+
+float ObjectiveBeaconRenderer::ResolveInteractableHideDistance(
+    const ObjectiveView& objective) const
+{
+    if (objective.targetKind == "enemy") return mConfig.hideEnemyWithinDistanceUnits;
+    if (objective.targetKind == "npc") return mConfig.hideNpcWithinDistanceUnits;
+    return mConfig.hideWithinDistanceUnits;
+}
+
+bool ObjectiveBeaconRenderer::IsWaypointVisibleOnScreen(
+    const ObjectiveView& objective,
+    const Camera2D& camera) const
+{
+    const DirectX::XMFLOAT2 screenPos =
+        camera.WorldToScreen(objective.waypointX, objective.waypointY);
+    const float padding = mConfig.hideOnScreenPaddingPx;
+    return screenPos.x >= -padding &&
+           screenPos.x <= static_cast<float>(camera.GetScreenW()) + padding &&
+           screenPos.y >= -padding &&
+           screenPos.y <= static_cast<float>(camera.GetScreenH()) + padding;
 }

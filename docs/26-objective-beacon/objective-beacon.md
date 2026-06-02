@@ -12,6 +12,11 @@ lives.
 the objective waypoint, and hides itself when the player is close enough for the
 local interaction prompt to take over.
 
+The beacon is not an input prompt. Enemy and NPC objectives suppress the marker
+when the target is already visible on screen, because visible interactables should
+be read from their sprite and the close-range prompt. This prevents the marker
+from looking like a status icon attached to an enemy head.
+
 ## Runtime Flow
 
 1. `ObjectiveDirector::Resolve()` returns objective text plus waypoint
@@ -34,7 +39,12 @@ route from a distance, while prompts tell the player what to press at the target
   "enabled": true,
   "texturePath": "assets/UI/objective_beacon_v2.png",
   "layoutPath": "assets/UI/objective-beacon-ui.json",
-  "hideWithinDistanceUnits": 192.0
+  "hideWithinDistanceUnits": 192.0,
+  "hideEnemyWithinDistanceUnits": 520.0,
+  "hideNpcWithinDistanceUnits": 420.0,
+  "hideOnScreenPaddingPx": 80.0,
+  "enemyDrawOffsetY": -96.0,
+  "npcDrawOffsetY": -80.0
 }
 ```
 
@@ -69,12 +79,13 @@ referenced by data.
 - Every visible beacon must come from `ObjectiveDirector` waypoint data.
 - Tune marker texture, layout, and hide distance through JSON.
 - Do not hardcode objective coordinates in `ObjectiveBeaconRenderer`.
+- Do not put button prompts in objective text. Objective text describes intent;
+  `OverworldState::RenderInteractionPrompt()` owns the actual input hint.
 - Keep the marker readable around character scale; it should guide, not decorate.
 - Use the layout `scale` field for size tuning instead of resizing in C++.
 - Hide the marker at close range so enemies, NPCs, and campfires remain visible.
-- Increase `hideWithinDistanceUnits` when the waypoint is attached to an enemy
-  or NPC. The beacon should disappear before it reads like a status icon on the
-  target.
+- Tune `hideEnemyWithinDistanceUnits`, `hideNpcWithinDistanceUnits`, and
+  `hideOnScreenPaddingPx` when a target needs more or less guidance.
 
 ## Verification
 

@@ -11,7 +11,7 @@ The current foundation is:
 - Region themes that blend subtle world-only color grading as the player moves.
 - Screen-space UI rendered after world filters so text and coin HUD stay readable.
 
-## Generated Asset Pipeline
+## Asset Pipeline
 
 The generated v2 art lives in:
 
@@ -20,11 +20,16 @@ assets/environments/overworld_tiles_v2.png
 assets/environments/overworld_objects_v2.png
 ```
 
-Regenerate the atlases:
+Regenerate deterministic ground and road tiles:
 
 ```bat
 python patches\compile_assets.py
 ```
+
+`patches\compile_assets.py` intentionally does not write
+`overworld_objects_v2.png`. The object atlas is imagegen-sourced art, then
+locally chroma-keyed and resized into the existing 8x8 64px atlas contract.
+Do not reintroduce Python-drawn rectangle/circle props for that atlas.
 
 Regenerate the map and prop placement data:
 
@@ -63,17 +68,18 @@ If a future pass makes roads look tiled again, fix the generator first and then
 regenerate the atlas. Do not hand-paint only the committed PNG, because the next
 generator run would reintroduce the artifact.
 
-## Low Object Tiles
+## Object Atlas Rules
 
-Small tile-layer props such as the market table and signpost are generated in
-`draw_prop_tile()` in `patches/compile_assets.py`.
-
-These props should use:
+Small tile-layer props and larger static props come from
+`assets/environments/overworld_objects_v2.png`. This atlas should use:
 
 - A readable silhouette at 64x64.
 - A dark one-pixel outline only where it separates the prop from terrain.
 - Small cast shadows to anchor the prop to the ground.
 - Plank seams, highlights, and nail marks instead of flat rectangles.
+- Top-down perspective only; no isometric cutouts.
+- Real painted forms from image generation or artist source, not procedural
+  primitive geometry.
 
 They should not carry interaction logic. If an object becomes interactive or
 needs Y-sorting against the player, move it into `data/overworld_props.json`

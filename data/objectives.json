@@ -17,7 +17,7 @@
       "waypointLabelKey": "objective.waypoint.scout",
       "waypointLabel": "Scout",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "meet_maelle",
@@ -38,7 +38,7 @@
       "waypointLabelKey": "objective.waypoint.maelle",
       "waypointLabel": "Maelle",
       "arrivalHintKey": "objective.arrival.talk",
-      "arrivalHint": "{label}: Press E to talk."
+      "arrivalHint": "{label}: nearby."
     },
     {
       "id": "win_maelle_duel",
@@ -77,7 +77,7 @@
       "waypointLabelKey": "objective.waypoint.maelle",
       "waypointLabel": "Maelle",
       "arrivalHintKey": "objective.arrival.talk",
-      "arrivalHint": "{label}: Press E to talk."
+      "arrivalHint": "{label}: nearby."
     },
     {
       "id": "secure_western_watch",
@@ -95,7 +95,7 @@
       "waypointLabelKey": "objective.waypoint.watch",
       "waypointLabel": "Watch",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "clear_silent_market",
@@ -113,7 +113,7 @@
       "waypointLabelKey": "objective.waypoint.market",
       "waypointLabel": "Market",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "win_pilgrim_crossing",
@@ -131,7 +131,7 @@
       "waypointLabelKey": "objective.waypoint.crossing",
       "waypointLabel": "Crossing",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "recover_glass_shrine",
@@ -149,7 +149,7 @@
       "waypointLabelKey": "objective.waypoint.shrine",
       "waypointLabel": "Shrine",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "reach_mirror_gate",
@@ -167,7 +167,7 @@
       "waypointLabelKey": "objective.waypoint.mirror_gate",
       "waypointLabel": "Mirror Gate",
       "arrivalHintKey": "objective.arrival.fight",
-      "arrivalHint": "{label}: Press B to fight."
+      "arrivalHint": "{label}: target nearby."
     },
     {
       "id": "chapter_clear",

@@ -140,6 +140,7 @@ void OverworldState::OnEnter()
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
     mObjectiveBeacon.Initialize(device, context, W, H);
+    mObjectiveTracker.Initialize("data/overworld_objective_hud.json");
     LoadStoryData();
     if (!mStoryDirector.Initialize("data/story_events.json"))
     {
@@ -151,7 +152,8 @@ void OverworldState::OnEnter()
     }
     LoadFeedbackData();
     mCurrentArea = mDefaultArea;
-    mCurrentObjective = mDefaultObjective;
+    mCurrentObjectiveBody = mDefaultObjective;
+    mCurrentObjectiveHint.clear();
 
     if (!mThemeManager.Initialize("data/overworld_themes.json"))
     {
@@ -1107,18 +1109,15 @@ void OverworldState::UpdateStoryRegion(float px, float py)
     const ObjectiveView objective = mObjectiveDirector.Resolve(px, py);
     if (!objective.active)
     {
-        mCurrentObjective = fallbackObjective;
+        mCurrentObjectiveBody = fallbackObjective;
+        mCurrentObjectiveHint.clear();
         mCurrentObjectiveView = ObjectiveView{};
         return;
     }
 
     mCurrentObjectiveView = objective;
-    mCurrentObjective = objective.body;
-    if (!objective.waypointHint.empty())
-    {
-        mCurrentObjective += "  ";
-        mCurrentObjective += objective.waypointHint;
-    }
+    mCurrentObjectiveBody = objective.body;
+    mCurrentObjectiveHint = objective.waypointHint;
 }
 
 // ------------------------------------------------------------
@@ -1741,30 +1740,23 @@ void OverworldState::Update(float dt)
 // ------------------------------------------------------------
 // Function: RenderStoryOverlay
 // Purpose:
-//   Draw the current area title and objective.
+//   Draw the current area title, objective body, and objective action hint.
 // Why:
 //   The expanded overworld needs visible narrative direction so the player
-//   understands why each road and landmark matters.
+//   understands why each road and landmark matters without letting long
+//   localized strings collide with the currency HUD.
 // ------------------------------------------------------------
 void OverworldState::RenderStoryOverlay()
 {
     if (!mStoryTextRenderer.IsReady()) return;
 
     ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
-    constexpr float x = 24.0f;
-    constexpr float titleY = 22.0f;
-    constexpr float objectiveY = 48.0f;
-
-    mStoryTextRenderer.BeginBatch(ctx);
-    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x + 2.0f, titleY + 2.0f,
-                                     DirectX::Colors::Black);
-    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x, titleY,
-                                     DirectX::Colors::White);
-    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x + 2.0f, objectiveY + 2.0f,
-                                     DirectX::Colors::Black);
-    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x, objectiveY,
-                                     DirectX::Colors::PaleGoldenrod);
-    mStoryTextRenderer.EndBatch();
+    mObjectiveTracker.Render(ctx,
+                             mStoryTextRenderer,
+                             D3DContext::Get().GetWidth(),
+                             mCurrentArea,
+                             mCurrentObjectiveBody,
+                             mCurrentObjectiveHint);
 }
 
 // ------------------------------------------------------------

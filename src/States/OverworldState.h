@@ -12,6 +12,7 @@
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
 #include "../UI/ObjectiveBeaconRenderer.h"
+#include "../UI/ObjectiveTrackerRenderer.h"
 #include "../Renderer/ColorGradeFilter.h"
 #include "../Systems/ObjectiveDirector.h"
 #include "../Systems/StoryDirector.h"
@@ -210,13 +211,15 @@ private:
     BattleTextRenderer mStoryTextRenderer;
     CurrencyHudRenderer mCurrencyHud;
     ObjectiveBeaconRenderer mObjectiveBeacon;
+    ObjectiveTrackerRenderer mObjectiveTracker;
     std::vector<OverworldStoryRegion> mStoryRegions;
     std::string mDefaultArea = "Ashen Meadow";
     std::string mDefaultObjective = "Follow the dirt road to the eastern gate.";
     std::string mDefaultThemeId = "ashen_meadow";
     ObjectiveView mCurrentObjectiveView;
     std::string mCurrentArea;
-    std::string mCurrentObjective;
+    std::string mCurrentObjectiveBody;
+    std::string mCurrentObjectiveHint;
     std::string mInteractionPrompt;
     std::string mTimedPrompt;
     float mTimedPromptTimer = 0.0f;

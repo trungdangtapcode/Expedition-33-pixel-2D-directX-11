@@ -139,6 +139,8 @@ public:
                                DirectX::FXMVECTOR color = DirectX::Colors::White,
                                float            scale = 1.0f,
                                bool             drawOutline = false);
+    DirectX::XMFLOAT2 MeasureStringRaw(const char* text,
+                                       float       scale = 1.0f) const;
     void EndBatch();
 
     // Update stored screen dimensions after a window resize.

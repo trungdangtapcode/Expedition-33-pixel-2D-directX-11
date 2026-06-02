@@ -6,6 +6,7 @@
 #include "../Entities/ControllableCharacter.h"
 #include "../Entities/OverworldEnemy.h"
 #include "../Entities/CheckpointCampfire.h"
+#include "../Entities/OverworldMemoryShard.h"
 #include "../Entities/OverworldStaticProp.h"
 #include "../Entities/OverworldNpc.h"
 #include "../Battle/EnemyEncounterData.h"
@@ -164,6 +165,10 @@ private:
     // proximity checks and campfire-specific interaction input.
     std::vector<CheckpointCampfire*> mCampfires;
 
+    // Memory shards are SceneGraph-owned; this vector observes them for
+    // optional lore pickup prompts and one-time reward collection.
+    std::vector<OverworldMemoryShard*> mMemoryShards;
+
     // Story NPCs are SceneGraph-owned; this vector only observes them for
     // proximity prompts, dialogue triggers, and authored route gates.
     std::vector<OverworldNpc*> mNpcs;
@@ -245,11 +250,14 @@ private:
     bool LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const;
     bool LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const;
     bool LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const;
+    bool LoadMemoryShardData(std::vector<OverworldMemoryShardData>& outShards) const;
     bool LoadStoryData();
     bool LoadFeedbackData();
     bool IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const;
+    bool IsMemoryShardAvailable(const OverworldMemoryShardData& shard) const;
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
+    OverworldMemoryShard* FindNearbyMemoryShard(float px, float py) const;
     OverworldEnemy* FindNearbyEnemy(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
@@ -268,6 +276,7 @@ private:
     void FinishRuntimeStoryCommand();
     void SetTimedPrompt(const std::string& text);
     bool HandleNpcInput(float px, float py);
+    bool HandleMemoryShardInput(float px, float py);
     void RenderStoryOverlay();
     void RenderInteractionPrompt();
     void RenderCurrencyOverlay();

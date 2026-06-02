@@ -246,6 +246,28 @@ void OverworldState::OnEnter()
         LOG("[OverworldState] WARNING: No overworld static props were loaded.");
     }
 
+    std::vector<OverworldMemoryShardData> memoryShardData;
+    if (LoadMemoryShardData(memoryShardData))
+    {
+        for (const OverworldMemoryShardData& data : memoryShardData)
+        {
+            if (!IsMemoryShardAvailable(data))
+            {
+                LOG("[OverworldState] Memory shard '%s' skipped by progress gates.",
+                    data.id.c_str());
+                continue;
+            }
+
+            OverworldMemoryShard* shard = mScene.Spawn<OverworldMemoryShard>(
+                device, context, data, mCamera.get());
+            if (shard) mMemoryShards.push_back(shard);
+        }
+    }
+    else
+    {
+        LOG("[OverworldState] WARNING: No overworld memory shards were loaded.");
+    }
+
     std::vector<OverworldNpcData> npcData;
     if (LoadNpcData(npcData))
     {
@@ -506,6 +528,7 @@ void OverworldState::OnExit()
     mOverworldEnemies.clear();
     mEnemySpawnIds.clear();
     mCampfires.clear();
+    mMemoryShards.clear();
     mNpcs.clear();
 
     // Destroy all SceneGraph entities (ControllableCharacter, OverworldEnemy, etc.).
@@ -742,6 +765,99 @@ bool OverworldState::LoadStaticPropData(std::vector<OverworldStaticPropData>& ou
 
     LOG("[OverworldState] Loaded %zu overworld static prop(s).", outProps.size());
     return !outProps.empty();
+}
+
+// ------------------------------------------------------------
+// Function: LoadMemoryShardData
+// Purpose:
+//   Load optional overworld lore collectibles from JSON.
+// Why:
+//   Exploration rewards should be authored with map/story data instead of
+//   hardcoded as one-off coordinates in OverworldState.
+// ------------------------------------------------------------
+bool OverworldState::LoadMemoryShardData(std::vector<OverworldMemoryShardData>& outShards) const
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_memory_shards.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_memory_shards.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld memory shard config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "shards");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldMemoryShardData data{};
+        data.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+        data.displayName = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayName"));
+        data.displayNameKey = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayNameKey"));
+
+        const std::string texturePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "texturePath"));
+        data.texturePath = std::wstring(texturePath.begin(), texturePath.end());
+
+        data.collectedFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "collectedFlag"));
+        data.dialoguePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "dialoguePath"));
+        data.itemId = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "itemId"));
+        data.requiresFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
+        data.blockedByFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "blockedByFlags");
+        data.itemAmount = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "itemAmount"), 0);
+        data.coinReward = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "coinReward"), 0);
+        data.worldX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
+        data.worldY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldY"), 0.0f);
+        data.contactRadius = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "contactRadius"), 82.0f);
+        data.scale = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "scale"), 0.70f);
+        data.bobAmplitude = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "bobAmplitude"), 6.0f);
+        data.bobSpeed = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "bobSpeed"), 3.0f);
+        data.layer = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "layer"), 51);
+        data.sortYOffset = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "sortYOffset"), -12.0f);
+
+        if (data.id.empty() || texturePath.empty() || data.collectedFlag.empty())
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid memory shard entry.");
+            continue;
+        }
+
+        outShards.push_back(data);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld memory shard(s).", outShards.size());
+    return !outShards.empty();
 }
 
 // ------------------------------------------------------------
@@ -1026,6 +1142,40 @@ bool OverworldState::IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn)
     return true;
 }
 
+// ------------------------------------------------------------
+// Function: IsMemoryShardAvailable
+// Purpose:
+//   Gate a memory shard by durable story and collection flags.
+// Why:
+//   Exploration collectibles are one-time rewards and must not respawn after
+//   save/load or before the related route is open.
+// ------------------------------------------------------------
+bool OverworldState::IsMemoryShardAvailable(const OverworldMemoryShardData& shard) const
+{
+    if (GameProgress::Get().HasFlag(shard.collectedFlag))
+    {
+        return false;
+    }
+
+    for (const std::string& flag : shard.requiresFlags)
+    {
+        if (!GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    for (const std::string& flag : shard.blockedByFlags)
+    {
+        if (GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const
 {
     for (CheckpointCampfire* campfire : mCampfires)
@@ -1045,6 +1195,18 @@ OverworldNpc* OverworldState::FindNearbyNpc(float px, float py) const
         if (npc && npc->IsAlive() && npc->IsPlayerNearby(px, py))
         {
             return npc;
+        }
+    }
+    return nullptr;
+}
+
+OverworldMemoryShard* OverworldState::FindNearbyMemoryShard(float px, float py) const
+{
+    for (OverworldMemoryShard* shard : mMemoryShards)
+    {
+        if (shard && shard->IsAlive() && shard->IsPlayerNearby(px, py))
+        {
+            return shard;
         }
     }
     return nullptr;
@@ -1599,6 +1761,66 @@ bool OverworldState::HandleNpcInput(float px, float py)
     return true;
 }
 
+// ------------------------------------------------------------
+// Function: HandleMemoryShardInput
+// Purpose:
+//   Show the memory shard prompt and collect it on a fresh E press.
+// Why:
+//   Shards are optional exploration rewards. OverworldState owns the progress
+//   flag, reward grant, and dialogue push so the entity stays presentation-only.
+// ------------------------------------------------------------
+bool OverworldState::HandleMemoryShardInput(float px, float py)
+{
+    OverworldMemoryShard* shard = FindNearbyMemoryShard(px, py);
+    if (!shard)
+    {
+        return false;
+    }
+
+    const bool eDown = (GetAsyncKeyState('E') & 0x8000) != 0;
+    const bool ePressed = eDown && !mEWasDown;
+    mEWasDown = eDown;
+
+    const OverworldMemoryShardData& data = shard->GetData();
+    mInteractionPrompt = LocalizationManager::Get().Format(
+        "overworld.prompt.memory_shard",
+        { { "name", shard->GetDisplayName() } });
+
+    if (!ePressed)
+    {
+        return false;
+    }
+
+    GameProgress::Get().SetFlag(data.collectedFlag);
+    shard->Collect();
+
+    if (data.coinReward > 0)
+    {
+        Wallet::Get().AddCoins(data.coinReward);
+    }
+
+    if (!data.itemId.empty() && data.itemAmount > 0)
+    {
+        Inventory::Get().Add(data.itemId, data.itemAmount);
+    }
+
+    SetTimedPrompt(LocalizationManager::Get().Format(
+        "overworld.reward.memory_shard",
+        { { "name", shard->GetDisplayName() } }));
+
+    if (!data.dialoguePath.empty())
+    {
+        StateManager::Get().PushState(std::make_unique<DialogueState>(data.dialoguePath));
+        LOG("[OverworldState] Collected memory shard '%s' and opened '%s'.",
+            data.id.c_str(),
+            data.dialoguePath.c_str());
+        return true;
+    }
+
+    LOG("[OverworldState] Collected memory shard '%s'.", data.id.c_str());
+    return true;
+}
+
 bool OverworldState::HandleCampfireInput(float px, float py)
 {
     const bool fDown = (GetAsyncKeyState('F') & 0x8000) != 0;
@@ -1797,6 +2019,11 @@ void OverworldState::Update(float dt)
 
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
+        if (HandleMemoryShardInput(mPlayer->GetX(), mPlayer->GetY()))
+        {
+            return;
+        }
+
         if (HandleNpcInput(mPlayer->GetX(), mPlayer->GetY()))
         {
             return;

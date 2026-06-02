@@ -1,0 +1,21 @@
+{
+  "id": "memory_western_watch_echo",
+  "completionFlag": "dialogue_completed:memory_western_watch_echo",
+  "skippable": true,
+  "lines": [
+    {
+      "speakerId": "memory",
+      "speakerKey": "dialogue.speaker.memory",
+      "speakerName": "Memory",
+      "textKey": "dialogue.memory_western_watch_echo.line_1",
+      "text": "A watchman wrote that the west fire burned blue whenever clones crossed the market."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.memory_western_watch_echo.line_2",
+      "text": "So the fire was warning them. They just stopped listening."
+    }
+  ]
+}

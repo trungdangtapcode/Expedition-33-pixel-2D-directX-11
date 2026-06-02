@@ -42,12 +42,13 @@ route from a distance, while prompts tell the player what to press at the target
 
 ```json
 {
-  "width": 128,
-  "height": 128,
-  "pivot": [64, 64],
-  "y_offset": -150.0,
+  "width": 64,
+  "height": 64,
+  "pivot": [32, 32],
+  "y_offset": -92.0,
   "bob_speed": 4.0,
-  "bob_amplitude": 8.0
+  "bob_amplitude": 5.0,
+  "scale": 0.9
 }
 ```
 
@@ -68,7 +69,8 @@ referenced by data.
 - Every visible beacon must come from `ObjectiveDirector` waypoint data.
 - Tune marker texture, layout, and hide distance through JSON.
 - Do not hardcode objective coordinates in `ObjectiveBeaconRenderer`.
-- Keep the marker readable at 64 to 128 pixels; it should guide, not decorate.
+- Keep the marker readable around character scale; it should guide, not decorate.
+- Use the layout `scale` field for size tuning instead of resizing in C++.
 - Hide the marker at close range so enemies, NPCs, and campfires remain visible.
 
 ## Verification

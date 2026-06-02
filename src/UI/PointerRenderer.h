@@ -48,4 +48,5 @@ private:
     float mOffsetY = -128.0f;
     float mBobSpeed = 0.0f;
     float mBobAmplitude = 0.0f;
+    float mScale = 1.0f;
 };

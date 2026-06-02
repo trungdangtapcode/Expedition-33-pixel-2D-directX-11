@@ -67,6 +67,12 @@ bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         mOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "y_offset"), -128.0f);
         mBobSpeed = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "bob_speed"), 0.0f);
         mBobAmplitude = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "bob_amplitude"), 0.0f);
+        mScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "scale"), 1.0f);
+        if (mScale <= 0.0f)
+        {
+            LOG("[PointerRenderer] WARNING: Invalid scale in %s; using 1.0.", jsonPath.c_str());
+            mScale = 1.0f;
+        }
     }
     else
     {
@@ -110,7 +116,13 @@ void PointerRenderer::Draw(ID3D11DeviceContext* context, float worldX, float wor
     
     DirectX::XMFLOAT2 pos(worldX, worldY + mOffsetY + yOffset);
 
-    mSpriteBatch->Draw(mTextureSRV.Get(), pos, &srcRect, DirectX::Colors::White, 0.0f, origin);
+    mSpriteBatch->Draw(mTextureSRV.Get(),
+                       pos,
+                       &srcRect,
+                       DirectX::Colors::White,
+                       0.0f,
+                       origin,
+                       mScale);
 
     mSpriteBatch->End();
 }

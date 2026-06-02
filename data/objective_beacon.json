@@ -1,6 +1,6 @@
 {
   "enabled": true,
-  "texturePath": "assets/UI/objective_beacon.png",
+  "texturePath": "assets/UI/objective_beacon_v2.png",
   "layoutPath": "assets/UI/objective-beacon-ui.json",
-  "hideWithinDistanceUnits": 48.0
+  "hideWithinDistanceUnits": 72.0
 }

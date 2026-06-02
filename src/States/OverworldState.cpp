@@ -1277,6 +1277,59 @@ OverworldEnemy* OverworldState::FindNearbyEnemy(float px, float py) const
     return nullptr;
 }
 
+// ------------------------------------------------------------
+// Function: FindEnemyBySpawnId
+// Purpose:
+//   Resolve a live overworld enemy by its stable spawn id.
+// Why:
+//   Objective guidance points at authored spawn ids. Resolving through this
+//   map keeps B-press behavior aligned with the visible objective marker.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindEnemyBySpawnId(const std::string& spawnId) const
+{
+    if (spawnId.empty()) return nullptr;
+
+    for (const auto& entry : mEnemySpawnIds)
+    {
+        OverworldEnemy* enemy = entry.first;
+        if (entry.second == spawnId && enemy && enemy->IsAlive())
+        {
+            return enemy;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------
+// Function: FindObjectiveEnemyTarget
+// Purpose:
+//   Return the active objective's enemy target when the player is inside the
+//   objective arrival radius.
+// Why:
+//   The HUD may say the player has reached a fight objective before the
+//   enemy's tuned contact radius overlaps. This fallback prevents the marker
+//   from becoming a dead interaction point.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindObjectiveEnemyTarget(float px, float py) const
+{
+    if (!mCurrentObjectiveView.active ||
+        mCurrentObjectiveView.targetKind != "enemy" ||
+        mCurrentObjectiveView.targetId.empty())
+    {
+        return nullptr;
+    }
+
+    OverworldEnemy* enemy = FindEnemyBySpawnId(mCurrentObjectiveView.targetId);
+    if (!enemy) return nullptr;
+
+    const float dx = mCurrentObjectiveView.waypointX - px;
+    const float dy = mCurrentObjectiveView.waypointY - py;
+    const float arrival = mCurrentObjectiveView.arrivalDistanceUnits > 0.0f
+        ? mCurrentObjectiveView.arrivalDistanceUnits
+        : 96.0f;
+    return (dx * dx + dy * dy) <= (arrival * arrival) ? enemy : nullptr;
+}
+
 const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) const
 {
     for (const OverworldStoryRegion& region : mStoryRegions)
@@ -2080,9 +2133,15 @@ void OverworldState::Update(float dt)
             return;
         }
 
-        if (OverworldEnemy* nearbyEnemy = FindNearbyEnemy(mPlayer->GetX(), mPlayer->GetY()))
+        OverworldEnemy* promptEnemy = FindNearbyEnemy(mPlayer->GetX(), mPlayer->GetY());
+        if (!promptEnemy)
         {
-            const EnemyEncounterData& encounter = nearbyEnemy->GetEncounterData();
+            promptEnemy = FindObjectiveEnemyTarget(mPlayer->GetX(), mPlayer->GetY());
+        }
+
+        if (promptEnemy)
+        {
+            const EnemyEncounterData& encounter = promptEnemy->GetEncounterData();
             const std::string enemyName = LocalizationManager::Get().TextOrFallback(
                 encounter.nameKey,
                 encounter.name);
@@ -2108,6 +2167,10 @@ void OverworldState::Update(float dt)
         // Find the closest enemy within contact radius.
         // First match wins - ties resolved by vector order (spawn order).
         OverworldEnemy* target = FindNearbyEnemy(px, py);
+        if (!target)
+        {
+            target = FindObjectiveEnemyTarget(px, py);
+        }
 
         if (target)
         {

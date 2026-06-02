@@ -24,8 +24,11 @@ struct ObjectiveView
     std::string title;
     std::string body;
     std::string waypointHint;
+    std::string targetKind;
+    std::string targetId;
     float waypointX = 0.0f;
     float waypointY = 0.0f;
+    float arrivalDistanceUnits = 0.0f;
     bool hasWaypoint = false;
 };
 
@@ -47,6 +50,8 @@ private:
         std::string waypointLabelFallback;
         std::string arrivalHintKey;
         std::string arrivalHintFallback;
+        std::string targetKind;
+        std::string targetId;
         std::vector<std::string> requiresFlags;
         std::vector<std::string> blockedByFlags;
         float waypointX = 0.0f;

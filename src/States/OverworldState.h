@@ -260,6 +260,8 @@ private:
     OverworldMemoryShard* FindNearbyMemoryShard(float px, float py) const;
     void RemoveMemoryShardObserver(OverworldMemoryShard* shard);
     OverworldEnemy* FindNearbyEnemy(float px, float py) const;
+    OverworldEnemy* FindEnemyBySpawnId(const std::string& spawnId) const;
+    OverworldEnemy* FindObjectiveEnemyTarget(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);

@@ -121,8 +121,13 @@ ObjectiveView ObjectiveDirector::Resolve(float playerX, float playerY) const
         view.body = LocalizationManager::Get().TextOrFallback(
             stage.bodyKey,
             stage.bodyFallback);
+        view.targetKind = stage.targetKind;
+        view.targetId = stage.targetId;
         view.waypointX = stage.waypointX;
         view.waypointY = stage.waypointY;
+        view.arrivalDistanceUnits = stage.arrivalDistanceUnits > 0.0f
+            ? stage.arrivalDistanceUnits
+            : mArrivalDistanceUnits;
         view.hasWaypoint = stage.hasWaypoint;
         view.waypointHint = BuildWaypointHint(stage, playerX, playerY);
         return view;
@@ -163,6 +168,8 @@ bool ObjectiveDirector::LoadFromSource(const std::string& src, const std::string
         stage.waypointLabelFallback = ReadString(objectSrc, "waypointLabel");
         stage.arrivalHintKey = ReadString(objectSrc, "arrivalHintKey");
         stage.arrivalHintFallback = ReadString(objectSrc, "arrivalHint");
+        stage.targetKind = ReadString(objectSrc, "targetKind");
+        stage.targetId = ReadString(objectSrc, "targetId");
         stage.requiresFlags =
             JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
         stage.blockedByFlags =
@@ -237,7 +244,7 @@ std::string ObjectiveDirector::BuildWaypointHint(
         ? mDistanceUnitsPerMeter
         : 64.0f;
     int distance = static_cast<int>(std::round(distanceUnits / scale));
-    if (distance < 1) distance = 1;
+    if (distance < 0) distance = 0;
 
     const std::string label = LocalizationManager::Get().TextOrFallback(
         stage.waypointLabelKey,

@@ -666,6 +666,18 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
         if (!id.empty()) flags.push_back(id);
     }
 
+    auto hasFlag = [&flags](const std::string& id)
+    {
+        return std::find(flags.begin(), flags.end(), id) != flags.end();
+    };
+    auto addFlagIfMissing = [&flags, &hasFlag](const std::string& id)
+    {
+        if (!hasFlag(id))
+        {
+            flags.push_back(id);
+        }
+    };
+
     const bool saveAlreadyHasMaelle = std::any_of(
         partyProgress.begin(),
         partyProgress.end(),
@@ -673,16 +685,11 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
         {
             return member.id == "maelle";
         });
-    if (saveAlreadyHasMaelle)
+    const bool saveFlagsClaimMaelleJoined = hasFlag("story.maelle_joined");
+    if (saveAlreadyHasMaelle || saveFlagsClaimMaelleJoined)
     {
-        auto addFlagIfMissing = [&flags](const std::string& id)
-        {
-            if (std::find(flags.begin(), flags.end(), id) == flags.end())
-            {
-                flags.push_back(id);
-            }
-        };
         addFlagIfMissing("story.maelle_duel_won");
+        addFlagIfMissing("dialogue_completed:maelle_reconcile");
         addFlagIfMissing("story.maelle_joined");
     }
 
@@ -692,6 +699,12 @@ bool SaveManager::LoadCheckpointFromSlot(int slotIndex, std::string* outSceneId)
     GameProgress::Get().ReplaceFlags(flags);
     GameProgress::Get().ReplaceOverworldSnapshot(world);
     PartyManager::Get().ApplyProgress(partyProgress);
+    if (hasFlag("story.maelle_joined") && !PartyManager::Get().IsMemberActive("maelle"))
+    {
+        PartyManager::Get().RecruitMember("maelle");
+        LOG("[SaveManager] Repaired save slot %d by recruiting Maelle from story flags.",
+            slotIndex + 1);
+    }
 
     if (outSceneId) *outSceneId = world.sceneId;
 

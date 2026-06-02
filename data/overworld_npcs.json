@@ -15,6 +15,13 @@
       "dialoguePath": "data/dialogues/maelle_confrontation.json",
       "repeatDialoguePath": "data/dialogues/maelle_confrontation.json",
       "completionFlag": "dialogue_completed:maelle_confrontation",
+      "conditionalDialogues": [
+        {
+          "dialoguePath": "data/dialogues/maelle_reconcile.json",
+          "requiresFlags": [ "story.maelle_duel_won" ],
+          "blockedByFlags": [ "story.maelle_joined" ]
+        }
+      ],
       "showIfFlag": "enemy_defeated:meadow_scout",
       "hideIfFlag": "story.maelle_joined"
     }

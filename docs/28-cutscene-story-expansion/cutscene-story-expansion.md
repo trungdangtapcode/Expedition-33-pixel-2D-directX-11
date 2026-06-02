@@ -69,3 +69,25 @@ Do not hand-edit generated Tiled JSON unless the generator cannot express the in
 - Always restore player control after a cutscene chain unless the next command starts a battle or pushes another state.
 - Put all player-facing text in localization JSON, not in C++ or dialogue script fallbacks.
 - Keep route objectives aligned with enemy spawn gates so the beacon always points at reachable content.
+
+## Conditional NPC Dialogue
+
+NPCs can provide `conditionalDialogues` in `data/overworld_npcs.json`. Rules are checked in order before the normal `dialoguePath` or `repeatDialoguePath`.
+
+Each rule supports:
+
+- `dialoguePath`
+- `requiresFlags`
+- `blockedByFlags`
+- `requiresFlag`
+- `blockedByFlag`
+
+Maelle uses this to open `maelle_reconcile` after `story.maelle_duel_won` but before `story.maelle_joined`. This prevents the objective beacon from pointing the player back to Maelle while `E` reopens the old confrontation script.
+
+## Recruitment Flag Rule
+
+Do not use the final joined flag, such as `story.maelle_joined`, as a `onceFlag` on the event that still needs to run `recruit_member`. `StoryDirector` applies `onceFlag` before queued commands execute. If the joined flag is set too early, save/load and objective gates can believe the party member joined even when the `PartyManager` mutation has not run yet.
+
+Use `blockedByFlags` with the final joined flag instead, then set that flag after `recruit_member`.
+
+Save migration also repairs old slots where `story.maelle_joined` exists but Maelle is missing from the active party.

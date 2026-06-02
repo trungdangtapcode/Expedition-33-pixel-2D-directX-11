@@ -932,6 +932,33 @@ bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
             JsonLoader::detail::ValueOf(objectSrc, "repeatDialoguePath"));
         data.completionFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "completionFlag"));
+
+        const std::vector<std::string> dialogueRules =
+            JsonLoader::detail::ExtractObjectsFromArray(objectSrc, "conditionalDialogues");
+        for (const std::string& ruleSrc : dialogueRules)
+        {
+            OverworldNpcDialogueRule rule{};
+            rule.dialoguePath = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "dialoguePath"));
+            rule.requiresFlags =
+                JsonLoader::detail::ExtractStringArray(ruleSrc, "requiresFlags");
+            rule.blockedByFlags =
+                JsonLoader::detail::ExtractStringArray(ruleSrc, "blockedByFlags");
+
+            const std::string singleRequired = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "requiresFlag"));
+            if (!singleRequired.empty()) rule.requiresFlags.push_back(singleRequired);
+
+            const std::string singleBlocked = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "blockedByFlag"));
+            if (!singleBlocked.empty()) rule.blockedByFlags.push_back(singleBlocked);
+
+            if (!rule.dialoguePath.empty())
+            {
+                data.conditionalDialogues.push_back(std::move(rule));
+            }
+        }
+
         data.showIfFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "showIfFlag"));
         data.hideIfFlag = JsonLoader::detail::CleanString(

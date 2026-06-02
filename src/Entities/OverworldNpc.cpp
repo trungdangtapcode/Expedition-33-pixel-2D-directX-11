@@ -19,6 +19,33 @@
 #include <cmath>
 #include <utility>
 
+namespace
+{
+    bool HasRequiredFlags(const std::vector<std::string>& flags)
+    {
+        for (const std::string& flag : flags)
+        {
+            if (!flag.empty() && !GameProgress::Get().HasFlag(flag))
+            {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool HasBlockedFlag(const std::vector<std::string>& flags)
+    {
+        for (const std::string& flag : flags)
+        {
+            if (!flag.empty() && GameProgress::Get().HasFlag(flag))
+            {
+                return true;
+            }
+        }
+        return false;
+    }
+}
+
 // ------------------------------------------------------------
 // Function: OverworldNpc
 // Purpose:
@@ -130,6 +157,16 @@ bool OverworldNpc::IsRouteBlockActive() const
 
 std::string OverworldNpc::GetActiveDialoguePath() const
 {
+    for (const OverworldNpcDialogueRule& rule : mData.conditionalDialogues)
+    {
+        if (!rule.dialoguePath.empty() &&
+            HasRequiredFlags(rule.requiresFlags) &&
+            !HasBlockedFlag(rule.blockedByFlags))
+        {
+            return rule.dialoguePath;
+        }
+    }
+
     if (!mData.completionFlag.empty() &&
         GameProgress::Get().HasFlag(mData.completionFlag) &&
         !mData.repeatDialoguePath.empty())

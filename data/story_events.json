@@ -131,7 +131,7 @@
       "id": "maelle_recruit_after_reconcile",
       "trigger": "dialogue_completed",
       "triggerId": "maelle_reconcile",
-      "onceFlag": "story.maelle_joined",
+      "blockedByFlags": [ "story.maelle_joined" ],
       "commands": [
         {
           "type": "recruit_member",

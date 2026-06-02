@@ -24,7 +24,8 @@
   "qteMinCount": 5,
   "qteMaxCount": 8,
   "bonusQteCount": 0.14,
-  "qteSpacing": 0.1,
+  "qteSpacing": 0.24,
+  "qteNodeDuration": 0.44,
   "uiSortGroup": "finisher",
   "hitCount": 2,
   "damageGradeKey": "battle.damage_grade.extreme"

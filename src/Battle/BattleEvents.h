@@ -54,7 +54,7 @@ struct QTEStatePayload
 {
     bool isActive = false;
     float progressRatios[MAX_QTE_NODES] = {0}; // 0.0 to 1.0 per node
-    QTEResult results[MAX_QTE_NODES];
+    QTEResult results[MAX_QTE_NODES] = {};
     QTEResult result = QTEResult::None; // Legacy callback compat
     IBattler* target = nullptr; // the character currently performing the attack
     int activeIndex = 0;

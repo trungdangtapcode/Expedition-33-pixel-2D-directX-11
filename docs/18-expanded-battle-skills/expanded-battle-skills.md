@@ -58,6 +58,9 @@ QTE complexity is per skill:
 - Debuff attacks use medium node counts so the status application still feels earned.
 - Finishers and large fire techniques use more nodes, tighter spacing, and higher perfect bonuses.
 - `qteMinCount` and `qteMaxCount` are clamped to the renderer limit so a data mistake cannot spawn invisible prompts.
+- `qteSpacing` and `qteNodeDuration` are real-time seconds after the attack animation reaches `qteStartMoment`. Animation progress starts the QTE and gates damage, but it does not compress prompt duration. This prevents short attack clips from turning complex QTE chains into unreadable bursts.
+
+Enemy attacks should use bullet-hell patterns unless a specific enemy is intentionally authored around a defensive reaction prompt. The skeleton scout and base skeleton attacks use their existing bullet pattern data instead of `ReactionDefenseAction`, so enemy turns consistently enter the dodge game.
 
 Supported targeting values:
 

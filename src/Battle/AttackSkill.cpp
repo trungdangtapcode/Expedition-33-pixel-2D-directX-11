@@ -288,7 +288,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
                 std::move(requests), CombatantAnim::Attack, mData.qteStartMoment, mData.damageTakenOccurMoment, ctx.config.qteSlowMoScale,
                 mData.qtePerfectMultiplier, mData.qteGoodMultiplier, mData.qteMissMultiplier,
                 mData.qtePerfectThreshold, mData.qteGoodThreshold,
-                mData.qteMinCount, mData.qteMaxCount, mData.bonusQteCount, mData.qteSpacing,
+                mData.qteMinCount, mData.qteMaxCount, mData.bonusQteCount, mData.qteSpacing, mData.qteNodeDuration,
                 ctx.config.qteFadeInRatio, ctx.config.qteFadeOutDuration,
                 &ctx
             ));

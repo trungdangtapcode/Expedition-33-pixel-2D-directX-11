@@ -1347,6 +1347,7 @@ struct SkillData {
     int qteMinCount = 1;
     int qteMaxCount = 1;
     float qteSpacing = 0.15f;
+    float qteNodeDuration = 0.45f;
 };
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
@@ -1434,6 +1435,9 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
     out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
     out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
+    out.qteNodeDuration = detail::ParseFloat(detail::ValueOf(src, "qteNodeDuration"), 0.45f);
+    if (out.qteSpacing < 0.01f) out.qteSpacing = 0.01f;
+    if (out.qteNodeDuration < 0.05f) out.qteNodeDuration = 0.05f;
 
     LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
         path.c_str(),

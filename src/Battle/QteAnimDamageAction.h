@@ -22,7 +22,7 @@ public:
                         float slowMoScale,
                         float perfectMult, float goodMult, float missMult,
                         float perfectThreshold, float goodThreshold,
-                        int minCount, int maxCount, float bonusQteCount, float qteSpacing,
+                        int minCount, int maxCount, float bonusQteCount, float qteSpacing, float qteNodeDuration,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
     QteAnimDamageAction(std::vector<DamageRequest> requests,
@@ -32,9 +32,11 @@ public:
                         float slowMoScale,
                         float perfectMult, float goodMult, float missMult,
                         float perfectThreshold, float goodThreshold,
-                        int minCount, int maxCount, float bonusQteCount, float qteSpacing,
+                        int minCount, int maxCount, float bonusQteCount, float qteSpacing, float qteNodeDuration,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
+
+    ~QteAnimDamageAction() override;
 
     bool Execute(float dt) override;
 
@@ -52,12 +54,15 @@ private:
     float mPerfectThreshold = 0.85f;
     float mGoodThreshold = 0.6f;
     float mBonusQteCount = 0.0f;
+    float mQteSpacingSeconds = 0.15f;
+    float mQteNodeDurationSeconds = 0.45f;
+    float mQteElapsedSeconds = 0.0f;
     float mFadeInRatio = 0.15f;
     float mFadeOutDuration = 0.20f;
     
     struct QteNode {
-        float startProg = -1.0f;
-        float perfectProg = 0.0f;
+        float startSeconds = -1.0f;
+        float endSeconds = 0.0f;
         QTEResult result = QTEResult::None;
         bool resolved = false;
     };

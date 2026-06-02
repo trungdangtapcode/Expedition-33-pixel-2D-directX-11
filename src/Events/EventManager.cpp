@@ -11,6 +11,8 @@
 //   1. Mutating the live listener array while broadcasting invalidates iterators.
 //   2. Overwriting EventData::name destroys domain-specific ids sent by callers.
 //   3. Forgetting to unsubscribe state-owned callbacks leaves dangling captures.
+//   4. Invoking a copied listener after it was unsubscribed earlier in the same
+//      broadcast can call into an object that has already been destroyed.
 // ============================================================
 #include "EventManager.h"
 #include <algorithm>
@@ -62,6 +64,11 @@ void EventManager::Broadcast(const std::string& eventName, const EventData& data
 
     for (const auto& listener : listenersCopy)
     {
+        if (!IsListenerStillSubscribed(eventName, listener.id))
+        {
+            continue;
+        }
+
         listener.callback(eventData);
     }
 }
@@ -74,4 +81,19 @@ void EventManager::ClearEvent(const std::string& eventName)
 void EventManager::ClearAll()
 {
     mListeners.clear();
+}
+
+bool EventManager::IsListenerStillSubscribed(
+    const std::string& eventName,
+    ListenerID id) const
+{
+    auto it = mListeners.find(eventName);
+    if (it == mListeners.end()) return false;
+
+    const auto& listeners = it->second;
+    return std::any_of(listeners.begin(), listeners.end(),
+        [id](const Listener& listener)
+        {
+            return listener.id == id;
+        });
 }

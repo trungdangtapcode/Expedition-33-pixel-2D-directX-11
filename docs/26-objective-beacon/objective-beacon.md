@@ -32,9 +32,9 @@ route from a distance, while prompts tell the player what to press at the target
 ```json
 {
   "enabled": true,
-  "texturePath": "assets/UI/objective_beacon.png",
+  "texturePath": "assets/UI/objective_beacon_v2.png",
   "layoutPath": "assets/UI/objective-beacon-ui.json",
-  "hideWithinDistanceUnits": 48.0
+  "hideWithinDistanceUnits": 192.0
 }
 ```
 
@@ -45,10 +45,10 @@ route from a distance, while prompts tell the player what to press at the target
   "width": 64,
   "height": 64,
   "pivot": [32, 32],
-  "y_offset": -92.0,
-  "bob_speed": 4.0,
-  "bob_amplitude": 5.0,
-  "scale": 0.9
+  "y_offset": -56.0,
+  "bob_speed": 2.4,
+  "bob_amplitude": 2.0,
+  "scale": 0.38
 }
 ```
 
@@ -59,7 +59,7 @@ flat chroma-key background, then processed locally into an alpha PNG.
 
 Final committed asset:
 
-- `assets/UI/objective_beacon.png`
+- `assets/UI/objective_beacon_v2.png`
 
 Intermediate chroma-key files are not required by the game and should not be
 referenced by data.
@@ -72,6 +72,9 @@ referenced by data.
 - Keep the marker readable around character scale; it should guide, not decorate.
 - Use the layout `scale` field for size tuning instead of resizing in C++.
 - Hide the marker at close range so enemies, NPCs, and campfires remain visible.
+- Increase `hideWithinDistanceUnits` when the waypoint is attached to an enemy
+  or NPC. The beacon should disappear before it reads like a status icon on the
+  target.
 
 ## Verification
 

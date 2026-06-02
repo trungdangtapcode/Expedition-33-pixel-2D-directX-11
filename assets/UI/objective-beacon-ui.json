@@ -3,8 +3,8 @@
   "height": 64,
   "pivot": [32, 32],
   "align": "center",
-  "y_offset": -76.0,
-  "bob_speed": 3.2,
-  "bob_amplitude": 3.0,
-  "scale": 0.62
+  "y_offset": -56.0,
+  "bob_speed": 2.4,
+  "bob_amplitude": 2.0,
+  "scale": 0.38
 }

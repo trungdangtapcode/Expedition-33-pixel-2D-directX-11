@@ -100,7 +100,9 @@ python patches\generate_status_effect_icons.py
 ```
 
 The script validates atlas dimensions, alpha coverage, metadata size, and icon
-ID order. It intentionally does not draw or overwrite icon pixels.
+ID order. It also checks that each icon's visible alpha bounds are centered in
+its 32x32 cell, because skill cards draw all icons into the same fixed square.
+It intentionally does not draw or overwrite icon pixels.
 
 ## Extension Rules
 - Add a new skill by creating a JSON file and adding it to a character's `skillPaths`.

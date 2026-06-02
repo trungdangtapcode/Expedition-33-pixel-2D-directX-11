@@ -66,6 +66,32 @@ def main() -> None:
         if alpha_pixels == 0:
             raise SystemExit("Status icon atlas has no visible pixels.")
 
+        for index, icon_id in enumerate(EXPECTED_ICONS):
+            cell = image.crop(
+                (
+                    index * ICON_SIZE,
+                    0,
+                    (index + 1) * ICON_SIZE,
+                    ICON_SIZE,
+                )
+            )
+            bounds = cell.getchannel("A").getbbox()
+            if bounds is None:
+                raise SystemExit(f"Icon '{icon_id}' has no visible pixels.")
+
+            left, top, right, bottom = bounds
+            center_x = (left + right) / 2.0
+            center_y = (top + bottom) / 2.0
+            allowed_offset = 0.75
+            if abs(center_x - (ICON_SIZE / 2.0)) > allowed_offset:
+                raise SystemExit(
+                    f"Icon '{icon_id}' is not horizontally centered: {bounds}."
+                )
+            if abs(center_y - (ICON_SIZE / 2.0)) > allowed_offset:
+                raise SystemExit(
+                    f"Icon '{icon_id}' is not vertically centered: {bounds}."
+                )
+
     metadata = json.loads(OUT_JSON.read_text(encoding="utf-8"))
     if metadata.get("iconSize") != ICON_SIZE:
         raise SystemExit(f"iconSize must be {ICON_SIZE}.")

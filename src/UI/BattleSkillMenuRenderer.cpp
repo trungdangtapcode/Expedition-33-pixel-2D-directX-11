@@ -779,8 +779,17 @@ void BattleSkillMenuRenderer::DrawIcon(const std::string& iconId, float x, float
 
     const Frame& frame = it->second;
     RECT src = { frame.x, frame.y, frame.x + frame.w, frame.y + frame.h };
-    const float scale = size / static_cast<float>(std::max(1, frame.w));
-    mSpriteBatch->Draw(mIconAtlasSRV.Get(), XMFLOAT2(x, y), &src, color, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
+    const float frameW = static_cast<float>(std::max(1, frame.w));
+    const float frameH = static_cast<float>(std::max(1, frame.h));
+    const float scale = std::min(size / frameW, size / frameH);
+    const float drawW = frameW * scale;
+    const float drawH = frameH * scale;
+    // Center the sampled frame inside the layout box so future non-square
+    // metadata frames do not drift away from the shared icon background.
+    const XMFLOAT2 drawPos(
+        x + (size - drawW) * 0.5f,
+        y + (size - drawH) * 0.5f);
+    mSpriteBatch->Draw(mIconAtlasSRV.Get(), drawPos, &src, color, 0.0f, XMFLOAT2(0.0f, 0.0f), scale);
 }
 
 std::string BattleSkillMenuRenderer::CostText(const ISkill& skill) const

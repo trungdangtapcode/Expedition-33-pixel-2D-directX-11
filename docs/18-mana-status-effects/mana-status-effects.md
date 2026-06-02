@@ -74,11 +74,15 @@ Data files:
 - `data/status_effect_ui.json`
 
 The renderer displays:
-- A small category frame color.
+- A dark badge backing with a thin category frame color.
 - The status icon frame from the atlas.
 - Remaining turns.
 - Stack count when greater than one.
 - Overflow count when more effects are active than the configured visible limit.
+
+The badge style is configured in `data/status_effect_ui.json`. Use the backing
+alpha and frame colors there instead of changing `StatusIconRenderer` for normal
+HUD tuning.
 
 ## Icon Asset Pipeline
 Status and skill icons use:

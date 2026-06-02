@@ -59,6 +59,12 @@ The atlas is imagegen-sourced and validated by
 order used by both status effects and skill cards without redrawing placeholder
 art.
 
+Status icons render as dark square badges with a thin category-colored frame.
+The frame communicates buff, debuff, or neutral state without flooding the
+enemy HP bar with a solid red block. Badge padding, frame thickness, backing
+alpha, and category frame colors are all controlled by
+`data/status_effect_ui.json`.
+
 Each 32x32 icon cell must have its visible alpha bounds centered around the
 cell midpoint. The skill menu places every frame inside the same square draw box,
 so uneven source padding makes icons appear to drift even when the UI row itself

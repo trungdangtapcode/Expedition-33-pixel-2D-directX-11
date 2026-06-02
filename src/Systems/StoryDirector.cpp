@@ -62,6 +62,10 @@ namespace
         if (value == "push_player") return StoryCommandType::PushPlayer;
         if (value == "grant_coins") return StoryCommandType::GrantCoins;
         if (value == "grant_item") return StoryCommandType::GrantItem;
+        if (value == "set_player_control") return StoryCommandType::SetPlayerControl;
+        if (value == "move_player") return StoryCommandType::MovePlayer;
+        if (value == "focus_camera") return StoryCommandType::FocusCamera;
+        if (value == "wait") return StoryCommandType::Wait;
         return StoryCommandType::SetFlag;
     }
 
@@ -234,6 +238,11 @@ bool StoryDirector::LoadEventsFromSource(const std::string& src, const std::stri
                 JsonLoader::detail::ValueOf(commandSrc, "x"), 0.0f);
             command.y = JsonLoader::detail::ParseFloat(
                 JsonLoader::detail::ValueOf(commandSrc, "y"), 0.0f);
+            command.duration = JsonLoader::detail::ParseFloat(
+                JsonLoader::detail::ValueOf(commandSrc, "duration"), 0.0f);
+            command.enabled = JsonLoader::detail::ParseBool(
+                JsonLoader::detail::ValueOf(commandSrc, "enabled"),
+                true);
             event.commands.push_back(std::move(command));
         }
 

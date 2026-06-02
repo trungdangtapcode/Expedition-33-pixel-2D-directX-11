@@ -15,8 +15,32 @@
       "maxY": 80.0,
       "commands": [
         {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 1080.0,
+          "y": -160.0,
+          "duration": 0.55
+        },
+        {
+          "type": "move_player",
+          "x": 930.0,
+          "y": -120.0,
+          "duration": 0.65
+        },
+        {
+          "type": "wait",
+          "duration": 0.15
+        },
+        {
           "type": "start_dialogue",
           "dialoguePath": "data/dialogues/maelle_confrontation.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
         }
       ]
     },
@@ -63,12 +87,30 @@
       "onceFlag": "story.maelle_duel_won",
       "commands": [
         {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 1040.0,
+          "y": -140.0,
+          "duration": 0.45
+        },
+        {
+          "type": "wait",
+          "duration": 0.20
+        },
+        {
           "type": "set_flag",
           "flagId": "story.maelle_duel_won"
         },
         {
           "type": "start_dialogue",
           "dialoguePath": "data/dialogues/maelle_reconcile.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
         }
       ]
     },
@@ -163,6 +205,47 @@
       ]
     },
     {
+      "id": "reward_western_watch",
+      "trigger": "battle_victory",
+      "triggerId": "western_watch_guard",
+      "onceFlag": "reward.western_watch_guard",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 30
+        },
+        {
+          "type": "grant_item",
+          "itemId": "potion_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "silent_market_after_battle_dialogue",
+      "trigger": "battle_victory",
+      "triggerId": "silent_market_ambush",
+      "onceFlag": "dialogue_started:silent_market_after",
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "wait",
+          "duration": 0.20
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/silent_market_after.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
+        }
+      ]
+    },
+    {
       "id": "reward_pilgrim_crossing",
       "trigger": "battle_victory",
       "triggerId": "pilgrim_crossing_patrol",
@@ -193,6 +276,32 @@
           "type": "grant_item",
           "itemId": "ether_medium",
           "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "glass_shrine_memory_dialogue",
+      "trigger": "battle_victory",
+      "triggerId": "glass_shrine_sentinel",
+      "onceFlag": "dialogue_started:glass_shrine_memory",
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 840.0,
+          "y": 1860.0,
+          "duration": 0.50
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/glass_shrine_memory.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
         }
       ]
     },

@@ -17,6 +17,7 @@
 #include "../Systems/ObjectiveDirector.h"
 #include "../Systems/StoryDirector.h"
 #include <memory>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -259,8 +260,12 @@ private:
                                OverworldEnemy* enemySource,
                                const std::string& enemySpawnId,
                                const std::string& storyBattleId);
-    bool ProcessStoryCommands();
     bool ExecuteStoryCommand(const StoryCommand& command);
+    bool ProcessStoryCommands(float dt);
+    bool ProcessQueuedStoryCommands(float dt);
+    bool BeginRuntimeStoryCommand(const StoryCommand& command);
+    bool UpdateRuntimeStoryCommand(float dt);
+    void FinishRuntimeStoryCommand();
     void SetTimedPrompt(const std::string& text);
     bool HandleNpcInput(float px, float py);
     void RenderStoryOverlay();
@@ -272,4 +277,17 @@ private:
     // ObjectiveDirector reads the same durable progress flags as save/load and
     // StoryDirector, but never mutates them. It only returns HUD guidance.
     ObjectiveDirector mObjectiveDirector;
+
+    // Story commands may include timed cutscene steps. A deque lets commands
+    // resume after DialogueState or BattleState pops without losing order.
+    std::deque<StoryCommand> mStoryCommandQueue;
+    StoryCommand mActiveStoryCommand;
+    bool mStoryCommandRunning = false;
+    bool mStoryPlayerControlLocked = false;
+    bool mStoryCameraManual = false;
+    float mStoryCommandTimer = 0.0f;
+    float mStoryMoveStartX = 0.0f;
+    float mStoryMoveStartY = 0.0f;
+    float mStoryCameraStartX = 0.0f;
+    float mStoryCameraStartY = 0.0f;
 };

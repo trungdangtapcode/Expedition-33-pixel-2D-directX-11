@@ -106,6 +106,36 @@
       "sortYOffset": 0.0
     },
     {
+      "id": "western_watch_ruin",
+      "texturePath": "assets/environments/overworld_objects_v2.png",
+      "sourceX": 0,
+      "sourceY": 128,
+      "sourceWidth": 128,
+      "sourceHeight": 128,
+      "worldX": -1600.0,
+      "worldY": -1480.0,
+      "pivotX": 64.0,
+      "pivotY": 120,
+      "scale": 1.0,
+      "layer": 50,
+      "sortYOffset": 0.0
+    },
+    {
+      "id": "western_watch_shrine",
+      "texturePath": "assets/environments/overworld_objects_v2.png",
+      "sourceX": 0,
+      "sourceY": 256,
+      "sourceWidth": 128,
+      "sourceHeight": 128,
+      "worldX": -2560.0,
+      "worldY": 1016.0,
+      "pivotX": 64.0,
+      "pivotY": 120,
+      "scale": 1.0,
+      "layer": 50,
+      "sortYOffset": 0.0
+    },
+    {
       "id": "glass_shrine_north",
       "texturePath": "assets/environments/overworld_objects_v2.png",
       "sourceX": 0,

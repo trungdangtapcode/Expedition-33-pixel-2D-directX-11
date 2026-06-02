@@ -98,10 +98,19 @@ def route_cells() -> set[tuple[int, int]]:
     meadow = (66, 49)
     market = (61, 24)
     watch = (28, 37)
+    watch_arch = (39, 25)
     crossing = (98, 35)
     shrine = (77, 81)
     gate = (116, 24)
-    for cx, cy, radius in (meadow + (8,), market + (8,), watch + (7,), crossing + (6,), shrine + (8,), gate + (8,)):
+    for cx, cy, radius in (
+        meadow + (8,),
+        market + (8,),
+        watch + (7,),
+        watch_arch + (5,),
+        crossing + (6,),
+        shrine + (8,),
+        gate + (8,),
+    ):
         add_disc(road, cx, cy, radius)
     add_line(road, meadow, market, 2)
     add_line(road, meadow, watch, 2)
@@ -111,6 +120,8 @@ def route_cells() -> set[tuple[int, int]]:
     add_line(road, shrine, (106, 73), 1)
     add_line(road, (106, 73), gate, 1)
     add_line(road, watch, (20, 63), 1)
+    add_line(road, watch, watch_arch, 1)
+    add_line(road, watch_arch, market, 1)
     add_line(road, market, (44, 20), 1)
     add_line(road, (84, 43), (98, 56), 1)
     return road
@@ -245,16 +256,18 @@ def place_tile(layer: list[int], tx: int, ty: int, gid: int) -> None:
 def low_objects(colliders: list[dict[str, object]]) -> list[int]:
     layer = [0] * (WIDTH * HEIGHT)
     map_bounds(colliders)
-    for tx, ty in [(61, 45), (95, 34), (74, 78), (113, 24)]:
+    for tx, ty in [(61, 45), (31, 35), (42, 25), (95, 34), (74, 78), (113, 24)]:
         place_tile(layer, tx, ty, SIGN)
-    for tx, ty in [(58, 44), (64, 26), (96, 34), (73, 83)]:
+    for tx, ty in [(58, 44), (64, 26), (33, 38), (40, 26), (96, 34), (73, 83)]:
         place_tile(layer, tx, ty, TABLE)
         add_collider(colliders, f"Table{tx}_{ty}", tx, ty, 1, 1)
-    for tx, ty in [(53, 24), (70, 31), (25, 35), (84, 81), (112, 23)]:
+    for tx, ty in [(53, 24), (70, 31), (25, 35), (37, 24), (45, 27), (84, 81), (112, 23)]:
         place_tile(layer, tx, ty, ROCK)
         add_collider(colliders, f"Rock{tx}_{ty}", tx, ty, 1, 1)
     for start_tx, start_ty, length, horizontal, name in [
         (52, 31, 8, True, "MarketSouthWall"),
+        (36, 28, 8, True, "WatchArchSouthWall"),
+        (43, 24, 5, False, "WatchArchEastWall"),
         (72, 20, 7, False, "MarketEastWall"),
         (92, 30, 10, True, "CrossingNorthWall"),
         (91, 39, 10, True, "CrossingSouthWall"),
@@ -304,6 +317,8 @@ def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
         ("market_ruin_east", 16, 66, 19, 128, 128),
         ("market_ruin_south", 16, 48, 27, 128, 128),
         ("western_watch_tent", 18, 30, 36, 128, 128),
+        ("western_watch_ruin", 16, 38, 23, 128, 128),
+        ("western_watch_shrine", 32, 23, 62, 128, 128),
         ("glass_shrine_north", 32, 70, 74, 128, 128),
         ("glass_shrine_east", 32, 81, 75, 128, 128),
         ("glass_shrine_south", 32, 71, 85, 128, 128),

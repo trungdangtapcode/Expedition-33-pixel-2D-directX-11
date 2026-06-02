@@ -30,7 +30,11 @@ enum class StoryCommandType
     SaveCheckpoint,
     PushPlayer,
     GrantCoins,
-    GrantItem
+    GrantItem,
+    SetPlayerControl,
+    MovePlayer,
+    FocusCamera,
+    Wait
 };
 
 struct StoryCommand
@@ -46,6 +50,8 @@ struct StoryCommand
     int amount = 0;
     float x = 0.0f;
     float y = 0.0f;
+    float duration = 0.0f;
+    bool enabled = true;
 };
 
 class StoryDirector

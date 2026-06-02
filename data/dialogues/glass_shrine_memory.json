@@ -1,0 +1,35 @@
+{
+  "id": "glass_shrine_memory",
+  "completionFlag": "dialogue_completed:glass_shrine_memory",
+  "skippable": false,
+  "lines": [
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.glass_shrine_memory.verso_1",
+      "text": "The glass is warm. Someone camped here before us."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.glass_shrine_memory.maelle_1",
+      "text": "Previous expeditions, maybe. Or copies that learned to pray."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.glass_shrine_memory.verso_2",
+      "text": "Either way, the mirror gate is close."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.glass_shrine_memory.maelle_2",
+      "text": "Then we stop walking like survivors and start walking like an expedition."
+    }
+  ]
+}

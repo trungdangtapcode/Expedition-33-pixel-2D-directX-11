@@ -43,6 +43,7 @@
 //   U (near campfire) - open the CampfireState hub
 //   L (near campfire) - open the party lineup
 // ============================================================
+#define NOMINMAX
 #include "OverworldState.h"
 #include "StateManager.h"
 #include "BattleState.h"
@@ -1237,22 +1238,191 @@ bool OverworldState::BeginBattleTransition(const EnemyEncounterData& encounter,
 // ------------------------------------------------------------
 // Function: ProcessStoryCommands
 // Purpose:
-//   Drain queued StoryDirector commands and execute them in author order.
+//   Drain StoryDirector commands into the local queue and advance one
+//   story/cutscene command chain.
 // Why:
-//   Commands queued by a popped DialogueState or BattleState must run before
-//   area triggers evaluate again on the next overworld frame.
+//   Cutscene steps can span multiple frames or push overlay states. Keeping a
+//   local queue preserves author order after DialogueState or BattleState pops.
 // ------------------------------------------------------------
-bool OverworldState::ProcessStoryCommands()
+bool OverworldState::ProcessStoryCommands(float dt)
 {
     std::vector<StoryCommand> commands = mStoryDirector.ConsumeCommands();
     for (const StoryCommand& command : commands)
     {
+        mStoryCommandQueue.push_back(command);
+    }
+
+    return ProcessQueuedStoryCommands(dt);
+}
+
+// ------------------------------------------------------------
+// Function: ProcessQueuedStoryCommands
+// Purpose:
+//   Execute queued story commands until one blocks the current frame.
+// Why:
+//   Synchronous commands such as setting a flag should not cost a frame, but
+//   movement, waits, dialogue, and battle transitions must pause normal input.
+// ------------------------------------------------------------
+bool OverworldState::ProcessQueuedStoryCommands(float dt)
+{
+    if (mStoryCommandRunning)
+    {
+        if (!UpdateRuntimeStoryCommand(dt))
+        {
+            return true;
+        }
+        FinishRuntimeStoryCommand();
+    }
+
+    while (!mStoryCommandQueue.empty())
+    {
+        const StoryCommand command = mStoryCommandQueue.front();
+        mStoryCommandQueue.pop_front();
+
+        if (BeginRuntimeStoryCommand(command))
+        {
+            return true;
+        }
+
         if (ExecuteStoryCommand(command))
         {
             return true;
         }
     }
-    return false;
+
+    return mStoryPlayerControlLocked;
+}
+
+// ------------------------------------------------------------
+// Function: BeginRuntimeStoryCommand
+// Purpose:
+//   Start a timed cutscene command that OverworldState must update over frames.
+// Why:
+//   StoryDirector should not know about player objects, cameras, or frame dt.
+//   Timed staging belongs in the state that owns those runtime objects.
+// ------------------------------------------------------------
+bool OverworldState::BeginRuntimeStoryCommand(const StoryCommand& command)
+{
+    switch (command.type)
+    {
+    case StoryCommandType::SetPlayerControl:
+        mStoryPlayerControlLocked = !command.enabled;
+        if (command.enabled)
+        {
+            mStoryCameraManual = false;
+        }
+        if (mPlayer)
+        {
+            mPlayer->ResetVelocity();
+        }
+        LOG("[OverworldState] Story player control %s.",
+            command.enabled ? "enabled" : "disabled");
+        return false;
+
+    case StoryCommandType::MovePlayer:
+        if (!mPlayer) return false;
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCommandTimer = 0.0f;
+        mStoryMoveStartX = mPlayer->GetX();
+        mStoryMoveStartY = mPlayer->GetY();
+        mPlayer->ResetVelocity();
+        return true;
+
+    case StoryCommandType::FocusCamera:
+        if (!mCamera) return false;
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCameraManual = true;
+        mStoryCommandTimer = 0.0f;
+        {
+            const DirectX::XMFLOAT2 cameraPos = mCamera->GetPosition();
+            mStoryCameraStartX = cameraPos.x;
+            mStoryCameraStartY = cameraPos.y;
+        }
+        return true;
+
+    case StoryCommandType::Wait:
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCommandTimer = 0.0f;
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+// ------------------------------------------------------------
+// Function: UpdateRuntimeStoryCommand
+// Purpose:
+//   Advance the active timed story command.
+// Why:
+//   Frame-rate independent movement and camera staging keep cutscenes readable
+//   and prevent one-frame teleports before important dialogue beats.
+// ------------------------------------------------------------
+bool OverworldState::UpdateRuntimeStoryCommand(float dt)
+{
+    const float duration = std::max(0.001f, mActiveStoryCommand.duration);
+    mStoryCommandTimer += std::max(0.0f, dt);
+    const float t = std::clamp(mStoryCommandTimer / duration, 0.0f, 1.0f);
+
+    switch (mActiveStoryCommand.type)
+    {
+    case StoryCommandType::MovePlayer:
+        if (mPlayer)
+        {
+            const float x = mStoryMoveStartX + (mActiveStoryCommand.x - mStoryMoveStartX) * t;
+            const float y = mStoryMoveStartY + (mActiveStoryCommand.y - mStoryMoveStartY) * t;
+            mPlayer->SetPosition(x, y);
+            mPlayer->ResetVelocity();
+        }
+        break;
+
+    case StoryCommandType::FocusCamera:
+        if (mCamera)
+        {
+            const float x = mStoryCameraStartX + (mActiveStoryCommand.x - mStoryCameraStartX) * t;
+            const float y = mStoryCameraStartY + (mActiveStoryCommand.y - mStoryCameraStartY) * t;
+            mCamera->SetPosition(x, y);
+            mCamera->Update();
+        }
+        break;
+
+    case StoryCommandType::Wait:
+        break;
+
+    default:
+        return true;
+    }
+
+    return t >= 1.0f;
+}
+
+// ------------------------------------------------------------
+// Function: FinishRuntimeStoryCommand
+// Purpose:
+//   Clear the active timed command and snap final state where needed.
+// Why:
+//   Floating point interpolation can leave the player or camera a fraction of
+//   a pixel from the authored endpoint if the final frame overshoots.
+// ------------------------------------------------------------
+void OverworldState::FinishRuntimeStoryCommand()
+{
+    if (mActiveStoryCommand.type == StoryCommandType::MovePlayer && mPlayer)
+    {
+        mPlayer->SetPosition(mActiveStoryCommand.x, mActiveStoryCommand.y);
+        mPlayer->ResetVelocity();
+    }
+    else if (mActiveStoryCommand.type == StoryCommandType::FocusCamera && mCamera)
+    {
+        mCamera->SetPosition(mActiveStoryCommand.x, mActiveStoryCommand.y);
+        mCamera->Update();
+    }
+
+    mActiveStoryCommand = StoryCommand{};
+    mStoryCommandRunning = false;
+    mStoryCommandTimer = 0.0f;
 }
 
 // ------------------------------------------------------------
@@ -1552,7 +1722,7 @@ void OverworldState::Update(float dt)
         return;
     }
 
-    if (ProcessStoryCommands())
+    if (ProcessStoryCommands(dt))
     {
         return;
     }
@@ -1611,7 +1781,7 @@ void OverworldState::Update(float dt)
     {
         UpdateStoryRegion(mPlayer->GetX(), mPlayer->GetY());
         mStoryDirector.Update(mPlayer->GetX(), mPlayer->GetY());
-        if (ProcessStoryCommands())
+        if (ProcessStoryCommands(dt))
         {
             return;
         }
@@ -1731,7 +1901,9 @@ void OverworldState::Update(float dt)
     }
 
     // Camera follow - only valid use of mPlayer* here.
-    if (mPlayer && mCamera && mBattleTransitionPhase == BattleTransitionPhase::IDLE) {
+    if (mPlayer && mCamera &&
+        mBattleTransitionPhase == BattleTransitionPhase::IDLE &&
+        !mStoryCameraManual) {
         mCamera->Follow(mPlayer->GetX(), mPlayer->GetY(), kCameraSmoothing, dt);
         mCamera->Update();
     }

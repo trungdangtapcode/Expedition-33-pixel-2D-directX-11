@@ -42,6 +42,8 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
                                          float bonusQteCount,
                                          float qteSpacing,
                                          float qteNodeDuration,
+                                         QteTimingFlow timingFlow,
+                                         float qteLeadInSeconds,
                                          float fadeInRatio,
                                          float fadeOutDuration,
                                          const BattleContext* ctx)
@@ -61,6 +63,8 @@ QteAnimDamageAction::QteAnimDamageAction(const DamageRequest& request,
         bonusQteCount,
         qteSpacing,
         qteNodeDuration,
+        timingFlow,
+        qteLeadInSeconds,
         fadeInRatio,
         fadeOutDuration,
         ctx)
@@ -82,6 +86,8 @@ QteAnimDamageAction::QteAnimDamageAction(std::vector<DamageRequest> requests,
                                          float bonusQteCount,
                                          float qteSpacing,
                                          float qteNodeDuration,
+                                         QteTimingFlow timingFlow,
+                                         float qteLeadInSeconds,
                                          float fadeInRatio,
                                          float fadeOutDuration,
                                          const BattleContext* ctx)
@@ -98,12 +104,16 @@ QteAnimDamageAction::QteAnimDamageAction(std::vector<DamageRequest> requests,
     , mBonusQteCount(bonusQteCount)
     , mQteSpacingSeconds((std::max)(0.01f, qteSpacing))
     , mQteNodeDurationSeconds((std::max)(0.05f, qteNodeDuration))
+    , mTimingFlow(timingFlow)
+    , mQteLeadInSeconds((std::max)(0.0f, qteLeadInSeconds))
     , mFadeInRatio(fadeInRatio)
     , mFadeOutDuration(fadeOutDuration)
     , mCtx(ctx)
 {
-    minCount = std::clamp(minCount, 1, MAX_QTE_NODES);
-    maxCount = std::clamp(maxCount, minCount, MAX_QTE_NODES);
+    const int configuredMax = mCtx ? mCtx->config.maxQteNodes : BattleEventLimits::MaxQteNodes;
+    const int safetyMax = std::clamp(configuredMax, 1, BattleEventLimits::MaxQteNodes);
+    minCount = std::clamp(minCount, 1, safetyMax);
+    maxCount = std::clamp(maxCount, minCount, safetyMax);
 
     int count = minCount;
     if (maxCount > minCount) {
@@ -147,7 +157,7 @@ void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
     // The primary user uses BattleState::OnQteFeedback for camera shakes.
     QTEStatePayload qteState{};
     qteState.isActive = true;
-    for (int i = 0; i < MAX_QTE_NODES && i < mNodes.size(); ++i) {
+    for (int i = 0; i < BattleEventLimits::MaxQteNodes && i < mNodes.size(); ++i) {
         qteState.results[i] = mNodes[i].result;
     }
     qteState.results[mActiveNodeIndex] = result;
@@ -158,6 +168,19 @@ void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
     qteState.totalCount = static_cast<int>(mNodes.size());
     qteState.fadeInRatio = mFadeInRatio;
     qteState.fadeOutDuration = mFadeOutDuration;
+    qteState.presentationMode = mTimingFlow == QteTimingFlow::Chain
+        ? QTEPresentationMode::Chain
+        : QTEPresentationMode::Staggered;
+    const JsonLoader::BattleSystemConfig fallbackConfig;
+    const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+    qteState.chainAnchorXRatio = config.qteChainAnchorXRatio;
+    qteState.chainAnchorYRatio = config.qteChainAnchorYRatio;
+    qteState.promptRadius = config.qtePromptRadius;
+    qteState.frameTextureSize = config.qteFrameTextureSize;
+    qteState.chainPreviewScale = config.qteChainPreviewScale;
+    qteState.chainPreviewActiveScale = config.qteChainPreviewActiveScale;
+    qteState.chainPreviewSpacing = config.qteChainPreviewSpacing;
+    qteState.chainPreviewOffsetY = config.qteChainPreviewOffsetY;
     
     PlayQteResultSfx(result);
 
@@ -194,6 +217,142 @@ void QteAnimDamageAction::PlayQteResultSfx(QTEResult result) const
     }
 }
 
+void QteAnimDamageAction::ResolveCurrentNode(QTEResult result, float ratio)
+{
+    if (mActiveNodeIndex < 0 || mActiveNodeIndex >= static_cast<int>(mNodes.size())) return;
+
+    mNodes[mActiveNodeIndex].result = result;
+    mNodes[mActiveNodeIndex].resolved = true;
+    BroadcastQteFeedback(result, ratio);
+    ++mActiveNodeIndex;
+}
+
+void QteAnimDamageAction::ResolveCompletedQte()
+{
+    TimeSystem::Get().SetSlowMotion(1.0f);
+    mActionResolved = true;
+    mQteActive = false;
+
+    float sum = 0.0f;
+    int perfectCount = 0;
+    int goodCount = 0;
+    for (const auto& n : mNodes) {
+        if (n.result == QTEResult::Perfect) { sum += mPerfectMult; ++perfectCount; }
+        else if (n.result == QTEResult::Good) { sum += mGoodMult; ++goodCount; }
+        else sum += mMissMult;
+    }
+
+    const float averagedMultiplier = sum / static_cast<float>(mNodes.size());
+    const float earnedBonus =
+        (perfectCount * mBonusQteCount) +
+        (goodCount * (mBonusQteCount * 0.5f));
+    for (DamageRequest& request : mRequests)
+    {
+        request.qteMultiplier = averagedMultiplier + earnedBonus;
+    }
+
+    if (!mQteRageGranted && !mRequests.empty() && mRequests.front().grantsRage)
+    {
+        BattleResourceRules::Get().EnsureLoaded();
+        BattleResourceRules::Get().GrantQteRage(GetAttacker(), perfectCount, goodCount);
+        mQteRageGranted = true;
+    }
+}
+
+void QteAnimDamageAction::FillQtePayload(QTEStatePayload& qteState) const
+{
+    qteState.isActive = true;
+    qteState.target = GetAttacker();
+    qteState.activeIndex = mActiveNodeIndex;
+    qteState.totalCount = static_cast<int>(mNodes.size());
+    qteState.fadeInRatio = mFadeInRatio;
+    qteState.fadeOutDuration = mFadeOutDuration;
+    qteState.presentationMode = mTimingFlow == QteTimingFlow::Chain
+        ? QTEPresentationMode::Chain
+        : QTEPresentationMode::Staggered;
+    const JsonLoader::BattleSystemConfig fallbackConfig;
+    const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+    qteState.chainAnchorXRatio = config.qteChainAnchorXRatio;
+    qteState.chainAnchorYRatio = config.qteChainAnchorYRatio;
+    qteState.promptRadius = config.qtePromptRadius;
+    qteState.frameTextureSize = config.qteFrameTextureSize;
+    qteState.chainPreviewScale = config.qteChainPreviewScale;
+    qteState.chainPreviewActiveScale = config.qteChainPreviewActiveScale;
+    qteState.chainPreviewSpacing = config.qteChainPreviewSpacing;
+    qteState.chainPreviewOffsetY = config.qteChainPreviewOffsetY;
+
+    for (int i = 0; i < static_cast<int>(mNodes.size()) && i < BattleEventLimits::MaxQteNodes; ++i)
+    {
+        qteState.results[i] = mNodes[i].result;
+    }
+}
+
+void QteAnimDamageAction::UpdateStaggered(float uiDt, bool isKeyPressed, QTEStatePayload& qteState)
+{
+    mQteElapsedSeconds += (std::max)(0.0f, uiDt);
+
+    for (int i = 0; i < static_cast<int>(mNodes.size()) && i < BattleEventLimits::MaxQteNodes; ++i) {
+        const float start = mNodes[i].startSeconds;
+        const float end = mNodes[i].endSeconds;
+        float ratio = 0.0f;
+
+        if (mQteElapsedSeconds >= start && end > start) {
+            ratio = (mQteElapsedSeconds - start) / (end - start);
+        }
+        ratio = std::clamp(ratio, 0.0f, 1.0f);
+
+        qteState.progressRatios[i] = ratio;
+        qteState.results[i] = mNodes[i].result;
+
+        if (i == mActiveNodeIndex && !mNodes[i].resolved) {
+            const bool timedOut = mQteElapsedSeconds >= end;
+            if ((isKeyPressed && mQteElapsedSeconds >= start) || timedOut) {
+                QTEResult result = QTEResult::Miss;
+                if (isKeyPressed && ratio >= mPerfectThreshold) result = QTEResult::Perfect;
+                else if (isKeyPressed && ratio >= mGoodThreshold) result = QTEResult::Good;
+
+                ResolveCurrentNode(result, ratio);
+                qteState.results[i] = result;
+                isKeyPressed = false;
+            }
+        }
+    }
+}
+
+void QteAnimDamageAction::UpdateChain(float uiDt, bool isKeyPressed, QTEStatePayload& qteState)
+{
+    if (mActiveNodeIndex < 0 || mActiveNodeIndex >= static_cast<int>(mNodes.size())) return;
+
+    mQteElapsedSeconds += (std::max)(0.0f, uiDt);
+    mActiveNodeElapsedSeconds += (std::max)(0.0f, uiDt);
+
+    const bool isWindowOpen = mActiveNodeElapsedSeconds >= 0.0f;
+    const float ratio = isWindowOpen
+        ? std::clamp(mActiveNodeElapsedSeconds / mQteNodeDurationSeconds, 0.0f, 1.0f)
+        : 0.0f;
+
+    qteState.activeIndex = mActiveNodeIndex;
+    qteState.progressRatios[mActiveNodeIndex] = ratio;
+
+    const bool timedOut = isWindowOpen && mActiveNodeElapsedSeconds >= mQteNodeDurationSeconds;
+    if ((isKeyPressed && isWindowOpen) || timedOut)
+    {
+        QTEResult result = QTEResult::Miss;
+        if (isKeyPressed && ratio >= mPerfectThreshold) result = QTEResult::Perfect;
+        else if (isKeyPressed && ratio >= mGoodThreshold) result = QTEResult::Good;
+
+        const int resolvedIndex = mActiveNodeIndex;
+        ResolveCurrentNode(result, ratio);
+        qteState.results[resolvedIndex] = result;
+        qteState.progressRatios[resolvedIndex] = ratio;
+
+        if (mActiveNodeIndex < static_cast<int>(mNodes.size()))
+        {
+            mActiveNodeElapsedSeconds = -mQteSpacingSeconds;
+        }
+    }
+}
+
 bool QteAnimDamageAction::Execute(float /*dt*/)
 {
     if (!mHasStarted)
@@ -216,7 +375,9 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
     {
         mQteActive = true;
         mQteElapsedSeconds = 0.0f;
-        // Slow motion scale matches the config exactly. Unaffected by the amount of concurrent nodes!
+        mActiveNodeElapsedSeconds = -mQteLeadInSeconds;
+        // Slow motion scale is global battle feel, while node readability is
+        // controlled by the selected timing flow and UI-clock durations.
         TimeSystem::Get().SetSlowMotion(mSlowMoScale);
         PlayQteStartSfx();
     }
@@ -224,54 +385,12 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
     if (mQteActive && !mActionResolved)
     {
         const float uiDt = TimeSystem::Get().GetUIClock().GetDeltaTime();
-        mQteElapsedSeconds += (std::max)(0.0f, uiDt);
-
         QTEStatePayload qteState{};
-        qteState.isActive = true;
-        qteState.target = GetAttacker();
-        qteState.activeIndex = mActiveNodeIndex;
-        qteState.totalCount = static_cast<int>(mNodes.size());
-        qteState.fadeInRatio = mFadeInRatio;
-        qteState.fadeOutDuration = mFadeOutDuration;
+        FillQtePayload(qteState);
         
-        bool isKeyPressed = InputManager::Get().IsKeyPressed(VK_SPACE);
-        
-        // Evaluate every single concurrent Node for rendering updates
-        for (int i = 0; i < mNodes.size() && i < MAX_QTE_NODES; ++i) {
-            float start = mNodes[i].startSeconds;
-            float end = mNodes[i].endSeconds;
-            float ratio = 0.0f;
-            
-            if (mQteElapsedSeconds >= start && end > start) {
-                ratio = (mQteElapsedSeconds - start) / (end - start);
-            }
-            if (ratio < 0.0f) ratio = 0.0f;
-            if (ratio > 1.0f) ratio = 1.0f;
-            
-            qteState.progressRatios[i] = ratio;
-            qteState.results[i] = mNodes[i].result;
-            
-            // Only process logic if it is the target chronologically active Node
-            if (i == mActiveNodeIndex && !mNodes[i].resolved) {
-                bool timedOut = mQteElapsedSeconds >= end;
-                
-                // Allow evaluation only if it hasn't completely timed out before we got here
-                if ((isKeyPressed && mQteElapsedSeconds >= start) || timedOut) {
-                    QTEResult r = QTEResult::Miss;
-                    if (isKeyPressed && ratio >= mPerfectThreshold) r = QTEResult::Perfect;
-                    else if (isKeyPressed && ratio >= mGoodThreshold) r = QTEResult::Good;
-                    
-                    mNodes[i].result = r;
-                    mNodes[i].resolved = true;
-                    qteState.results[i] = r; // Update live payload immediately
-                    
-                    BroadcastQteFeedback(r, ratio);
-                    
-                    mActiveNodeIndex++;
-                    isKeyPressed = false; // consume the input per frame!
-                }
-            }
-        }
+        const bool isKeyPressed = InputManager::Get().IsKeyPressed(VK_SPACE);
+        if (mTimingFlow == QteTimingFlow::Chain) UpdateChain(uiDt, isKeyPressed, qteState);
+        else UpdateStaggered(uiDt, isKeyPressed, qteState);
         
         EventData qteEvent;
         qteEvent.payload = &qteState;
@@ -279,37 +398,7 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
 
         if (mActiveNodeIndex >= mNodes.size())
         {
-            // All QTE nodes resolved.
-            TimeSystem::Get().SetSlowMotion(1.0f);
-            mActionResolved = true;
-            mQteActive = false;
-            
-            // Average Multiplier logic (to prevent 3x damage scaling)
-            float sum = 0.0f;
-            int perfectCount = 0;
-            int goodCount = 0;
-            for (const auto& n : mNodes) {
-                if (n.result == QTEResult::Perfect) { sum += mPerfectMult; perfectCount++; }
-                else if (n.result == QTEResult::Good) { sum += mGoodMult; goodCount++; }
-                else sum += mMissMult;
-            }
-            // Strict averaging based on user performance across all randomly spawned nodes
-            const float averagedMultiplier = sum / static_cast<float>(mNodes.size());
-            
-            // Safely push explicitly earned raw count bonuses onto the average!
-            const float earnedBonus =
-                (perfectCount * mBonusQteCount) +
-                (goodCount * (mBonusQteCount * 0.5f));
-            for (DamageRequest& request : mRequests)
-            {
-                request.qteMultiplier = averagedMultiplier + earnedBonus;
-            }
-            if (!mQteRageGranted && !mRequests.empty() && mRequests.front().grantsRage)
-            {
-                BattleResourceRules::Get().EnsureLoaded();
-                BattleResourceRules::Get().GrantQteRage(GetAttacker(), perfectCount, goodCount);
-                mQteRageGranted = true;
-            }
+            ResolveCompletedQte();
         }
     }
 

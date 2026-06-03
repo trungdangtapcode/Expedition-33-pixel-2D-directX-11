@@ -58,7 +58,12 @@ QTE complexity is per skill:
 - Debuff attacks use medium node counts so the status application still feels earned.
 - Finishers and large fire techniques use more nodes, tighter spacing, and higher perfect bonuses.
 - `qteMinCount` and `qteMaxCount` are clamped to the renderer limit so a data mistake cannot spawn invisible prompts.
-- `qteSpacing` and `qteNodeDuration` are real-time seconds after the attack animation reaches `qteStartMoment`. Animation progress starts the QTE and gates damage, but it does not compress prompt duration. This prevents short attack clips from turning complex QTE chains into unreadable bursts.
+- `qteTimingFlow` controls how the nodes are scheduled:
+  - `staggered`: the existing rhythm style, where `qteSpacing` is time between node starts.
+  - `chain`: each node gets its full `qteNodeDuration`; `qteSpacing` is the gap before the next active window starts. `sequential` is accepted as an alias for `chain`.
+- `qteLeadInSeconds` adds a readable delay after `qteStartMoment` before the first node appears.
+- `qteSpacing` and `qteNodeDuration` are real-time UI seconds after the attack animation reaches `qteStartMoment`. Animation progress starts the QTE and gates damage, but it does not compress prompt duration. This prevents short attack clips from turning complex QTE chains into unreadable bursts.
+- Basic attacks use `chain` timing and may roll several nodes, but only one full-size prompt is playable at a time. Advanced debuff, AoE fire, and rage finisher skills use longer `chain` counts so later prompts do not start half-expired.
 
 Enemy attacks should use bullet-hell patterns unless a specific enemy is intentionally authored around a defensive reaction prompt. The skeleton scout and base skeleton attacks use their existing bullet pattern data instead of `ReactionDefenseAction`, so enemy turns consistently enter the dodge game.
 

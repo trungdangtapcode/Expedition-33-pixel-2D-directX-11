@@ -44,6 +44,12 @@ namespace
         return DamageType::Physical;
     }
 
+    QteTimingFlow ParseQteTimingFlow(const std::string& value)
+    {
+        if (value == "chain" || value == "sequential") return QteTimingFlow::Chain;
+        return QteTimingFlow::Staggered;
+    }
+
     std::string EffectiveEffect(const JsonLoader::SkillData& data)
     {
         if (!data.effect.empty()) return data.effect;
@@ -289,6 +295,7 @@ std::vector<std::unique_ptr<IAction>> AttackSkill::Execute(
                 mData.qtePerfectMultiplier, mData.qteGoodMultiplier, mData.qteMissMultiplier,
                 mData.qtePerfectThreshold, mData.qteGoodThreshold,
                 mData.qteMinCount, mData.qteMaxCount, mData.bonusQteCount, mData.qteSpacing, mData.qteNodeDuration,
+                ParseQteTimingFlow(mData.qteTimingFlow), mData.qteLeadInSeconds,
                 ctx.config.qteFadeInRatio, ctx.config.qteFadeOutDuration,
                 &ctx
             ));

@@ -1215,9 +1215,18 @@ inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& 
 
 struct BattleSystemConfig {
     float qteSlowMoScale = 0.1f;
+    int maxQteNodes = 8;
     float qteFadeInRatio = 0.15f;
     float qteFadeOutDuration = 0.20f;
     float qteCameraZoom = 1.4f;
+    float qtePromptRadius = 79.0f;
+    float qteFrameTextureSize = 256.0f;
+    float qteChainAnchorXRatio = 0.52f;
+    float qteChainAnchorYRatio = 0.48f;
+    float qteChainPreviewScale = 0.20f;
+    float qteChainPreviewActiveScale = 0.28f;
+    float qteChainPreviewSpacing = 38.0f;
+    float qteChainPreviewOffsetY = 150.0f;
     std::string qteStartSfxId;
     std::string qteMissSfxId;
     std::string qteGoodSfxId;
@@ -1254,9 +1263,28 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     detail::WarnIfUTF16(src, path);
 
     out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
+    out.maxQteNodes = detail::ParseInt(detail::ValueOf(src, "maxQteNodes"), 8);
+    if (out.maxQteNodes < 1) out.maxQteNodes = 1;
     out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
     out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+    out.qtePromptRadius = detail::ParseFloat(detail::ValueOf(src, "qtePromptRadius"), out.qtePromptRadius);
+    out.qteFrameTextureSize = detail::ParseFloat(detail::ValueOf(src, "qteFrameTextureSize"), out.qteFrameTextureSize);
+    out.qteChainAnchorXRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorXRatio"), out.qteChainAnchorXRatio);
+    out.qteChainAnchorYRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorYRatio"), out.qteChainAnchorYRatio);
+    out.qteChainPreviewScale = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewScale"), out.qteChainPreviewScale);
+    out.qteChainPreviewActiveScale = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewActiveScale"), out.qteChainPreviewActiveScale);
+    out.qteChainPreviewSpacing = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewSpacing"), out.qteChainPreviewSpacing);
+    out.qteChainPreviewOffsetY = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewOffsetY"), out.qteChainPreviewOffsetY);
+    if (out.qtePromptRadius < 1.0f) out.qtePromptRadius = 1.0f;
+    if (out.qteFrameTextureSize < 1.0f) out.qteFrameTextureSize = 1.0f;
+    if (out.qteChainAnchorXRatio < 0.0f) out.qteChainAnchorXRatio = 0.0f;
+    if (out.qteChainAnchorXRatio > 1.0f) out.qteChainAnchorXRatio = 1.0f;
+    if (out.qteChainAnchorYRatio < 0.0f) out.qteChainAnchorYRatio = 0.0f;
+    if (out.qteChainAnchorYRatio > 1.0f) out.qteChainAnchorYRatio = 1.0f;
+    if (out.qteChainPreviewScale < 0.05f) out.qteChainPreviewScale = 0.05f;
+    if (out.qteChainPreviewActiveScale < out.qteChainPreviewScale) out.qteChainPreviewActiveScale = out.qteChainPreviewScale;
+    if (out.qteChainPreviewSpacing < 1.0f) out.qteChainPreviewSpacing = 1.0f;
 
     const std::string qteStartSfx = detail::ValueOf(src, "qteStartSfxId");
     if (!qteStartSfx.empty()) {
@@ -1346,6 +1374,8 @@ struct SkillData {
     float bonusQteCount = 0.0f;
     int qteMinCount = 1;
     int qteMaxCount = 1;
+    std::string qteTimingFlow = "staggered";
+    float qteLeadInSeconds = 0.0f;
     float qteSpacing = 0.15f;
     float qteNodeDuration = 0.45f;
 };
@@ -1434,8 +1464,12 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.bonusQteCount = detail::ParseFloat(detail::ValueOf(src, "bonusQteCount"), 0.0f);
     out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
     out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
+    const std::string qteTimingFlow = detail::CleanString(detail::ValueOf(src, "qteTimingFlow"));
+    out.qteTimingFlow = qteTimingFlow.empty() ? "staggered" : qteTimingFlow;
+    out.qteLeadInSeconds = detail::ParseFloat(detail::ValueOf(src, "qteLeadInSeconds"), 0.0f);
     out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
     out.qteNodeDuration = detail::ParseFloat(detail::ValueOf(src, "qteNodeDuration"), 0.45f);
+    if (out.qteLeadInSeconds < 0.0f) out.qteLeadInSeconds = 0.0f;
     if (out.qteSpacing < 0.01f) out.qteSpacing = 0.01f;
     if (out.qteNodeDuration < 0.05f) out.qteNodeDuration = 0.05f;
 

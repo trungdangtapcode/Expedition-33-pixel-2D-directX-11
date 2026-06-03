@@ -12,6 +12,12 @@
 
 struct BattleContext;
 
+enum class QteTimingFlow
+{
+    Staggered,
+    Chain
+};
+
 class QteAnimDamageAction : public IAction
 {
 public:
@@ -23,6 +29,7 @@ public:
                         float perfectMult, float goodMult, float missMult,
                         float perfectThreshold, float goodThreshold,
                         int minCount, int maxCount, float bonusQteCount, float qteSpacing, float qteNodeDuration,
+                        QteTimingFlow timingFlow, float qteLeadInSeconds,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
     QteAnimDamageAction(std::vector<DamageRequest> requests,
@@ -33,6 +40,7 @@ public:
                         float perfectMult, float goodMult, float missMult,
                         float perfectThreshold, float goodThreshold,
                         int minCount, int maxCount, float bonusQteCount, float qteSpacing, float qteNodeDuration,
+                        QteTimingFlow timingFlow, float qteLeadInSeconds,
                         float fadeInRatio, float fadeOutDuration,
                         const BattleContext* ctx);
 
@@ -56,7 +64,10 @@ private:
     float mBonusQteCount = 0.0f;
     float mQteSpacingSeconds = 0.15f;
     float mQteNodeDurationSeconds = 0.45f;
+    QteTimingFlow mTimingFlow = QteTimingFlow::Staggered;
+    float mQteLeadInSeconds = 0.0f;
     float mQteElapsedSeconds = 0.0f;
+    float mActiveNodeElapsedSeconds = 0.0f;
     float mFadeInRatio = 0.15f;
     float mFadeOutDuration = 0.20f;
     
@@ -76,6 +87,11 @@ private:
     void BroadcastQteFeedback(QTEResult result, float ratio);
     void PlayQteStartSfx() const;
     void PlayQteResultSfx(QTEResult result) const;
+    void ResolveCurrentNode(QTEResult result, float ratio);
+    void ResolveCompletedQte();
+    void FillQtePayload(QTEStatePayload& qteState) const;
+    void UpdateStaggered(float uiDt, bool isKeyPressed, QTEStatePayload& qteState);
+    void UpdateChain(float uiDt, bool isKeyPressed, QTEStatePayload& qteState);
 
     bool mHasStarted = false;
     bool mQteActive = false;

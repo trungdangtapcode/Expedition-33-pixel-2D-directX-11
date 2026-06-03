@@ -11,6 +11,7 @@
 #include <CommonStates.h>
 #include <string>
 #include <memory>
+#include <vector>
 #include "../Battle/BattleEvents.h"
 
 // Forward declaration
@@ -48,8 +49,9 @@ private:
     float mResultTimer = 0.0f;
     QTEResult mLastResult = QTEResult::None;
     
-    // To flash red/white on perfect/fail individually per node
-    float mFlashTimers[8] = {0};
+    // Per-node result flashes follow the active payload count so UI storage
+    // stays aligned with data-driven QTE capacity.
+    std::vector<float> mFlashTimers;
 
     // Random on-screen locations for each QTE in the sequence
     std::vector<DirectX::XMFLOAT2> mQtePositions;

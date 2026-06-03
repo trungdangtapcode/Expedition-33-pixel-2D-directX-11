@@ -1,9 +1,9 @@
 # Multi-QTE Combat Architecture
 
-The combat engine supports multi-node Quick Time Event (QTE) chains for
-attack-mechanism skills. Each skill chooses its own timing flow from JSON:
-`staggered` preserves the older overlapping rhythm, while `chain` gives every
-prompt a full local input window.
+The combat engine supports multi-node Quick Time Event (QTE) queues for
+attack-mechanism skills. Each skill chooses its own timing flow from JSON.
+`queued` is the default attack style: prompts can appear close together in
+random positions, but only the oldest unresolved prompt accepts input.
 
 ## 1. Data-Driven Configuration (JSON)
 
@@ -11,7 +11,7 @@ Every aspect of the rhythmic difficulty, timing, and visual feedback is paramete
 
 ### Core Parameters
 - **`qteMinCount` / `qteMaxCount`**: Bounds for the number of QTE diamonds spawned per attack. An encounter randomly rolls within this bound.
-- **`qteTimingFlow`**: `staggered` starts nodes by rhythm spacing; `chain` gives each node a full local window before the next one starts. `sequential` is accepted as an alias for `chain`.
+- **`qteTimingFlow`**: `queued` starts nodes by rhythm spacing and resolves input in chronological order. `staggered` keeps the older uncapped pending-prompt presentation. `chain` gives each node a full local window before the next one starts. `sequential` is accepted as an alias for `chain`.
 - **`qteLeadInSeconds`**: Readable delay after the attack animation reaches `qteStartMoment` before the first node appears.
 - **`qteSpacing`**: In `staggered`, time between node starts. In `sequential`, the gap after one node window before the next begins.
 - **`qteNodeDuration`**: Full active window duration for one node, measured in UI-clock seconds.
@@ -31,17 +31,29 @@ animation reaches `qteStartMoment`. Animation progress only gates when the QTE
 chain starts and when damage can resolve; it does not compress the prompt
 windows.
 
-### Staggered Flow
+### Queued Flow
 
-`staggered` preserves the fast rhythm style:
+`queued` is the normal attack rhythm:
 
 ```text
 start = qteLeadInSeconds + index * qteSpacing
 end   = start + qteNodeDuration
 ```
 
-This is appropriate for basic attacks and short strings where overlap is part
-of the intended rhythm.
+Several prompts may be visible at once, but the input owner remains
+`activeIndex`. If node 0 appears at `0.10s` and node 1 appears at `0.20s`,
+pressing at `0.50s` resolves node 0, then pressing at `0.60s` resolves node 1.
+This preserves the old readable rhythm without letting every visible prompt
+consume input.
+
+The renderer uses `qteQueueVisibleAheadCount` to limit how many future prompts
+can be shown at full size. This prevents a five-node skill from flooding the
+screen while still showing near-future prompts.
+
+### Staggered Flow
+
+`staggered` keeps the older uncapped presentation. It uses the same start/end
+math as queued flow, but does not limit how many future prompts may be visible.
 
 ### Chain Flow
 
@@ -55,9 +67,9 @@ next active timer  = -qteSpacing
 window             = qteNodeDuration
 ```
 
-This is currently used by basic attacks, advanced debuff attacks, fire attacks,
-AoE attacks, and rage finishers. Basic attacks can roll up to five nodes, but
-only one full-size prompt is playable at a time.
+This remains available for skills that should feel strictly sequential, but it
+is not the default attack style because fixed prompt position feels worse than
+the old randomized QTE rhythm.
 
 ---
 
@@ -70,6 +82,15 @@ The graphical translation is processed natively via `BattleQTERenderer.cpp`, whi
 Each unresolved QTE frame shrinks against its own `progressRatio`. Because the
 outer border maps to the active window, the player can learn timing from motion
 instead of reading numbers.
+
+### Queued Presentation
+
+Queued mode uses two separate rules:
+
+- Randomized positions are generated once when the QTE queue starts.
+- Only `activeIndex` accepts input.
+- The renderer may show a data-driven number of future prompts, controlled by
+  `qteQueueVisibleAheadCount`.
 
 ### Chain Presentation
 
@@ -115,6 +136,7 @@ Stored centrally in `data/battle_system_config.json` and piped synchronously int
 - `qteFadeInRatio` / `qteFadeOutDuration`: The UI cross-fade explosion and collapse durations.
 - `qteSlowMoScale`: The intensity of the global battle simulation slowdown scalar when inputs trigger.
 - `qtePromptRadius` / `qteFrameTextureSize`: Size contracts for the QTE frame texture.
+- `qteQueueVisibleAheadCount`: How many future queued prompts can render at full size.
 - `qteChainAnchorXRatio` / `qteChainAnchorYRatio`: Screen-space anchor for chain-mode active prompts.
 - `qteChainPreviewScale` / `qteChainPreviewActiveScale`: Small marker sizes for remaining chain nodes.
 - `qteChainPreviewSpacing` / `qteChainPreviewOffsetY`: Preview row layout around the active prompt.

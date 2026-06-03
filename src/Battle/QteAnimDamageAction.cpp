@@ -126,7 +126,7 @@ QteAnimDamageAction::QteAnimDamageAction(std::vector<DamageRequest> requests,
     // qteStartMoment. Animation progress is only the trigger gate; it must not
     // compress prompt duration when a skill has a short attack clip.
     for (int i = 0; i < count; ++i) {
-        mNodes[i].startSeconds = static_cast<float>(i) * mQteSpacingSeconds;
+        mNodes[i].startSeconds = mQteLeadInSeconds + static_cast<float>(i) * mQteSpacingSeconds;
         mNodes[i].endSeconds = mNodes[i].startSeconds + mQteNodeDurationSeconds;
         mNodes[i].resolved = false;
         mNodes[i].result = QTEResult::None;
@@ -168,11 +168,12 @@ void QteAnimDamageAction::BroadcastQteFeedback(QTEResult result, float ratio)
     qteState.totalCount = static_cast<int>(mNodes.size());
     qteState.fadeInRatio = mFadeInRatio;
     qteState.fadeOutDuration = mFadeOutDuration;
-    qteState.presentationMode = mTimingFlow == QteTimingFlow::Chain
-        ? QTEPresentationMode::Chain
-        : QTEPresentationMode::Staggered;
+    if (mTimingFlow == QteTimingFlow::Chain) qteState.presentationMode = QTEPresentationMode::Chain;
+    else if (mTimingFlow == QteTimingFlow::Queued) qteState.presentationMode = QTEPresentationMode::Queued;
+    else qteState.presentationMode = QTEPresentationMode::Staggered;
     const JsonLoader::BattleSystemConfig fallbackConfig;
     const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+    qteState.queueVisibleAheadCount = config.qteQueueVisibleAheadCount;
     qteState.chainAnchorXRatio = config.qteChainAnchorXRatio;
     qteState.chainAnchorYRatio = config.qteChainAnchorYRatio;
     qteState.promptRadius = config.qtePromptRadius;
@@ -267,11 +268,12 @@ void QteAnimDamageAction::FillQtePayload(QTEStatePayload& qteState) const
     qteState.totalCount = static_cast<int>(mNodes.size());
     qteState.fadeInRatio = mFadeInRatio;
     qteState.fadeOutDuration = mFadeOutDuration;
-    qteState.presentationMode = mTimingFlow == QteTimingFlow::Chain
-        ? QTEPresentationMode::Chain
-        : QTEPresentationMode::Staggered;
+    if (mTimingFlow == QteTimingFlow::Chain) qteState.presentationMode = QTEPresentationMode::Chain;
+    else if (mTimingFlow == QteTimingFlow::Queued) qteState.presentationMode = QTEPresentationMode::Queued;
+    else qteState.presentationMode = QTEPresentationMode::Staggered;
     const JsonLoader::BattleSystemConfig fallbackConfig;
     const JsonLoader::BattleSystemConfig& config = mCtx ? mCtx->config : fallbackConfig;
+    qteState.queueVisibleAheadCount = config.qteQueueVisibleAheadCount;
     qteState.chainAnchorXRatio = config.qteChainAnchorXRatio;
     qteState.chainAnchorYRatio = config.qteChainAnchorYRatio;
     qteState.promptRadius = config.qtePromptRadius;

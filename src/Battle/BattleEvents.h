@@ -50,6 +50,7 @@ enum class QTEResult {
 
 enum class QTEPresentationMode {
     Staggered,
+    Queued,
     Chain
 };
 
@@ -72,6 +73,7 @@ struct QTEStatePayload
     float promptRadius = 79.0f;
     float frameTextureSize = 256.0f;
     QTEPresentationMode presentationMode = QTEPresentationMode::Staggered;
+    int queueVisibleAheadCount = 2;
     float chainAnchorXRatio = 0.52f;
     float chainAnchorYRatio = 0.48f;
     float chainPreviewScale = 0.20f;

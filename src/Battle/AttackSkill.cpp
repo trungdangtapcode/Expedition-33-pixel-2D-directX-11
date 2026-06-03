@@ -47,6 +47,7 @@ namespace
     QteTimingFlow ParseQteTimingFlow(const std::string& value)
     {
         if (value == "chain" || value == "sequential") return QteTimingFlow::Chain;
+        if (value == "queue" || value == "queued") return QteTimingFlow::Queued;
         return QteTimingFlow::Staggered;
     }
 

@@ -15,6 +15,7 @@ struct BattleContext;
 enum class QteTimingFlow
 {
     Staggered,
+    Queued,
     Chain
 };
 

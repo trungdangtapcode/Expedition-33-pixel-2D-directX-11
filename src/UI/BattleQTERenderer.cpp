@@ -157,8 +157,10 @@ void BattleQTERenderer::Render(ID3D11DeviceContext* context)
     };
     const XMFLOAT2 frameOrigin(frameTextureSize * 0.5f, frameTextureSize * 0.5f);
 
-    // Staggered mode can show pending prompts. Chain mode draws only the
-    // current unresolved prompt at full size; future nodes use the preview row.
+    // Queued mode keeps the old randomized multi-prompt feel, but input still
+    // resolves strictly from the oldest unresolved prompt to the newest.
+    // Chain mode draws only the current prompt and moves future nodes into a
+    // small preview row.
     int activeIndex = mState.activeIndex;
     int totalCount = mState.totalCount;
     // If flashed, activeIndex might have been incremented. We cap bounded draws.
@@ -195,7 +197,11 @@ void BattleQTERenderer::Render(ID3D11DeviceContext* context)
         }
     }
 
-    const int drawStart = mState.presentationMode == QTEPresentationMode::Chain ? activeIndex : totalCount - 1;
+    const bool isQueued = mState.presentationMode == QTEPresentationMode::Queued;
+    const int visibleAhead = (std::max)(0, mState.queueVisibleAheadCount);
+    const int drawStart = mState.presentationMode == QTEPresentationMode::Chain
+        ? activeIndex
+        : (isQueued ? (std::min)(totalCount - 1, activeIndex + visibleAhead) : totalCount - 1);
     for (int i = drawStart; i >= 0; --i)
     {
         bool isActiveDiamond = (i == activeIndex);

@@ -1221,6 +1221,7 @@ struct BattleSystemConfig {
     float qteCameraZoom = 1.4f;
     float qtePromptRadius = 79.0f;
     float qteFrameTextureSize = 256.0f;
+    int qteQueueVisibleAheadCount = 2;
     float qteChainAnchorXRatio = 0.52f;
     float qteChainAnchorYRatio = 0.48f;
     float qteChainPreviewScale = 0.20f;
@@ -1270,6 +1271,7 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
     out.qtePromptRadius = detail::ParseFloat(detail::ValueOf(src, "qtePromptRadius"), out.qtePromptRadius);
     out.qteFrameTextureSize = detail::ParseFloat(detail::ValueOf(src, "qteFrameTextureSize"), out.qteFrameTextureSize);
+    out.qteQueueVisibleAheadCount = detail::ParseInt(detail::ValueOf(src, "qteQueueVisibleAheadCount"), out.qteQueueVisibleAheadCount);
     out.qteChainAnchorXRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorXRatio"), out.qteChainAnchorXRatio);
     out.qteChainAnchorYRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorYRatio"), out.qteChainAnchorYRatio);
     out.qteChainPreviewScale = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewScale"), out.qteChainPreviewScale);
@@ -1278,6 +1280,8 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     out.qteChainPreviewOffsetY = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewOffsetY"), out.qteChainPreviewOffsetY);
     if (out.qtePromptRadius < 1.0f) out.qtePromptRadius = 1.0f;
     if (out.qteFrameTextureSize < 1.0f) out.qteFrameTextureSize = 1.0f;
+    if (out.qteQueueVisibleAheadCount < 0) out.qteQueueVisibleAheadCount = 0;
+    if (out.qteQueueVisibleAheadCount > out.maxQteNodes - 1) out.qteQueueVisibleAheadCount = out.maxQteNodes - 1;
     if (out.qteChainAnchorXRatio < 0.0f) out.qteChainAnchorXRatio = 0.0f;
     if (out.qteChainAnchorXRatio > 1.0f) out.qteChainAnchorXRatio = 1.0f;
     if (out.qteChainAnchorYRatio < 0.0f) out.qteChainAnchorYRatio = 0.0f;

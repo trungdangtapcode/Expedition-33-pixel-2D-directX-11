@@ -6,6 +6,7 @@
   "qteCameraZoom": 1.2,
   "qtePromptRadius": 79.0,
   "qteFrameTextureSize": 256.0,
+  "qteQueueVisibleAheadCount": 2,
   "qteChainAnchorXRatio": 0.52,
   "qteChainAnchorYRatio": 0.48,
   "qteChainPreviewScale": 0.13,

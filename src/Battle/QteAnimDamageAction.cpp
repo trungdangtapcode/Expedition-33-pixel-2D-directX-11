@@ -126,16 +126,25 @@ QteAnimDamageAction::QteAnimDamageAction(std::vector<DamageRequest> requests,
     // qteStartMoment. Animation progress is only the trigger gate; it must not
     // compress prompt duration when a skill has a short attack clip.
     for (int i = 0; i < count; ++i) {
-        mNodes[i].startSeconds = mQteLeadInSeconds + static_cast<float>(i) * mQteSpacingSeconds;
-        mNodes[i].endSeconds = mNodes[i].startSeconds + mQteNodeDurationSeconds;
+        const bool waitsForQueueWindow = mTimingFlow == QteTimingFlow::Queued;
+        mNodes[i].startSeconds = waitsForQueueWindow
+            ? -1.0f
+            : mQteLeadInSeconds + static_cast<float>(i) * mQteSpacingSeconds;
+        mNodes[i].endSeconds = waitsForQueueWindow
+            ? 0.0f
+            : mNodes[i].startSeconds + mQteNodeDurationSeconds;
         mNodes[i].resolved = false;
         mNodes[i].result = QTEResult::None;
     }
 
-    // Sort to guarantee the player conceptually hits them chronologically.
-    std::sort(mNodes.begin(), mNodes.end(), [](const QteNode& a, const QteNode& b) {
-        return a.startSeconds < b.startSeconds;
-    });
+    if (mTimingFlow != QteTimingFlow::Queued)
+    {
+        // Sort only pre-scheduled flows. Queued flow intentionally keeps the
+        // authored node order while assigning start times as the queue advances.
+        std::sort(mNodes.begin(), mNodes.end(), [](const QteNode& a, const QteNode& b) {
+            return a.startSeconds < b.startSeconds;
+        });
+    }
 }
 
 QteAnimDamageAction::~QteAnimDamageAction()
@@ -289,6 +298,44 @@ void QteAnimDamageAction::FillQtePayload(QTEStatePayload& qteState) const
     }
 }
 
+int QteAnimDamageAction::GetQueuedVisibleAheadCount() const
+{
+    const int configuredAhead = mCtx ? mCtx->config.qteQueueVisibleAheadCount : 1;
+    return std::clamp(configuredAhead, 0, BattleEventLimits::MaxQteNodes - 1);
+}
+
+void QteAnimDamageAction::EnsureQueuedWindow()
+{
+    if (mTimingFlow != QteTimingFlow::Queued || mNodes.empty()) return;
+
+    const int visibleAhead = GetQueuedVisibleAheadCount();
+    const int lastVisible = (std::min)(
+        static_cast<int>(mNodes.size()) - 1,
+        mActiveNodeIndex + visibleAhead);
+
+    for (int i = mActiveNodeIndex; i <= lastVisible; ++i)
+    {
+        if (i < 0 || i >= static_cast<int>(mNodes.size())) continue;
+        if (mNodes[i].startSeconds >= 0.0f) continue;
+
+        if (i == 0)
+        {
+            mNodes[i].startSeconds = mQteLeadInSeconds;
+        }
+        else
+        {
+            const float previousStart = mNodes[i - 1].startSeconds >= 0.0f
+                ? mNodes[i - 1].startSeconds
+                : mQteElapsedSeconds;
+            mNodes[i].startSeconds = (std::max)(
+                mQteElapsedSeconds + mQteSpacingSeconds,
+                previousStart + mQteSpacingSeconds);
+        }
+
+        mNodes[i].endSeconds = mNodes[i].startSeconds + mQteNodeDurationSeconds;
+    }
+}
+
 void QteAnimDamageAction::UpdateStaggered(float uiDt, bool isKeyPressed, QTEStatePayload& qteState)
 {
     mQteElapsedSeconds += (std::max)(0.0f, uiDt);
@@ -318,6 +365,55 @@ void QteAnimDamageAction::UpdateStaggered(float uiDt, bool isKeyPressed, QTEStat
                 isKeyPressed = false;
             }
         }
+    }
+}
+
+void QteAnimDamageAction::UpdateQueued(float uiDt, bool isKeyPressed, QTEStatePayload& qteState)
+{
+    mQteElapsedSeconds += (std::max)(0.0f, uiDt);
+    EnsureQueuedWindow();
+
+    for (int i = 0; i < static_cast<int>(mNodes.size()) && i < BattleEventLimits::MaxQteNodes; ++i)
+    {
+        qteState.results[i] = mNodes[i].result;
+        if (mNodes[i].startSeconds < 0.0f) {
+            qteState.progressRatios[i] = 0.0f;
+            continue;
+        }
+
+        const float start = mNodes[i].startSeconds;
+        const float end = mNodes[i].endSeconds;
+        float ratio = 0.0f;
+        if (mQteElapsedSeconds >= start && end > start) {
+            ratio = (mQteElapsedSeconds - start) / (end - start);
+        }
+        qteState.progressRatios[i] = std::clamp(ratio, 0.0f, 1.0f);
+    }
+
+    if (mActiveNodeIndex < 0 || mActiveNodeIndex >= static_cast<int>(mNodes.size())) return;
+
+    QteNode& activeNode = mNodes[mActiveNodeIndex];
+    if (activeNode.startSeconds < 0.0f) return;
+
+    const float start = activeNode.startSeconds;
+    const float end = activeNode.endSeconds;
+    const bool hasStarted = mQteElapsedSeconds >= start;
+    const bool timedOut = hasStarted && mQteElapsedSeconds >= end;
+    const float activeRatio = qteState.progressRatios[mActiveNodeIndex];
+
+    qteState.activeIndex = mActiveNodeIndex;
+    if ((isKeyPressed && hasStarted) || timedOut)
+    {
+        QTEResult result = QTEResult::Miss;
+        if (isKeyPressed && activeRatio >= mPerfectThreshold) result = QTEResult::Perfect;
+        else if (isKeyPressed && activeRatio >= mGoodThreshold) result = QTEResult::Good;
+
+        const int resolvedIndex = mActiveNodeIndex;
+        ResolveCurrentNode(result, activeRatio);
+        qteState.results[resolvedIndex] = result;
+        qteState.progressRatios[resolvedIndex] = activeRatio;
+        qteState.activeIndex = mActiveNodeIndex;
+        EnsureQueuedWindow();
     }
 }
 
@@ -392,6 +488,7 @@ bool QteAnimDamageAction::Execute(float /*dt*/)
         
         const bool isKeyPressed = InputManager::Get().IsKeyPressed(VK_SPACE);
         if (mTimingFlow == QteTimingFlow::Chain) UpdateChain(uiDt, isKeyPressed, qteState);
+        else if (mTimingFlow == QteTimingFlow::Queued) UpdateQueued(uiDt, isKeyPressed, qteState);
         else UpdateStaggered(uiDt, isKeyPressed, qteState);
         
         EventData qteEvent;

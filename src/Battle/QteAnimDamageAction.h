@@ -91,7 +91,10 @@ private:
     void ResolveCurrentNode(QTEResult result, float ratio);
     void ResolveCompletedQte();
     void FillQtePayload(QTEStatePayload& qteState) const;
+    int GetQueuedVisibleAheadCount() const;
+    void EnsureQueuedWindow();
     void UpdateStaggered(float uiDt, bool isKeyPressed, QTEStatePayload& qteState);
+    void UpdateQueued(float uiDt, bool isKeyPressed, QTEStatePayload& qteState);
     void UpdateChain(float uiDt, bool isKeyPressed, QTEStatePayload& qteState);
 
     bool mHasStarted = false;

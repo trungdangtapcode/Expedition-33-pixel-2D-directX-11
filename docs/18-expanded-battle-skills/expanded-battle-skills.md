@@ -59,7 +59,7 @@ QTE complexity is per skill:
 - Finishers and large fire techniques use more nodes, tighter spacing, and higher perfect bonuses.
 - `qteMinCount` and `qteMaxCount` are clamped to the renderer limit so a data mistake cannot spawn invisible prompts.
 - `qteTimingFlow` controls how the nodes are scheduled:
-  - `queued`: the default attack rhythm. Prompts appear at staggered random positions, but only the oldest unresolved prompt accepts input.
+  - `queued`: the default attack rhythm. The active prompt and a small data-driven future window appear at staggered random positions, but only the oldest unresolved prompt accepts input.
   - `staggered`: the older uncapped pending-prompt presentation.
   - `chain`: each node gets its full `qteNodeDuration`; `qteSpacing` is the gap before the next active window starts. `sequential` is accepted as an alias for `chain`.
 - `qteLeadInSeconds` adds a readable delay after `qteStartMoment` before the first node appears.

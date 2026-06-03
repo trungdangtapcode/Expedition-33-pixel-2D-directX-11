@@ -50,6 +50,12 @@ The renderer uses `qteQueueVisibleAheadCount` to limit how many future prompts
 can be shown at full size. This prevents a five-node skill from flooding the
 screen while still showing near-future prompts.
 
+Queued flow also schedules only the active node and the visible future window.
+For example, with `qteQueueVisibleAheadCount = 1`, a five-node skill can show
+node 0 and node 1 together, but nodes 2-4 do not start their timers until the
+queue advances. This is the important difference from a purely staggered
+timeline.
+
 ### Staggered Flow
 
 `staggered` keeps the older uncapped presentation. It uses the same start/end

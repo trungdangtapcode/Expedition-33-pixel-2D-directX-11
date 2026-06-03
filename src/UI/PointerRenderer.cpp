@@ -1,13 +1,31 @@
 // ============================================================
 // File: PointerRenderer.cpp
+// Responsibility: Render a data-driven world-space pointer sprite.
 // ============================================================
 #include "PointerRenderer.h"
 #include "../Utils/Log.h"
 #include "../Utils/JsonLoader.h"
 #include <WICTextureLoader.h>
+#include <filesystem>
 #include <fstream>
 #include <sstream>
 #include <cmath>
+
+namespace
+{
+    std::filesystem::path ResolveReadablePath(const std::string& path)
+    {
+        namespace fs = std::filesystem;
+
+        const fs::path direct(path);
+        if (fs::exists(direct)) return direct;
+
+        const fs::path parent = fs::path("..") / path;
+        if (fs::exists(parent)) return parent;
+
+        return direct;
+    }
+}
 
 bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* context, 
                                  const std::wstring& texturePath, const std::string& jsonPath,
@@ -37,7 +55,8 @@ bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         return false;
     }
 
-    std::ifstream file(jsonPath);
+    const std::filesystem::path resolvedJsonPath = ResolveReadablePath(jsonPath);
+    std::ifstream file(resolvedJsonPath, std::ios::binary);
     if (file.is_open())
     {
         std::stringstream buf;
@@ -67,6 +86,12 @@ bool PointerRenderer::Initialize(ID3D11Device* device, ID3D11DeviceContext* cont
         mOffsetY = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "y_offset"), -128.0f);
         mBobSpeed = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "bob_speed"), 0.0f);
         mBobAmplitude = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "bob_amplitude"), 0.0f);
+        mScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "scale"), 1.0f);
+        if (mScale <= 0.0f)
+        {
+            LOG("[PointerRenderer] WARNING: Invalid scale in %s; using 1.0.", jsonPath.c_str());
+            mScale = 1.0f;
+        }
     }
     else
     {
@@ -110,9 +135,21 @@ void PointerRenderer::Draw(ID3D11DeviceContext* context, float worldX, float wor
     
     DirectX::XMFLOAT2 pos(worldX, worldY + mOffsetY + yOffset);
 
-    mSpriteBatch->Draw(mTextureSRV.Get(), pos, &srcRect, DirectX::Colors::White, 0.0f, origin);
+    mSpriteBatch->Draw(mTextureSRV.Get(),
+                       pos,
+                       &srcRect,
+                       DirectX::Colors::White,
+                       0.0f,
+                       origin,
+                       mScale);
 
     mSpriteBatch->End();
+}
+
+void PointerRenderer::SetScreenSize(int screenW, int screenH)
+{
+    mScreenW = screenW;
+    mScreenH = screenH;
 }
 
 void PointerRenderer::Shutdown()

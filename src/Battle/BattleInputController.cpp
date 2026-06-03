@@ -10,6 +10,7 @@
 #include "IBattleCommand.h"
 #include "FightCommand.h"
 #include "FleeCommand.h"
+#include "ISkill.h"
 #include "ItemCommand.h"
 #include "ItemRegistry.h"
 #include "ItemData.h"
@@ -110,6 +111,61 @@ void BattleInputController::RefreshItemList()
     mItemIds = Inventory::Get().OwnedIds();
     if (mItemIndex >= static_cast<int>(mItemIds.size()))
         mItemIndex = 0;
+}
+
+bool BattleInputController::SkillTargetsImplicit(SkillTargeting targeting) const
+{
+    return targeting == SkillTargeting::Self ||
+           targeting == SkillTargeting::AllAllies ||
+           targeting == SkillTargeting::AllEnemies;
+}
+
+bool BattleInputController::SkillTargetsPlayers(SkillTargeting targeting) const
+{
+    return targeting == SkillTargeting::Self ||
+           targeting == SkillTargeting::SingleAlly ||
+           targeting == SkillTargeting::SingleAllyAny ||
+           targeting == SkillTargeting::AllAllies;
+}
+
+int BattleInputController::FindBattlerSlot(IBattler* battler, bool playerTeam) const
+{
+    const std::vector<IBattler*> team = playerTeam
+        ? mBattle.GetAllPlayers()
+        : mBattle.GetAllEnemies();
+    for (int i = 0; i < static_cast<int>(team.size()); ++i)
+    {
+        if (team[i] == battler) return i;
+    }
+    return -1;
+}
+
+std::vector<IBattler*> BattleInputController::ResolveSkillTargetCandidates(const ISkill& skill) const
+{
+    switch (skill.GetTargeting())
+    {
+    case SkillTargeting::SingleAlly:
+        return mBattle.GetAlivePlayers();
+    case SkillTargeting::SingleAllyAny:
+    {
+        auto players = mBattle.GetAllPlayers();
+        if (skill.GetEffect() == "revive")
+        {
+            players.erase(
+                std::remove_if(players.begin(), players.end(),
+                    [](IBattler* battler) { return !battler || battler->IsAlive(); }),
+                players.end());
+        }
+        return players;
+    }
+    case SkillTargeting::SingleEnemy:
+        return mBattle.GetAliveEnemies();
+    case SkillTargeting::Self:
+    case SkillTargeting::AllAllies:
+    case SkillTargeting::AllEnemies:
+    default:
+        return {};
+    }
 }
 
 void BattleInputController::HandleCommandSelect()
@@ -218,11 +274,24 @@ void BattleInputController::HandleSkillSelect()
             LOG("[BattleState] Skill %d unavailable.", mSkillIndex + 1);
             return;
         }
-        AudioManager::Get().PlaySfx("ui_confirm");
-        if (skill->GetTargeting() == SkillTargeting::Self)
+        if (!SkillTargetsImplicit(skill->GetTargeting()) &&
+            ResolveSkillTargetCandidates(*skill).empty())
         {
-            mBattle.SetPlayerAction(mSkillIndex, player);
-            LOG("[BattleState] Skill confirmed: %s -> self", skill->GetDebugName().c_str());
+            AudioManager::Get().PlaySfx("battle_no_ap");
+            LOG("[BattleState] Skill %s has no valid targets.",
+                skill->GetDebugName().c_str());
+            return;
+        }
+
+        AudioManager::Get().PlaySfx("ui_confirm");
+        if (SkillTargetsImplicit(skill->GetTargeting()))
+        {
+            IBattler* implicitTarget = (skill->GetTargeting() == SkillTargeting::Self)
+                ? static_cast<IBattler*>(player)
+                : nullptr;
+            mBattle.SetPlayerAction(mSkillIndex, implicitTarget);
+            LOG("[BattleState] Skill confirmed: %s -> implicit target",
+                skill->GetDebugName().c_str());
             SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         }
         else
@@ -248,30 +317,50 @@ void BattleInputController::HandleTargetSelect()
         return fresh;
     };
 
-    const auto enemies = mBattle.GetAliveEnemies();
-    if (enemies.empty()) return;
-    const int enemyCount = static_cast<int>(enemies.size());
+    auto* player = mBattle.GetActivePlayer();
+    if (!player) return;
+
+    ISkill* skill = player->GetSkill(mSkillIndex);
+    if (!skill)
+    {
+        SetInputPhase(PlayerInputPhase::SKILL_SELECT);
+        return;
+    }
+
+    const auto candidates = ResolveSkillTargetCandidates(*skill);
+    if (candidates.empty())
+    {
+        SetInputPhase(PlayerInputPhase::SKILL_SELECT);
+        return;
+    }
+
+    const bool targetPlayers = SkillTargetsPlayers(skill->GetTargeting());
+    const char* cycleSfx = targetPlayers ? "battle_select_ally" : "battle_select_enemy";
+    const int targetCount = static_cast<int>(candidates.size());
+    if (mTargetIndex >= targetCount) mTargetIndex = 0;
 
     if (pressed(VK_DOWN, mKeyDownWasDown))
     {
-        mTargetIndex = (mTargetIndex + 1) % enemyCount;
-        AudioManager::Get().PlaySfx("battle_select_enemy");
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetDebugName().c_str());
+        mTargetIndex = (mTargetIndex + 1) % targetCount;
+        AudioManager::Get().PlaySfx(cycleSfx);
+        LOG("[BattleState] Target -> %s", candidates[mTargetIndex]->GetDebugName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
+        const int targetSlot = FindBattlerSlot(candidates[mTargetIndex], targetPlayers);
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, true, mTargetIndex, false);
+                                 kActivePlayerSlot, true, targetSlot, targetPlayers);
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_UP, mKeyUpWasDown))
     {
-        mTargetIndex = (mTargetIndex - 1 + enemyCount) % enemyCount;
-        AudioManager::Get().PlaySfx("battle_select_enemy");
-        LOG("[BattleState] Target -> %s", enemies[mTargetIndex]->GetDebugName().c_str());
+        mTargetIndex = (mTargetIndex - 1 + targetCount) % targetCount;
+        AudioManager::Get().PlaySfx(cycleSfx);
+        LOG("[BattleState] Target -> %s", candidates[mTargetIndex]->GetDebugName().c_str());
 
         constexpr int kActivePlayerSlot = 0;
+        const int targetSlot = FindBattlerSlot(candidates[mTargetIndex], targetPlayers);
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, true, mTargetIndex, false);
+                                 kActivePlayerSlot, true, targetSlot, targetPlayers);
         mState.DumpStateToDebugOutput();
     }
     if (pressed(VK_RETURN, mEnterWasDown))  ConfirmSkillAndTarget();
@@ -298,22 +387,25 @@ void BattleInputController::ConfirmSkillAndTarget()
         return;
     }
 
-    if (skill->GetTargeting() == SkillTargeting::Self)
+    if (SkillTargetsImplicit(skill->GetTargeting()))
     {
-        mBattle.SetPlayerAction(mSkillIndex, player);
+        IBattler* implicitTarget = (skill->GetTargeting() == SkillTargeting::Self)
+            ? static_cast<IBattler*>(player)
+            : nullptr;
+        mBattle.SetPlayerAction(mSkillIndex, implicitTarget);
         AudioManager::Get().PlaySfx("ui_confirm");
-        LOG("[BattleState] Action confirmed: %s -> self", skill->GetDebugName().c_str());
+        LOG("[BattleState] Action confirmed: %s -> implicit target", skill->GetDebugName().c_str());
         SetInputPhase(PlayerInputPhase::COMMAND_SELECT);
         return;
     }
 
-    auto enemies = mBattle.GetAliveEnemies();
-    if (enemies.empty()) return;
+    const auto candidates = ResolveSkillTargetCandidates(*skill);
+    if (candidates.empty()) return;
 
-    if (mTargetIndex >= static_cast<int>(enemies.size()))
+    if (mTargetIndex >= static_cast<int>(candidates.size()))
         mTargetIndex = 0;
 
-    IBattler* target = enemies[mTargetIndex];
+    IBattler* target = candidates[mTargetIndex];
     mBattle.SetPlayerAction(mSkillIndex, target);
 
     AudioManager::Get().PlaySfx("ui_confirm");
@@ -576,11 +668,26 @@ void BattleInputController::SetInputPhase(PlayerInputPhase phase)
     constexpr int kActivePlayerSlot = 0;
 
     bool isTargetPlayer = false;
+    int targetSlot = mTargetIndex;
     if (phase == PlayerInputPhase::ITEM_TARGET_SELECT && mItemIndex >= 0 && mItemIndex < static_cast<int>(mItemIds.size()))
     {
         const ItemData* item = ItemRegistry::Get().Find(mItemIds[mItemIndex]);
         if (item && (item->targeting == ItemTargeting::SingleAlly || item->targeting == ItemTargeting::SingleAllyAny)) {
             isTargetPlayer = true;
+        }
+    }
+    else if (phase == PlayerInputPhase::TARGET_SELECT)
+    {
+        auto* player = mBattle.GetActivePlayer();
+        ISkill* skill = player ? player->GetSkill(mSkillIndex) : nullptr;
+        if (skill)
+        {
+            isTargetPlayer = SkillTargetsPlayers(skill->GetTargeting());
+            const auto candidates = ResolveSkillTargetCandidates(*skill);
+            if (!candidates.empty())
+            {
+                targetSlot = FindBattlerSlot(candidates[0], isTargetPlayer);
+            }
         }
     }
 
@@ -595,7 +702,7 @@ void BattleInputController::SetInputPhase(PlayerInputPhase phase)
 
     case PlayerInputPhase::TARGET_SELECT:
         mRenderer.SetCameraPhase(BattleCameraPhase::TARGET_FOCUS,
-                                 kActivePlayerSlot, true, mTargetIndex, false);
+                                 kActivePlayerSlot, true, targetSlot, isTargetPlayer);
         break;
 
     case PlayerInputPhase::ITEM_TARGET_SELECT:

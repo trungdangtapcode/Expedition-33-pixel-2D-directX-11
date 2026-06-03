@@ -124,8 +124,19 @@ void StatusIconRenderer::RenderAt(ID3D11DeviceContext* context,
         const float y = startY;
 
         const XMVECTORF32 ring = CategoryColor(effect.category);
-        mSpriteBatch->Draw(mFillSRV.Get(), XMFLOAT2(x - 2.0f, y - 2.0f), nullptr, ring, 0.0f, origin,
-                           XMFLOAT2(mLayout.iconSize + 4.0f, mLayout.iconSize + 4.0f));
+        const float badgeX = x - mLayout.badgePadding;
+        const float badgeY = y - mLayout.badgePadding;
+        const float badgeSize = mLayout.iconSize + (mLayout.badgePadding * 2.0f);
+        DrawSolidRect(
+            badgeX,
+            badgeY,
+            badgeSize,
+            badgeSize,
+            XMVectorSet(mLayout.badgeBackR,
+                        mLayout.badgeBackG,
+                        mLayout.badgeBackB,
+                        mLayout.badgeBackA));
+        DrawBadgeFrame(badgeX, badgeY, badgeSize, ring);
 
         auto it = mFrames.find(effect.iconId);
         if (it == mFrames.end()) it = mFrames.find("fallback");
@@ -133,8 +144,15 @@ void StatusIconRenderer::RenderAt(ID3D11DeviceContext* context,
         {
             const Frame& frame = it->second;
             RECT src = { frame.x, frame.y, frame.x + frame.w, frame.y + frame.h };
-            const float scale = mLayout.iconSize / static_cast<float>(std::max(1, frame.w));
-            mSpriteBatch->Draw(mAtlasSRV.Get(), XMFLOAT2(x, y), &src, Colors::White, 0.0f, origin, scale);
+            const float frameW = static_cast<float>(std::max(1, frame.w));
+            const float frameH = static_cast<float>(std::max(1, frame.h));
+            const float scale = std::min(mLayout.iconSize / frameW, mLayout.iconSize / frameH);
+            const float drawW = frameW * scale;
+            const float drawH = frameH * scale;
+            const XMFLOAT2 iconPos(
+                x + (mLayout.iconSize - drawW) * 0.5f,
+                y + (mLayout.iconSize - drawH) * 0.5f);
+            mSpriteBatch->Draw(mAtlasSRV.Get(), iconPos, &src, Colors::White, 0.0f, origin, scale);
         }
     }
     mSpriteBatch->End();
@@ -255,6 +273,28 @@ bool StatusIconRenderer::LoadLayout(const std::string& path)
     mLayout.spacing = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "spacing"), mLayout.spacing);
     mLayout.maxVisible = JsonLoader::detail::ParseInt(JsonLoader::detail::ValueOf(src, "maxVisible"), mLayout.maxVisible);
     mLayout.textScale = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "textScale"), mLayout.textScale);
+    mLayout.badgePadding = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgePadding"), mLayout.badgePadding);
+    mLayout.badgeFrameThickness = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgeFrameThickness"), mLayout.badgeFrameThickness);
+    mLayout.badgeBackR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgeBackR"), mLayout.badgeBackR);
+    mLayout.badgeBackG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgeBackG"), mLayout.badgeBackG);
+    mLayout.badgeBackB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgeBackB"), mLayout.badgeBackB);
+    mLayout.badgeBackA = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "badgeBackA"), mLayout.badgeBackA);
+    mLayout.buffFrameR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "buffFrameR"), mLayout.buffFrameR);
+    mLayout.buffFrameG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "buffFrameG"), mLayout.buffFrameG);
+    mLayout.buffFrameB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "buffFrameB"), mLayout.buffFrameB);
+    mLayout.buffFrameA = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "buffFrameA"), mLayout.buffFrameA);
+    mLayout.debuffFrameR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "debuffFrameR"), mLayout.debuffFrameR);
+    mLayout.debuffFrameG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "debuffFrameG"), mLayout.debuffFrameG);
+    mLayout.debuffFrameB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "debuffFrameB"), mLayout.debuffFrameB);
+    mLayout.debuffFrameA = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "debuffFrameA"), mLayout.debuffFrameA);
+    mLayout.neutralFrameR = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "neutralFrameR"), mLayout.neutralFrameR);
+    mLayout.neutralFrameG = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "neutralFrameG"), mLayout.neutralFrameG);
+    mLayout.neutralFrameB = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "neutralFrameB"), mLayout.neutralFrameB);
+    mLayout.neutralFrameA = JsonLoader::detail::ParseFloat(JsonLoader::detail::ValueOf(src, "neutralFrameA"), mLayout.neutralFrameA);
+    if (mLayout.iconSize < 1.0f) mLayout.iconSize = 1.0f;
+    if (mLayout.badgePadding < 0.0f) mLayout.badgePadding = 0.0f;
+    if (mLayout.badgeFrameThickness < 0.0f) mLayout.badgeFrameThickness = 0.0f;
+    if (mLayout.maxVisible < 0) mLayout.maxVisible = 0;
     return true;
 }
 
@@ -263,11 +303,44 @@ XMVECTORF32 StatusIconRenderer::CategoryColor(StatusEffectCategory category) con
     switch (category)
     {
     case StatusEffectCategory::Buff:
-        return XMVECTORF32{ 0.86f, 0.67f, 0.25f, 0.95f };
+        return XMVECTORF32{ mLayout.buffFrameR, mLayout.buffFrameG, mLayout.buffFrameB, mLayout.buffFrameA };
     case StatusEffectCategory::Debuff:
-        return XMVECTORF32{ 0.70f, 0.16f, 0.18f, 0.95f };
+        return XMVECTORF32{ mLayout.debuffFrameR, mLayout.debuffFrameG, mLayout.debuffFrameB, mLayout.debuffFrameA };
     case StatusEffectCategory::Neutral:
     default:
-        return XMVECTORF32{ 0.46f, 0.46f, 0.50f, 0.95f };
+        return XMVECTORF32{ mLayout.neutralFrameR, mLayout.neutralFrameG, mLayout.neutralFrameB, mLayout.neutralFrameA };
     }
+}
+
+void StatusIconRenderer::DrawSolidRect(float x,
+                                       float y,
+                                       float width,
+                                       float height,
+                                       FXMVECTOR color)
+{
+    if (!mFillSRV) return;
+    mSpriteBatch->Draw(
+        mFillSRV.Get(),
+        XMFLOAT2(x, y),
+        nullptr,
+        color,
+        0.0f,
+        XMFLOAT2(0.0f, 0.0f),
+        XMFLOAT2(width, height));
+}
+
+void StatusIconRenderer::DrawBadgeFrame(float x,
+                                        float y,
+                                        float size,
+                                        FXMVECTOR frameColor)
+{
+    const float t = std::max(0.0f, mLayout.badgeFrameThickness);
+    if (t <= 0.0f) return;
+
+    // Draw four thin rectangles instead of a solid category plate. This keeps
+    // debuffs readable without turning the enemy HP area into a red block.
+    DrawSolidRect(x, y, size, t, frameColor);
+    DrawSolidRect(x, y + size - t, size, t, frameColor);
+    DrawSolidRect(x, y, t, size, frameColor);
+    DrawSolidRect(x + size - t, y, t, size, frameColor);
 }

@@ -22,7 +22,7 @@ std::unique_ptr<ISkill> SkillFactory::CreateFromFile(const std::string& path)
         data.id = path;
     }
 
-    if (data.kind == "attack")
+    if (data.kind == "attack" || data.mechanism == "attack")
     {
         return std::make_unique<AttackSkill>(data);
     }

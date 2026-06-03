@@ -1,0 +1,21 @@
+{
+  "id": "memory_glass_shrine_echo",
+  "completionFlag": "dialogue_completed:memory_glass_shrine_echo",
+  "skippable": true,
+  "lines": [
+    {
+      "speakerId": "memory",
+      "speakerKey": "dialogue.speaker.memory",
+      "speakerName": "Memory",
+      "textKey": "dialogue.memory_glass_shrine_echo.line_1",
+      "text": "The shrine glass records pain before it records faces."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.memory_glass_shrine_echo.line_2",
+      "text": "Then every reflection here knows exactly why we keep moving."
+    }
+  ]
+}

@@ -8,6 +8,7 @@ enum class SkillTargeting
 {
     SingleEnemy,
     SingleAlly,
+    SingleAllyAny,
     AllEnemies,
     AllAllies,
     Self

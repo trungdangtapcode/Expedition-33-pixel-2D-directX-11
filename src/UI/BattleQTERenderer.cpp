@@ -64,40 +64,65 @@ void BattleQTERenderer::SetScreenSize(int w, int h)
 {
     mScreenW = w;
     mScreenH = h;
+    mQtePositions.clear();
 }
 
 void BattleQTERenderer::OnQteUpdate(const EventData& data)
 {
     if (data.payload) {
         const QTEStatePayload* state = static_cast<const QTEStatePayload*>(data.payload);
-        bool wasActive = mState.isActive;
+        const bool wasActive = mState.isActive;
+        const int incomingCount = std::clamp(state->totalCount, 0, BattleEventLimits::MaxQteNodes);
 
         if (wasActive && state->isActive) {
+            if (mFlashTimers.size() < static_cast<size_t>(incomingCount)) {
+                mFlashTimers.resize(static_cast<size_t>(incomingCount), 0.0f);
+            }
             // Check for freshly resolved individual nodes to trigger flashes
             // Active QTE resolved successfully or missed inside this frame!
-            for (int i = 0; i < state->totalCount && i < MAX_QTE_NODES; ++i) {
+            for (int i = 0; i < incomingCount; ++i) {
                 if (mState.results[i] == QTEResult::None && state->results[i] != QTEResult::None) {
                     // Flash initialized based on explicit fade out config
-                    mFlashTimers[i] = state->fadeOutDuration > 0.001f ? state->fadeOutDuration : 0.2f;
+                    mFlashTimers[static_cast<size_t>(i)] = state->fadeOutDuration > 0.001f ? state->fadeOutDuration : 0.2f;
                 }
             }
         }
 
         mState = *state;
+        mState.totalCount = incomingCount;
 
-        if (!wasActive && mState.isActive) {
-            // A completely new QTE chain started! Generate entirely random scattered positions.
-            float paddingRatio = 0.30f; 
-            int minX = static_cast<int>(mScreenW * paddingRatio);
-            int maxX = static_cast<int>(mScreenW * (1.0f - paddingRatio));
-            int minY = static_cast<int>(mScreenH * paddingRatio);
-            int maxY = static_cast<int>(mScreenH * (1.0f - paddingRatio));
-            
+        if (!mState.isActive) {
             mQtePositions.clear();
-            for (int i = 0; i < mState.totalCount; ++i) {
-                float px = static_cast<float>(minX + (rand() % (maxX - minX)));
-                float py = static_cast<float>(minY + (rand() % (maxY - minY)));
-                mQtePositions.push_back({px, py});
+            mFlashTimers.clear();
+            return;
+        }
+
+        const bool needsPositions = !wasActive || mQtePositions.size() != static_cast<size_t>(incomingCount);
+        if (needsPositions) {
+            mQtePositions.clear();
+            mFlashTimers.assign(static_cast<size_t>(incomingCount), 0.0f);
+            if (mState.presentationMode == QTEPresentationMode::Chain)
+            {
+                const float px = static_cast<float>(mScreenW) * mState.chainAnchorXRatio;
+                const float py = static_cast<float>(mScreenH) * mState.chainAnchorYRatio;
+                for (int i = 0; i < incomingCount; ++i) {
+                    mQtePositions.push_back({ px, py });
+                }
+            }
+            else
+            {
+                // Staggered QTE keeps the old scattered rhythm presentation.
+                float paddingRatio = 0.30f;
+                int minX = static_cast<int>(mScreenW * paddingRatio);
+                int maxX = static_cast<int>(mScreenW * (1.0f - paddingRatio));
+                int minY = static_cast<int>(mScreenH * paddingRatio);
+                int maxY = static_cast<int>(mScreenH * (1.0f - paddingRatio));
+
+                for (int i = 0; i < incomingCount; ++i) {
+                    float px = static_cast<float>(minX + (rand() % (maxX - minX)));
+                    float py = static_cast<float>(minY + (rand() % (maxY - minY)));
+                    mQtePositions.push_back({ px, py });
+                }
             }
         }
     }
@@ -105,9 +130,9 @@ void BattleQTERenderer::OnQteUpdate(const EventData& data)
 
 void BattleQTERenderer::Update(float dt)
 {
-    for (int i = 0; i < 8; ++i) {
-        if (mFlashTimers[i] > 0.0f) {
-            mFlashTimers[i] -= dt;
+    for (float& flashTimer : mFlashTimers) {
+        if (flashTimer > 0.0f) {
+            flashTimer -= dt;
         }
     }
 }
@@ -122,24 +147,80 @@ void BattleQTERenderer::Render(ID3D11DeviceContext* context)
 
     mSpriteBatch->Begin(SpriteSortMode_Deferred, mStates->NonPremultiplied(), mStates->LinearClamp(), mStates->DepthNone());
 
-    // Default diamond parameters from JSON:
-    // radius = 79, texture is 256x256
-    float radius = 79.0f; 
+    const float radius = (std::max)(1.0f, mState.promptRadius);
+    const float frameTextureSize = (std::max)(1.0f, mState.frameTextureSize);
+    RECT srcFull = {
+        0,
+        0,
+        static_cast<LONG>(frameTextureSize),
+        static_cast<LONG>(frameTextureSize)
+    };
+    const XMFLOAT2 frameOrigin(frameTextureSize * 0.5f, frameTextureSize * 0.5f);
 
-    // We draw from the farthest pending up to the active, so active is on top.
+    // Queued mode keeps the old randomized multi-prompt feel, but input still
+    // resolves strictly from the oldest unresolved prompt to the newest.
+    // Chain mode draws only the current prompt and moves future nodes into a
+    // small preview row.
     int activeIndex = mState.activeIndex;
     int totalCount = mState.totalCount;
     // If flashed, activeIndex might have been incremented. We cap bounded draws.
     if (activeIndex >= totalCount) activeIndex = totalCount - 1;
     if (activeIndex < 0) activeIndex = 0;
 
-    for (int i = totalCount - 1; i >= activeIndex; --i)
+    if (mState.presentationMode == QTEPresentationMode::Chain &&
+        activeIndex < static_cast<int>(mQtePositions.size()))
+    {
+        const int remainingCount = totalCount - activeIndex;
+        const float previewSpacing = mState.chainPreviewSpacing;
+        const float inactiveMarkerSize = radius * mState.chainPreviewScale;
+        const float activeMarkerSize = radius * mState.chainPreviewActiveScale;
+        const float startX = mQtePositions[activeIndex].x -
+            (static_cast<float>(remainingCount - 1) * previewSpacing * 0.5f);
+        const float y = mQtePositions[activeIndex].y + mState.chainPreviewOffsetY;
+
+        for (int slot = 0; slot < remainingCount; ++slot)
+        {
+            const int nodeIndex = activeIndex + slot;
+            if (nodeIndex < 0 || nodeIndex >= totalCount) continue;
+
+            XMVECTOR tint = slot == 0 ? Colors::Gold : Colors::White;
+            tint.m128_f32[3] = slot == 0 ? 0.85f : 0.35f;
+            const float markerSize = slot == 0 ? activeMarkerSize : inactiveMarkerSize;
+            mSpriteBatch->Draw(
+                mWhiteFillSRV.Get(),
+                XMFLOAT2(startX + static_cast<float>(slot) * previewSpacing, y),
+                nullptr,
+                tint,
+                XM_PIDIV4,
+                XMFLOAT2(0.5f, 0.5f),
+                XMFLOAT2(markerSize, markerSize));
+        }
+    }
+
+    const bool isQueued = mState.presentationMode == QTEPresentationMode::Queued;
+    const int visibleAhead = (std::max)(0, mState.queueVisibleAheadCount);
+    const int drawStart = mState.presentationMode == QTEPresentationMode::Chain
+        ? activeIndex
+        : (isQueued ? (std::min)(totalCount - 1, activeIndex + visibleAhead) : totalCount - 1);
+    for (int i = drawStart; i >= 0; --i)
     {
         bool isActiveDiamond = (i == activeIndex);
-        if (i >= mQtePositions.size()) break; // memory safety
+        if (i >= static_cast<int>(mQtePositions.size())) break; // memory safety
+        const float flashTimer = i < static_cast<int>(mFlashTimers.size())
+            ? mFlashTimers[static_cast<size_t>(i)]
+            : 0.0f;
+        if (mState.presentationMode == QTEPresentationMode::Chain &&
+            (!isActiveDiamond || mState.results[i] != QTEResult::None))
+        {
+            continue;
+        }
+        if (mState.presentationMode != QTEPresentationMode::Chain && i < activeIndex)
+        {
+            break;
+        }
 
-        // NEW LOGIC: Skip completely dead nodes that have finished their explosion flash
-        if (mState.results[i] != QTEResult::None && mFlashTimers[i] <= 0.0f) {
+        // Skip resolved staggered nodes once their configured flash expires.
+        if (mState.results[i] != QTEResult::None && flashTimer <= 0.0f) {
             continue;
         }
 
@@ -174,13 +255,13 @@ void BattleQTERenderer::Render(ID3D11DeviceContext* context)
             scale = 1.0f + (1.0f - mState.progressRatios[i]) * 0.5f; 
         }
 
-        if (mFlashTimers[i] > 0.0f) {
+        if (flashTimer > 0.0f) {
             if (mState.results[i] == QTEResult::Perfect) { frameTint = Colors::Gold; lineTint = Colors::Gold; }
             else if (mState.results[i] == QTEResult::Good) { frameTint = Colors::Yellow; lineTint = Colors::Yellow; }
             else { frameTint = Colors::Gray; lineTint = Colors::Gray; }
             
             float safeFadeOutLimit = mState.fadeOutDuration > 0.001f ? mState.fadeOutDuration : 0.2f;
-            float flashT = mFlashTimers[i] / safeFadeOutLimit; // goes 1.0 -> 0.0
+            float flashT = flashTimer / safeFadeOutLimit; // goes 1.0 -> 0.0
             alpha = flashT; // Fade out completely 
             scale = 1.0f + (1.0f - flashT) * 0.5f; // Explode outwards: Scale from 1.0 up to 1.5
             
@@ -193,9 +274,8 @@ void BattleQTERenderer::Render(ID3D11DeviceContext* context)
         XMVECTOR renderTint = frameTint;
         renderTint.m128_f32[3] *= alpha;
 
-        if (mState.isActive || mFlashTimers[i] > 0.0f) {
-            RECT srcFull = { 0, 0, 256, 256 };
-            mSpriteBatch->Draw(mFrameSRV.Get(), XMFLOAT2(pdx, pdy), &srcFull, renderTint, 0.0f, XMFLOAT2(128.0f, 128.0f), scale);
+        if (mState.isActive || flashTimer > 0.0f) {
+            mSpriteBatch->Draw(mFrameSRV.Get(), XMFLOAT2(pdx, pdy), &srcFull, renderTint, 0.0f, frameOrigin, scale);
         }
 
         // Draw the shrinking/filling clockwise traces if active and hasn't completely missed

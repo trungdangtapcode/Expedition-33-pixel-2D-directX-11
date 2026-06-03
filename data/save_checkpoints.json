@@ -8,7 +8,7 @@
   "autoCheckpointId": "overworld_after_battle",
   "autoSceneId": "overworld",
   "defaultCheckpointId": "new_game",
-  "defaultPlayerX": 120.0,
+  "defaultPlayerX": -560.0,
   "defaultPlayerY": 80.0,
   "iconPath": "assets/UI/save_checkpoint_badge.png"
 }

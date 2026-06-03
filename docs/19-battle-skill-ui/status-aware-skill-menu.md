@@ -53,6 +53,24 @@ The input controller reads `pageSize` from `data/battle_skill_menu_layout.json` 
 
 `EnemyHpBarRenderer::GetStatusAnchor()` exposes a stable status strip position under each active enemy bar.  The offsets live in `assets/UI/enemy-hp-ui.json` as `status_anchor_offset_x` and `status_anchor_offset_y`.
 
+The shared status/skill icon atlas is `assets/UI/status_effect_icons.png`.
+The atlas is imagegen-sourced and validated by
+`patches/generate_status_effect_icons.py`; the validator preserves the icon ID
+order used by both status effects and skill cards without redrawing placeholder
+art.
+
+Status icons render as dark square badges with a thin category-colored frame.
+The frame communicates buff, debuff, or neutral state without flooding the
+enemy HP bar with a solid red block. Badge padding, frame thickness, backing
+alpha, and category frame colors are all controlled by
+`data/status_effect_ui.json`.
+
+Each 32x32 icon cell must have its visible alpha bounds centered around the
+cell midpoint. The skill menu places every frame inside the same square draw box,
+so uneven source padding makes icons appear to drift even when the UI row itself
+is aligned. Run the validator after editing the atlas; it rejects off-center
+cells.
+
 ## Localization
 
 All player-facing labels are localization keys.  Debug HUD and log labels remain English-only so CLI output does not depend on terminal Unicode support.

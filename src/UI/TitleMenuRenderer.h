@@ -39,6 +39,7 @@ enum class TitleMenuVisualPhase
 {
     PressStart,
     MainOptions,
+    Credits,
     Options,
     NewGameSlots,
     LoadSlots
@@ -99,6 +100,12 @@ public:
 private:
     struct Layout
     {
+        struct CreditEntry
+        {
+            std::string roleKey;
+            std::string name;
+        };
+
         std::string backgroundImagePath = "assets/e33_pixel_banner.png";
         std::string fontPath = "assets/fonts/arial_16.spritefont";
         std::string bgmTrackId;
@@ -136,8 +143,19 @@ private:
         float optionsFutureTagHeight = 20.0f;
         float slotStartY = 96.0f;
         float slotRowHeight = 76.0f;
+        float creditsPanelWidth = 760.0f;
+        float creditsPanelHeight = 330.0f;
+        float creditsPanelBottom = 52.0f;
+        float creditsTitleY = 34.0f;
+        float creditsStartY = 92.0f;
+        float creditsRowHeight = 46.0f;
+        float creditsRoleInset = 86.0f;
+        float creditsNameInset = 330.0f;
+        float creditsTitleScale = 1.2f;
+        float creditsTextScale = 0.94f;
         float flashDuration = 2.2f;
         float transitionFadeOutDuration = 0.0f;
+        std::vector<CreditEntry> credits;
     };
 
     bool LoadLayout(const std::string& layoutPath);
@@ -157,6 +175,8 @@ private:
                           const TitleMenuRenderState& state);
     void RenderMainOptions(ID3D11DeviceContext* context,
                            const TitleMenuRenderState& state);
+    void RenderCredits(ID3D11DeviceContext* context,
+                       const TitleMenuRenderState& state);
     void RenderOptions(ID3D11DeviceContext* context,
                        const TitleMenuRenderState& state);
     void RenderLoadSlots(ID3D11DeviceContext* context,

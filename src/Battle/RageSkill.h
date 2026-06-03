@@ -1,25 +1,25 @@
 // ============================================================
 // File: RageSkill.h
-// Responsibility: Rage burst — consume full rage bar for 2× ATK damage.
+// Responsibility: Legacy rage burst skill interface.
 //
-// Requires: caster.IsRageFull() == true
-// Effect:   rawDamage = caster.atk * 2; caster.rage reset to 0
+// Important:
+//   New data-driven rage finishers should use AttackSkill through
+//   SkillFactory when their JSON sets "mechanism": "attack".
 // ============================================================
 #pragma once
+
 #include "ISkill.h"
 
 class RageSkill : public ISkill
 {
 public:
-    std::string GetName()        const override;
+    std::string GetName() const override;
     std::string GetDescription() const override;
     std::string GetDebugName() const override;
     std::string GetDebugDescription() const override;
 
-    // Only usable when rage bar is completely full.
     bool CanUse(const IBattler& caster, const BattleContext& ctx) const override;
 
-    // Produces: LogAction + DamageAction + RageResetAction (inline lambda action)
     std::vector<std::unique_ptr<IAction>> Execute(
         IBattler& caster,
         std::vector<IBattler*>& targets,

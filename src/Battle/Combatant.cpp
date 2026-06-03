@@ -37,25 +37,16 @@ const BattlerStats& Combatant::GetStats() const { return mStats; }
 // ------------------------------------------------------------
 // TakeDamage
 //   Receives pre-calculated effective damage from IDamageCalculator evaluation.
-//   Rage is split: attacker gains more (rewarding aggression), defender gains
-//   less (rewarding survival + triggering RageSkill after taking punishment).
+//   Resource gains are applied by the calling damage action after this method
+//   completes, because the action knows which resource rules should apply.
 // ------------------------------------------------------------
-void Combatant::TakeDamage(const DamageResult& result, IBattler* source)
+void Combatant::TakeDamage(const DamageResult& result, IBattler* /*source*/)
 {
     mStats.hp -= result.effectiveDamage;
     mStats.ClampHp();
 
     LOG("%s takes %d damage (raw=%d def=%d) HP=%d/%d",
         mDebugName.c_str(), result.effectiveDamage, result.rawDamage, result.defenseUsed, mStats.hp, mStats.maxHp);
-
-    // Receiver gains rage from the pain of being hit.
-    mStats.AddRage(result.effectiveDamage / 8);
-
-    // Attacker gains more rage from landing the blow.
-    if (source)
-    {
-        source->GetStats().AddRage(result.effectiveDamage / 4);
-    }
 
     // Broadcast HP change immediately so UI reacts precisely when damage occurs.
     const std::string eventName = (mName == "Verso") ? "verso_hp_changed" : mName + "_hp_changed";
@@ -100,7 +91,7 @@ void Combatant::AddEffect(std::unique_ptr<IStatusEffect> effect)
         }
     }
 
-    // Apply the effect immediately — it may push stat modifiers via
+    // Apply the effect immediately - it may push stat modifiers via
     // AddStatModifier or begin a countdown.  Then store it.
     effect->Apply(*this);
     LOG("%s afflicted with: %s", mDebugName.c_str(), effect->GetName());
@@ -123,7 +114,7 @@ std::vector<StatusEffectView> Combatant::GetStatusEffectViews() const
 // Used by Cleanse items and by any "reset combatant state" flow.
 //
 // Revert() MUST run before erasing so StatModifier entries pushed in
-// Apply() are stripped from the battler — otherwise a buff's bonus
+// Apply() are stripped from the battler - otherwise a buff's bonus
 // would persist forever when an effect is removed mid-duration.
 // ------------------------------------------------------------
 void Combatant::ClearAllStatusEffects()
@@ -140,7 +131,7 @@ void Combatant::ClearAllStatusEffects()
 
 // ------------------------------------------------------------
 // AddStatModifier: append a fully-constructed modifier.
-// No deduplication — an effect that wants to replace an earlier
+// No deduplication - an effect that wants to replace an earlier
 // modifier must call RemoveStatModifiersBySource first.
 // ------------------------------------------------------------
 void Combatant::AddStatModifier(const StatModifier& mod)
@@ -155,7 +146,7 @@ void Combatant::AddStatModifier(const StatModifier& mod)
 // ------------------------------------------------------------
 void Combatant::RemoveStatModifiersBySource(int sourceId)
 {
-    // Skip the work when sourceId is 0 — that is the "unassigned" sentinel
+    // Skip the work when sourceId is 0 - that is the "unassigned" sentinel
     // and would match every default-constructed modifier, which is wrong.
     if (sourceId == 0) return;
 
@@ -172,7 +163,7 @@ const std::vector<StatModifier>& Combatant::GetStatModifiers() const
 
 void Combatant::OnTurnStart()
 {
-    // Base no-op — subclasses may override for regen, burn, etc.
+    // Base no-op - subclasses may override for regen, burn, etc.
 }
 
 std::vector<std::unique_ptr<IAction>> Combatant::BuildTurnStartActions(const BattleContext& ctx)

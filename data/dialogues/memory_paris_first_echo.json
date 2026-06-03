@@ -1,0 +1,21 @@
+{
+  "id": "memory_paris_first_echo",
+  "completionFlag": "dialogue_completed:memory_paris_first_echo",
+  "skippable": true,
+  "lines": [
+    {
+      "speakerId": "memory",
+      "speakerKey": "dialogue.speaker.memory",
+      "speakerName": "Memory",
+      "textKey": "dialogue.memory_paris_first_echo.line_1",
+      "text": "Expedition 32 reached this road with four blades and no map."
+    },
+    {
+      "speakerId": "memory",
+      "speakerKey": "dialogue.speaker.memory",
+      "speakerName": "Memory",
+      "textKey": "dialogue.memory_paris_first_echo.line_2",
+      "text": "Their last note says the first scout only attacks what still remembers its name."
+    }
+  ]
+}

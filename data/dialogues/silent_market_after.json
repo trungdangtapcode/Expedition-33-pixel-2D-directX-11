@@ -1,0 +1,28 @@
+{
+  "id": "silent_market_after",
+  "completionFlag": "dialogue_completed:silent_market_after",
+  "skippable": false,
+  "lines": [
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.silent_market_after.maelle_1",
+      "text": "They were not guarding goods. They were guarding the road itself."
+    },
+    {
+      "speakerId": "Verso",
+      "speakerKey": "party.member.Verso",
+      "speakerName": "Verso",
+      "textKey": "dialogue.silent_market_after.verso_1",
+      "text": "Then the road remembers where the next lock is."
+    },
+    {
+      "speakerId": "Maelle",
+      "speakerKey": "party.member.Maelle",
+      "speakerName": "Maelle",
+      "textKey": "dialogue.silent_market_after.maelle_2",
+      "text": "North-east. A crossing, then glass. Keep your MP ready."
+    }
+  ]
+}

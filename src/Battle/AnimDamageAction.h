@@ -1,7 +1,7 @@
 // ============================================================
 // File: AnimDamageAction.h
-// Responsibility: Plays an animation and applies damage at a specific
-//                 normalized time progress.
+// Responsibility: Plays an animation and applies one or more damage
+//                 requests at a specific normalized time progress.
 //
 // Context wiring:
 //   Stores a non-owning const BattleContext* (same rules as DamageAction).
@@ -14,6 +14,7 @@
 #include "IBattler.h"
 #include "CombatantAnim.h"
 #include "IDamageCalculator.h"
+#include <vector>
 
 struct BattleContext;
 
@@ -24,6 +25,10 @@ public:
                      CombatantAnim animType,
                      float damageMoment,
                      const BattleContext* ctx = nullptr);
+    AnimDamageAction(std::vector<DamageRequest> requests,
+                     CombatantAnim animType,
+                     float damageMoment,
+                     const BattleContext* ctx = nullptr);
 
     bool Execute(float dt) override;
 
@@ -31,7 +36,7 @@ public:
     void SetContext(const BattleContext* ctx) { mCtx = ctx; }
 
 private:
-    DamageRequest        mRequest;
+    std::vector<DamageRequest> mRequests;
     CombatantAnim        mAnimType;
     float                mDamageMoment;
     const BattleContext* mCtx = nullptr;

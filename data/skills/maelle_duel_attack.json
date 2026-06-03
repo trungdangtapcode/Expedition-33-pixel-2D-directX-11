@@ -1,0 +1,22 @@
+{
+  "id": "maelle_duel_attack",
+  "kind": "attack",
+  "iconId": "attack",
+  "nameKey": "skill.maelle_duel_attack.name",
+  "descriptionKey": "skill.maelle_duel_attack.description",
+  "damageType": "physical",
+  "targeting": "single_enemy",
+  "moveDuration": 0.35,
+  "returnDuration": 0.35,
+  "meleeOffset": 72.0,
+  "damageTakenOccurMoment": 0.70,
+  "bulletHellSupported": true,
+  "bulletHellPatternSelection": "random_no_repeat",
+  "bulletHellPatternPaths": [
+    "data/bullet_patterns/sine_wave.json",
+    "data/bullet_patterns/archer_pattern.json"
+  ],
+  "uiSortGroup": "basic",
+  "hitCount": 1,
+  "damageGradeKey": "battle.damage_grade.medium"
+}

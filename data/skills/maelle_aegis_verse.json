@@ -4,8 +4,8 @@
   "iconId": "guard_up",
   "nameKey": "skill.maelle_aegis_verse.name",
   "descriptionKey": "skill.maelle_aegis_verse.description",
-  "targeting": "self",
-  "mpCost": 9,
+  "targeting": "all_allies",
+  "mpCost": 14,
   "statusEffectId": "guard_up",
   "uiSortGroup": "support",
   "hitCount": 0

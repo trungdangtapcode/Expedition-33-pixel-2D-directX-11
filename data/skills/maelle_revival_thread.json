@@ -1,0 +1,13 @@
+{
+  "id": "maelle_revival_thread",
+  "kind": "revive",
+  "effect": "revive",
+  "iconId": "revive",
+  "nameKey": "skill.maelle_revival_thread.name",
+  "descriptionKey": "skill.maelle_revival_thread.description",
+  "targeting": "single_ally_any",
+  "mpCost": 18,
+  "amount": 35,
+  "uiSortGroup": "support",
+  "hitCount": 0
+}

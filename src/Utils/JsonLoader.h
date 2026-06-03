@@ -1215,9 +1215,19 @@ inline bool LoadBattleResultLayout(const std::string& path, BattleResultLayout& 
 
 struct BattleSystemConfig {
     float qteSlowMoScale = 0.1f;
+    int maxQteNodes = 8;
     float qteFadeInRatio = 0.15f;
     float qteFadeOutDuration = 0.20f;
     float qteCameraZoom = 1.4f;
+    float qtePromptRadius = 79.0f;
+    float qteFrameTextureSize = 256.0f;
+    int qteQueueVisibleAheadCount = 2;
+    float qteChainAnchorXRatio = 0.52f;
+    float qteChainAnchorYRatio = 0.48f;
+    float qteChainPreviewScale = 0.20f;
+    float qteChainPreviewActiveScale = 0.28f;
+    float qteChainPreviewSpacing = 38.0f;
+    float qteChainPreviewOffsetY = 150.0f;
     std::string qteStartSfxId;
     std::string qteMissSfxId;
     std::string qteGoodSfxId;
@@ -1254,9 +1264,31 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
     detail::WarnIfUTF16(src, path);
 
     out.qteSlowMoScale = detail::ParseFloat(detail::ValueOf(src, "qteSlowMoScale"), 0.1f);
+    out.maxQteNodes = detail::ParseInt(detail::ValueOf(src, "maxQteNodes"), 8);
+    if (out.maxQteNodes < 1) out.maxQteNodes = 1;
     out.qteFadeInRatio = detail::ParseFloat(detail::ValueOf(src, "qteFadeInRatio"), 0.15f);
     out.qteFadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "qteFadeOutDuration"), 0.20f);
     out.qteCameraZoom = detail::ParseFloat(detail::ValueOf(src, "qteCameraZoom"), 1.4f);
+    out.qtePromptRadius = detail::ParseFloat(detail::ValueOf(src, "qtePromptRadius"), out.qtePromptRadius);
+    out.qteFrameTextureSize = detail::ParseFloat(detail::ValueOf(src, "qteFrameTextureSize"), out.qteFrameTextureSize);
+    out.qteQueueVisibleAheadCount = detail::ParseInt(detail::ValueOf(src, "qteQueueVisibleAheadCount"), out.qteQueueVisibleAheadCount);
+    out.qteChainAnchorXRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorXRatio"), out.qteChainAnchorXRatio);
+    out.qteChainAnchorYRatio = detail::ParseFloat(detail::ValueOf(src, "qteChainAnchorYRatio"), out.qteChainAnchorYRatio);
+    out.qteChainPreviewScale = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewScale"), out.qteChainPreviewScale);
+    out.qteChainPreviewActiveScale = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewActiveScale"), out.qteChainPreviewActiveScale);
+    out.qteChainPreviewSpacing = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewSpacing"), out.qteChainPreviewSpacing);
+    out.qteChainPreviewOffsetY = detail::ParseFloat(detail::ValueOf(src, "qteChainPreviewOffsetY"), out.qteChainPreviewOffsetY);
+    if (out.qtePromptRadius < 1.0f) out.qtePromptRadius = 1.0f;
+    if (out.qteFrameTextureSize < 1.0f) out.qteFrameTextureSize = 1.0f;
+    if (out.qteQueueVisibleAheadCount < 0) out.qteQueueVisibleAheadCount = 0;
+    if (out.qteQueueVisibleAheadCount > out.maxQteNodes - 1) out.qteQueueVisibleAheadCount = out.maxQteNodes - 1;
+    if (out.qteChainAnchorXRatio < 0.0f) out.qteChainAnchorXRatio = 0.0f;
+    if (out.qteChainAnchorXRatio > 1.0f) out.qteChainAnchorXRatio = 1.0f;
+    if (out.qteChainAnchorYRatio < 0.0f) out.qteChainAnchorYRatio = 0.0f;
+    if (out.qteChainAnchorYRatio > 1.0f) out.qteChainAnchorYRatio = 1.0f;
+    if (out.qteChainPreviewScale < 0.05f) out.qteChainPreviewScale = 0.05f;
+    if (out.qteChainPreviewActiveScale < out.qteChainPreviewScale) out.qteChainPreviewActiveScale = out.qteChainPreviewScale;
+    if (out.qteChainPreviewSpacing < 1.0f) out.qteChainPreviewSpacing = 1.0f;
 
     const std::string qteStartSfx = detail::ValueOf(src, "qteStartSfxId");
     if (!qteStartSfx.empty()) {
@@ -1299,6 +1331,9 @@ inline bool LoadBattleSystemConfig(const std::string& path, BattleSystemConfig& 
 struct SkillData {
     std::string id;
     std::string kind = "attack";
+    std::string effect;
+    std::string mechanism;
+    std::string attackMotion = "melee";
     std::string nameKey;
     std::string descriptionKey;
     std::string iconId;
@@ -1308,11 +1343,20 @@ struct SkillData {
     std::string uiSortGroup;
     std::string damageGradeKey;
     std::vector<std::string> extraRuleKeys;
+    std::string effectTiming;
+    std::string rageGainRule;
+    std::string reactionWindowPath;
     int mpCost = 0;
+    int rageCost = 0;
+    int amount = 0;
     int hitCount = 1;
     bool requiresFullRage = false;
     bool consumesAllRage = false;
     float skillMultiplier = 1.0f;
+    int flatBonus = 0;
+    float mpRestorePercent = 0.0f;
+    std::string mpRestoreTiming = "after_damage";
+    bool grantsRage = true;
     float statusChance = 1.0f;
     float moveDuration = 0.5f;
     float returnDuration = 0.5f;
@@ -1334,7 +1378,10 @@ struct SkillData {
     float bonusQteCount = 0.0f;
     int qteMinCount = 1;
     int qteMaxCount = 1;
+    std::string qteTimingFlow = "staggered";
+    float qteLeadInSeconds = 0.0f;
     float qteSpacing = 0.15f;
+    float qteNodeDuration = 0.45f;
 };
 
 inline bool LoadSkillData(const std::string& path, SkillData& out)
@@ -1365,6 +1412,10 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.id = detail::CleanString(detail::ValueOf(src, "id"));
     const std::string kind = detail::CleanString(detail::ValueOf(src, "kind"));
     out.kind = kind.empty() ? "attack" : kind;
+    out.effect = detail::CleanString(detail::ValueOf(src, "effect"));
+    out.mechanism = detail::CleanString(detail::ValueOf(src, "mechanism"));
+    const std::string attackMotion = detail::CleanString(detail::ValueOf(src, "attackMotion"));
+    out.attackMotion = attackMotion.empty() ? "melee" : attackMotion;
     out.nameKey = detail::CleanString(detail::ValueOf(src, "nameKey"));
     out.descriptionKey = detail::CleanString(detail::ValueOf(src, "descriptionKey"));
     out.iconId = detail::CleanString(detail::ValueOf(src, "iconId"));
@@ -1376,11 +1427,21 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.uiSortGroup = detail::CleanString(detail::ValueOf(src, "uiSortGroup"));
     out.damageGradeKey = detail::CleanString(detail::ValueOf(src, "damageGradeKey"));
     out.extraRuleKeys = detail::ExtractStringArray(src, "extraRuleKeys");
+    out.effectTiming = detail::CleanString(detail::ValueOf(src, "effectTiming"));
+    out.rageGainRule = detail::CleanString(detail::ValueOf(src, "rageGainRule"));
+    out.reactionWindowPath = detail::CleanString(detail::ValueOf(src, "reactionWindowPath"));
     out.mpCost = detail::ParseInt(detail::ValueOf(src, "mpCost"), 0);
+    out.rageCost = detail::ParseInt(detail::ValueOf(src, "rageCost"), 0);
+    out.amount = detail::ParseInt(detail::ValueOf(src, "amount"), 0);
     out.hitCount = detail::ParseInt(detail::ValueOf(src, "hitCount"), 1);
     out.requiresFullRage = detail::ParseBool(detail::ValueOf(src, "requiresFullRage"), false);
     out.consumesAllRage = detail::ParseBool(detail::ValueOf(src, "consumesAllRage"), false);
     out.skillMultiplier = detail::ParseFloat(detail::ValueOf(src, "skillMultiplier"), 1.0f);
+    out.flatBonus = detail::ParseInt(detail::ValueOf(src, "flatBonus"), 0);
+    out.mpRestorePercent = detail::ParseFloat(detail::ValueOf(src, "mpRestorePercent"), 0.0f);
+    const std::string mpRestoreTiming = detail::CleanString(detail::ValueOf(src, "mpRestoreTiming"));
+    out.mpRestoreTiming = mpRestoreTiming.empty() ? "after_damage" : mpRestoreTiming;
+    out.grantsRage = detail::ParseBool(detail::ValueOf(src, "grantsRage"), true);
     out.statusChance = detail::ParseFloat(detail::ValueOf(src, "statusChance"), 1.0f);
     out.moveDuration = detail::ParseFloat(detail::ValueOf(src, "moveDuration"), 0.5f);
     out.returnDuration = detail::ParseFloat(detail::ValueOf(src, "returnDuration"), 0.5f);
@@ -1407,12 +1468,79 @@ inline bool LoadSkillData(const std::string& path, SkillData& out)
     out.bonusQteCount = detail::ParseFloat(detail::ValueOf(src, "bonusQteCount"), 0.0f);
     out.qteMinCount = detail::ParseInt(detail::ValueOf(src, "qteMinCount"), 1);
     out.qteMaxCount = detail::ParseInt(detail::ValueOf(src, "qteMaxCount"), 1);
+    const std::string qteTimingFlow = detail::CleanString(detail::ValueOf(src, "qteTimingFlow"));
+    out.qteTimingFlow = qteTimingFlow.empty() ? "staggered" : qteTimingFlow;
+    out.qteLeadInSeconds = detail::ParseFloat(detail::ValueOf(src, "qteLeadInSeconds"), 0.0f);
     out.qteSpacing = detail::ParseFloat(detail::ValueOf(src, "qteSpacing"), 0.15f);
+    out.qteNodeDuration = detail::ParseFloat(detail::ValueOf(src, "qteNodeDuration"), 0.45f);
+    if (out.qteLeadInSeconds < 0.0f) out.qteLeadInSeconds = 0.0f;
+    if (out.qteSpacing < 0.01f) out.qteSpacing = 0.01f;
+    if (out.qteNodeDuration < 0.05f) out.qteNodeDuration = 0.05f;
 
     LOG("[JsonLoader] Loaded SkillData from '%s' (resolved '%s'). mMoment=%f",
         path.c_str(),
         resolvedPath.string().c_str(),
         out.damageTakenOccurMoment);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: LoadReactionWindowData
+// Purpose:
+//   Parse a data/reaction_windows/*.json file that configures one
+//   defensive timing prompt for an incoming enemy attack.
+// ------------------------------------------------------------
+struct ReactionWindowData {
+    std::string id = "reaction";
+    std::string inputKey = "space";
+    float startMoment = 0.30f;
+    float damageMoment = 0.62f;
+    float goodThreshold = 0.55f;
+    float perfectThreshold = 0.82f;
+    float perfectDamageMultiplier = 0.0f;
+    float goodDamageMultiplier = 0.35f;
+    float missDamageMultiplier = 1.0f;
+    float fadeInRatio = 0.15f;
+    float fadeOutDuration = 0.20f;
+};
+
+inline bool LoadReactionWindowData(const std::string& path, ReactionWindowData& out)
+{
+    namespace fs = std::filesystem;
+    fs::path resolvedPath(path);
+    std::ifstream file(resolvedPath);
+
+    if (!file.is_open() && !resolvedPath.is_absolute()) {
+        resolvedPath = fs::path("..") / path;
+        file.clear();
+        file.open(resolvedPath);
+    }
+    if (!file.is_open()) {
+        LOG("[JsonLoader] Cannot open reaction window file: '%s'", path.c_str());
+        return false;
+    }
+
+    std::ostringstream buf;
+    buf << file.rdbuf();
+    const std::string src = buf.str();
+    detail::WarnIfUTF16(src, path);
+
+    const std::string id = detail::CleanString(detail::ValueOf(src, "id"));
+    if (!id.empty()) out.id = id;
+    const std::string inputKey = detail::CleanString(detail::ValueOf(src, "inputKey"));
+    if (!inputKey.empty()) out.inputKey = inputKey;
+
+    out.startMoment = detail::ParseFloat(detail::ValueOf(src, "startMoment"), out.startMoment);
+    out.damageMoment = detail::ParseFloat(detail::ValueOf(src, "damageMoment"), out.damageMoment);
+    out.goodThreshold = detail::ParseFloat(detail::ValueOf(src, "goodThreshold"), out.goodThreshold);
+    out.perfectThreshold = detail::ParseFloat(detail::ValueOf(src, "perfectThreshold"), out.perfectThreshold);
+    out.perfectDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "perfectDamageMultiplier"), out.perfectDamageMultiplier);
+    out.goodDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "goodDamageMultiplier"), out.goodDamageMultiplier);
+    out.missDamageMultiplier = detail::ParseFloat(detail::ValueOf(src, "missDamageMultiplier"), out.missDamageMultiplier);
+    out.fadeInRatio = detail::ParseFloat(detail::ValueOf(src, "fadeInRatio"), out.fadeInRatio);
+    out.fadeOutDuration = detail::ParseFloat(detail::ValueOf(src, "fadeOutDuration"), out.fadeOutDuration);
+
+    LOG("[JsonLoader] Loaded ReactionWindowData from '%s'.", resolvedPath.string().c_str());
     return true;
 }
 

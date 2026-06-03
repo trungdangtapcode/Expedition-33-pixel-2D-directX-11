@@ -2,7 +2,7 @@
   "defaultAreaKey": "story.default_area",
   "defaultArea": "Ashen Meadow",
   "defaultObjectiveKey": "story.default_objective",
-  "defaultObjective": "Follow the dirt roads to recover the lost campfires, then confront the mirror at the eastern gate.",
+  "defaultObjective": "Start alone on the Paris road. Defeat the scout, then find the voice waiting beyond the boulevard.",
   "defaultThemeId": "ashen_meadow",
   "regions": [
     {
@@ -11,7 +11,7 @@
       "nameKey": "story.region.paris_square.name",
       "name": "Rue Cendre",
       "objectiveKey": "story.region.paris_square.objective",
-      "objective": "Paris is quiet. Talk to Maelle before leaving the square by the eastern boulevard.",
+      "objective": "Paris is quiet. Verso starts alone; follow the road east and survive the first scout.",
       "minX": -640.0,
       "minY": -520.0,
       "maxX": 640.0,
@@ -23,7 +23,7 @@
       "nameKey": "story.region.meadow_wake.name",
       "name": "Meadow Wake",
       "objectiveKey": "story.region.meadow_wake.objective",
-      "objective": "The first campfire is alive. Follow the eastern road and find what broke the village.",
+      "objective": "The first campfire is alive. Defeat the road scout, then follow the boulevard toward Maelle's signal.",
       "minX": -720.0,
       "minY": -560.0,
       "maxX": 760.0,

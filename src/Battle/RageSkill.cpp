@@ -1,12 +1,15 @@
 // ============================================================
 // File: RageSkill.cpp
+// Responsibility: Legacy rage burst skill implementation.
 // ============================================================
 #include "RageSkill.h"
+#include "BattleResourceRules.h"
+#include "BattleContext.h"
+#include "DamageAction.h"
 #include "IBattler.h"
 #include "IAction.h"
-#include "DamageAction.h"
 #include "LogAction.h"
-#include "BattleContext.h"
+#include "RageSpendAction.h"
 #include "../Systems/LocalizationManager.h"
 
 std::string RageSkill::GetName() const
@@ -31,8 +34,8 @@ std::string RageSkill::GetDebugDescription() const
 
 bool RageSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
-    // Gated on a full rage bar; prevents accidental activation.
-    return caster.GetStats().IsRageFull();
+    BattleResourceRules::Get().EnsureLoaded();
+    return caster.GetStats().rage >= BattleResourceRules::Get().RageCostForSkill("rage_burst");
 }
 
 std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
@@ -41,7 +44,6 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
     const BattleContext& ctx) const
 {
     std::vector<std::unique_ptr<IAction>> actions;
-
     if (targets.empty()) return actions;
 
     IBattler* target = targets[0];
@@ -49,8 +51,9 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
     DamageRequest req;
     req.attacker = &caster;
     req.defender = target;
-    req.type = DamageType::Physical; // Or TrueDamage/Magical if needed
-    req.skillMultiplier = 2.0f;      // Double damage
+    req.type = DamageType::Physical;
+    req.skillMultiplier = 2.0f;
+    req.grantsRage = false;
 
     actions.push_back(std::make_unique<LogAction>(
         nullptr,
@@ -65,20 +68,12 @@ std::vector<std::unique_ptr<IAction>> RageSkill::Execute(
         })
     ));
 
-    // Pass &ctx so the calculator reads the attacker's buffed ATK at execution.
+    BattleResourceRules::Get().EnsureLoaded();
+    actions.push_back(std::make_unique<RageSpendAction>(
+        &caster,
+        BattleResourceRules::Get().RageCostForSkill("rage_burst"),
+        true));
     actions.push_back(std::make_unique<DamageAction>(req, &ctx));
-
-    // Reset rage to 0 after the burst — captured by pointer, safe because
-    // caster outlives the ActionQueue (BattleManager owns both).
-    struct RageResetAction : public IAction {
-        IBattler* mCaster;
-        explicit RageResetAction(IBattler* c) : mCaster(c) {}
-        bool Execute(float) override {
-            mCaster->GetStats().rage = 0;
-            return true;
-        }
-    };
-    actions.push_back(std::make_unique<RageResetAction>(&caster));
 
     return actions;
 }

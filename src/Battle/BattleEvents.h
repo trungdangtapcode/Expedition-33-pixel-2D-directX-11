@@ -48,19 +48,38 @@ enum class QTEResult {
     Perfect
 };
 
-#define MAX_QTE_NODES 8
+enum class QTEPresentationMode {
+    Staggered,
+    Queued,
+    Chain
+};
+
+namespace BattleEventLimits
+{
+    constexpr int MaxQteNodes = 8;
+}
 
 struct QTEStatePayload
 {
     bool isActive = false;
-    float progressRatios[MAX_QTE_NODES] = {0}; // 0.0 to 1.0 per node
-    QTEResult results[MAX_QTE_NODES];
+    float progressRatios[BattleEventLimits::MaxQteNodes] = {0}; // 0.0 to 1.0 per node
+    QTEResult results[BattleEventLimits::MaxQteNodes] = {};
     QTEResult result = QTEResult::None; // Legacy callback compat
     IBattler* target = nullptr; // the character currently performing the attack
     int activeIndex = 0;
     int totalCount = 1;
     float fadeInRatio = 0.15f; 
     float fadeOutDuration = 0.20f;
+    float promptRadius = 79.0f;
+    float frameTextureSize = 256.0f;
+    QTEPresentationMode presentationMode = QTEPresentationMode::Staggered;
+    int queueVisibleAheadCount = 2;
+    float chainAnchorXRatio = 0.52f;
+    float chainAnchorYRatio = 0.48f;
+    float chainPreviewScale = 0.20f;
+    float chainPreviewActiveScale = 0.28f;
+    float chainPreviewSpacing = 38.0f;
+    float chainPreviewOffsetY = 150.0f;
 };
 
 struct DamageTakenPayload

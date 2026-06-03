@@ -1,0 +1,30 @@
+{
+  "comment": "Story duel against Maelle before she joins the party.",
+
+  "nameKey": "enemy.maelle_duel.name",
+  "name": "Maelle",
+  "texturePath": "assets/animations/maelle.png",
+  "jsonPath": "assets/animations/maelle.json",
+  "idleClip": "idle",
+  "contactRadius": 100.0,
+  "environmentPath": "assets/environments/battle-paris-view.json",
+  "bgmTrackId": "maelle_duel",
+  "victoryBgmTrackId": "maelle_duel_victory",
+
+  "battleParty": [
+    {
+      "texturePath": "assets/animations/maelle.png",
+      "jsonPath": "assets/animations/maelle.json",
+      "turnViewPath": "assets/UI/turn-view-maelle.png",
+      "idleClip": "fight-state",
+      "hp": 125,
+      "atk": 13,
+      "def": 4,
+      "spd": 11,
+      "expReward": 120,
+      "coinReward": 45,
+      "attackJsonPath": "data/skills/maelle_duel_attack.json",
+      "cameraFocusOffsetY": -128.0
+    }
+  ]
+}

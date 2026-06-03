@@ -1,4 +1,5 @@
 #include "BulletHellAction.h"
+#include "BattleResourceRules.h"
 #include "EnemyCombatant.h"
 #include "DamageSteps.h"
 #include "DefaultDamageCalculator.h"
@@ -100,7 +101,11 @@ void BulletHellAction::ApplyDamage(float overrideScaling)
     res.effectiveDamage = (int)(res.effectiveDamage * overrideScaling);
     if (res.effectiveDamage < 1) res.effectiveDamage = 1;
 
+    const bool defenderWasAlive = mDefender->IsAlive();
     mDefender->TakeDamage(res, mAttacker);
+    const bool defenderWasKilled = defenderWasAlive && !mDefender->IsAlive();
+    BattleResourceRules::Get().EnsureLoaded();
+    BattleResourceRules::Get().GrantDamageRage(mAttacker, mDefender, res, defenderWasKilled);
     
     EventData ed;
     DamageTakenPayload payload{ mDefender, res.effectiveDamage, false, false };

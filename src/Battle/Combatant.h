@@ -3,21 +3,21 @@
 // Responsibility: Base IBattler implementation shared by all battle participants.
 //
 // Owns:
-//   BattlerStats          — current combat numerics (value member, no heap alloc)
-//   vector<unique_ptr<IStatusEffect>> — active effects; purged on expiry
+//   BattlerStats - current combat numerics stored by value.
+//   vector<unique_ptr<IStatusEffect>> - active effects, purged on expiry.
 //
 // Subclasses:
-//   PlayerCombatant — adds skill list, awaits UI input for skill selection
-//   EnemyCombatant  — adds simple AI to choose target + skill
+//   PlayerCombatant - adds skill list and awaits UI input.
+//   EnemyCombatant  - adds simple AI to choose target and skill.
 //
 // Lifetime:
-//   Owned by BattleManager in two fixed-size arrays (teams).
+//   Owned by BattleManager in two fixed-size arrays.
 //   Lives for the duration of one BattleState session.
 // ============================================================
 #pragma once
+#include <memory>
 #include <string>
 #include <vector>
-#include <memory>
 #include "IBattler.h"
 #include "BattlerStats.h"
 #include "IStatusEffect.h"
@@ -27,7 +27,7 @@ class Combatant : public IBattler
 {
 public:
     // ------------------------------------------------------------
-    // Constructor: name + fully initialised stats struct.
+    // Constructor: name + fully initialized stats struct.
     // ------------------------------------------------------------
     explicit Combatant(std::string name,
                        std::wstring turnViewPath,
@@ -44,9 +44,9 @@ public:
 
     // ------------------------------------------------------------
     // TakeDamage:
-    //   effective = max(1, rawDamage - target.def)  ← always deals at least 1
-    //   source.rage += effective / 4                ← attacker gains rage
-    //   target.rage += effective / 8                ← receiver gains rage from pain
+    //   Applies HP loss, death animation, and damage events only.
+    //   Resource gains are handled by the calling damage action after
+    //   final damage is known.
     // ------------------------------------------------------------
     void TakeDamage(const DamageResult& result, IBattler* source) override;
 
@@ -55,12 +55,12 @@ public:
     bool HasAnyStatusEffect() const override { return !mEffects.empty(); }
     std::vector<StatusEffectView> GetStatusEffectViews() const override;
 
-    // Stat modifier storage — see IBattler for the pipeline contract.
+    // Stat modifier storage - see IBattler for the pipeline contract.
     void AddStatModifier(const StatModifier& mod) override;
     void RemoveStatModifiersBySource(int sourceId) override;
     const std::vector<StatModifier>& GetStatModifiers() const override;
 
-    // OnTurnStart: currently a no-op base — subclasses may override.
+    // OnTurnStart: currently a no-op base; subclasses may override.
     void OnTurnStart() override;
 
     // OnTurnEnd: call OnTurnEnd(*this) on every effect, then purge expired.
@@ -69,26 +69,25 @@ public:
 
     bool IsAlive() const override;
 
-    // IsPlayerControlled is pure — subclasses declare their team.
+    // IsPlayerControlled is pure; subclasses declare their team.
     bool IsPlayerControlled() const override = 0;
 
 protected:
     // ------------------------------------------------------------
     // PurgeExpiredEffects:
     //   For each expired effect: call Revert(mStats), then erase.
-    //   Must be called at the END of OnTurnEnd — after all effects have
-    //   decremented their duration — so an effect that expires this turn
-    //   still had its OnTurnEnd logic run before being reverted.
+    //   Must be called at the end of OnTurnEnd so an effect that expires
+    //   this turn still runs its final tick logic before being reverted.
     // ------------------------------------------------------------
     void PurgeExpiredEffects();
 
-    std::string                              mName;
-    std::string                              mDebugName;
-    std::wstring                             mTurnViewPath;
-    BattlerStats                             mStats;
+    std::string mName;
+    std::string mDebugName;
+    std::wstring mTurnViewPath;
+    BattlerStats mStats;
     std::vector<std::unique_ptr<IStatusEffect>> mEffects;
 
-    // Active stat modifiers.  Populated by effects via AddStatModifier.
-    // Walked by StatResolver every time a combat formula asks for a stat.
-    std::vector<StatModifier>                mStatModifiers;
+    // Active stat modifiers. Effects push these through AddStatModifier,
+    // and StatResolver reads them for every formula stat lookup.
+    std::vector<StatModifier> mStatModifiers;
 };

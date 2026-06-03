@@ -6,13 +6,19 @@
 #include "../Entities/ControllableCharacter.h"
 #include "../Entities/OverworldEnemy.h"
 #include "../Entities/CheckpointCampfire.h"
+#include "../Entities/OverworldMemoryShard.h"
 #include "../Entities/OverworldStaticProp.h"
 #include "../Entities/OverworldNpc.h"
 #include "../Battle/EnemyEncounterData.h"
 #include "../UI/BattleTextRenderer.h"
 #include "../UI/CurrencyHudRenderer.h"
+#include "../UI/ObjectiveBeaconRenderer.h"
+#include "../UI/ObjectiveTrackerRenderer.h"
 #include "../Renderer/ColorGradeFilter.h"
+#include "../Systems/ObjectiveDirector.h"
+#include "../Systems/StoryDirector.h"
 #include <memory>
+#include <deque>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -70,6 +76,9 @@ struct OverworldEnemySpawnData
 {
     std::string id;
     std::string encounterPath;
+    std::vector<std::string> requiresFlags;
+    std::vector<std::string> blockedByFlags;
+    bool respawnAfterDefeat = false;
     float worldX = 0.0f;
     float worldY = 0.0f;
 };
@@ -157,6 +166,10 @@ private:
     // proximity checks and campfire-specific interaction input.
     std::vector<CheckpointCampfire*> mCampfires;
 
+    // Memory shards are SceneGraph-owned; this vector observes them for
+    // optional lore pickup prompts and one-time reward collection.
+    std::vector<OverworldMemoryShard*> mMemoryShards;
+
     // Story NPCs are SceneGraph-owned; this vector only observes them for
     // proximity prompts, dialogue triggers, and authored route gates.
     std::vector<OverworldNpc*> mNpcs;
@@ -173,6 +186,7 @@ private:
     // Stable spawn id for the pending enemy; saved as enemy_defeated:<id>
     // after battle victory so the enemy does not respawn on load.
     std::string mPendingEnemySpawnId;
+    std::string mPendingStoryBattleId;
 
     // Maps live SceneGraph-owned enemies back to data/overworld_spawns.json ids.
     // The map is cleared before SceneGraph destroys the entities.
@@ -199,17 +213,24 @@ private:
     bool mCWasDown = false;
     bool mUWasDown = false;
 
-    // Story objective text is data-driven by overworld_story.json so the map
-    // can communicate player motivation without hardcoding text in rendering.
+    // Story and objective text are data-driven so the map can communicate
+    // player motivation without hardcoding route logic in rendering.
     BattleTextRenderer mStoryTextRenderer;
     CurrencyHudRenderer mCurrencyHud;
+    ObjectiveBeaconRenderer mObjectiveBeacon;
+    ObjectiveTrackerRenderer mObjectiveTracker;
     std::vector<OverworldStoryRegion> mStoryRegions;
     std::string mDefaultArea = "Ashen Meadow";
     std::string mDefaultObjective = "Follow the dirt road to the eastern gate.";
     std::string mDefaultThemeId = "ashen_meadow";
+    ObjectiveView mCurrentObjectiveView;
     std::string mCurrentArea;
-    std::string mCurrentObjective;
+    std::string mCurrentObjectiveBody;
+    std::string mCurrentObjectiveHint;
     std::string mInteractionPrompt;
+    std::string mTimedPrompt;
+    float mTimedPromptTimer = 0.0f;
+    float mTimedPromptDuration = 2.5f;
 
     // ListenerID for "window_resized" - stored so we can Unsubscribe in OnExit.
     int mResizeListenerID = -1;
@@ -217,6 +238,9 @@ private:
     // ListenerID for "battle_end_victory" - marks the source overworld enemy
     // as defeated so SceneGraph::PurgeDead() removes it on the next frame.
     int mVictoryListenerID = -1;
+    int mDefeatListenerID = -1;
+    int mFleeListenerID = -1;
+    int mDialogueCompletedListenerID = -1;
 
     // ListenerID for "checkpoint_loaded" - campfire slot loads mutate managers
     // first, then this state rebuilds itself from the loaded snapshot.
@@ -227,16 +251,56 @@ private:
     bool LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& outSpawns) const;
     bool LoadStaticPropData(std::vector<OverworldStaticPropData>& outProps) const;
     bool LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const;
+    bool LoadMemoryShardData(std::vector<OverworldMemoryShardData>& outShards) const;
     bool LoadStoryData();
+    bool LoadFeedbackData();
+    bool IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const;
+    bool IsMemoryShardAvailable(const OverworldMemoryShardData& shard) const;
     CheckpointCampfire* FindNearbyCampfire(float px, float py) const;
     OverworldNpc* FindNearbyNpc(float px, float py) const;
+    OverworldMemoryShard* FindNearbyMemoryShard(float px, float py) const;
+    void RemoveMemoryShardObserver(OverworldMemoryShard* shard);
+    OverworldEnemy* FindNearbyEnemy(float px, float py) const;
+    OverworldEnemy* FindEnemyBySpawnId(const std::string& spawnId) const;
+    OverworldEnemy* FindObjectiveEnemyTarget(float px, float py) const;
     const OverworldStoryRegion* FindStoryRegion(float px, float py) const;
     void UpdateStoryRegion(float px, float py);
     void UpdateSavedOverworldSnapshot(const std::string& checkpointId, float px, float py);
     void ApplyNpcRouteBlocks(float px, float py);
+    void ApplyNpcVisibilityFlags();
+    bool BeginBattleTransition(const EnemyEncounterData& encounter,
+                               OverworldEnemy* enemySource,
+                               const std::string& enemySpawnId,
+                               const std::string& storyBattleId);
+    bool ExecuteStoryCommand(const StoryCommand& command);
+    bool ProcessStoryCommands(float dt);
+    bool ProcessQueuedStoryCommands(float dt);
+    bool BeginRuntimeStoryCommand(const StoryCommand& command);
+    bool UpdateRuntimeStoryCommand(float dt);
+    void FinishRuntimeStoryCommand();
+    void SetTimedPrompt(const std::string& text);
     bool HandleNpcInput(float px, float py);
+    bool HandleMemoryShardInput(float px, float py);
     void RenderStoryOverlay();
     void RenderInteractionPrompt();
     void RenderCurrencyOverlay();
     bool HandleCampfireInput(float px, float py);
+
+    StoryDirector mStoryDirector;
+    // ObjectiveDirector reads the same durable progress flags as save/load and
+    // StoryDirector, but never mutates them. It only returns HUD guidance.
+    ObjectiveDirector mObjectiveDirector;
+
+    // Story commands may include timed cutscene steps. A deque lets commands
+    // resume after DialogueState or BattleState pops without losing order.
+    std::deque<StoryCommand> mStoryCommandQueue;
+    StoryCommand mActiveStoryCommand;
+    bool mStoryCommandRunning = false;
+    bool mStoryPlayerControlLocked = false;
+    bool mStoryCameraManual = false;
+    float mStoryCommandTimer = 0.0f;
+    float mStoryMoveStartX = 0.0f;
+    float mStoryMoveStartY = 0.0f;
+    float mStoryCameraStartX = 0.0f;
+    float mStoryCameraStartY = 0.0f;
 };

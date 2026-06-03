@@ -4,7 +4,7 @@
   "iconId": "haste",
   "nameKey": "skill.maelle_quickstep.name",
   "descriptionKey": "skill.maelle_quickstep.description",
-  "targeting": "self",
+  "targeting": "single_ally",
   "mpCost": 8,
   "statusEffectId": "haste",
   "uiSortGroup": "support",

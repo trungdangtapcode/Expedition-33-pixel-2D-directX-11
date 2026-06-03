@@ -25,6 +25,8 @@ public:
     void Draw(ID3D11DeviceContext* context, float worldX, float worldY, 
               DirectX::CXMMATRIX transform);
 
+    void SetScreenSize(int screenW, int screenH);
+
     void Shutdown();
 
 private:
@@ -46,4 +48,5 @@ private:
     float mOffsetY = -128.0f;
     float mBobSpeed = 0.0f;
     float mBobAmplitude = 0.0f;
+    float mScale = 1.0f;
 };

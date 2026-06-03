@@ -1,0 +1,11 @@
+{
+  "enabled": true,
+  "texturePath": "assets/UI/objective_beacon_v3.png",
+  "layoutPath": "assets/UI/objective-beacon-ui.json",
+  "hideWithinDistanceUnits": 192.0,
+  "hideEnemyWithinDistanceUnits": 520.0,
+  "hideNpcWithinDistanceUnits": 420.0,
+  "hideOnScreenPaddingPx": 80.0,
+  "enemyDrawOffsetY": -96.0,
+  "npcDrawOffsetY": -80.0
+}

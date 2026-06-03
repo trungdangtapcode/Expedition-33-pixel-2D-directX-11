@@ -16,7 +16,9 @@
 // ============================================================
 #define NOMINMAX
 #include "CampfireState.h"
+#include "ExpeditionJournalState.h"
 #include "LineupState.h"
+#include "MemoryArchiveState.h"
 #include "StateManager.h"
 #include "../Audio/AudioManager.h"
 #include "../Events/EventManager.h"
@@ -39,8 +41,8 @@ namespace
 {
     constexpr float kFlashDuration = 2.0f;
     constexpr float kPanelW = 560.0f;
-    constexpr float kPanelH = 420.0f;
-    constexpr float kRowH = 42.0f;
+    constexpr float kPanelH = 460.0f;
+    constexpr float kRowH = 36.0f;
 }
 
 // ------------------------------------------------------------
@@ -180,6 +182,8 @@ std::string CampfireState::OptionLabel(MenuOption option)
     case MenuOption::Rest:     return LocalizationManager::Get().Text("campfire.rest");
     case MenuOption::Save:     return LocalizationManager::Get().Text("campfire.save_slot");
     case MenuOption::Load:     return LocalizationManager::Get().Text("campfire.load_slot");
+    case MenuOption::ExpeditionJournal: return LocalizationManager::Get().Text("campfire.expedition_journal");
+    case MenuOption::MemoryArchive: return LocalizationManager::Get().Text("campfire.memory_archive");
     case MenuOption::Training: return LocalizationManager::Get().Text("campfire.upgrade_party");
     case MenuOption::Lineup:   return LocalizationManager::Get().Text("campfire.lineup");
     case MenuOption::Exit:     return LocalizationManager::Get().Text("campfire.exit");
@@ -218,6 +222,16 @@ void CampfireState::ActivateSelection()
         mPhase = Phase::LoadSlotSelect;
         mSlotCursor = SaveManager::Get().GetActiveSlotIndex();
         AudioManager::Get().PlaySfx("ui_confirm");
+        break;
+
+    case MenuOption::ExpeditionJournal:
+        AudioManager::Get().PlaySfx("ui_confirm");
+        StateManager::Get().PushState(std::make_unique<ExpeditionJournalState>());
+        break;
+
+    case MenuOption::MemoryArchive:
+        AudioManager::Get().PlaySfx("ui_confirm");
+        StateManager::Get().PushState(std::make_unique<MemoryArchiveState>());
         break;
 
     case MenuOption::Training:

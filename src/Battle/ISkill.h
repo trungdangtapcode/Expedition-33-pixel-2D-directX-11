@@ -41,6 +41,7 @@ public:
     virtual SkillResourceKind GetResourceKind() const { return SkillResourceKind::None; }
     virtual SkillTargeting GetTargeting() const { return SkillTargeting::SingleEnemy; }
     virtual std::string GetKind() const { return std::string(); }
+    virtual std::string GetEffect() const { return std::string(); }
     virtual std::string GetDamageType() const { return std::string(); }
     virtual std::string GetStatusEffectId() const { return std::string(); }
     virtual std::string GetDamageGradeKey() const { return std::string(); }

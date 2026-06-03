@@ -1,0 +1,326 @@
+{
+  "events": [
+    {
+      "id": "maelle_confrontation_area",
+      "trigger": "enter_area",
+      "requiresFlags": [ "enemy_defeated:meadow_scout" ],
+      "blockedByFlags": [
+        "dialogue_completed:maelle_confrontation",
+        "story.maelle_joined"
+      ],
+      "onceFlag": "story.maelle_confrontation_started",
+      "minX": 940.0,
+      "minY": -340.0,
+      "maxX": 1180.0,
+      "maxY": 80.0,
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 1080.0,
+          "y": -160.0,
+          "duration": 0.55
+        },
+        {
+          "type": "move_player",
+          "x": 930.0,
+          "y": -120.0,
+          "duration": 0.65
+        },
+        {
+          "type": "wait",
+          "duration": 0.15
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/maelle_confrontation.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_after_confrontation",
+      "trigger": "dialogue_completed",
+      "triggerId": "maelle_confrontation",
+      "blockedByFlags": [
+        "story.maelle_duel_won",
+        "story.maelle_joined"
+      ],
+      "commands": [
+        {
+          "type": "start_battle",
+          "storyBattleId": "maelle_duel",
+          "encounterPath": "data/enemies/maelle_duel.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_reentry",
+      "trigger": "enter_area",
+      "requiresFlags": [ "dialogue_completed:maelle_confrontation" ],
+      "blockedByFlags": [
+        "story.maelle_duel_won",
+        "story.maelle_joined"
+      ],
+      "minX": 940.0,
+      "minY": -340.0,
+      "maxX": 1180.0,
+      "maxY": 80.0,
+      "commands": [
+        {
+          "type": "start_battle",
+          "storyBattleId": "maelle_duel",
+          "encounterPath": "data/enemies/maelle_duel.json"
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_victory",
+      "trigger": "battle_victory",
+      "triggerId": "maelle_duel",
+      "onceFlag": "story.maelle_duel_won",
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 1040.0,
+          "y": -140.0,
+          "duration": 0.45
+        },
+        {
+          "type": "wait",
+          "duration": 0.20
+        },
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_duel_won"
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/maelle_reconcile.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "maelle_duel_defeat_leave",
+      "trigger": "battle_defeat",
+      "triggerId": "maelle_duel",
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "commands": [
+        {
+          "type": "push_player",
+          "x": 820.0,
+          "y": -120.0
+        }
+      ]
+    },
+    {
+      "id": "maelle_recruit_after_reconcile",
+      "trigger": "dialogue_completed",
+      "triggerId": "maelle_reconcile",
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "commands": [
+        {
+          "type": "recruit_member",
+          "memberId": "maelle"
+        },
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_joined"
+        },
+        {
+          "type": "save_checkpoint",
+          "saveReason": "story_maelle_joined"
+        }
+      ]
+    },
+    {
+      "id": "maelle_recruit_repair",
+      "trigger": "on_load",
+      "requiresFlags": [
+        "story.maelle_duel_won",
+        "dialogue_completed:maelle_reconcile"
+      ],
+      "blockedByFlags": [ "story.maelle_joined" ],
+      "commands": [
+        {
+          "type": "recruit_member",
+          "memberId": "maelle"
+        },
+        {
+          "type": "set_flag",
+          "flagId": "story.maelle_joined"
+        },
+        {
+          "type": "save_checkpoint",
+          "saveReason": "story_maelle_joined"
+        }
+      ]
+    },
+    {
+      "id": "reward_meadow_scout",
+      "trigger": "battle_victory",
+      "triggerId": "meadow_scout",
+      "onceFlag": "reward.meadow_scout",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 20
+        },
+        {
+          "type": "grant_item",
+          "itemId": "potion_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_silent_market",
+      "trigger": "battle_victory",
+      "triggerId": "silent_market_ambush",
+      "onceFlag": "reward.silent_market_ambush",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 35
+        },
+        {
+          "type": "grant_item",
+          "itemId": "ether_small",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_western_watch",
+      "trigger": "battle_victory",
+      "triggerId": "western_watch_guard",
+      "onceFlag": "reward.western_watch_guard",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 30
+        },
+        {
+          "type": "grant_item",
+          "itemId": "potion_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "silent_market_after_battle_dialogue",
+      "trigger": "battle_victory",
+      "triggerId": "silent_market_ambush",
+      "onceFlag": "dialogue_started:silent_market_after",
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "wait",
+          "duration": 0.20
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/silent_market_after.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "reward_pilgrim_crossing",
+      "trigger": "battle_victory",
+      "triggerId": "pilgrim_crossing_patrol",
+      "onceFlag": "reward.pilgrim_crossing_patrol",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 45
+        },
+        {
+          "type": "grant_item",
+          "itemId": "phoenix_down",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "reward_glass_shrine",
+      "trigger": "battle_victory",
+      "triggerId": "glass_shrine_sentinel",
+      "onceFlag": "reward.glass_shrine_sentinel",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 40
+        },
+        {
+          "type": "grant_item",
+          "itemId": "ether_medium",
+          "amount": 1
+        }
+      ]
+    },
+    {
+      "id": "glass_shrine_memory_dialogue",
+      "trigger": "battle_victory",
+      "triggerId": "glass_shrine_sentinel",
+      "onceFlag": "dialogue_started:glass_shrine_memory",
+      "commands": [
+        {
+          "type": "set_player_control",
+          "enabled": false
+        },
+        {
+          "type": "focus_camera",
+          "x": 840.0,
+          "y": 1860.0,
+          "duration": 0.50
+        },
+        {
+          "type": "start_dialogue",
+          "dialoguePath": "data/dialogues/glass_shrine_memory.json"
+        },
+        {
+          "type": "set_player_control",
+          "enabled": true
+        }
+      ]
+    },
+    {
+      "id": "reward_mirror_gate",
+      "trigger": "battle_victory",
+      "triggerId": "mirror_gate_clone",
+      "onceFlag": "reward.mirror_gate_clone",
+      "commands": [
+        {
+          "type": "grant_coins",
+          "amount": 80
+        },
+        {
+          "type": "grant_item",
+          "itemId": "elixir",
+          "amount": 1
+        }
+      ]
+    }
+  ]
+}

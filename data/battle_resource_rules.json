@@ -1,0 +1,26 @@
+{
+  "rage": {
+    "max": 100,
+    "resetPolicy": "battle_start",
+    "gain": {
+      "rules": [
+        { "id": "basic_attack", "amount": 10 }
+      ],
+      "basicAttack": 10,
+      "damageDealtMin": 2,
+      "damageDealtPercent": 0.20,
+      "damageTakenMin": 4,
+      "damageTakenPercentOfMaxHp": 25.0,
+      "qteGood": 4,
+      "qtePerfect": 8,
+      "killBonus": 10
+    },
+    "spend": {
+      "skillCosts": [
+        { "skillId": "rage_burst", "amount": 100 },
+        { "skillId": "verso_rage_burst", "amount": 100 }
+      ],
+      "rageBurst": 100
+    }
+  }
+}

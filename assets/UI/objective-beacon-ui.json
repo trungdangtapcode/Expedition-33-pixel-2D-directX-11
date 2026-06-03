@@ -1,0 +1,10 @@
+{
+  "width": 64,
+  "height": 64,
+  "pivot": [32, 32],
+  "align": "center",
+  "y_offset": -48.0,
+  "bob_speed": 2.4,
+  "bob_amplitude": 2.0,
+  "scale": 0.48
+}

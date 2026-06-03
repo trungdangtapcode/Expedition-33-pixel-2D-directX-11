@@ -5,14 +5,20 @@
 #define NOMINMAX
 #include "DataDrivenSkill.h"
 #include "BattleContext.h"
+#include "BattleResourceRules.h"
+#include "CleanseAction.h"
 #include "ConsumeMpAction.h"
 #include "CombatantAnim.h"
 #include "DamageAction.h"
 #include "DataDrivenStatusEffect.h"
+#include "HealAction.h"
 #include "IBattler.h"
 #include "IAction.h"
 #include "LogAction.h"
 #include "PlayAnimationAction.h"
+#include "RageSpendAction.h"
+#include "RestoreMpAction.h"
+#include "ReviveAction.h"
 #include "StatusEffectAction.h"
 #include "StatusEffectRegistry.h"
 #include "../Systems/LocalizationManager.h"
@@ -23,6 +29,7 @@ namespace
     SkillTargeting ParseTargeting(const std::string& value)
     {
         if (value == "single_ally") return SkillTargeting::SingleAlly;
+        if (value == "single_ally_any") return SkillTargeting::SingleAllyAny;
         if (value == "all_enemies") return SkillTargeting::AllEnemies;
         if (value == "all_allies") return SkillTargeting::AllAllies;
         if (value == "self") return SkillTargeting::Self;
@@ -36,25 +43,41 @@ namespace
         return DamageType::Physical;
     }
 
-    class ConsumeRageAction final : public IAction
+    std::string EffectiveEffect(const JsonLoader::SkillData& data)
     {
-    public:
-        explicit ConsumeRageAction(IBattler* caster) : mCaster(caster) {}
-        bool Execute(float) override
-        {
-            if (mCaster) mCaster->GetStats().rage = 0;
-            return true;
-        }
-    private:
-        IBattler* mCaster = nullptr;
-    };
+        if (!data.effect.empty()) return data.effect;
+        if (data.kind == "attack" || data.kind == "damage" || data.kind == "rage") return "damage";
+        if (data.kind == "heal" || data.kind == "heal_hp") return "heal_hp";
+        if (data.kind == "heal_mp") return "heal_mp";
+        if (data.kind == "revive") return "revive";
+        if (data.kind == "cleanse") return "cleanse";
+        if (data.kind == "status" || data.kind == "support") return "status";
+        return data.kind;
+    }
+
+    bool EffectDealsDamage(const std::string& effect)
+    {
+        return effect == "damage";
+    }
+
+    bool EffectUsesLivingTarget(const std::string& effect)
+    {
+        return effect != "revive";
+    }
+
+    int EffectiveRageCost(const JsonLoader::SkillData& data)
+    {
+        if (data.rageCost > 0) return data.rageCost;
+        BattleResourceRules::Get().EnsureLoaded();
+        return BattleResourceRules::Get().RageCostForSkill(data.id);
+    }
 }
 
 DataDrivenSkill::DataDrivenSkill(JsonLoader::SkillData data)
     : mData(std::move(data))
     , mTargeting(ParseTargeting(mData.targeting))
     , mResourceKind(mData.mpCost > 0 ? SkillResourceKind::MP :
-        (mData.requiresFullRage || mData.consumesAllRage ? SkillResourceKind::Rage : SkillResourceKind::None))
+        (mData.requiresFullRage || mData.consumesAllRage || EffectiveRageCost(mData) > 0 ? SkillResourceKind::Rage : SkillResourceKind::None))
 {
 }
 
@@ -96,6 +119,11 @@ SkillTargeting DataDrivenSkill::GetTargeting() const
 std::string DataDrivenSkill::GetKind() const
 {
     return mData.kind;
+}
+
+std::string DataDrivenSkill::GetEffect() const
+{
+    return EffectiveEffect(mData);
 }
 
 std::string DataDrivenSkill::GetDamageType() const
@@ -140,7 +168,9 @@ std::string DataDrivenSkill::GetDebugDescription() const
 
 bool DataDrivenSkill::CanUse(const IBattler& caster, const BattleContext& /*ctx*/) const
 {
+    const int rageCost = EffectiveRageCost(mData);
     if (mData.mpCost > 0 && caster.GetStats().mp < mData.mpCost) return false;
+    if (rageCost > 0 && caster.GetStats().rage < rageCost) return false;
     if (mData.requiresFullRage && !caster.GetStats().IsRageFull()) return false;
     return true;
 }
@@ -154,9 +184,10 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
     if (!CanUse(caster, ctx)) return actions;
 
     actions.push_back(std::make_unique<ConsumeMpAction>(&caster, mData.mpCost));
-    if (mData.consumesAllRage)
+    const int rageCost = EffectiveRageCost(mData);
+    if (mData.consumesAllRage || rageCost > 0)
     {
-        actions.push_back(std::make_unique<ConsumeRageAction>(&caster));
+        actions.push_back(std::make_unique<RageSpendAction>(&caster, rageCost, mData.consumesAllRage));
     }
 
     const std::string targetName = targets.empty() || !targets[0]
@@ -183,11 +214,8 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
 
     actions.push_back(std::make_unique<PlayAnimationAction>(&caster, CombatantAnim::Attack, false));
 
-    const bool hasDamage =
-        mData.kind == "damage" ||
-        mData.kind == "rage";
-
-    if (hasDamage)
+    const std::string effect = EffectiveEffect(mData);
+    if (EffectDealsDamage(effect))
     {
         for (IBattler* target : targets)
         {
@@ -198,7 +226,42 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
             request.defender = target;
             request.type = ParseDamageType(mData.damageType);
             request.skillMultiplier = mData.skillMultiplier;
+            request.flatBonus = mData.flatBonus;
+            request.grantsRage = mData.grantsRage;
             actions.push_back(std::make_unique<DamageAction>(request, &ctx));
+        }
+    }
+
+    if (effect == "heal_hp")
+    {
+        for (IBattler* target : targets)
+        {
+            if (!target || !target->IsAlive()) continue;
+            actions.push_back(std::make_unique<HealAction>(target, mData.amount));
+        }
+    }
+    else if (effect == "heal_mp")
+    {
+        for (IBattler* target : targets)
+        {
+            if (!target || !target->IsAlive()) continue;
+            actions.push_back(std::make_unique<RestoreMpAction>(target, mData.amount));
+        }
+    }
+    else if (effect == "revive")
+    {
+        for (IBattler* target : targets)
+        {
+            if (!target) continue;
+            actions.push_back(std::make_unique<ReviveAction>(target, mData.amount));
+        }
+    }
+    else if (effect == "cleanse")
+    {
+        for (IBattler* target : targets)
+        {
+            if (!target) continue;
+            actions.push_back(std::make_unique<CleanseAction>(target));
         }
     }
 
@@ -210,10 +273,12 @@ std::vector<std::unique_ptr<IAction>> DataDrivenSkill::Execute(
         {
             for (IBattler* target : targets)
             {
-                if (!target || !target->IsAlive()) continue;
+                if (!target) continue;
+                if (EffectUsesLivingTarget(effect) && !target->IsAlive()) continue;
                 actions.push_back(std::make_unique<StatusEffectAction>(
                     target,
-                    std::make_unique<DataDrivenStatusEffect>(*status)));
+                    std::make_unique<DataDrivenStatusEffect>(*status),
+                    mData.statusChance));
             }
         }
         else

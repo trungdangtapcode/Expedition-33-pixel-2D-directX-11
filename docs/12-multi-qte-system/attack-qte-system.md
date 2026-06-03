@@ -1,6 +1,9 @@
-# Multi-QTE Combat Architecture (Osu! System)
+# Multi-QTE Combat Architecture
 
-The combat engine features a highly dynamic, concurrent rhythm-based Quick Time Event (QTE) system for attacks. Rather than forcing the player to respond to a series of strictly separated, single sequential inputs, the system spawns **overlapping, continuous QTE nodes** akin to rhythm games like *Osu!*
+The combat engine supports multi-node Quick Time Event (QTE) queues for
+attack-mechanism skills. Each skill chooses its own timing flow from JSON.
+`queued` is the default attack style: prompts can appear close together in
+random positions, but only the oldest unresolved prompt accepts input.
 
 ## 1. Data-Driven Configuration (JSON)
 
@@ -8,29 +11,71 @@ Every aspect of the rhythmic difficulty, timing, and visual feedback is paramete
 
 ### Core Parameters
 - **`qteMinCount` / `qteMaxCount`**: Bounds for the number of QTE diamonds spawned per attack. An encounter randomly rolls within this bound.
-- **`qteSpacing`**: The internal lifetime (duration) of each QTE node mapped against the attack animation progress.
+- **`qteTimingFlow`**: `queued` starts nodes by rhythm spacing and resolves input in chronological order. `staggered` keeps the older uncapped pending-prompt presentation. `chain` gives each node a full local window before the next one starts. `sequential` is accepted as an alias for `chain`.
+- **`qteLeadInSeconds`**: Readable delay after the attack animation reaches `qteStartMoment` before the first node appears.
+- **`qteSpacing`**: In `staggered`, time between node starts. In `sequential`, the gap after one node window before the next begins.
+- **`qteNodeDuration`**: Full active window duration for one node, measured in UI-clock seconds.
 - **`qteFadeInRatio`**: The percentage of the QTE's lifetime assigned to the visual fade-in threshold.
 - **`qteFadeOutDuration`**: The physical post-resolution explosion flash decay time in seconds.
 
 ### Mechanical Translators
 - **`qteSlowMoScale`**: Global time dilation factor triggered instantly when the attack sequence commits. This uniformly scales `TimeSystem::Get().SetSlowMotion` ensuring node velocity translates comfortably exactly the same regardless of whether 1 or 8 nodes spawn.
-- **Thresholds**: `qtePerfectThreshold` and `qteGoodThreshold` mathematically bound exactly what percentage of `qteSpacing` must be cleared to score.
+- **Thresholds**: `qtePerfectThreshold` and `qteGoodThreshold` define what percentage of the active node window must be cleared to score.
 
 ---
 
-## 2. The Node "Bucket" Spawning Algorithm
+## 2. Node Scheduling
 
-To resolve visual chaos and physically unplayable QTE "clusters", the `QteAnimDamageAction` relies on a constrained **bucket distribution** algorithm rather than purely naive random distribution.
+`QteAnimDamageAction` schedules nodes in real UI-clock seconds after the attack
+animation reaches `qteStartMoment`. Animation progress only gates when the QTE
+chain starts and when damage can resolve; it does not compress the prompt
+windows.
 
-### The Problem with Flat Randomization
-If nodes spawn blindly and randomly across an attack window (e.g., `0.3s -> 0.8s`), the RNG engine can easily place Node 0 at `0.400s` and Node 1 at `0.415s`. Functionally, those two physical inputs overlap into an unreactable fraction of a second, causing the engine to aggressively swallow consecutive inputs and instantly force a Miss.
+### Queued Flow
 
-### The Constrained Bucket Solution
-When requesting exactly `N` nodes, the engine chronologically sub-divides the available attack timeline into exactly `N` equal segments. 
+`queued` is the normal attack rhythm:
 
-1. **Isolation:** Node 0 is permanently bound to Segment 0, Node 1 to Segment 1, etc.
-2. **Jitter:** Node timestamps are pseudo-randomized by injecting a dynamic jitter constrained dynamically to `70%` of its bucket's width.
-3. **Rhythmic Integrity:** This guarantees a fixed chronological minimum "gap" between every overlapping node, naturally distributing human-readable rhythm tempos.
+```text
+start = qteLeadInSeconds + index * qteSpacing
+end   = start + qteNodeDuration
+```
+
+Several prompts may be visible at once, but the input owner remains
+`activeIndex`. If node 0 appears at `0.10s` and node 1 appears at `0.20s`,
+pressing at `0.50s` resolves node 0, then pressing at `0.60s` resolves node 1.
+This preserves the old readable rhythm without letting every visible prompt
+consume input.
+
+The renderer uses `qteQueueVisibleAheadCount` to limit how many future prompts
+can be shown at full size. This prevents a five-node skill from flooding the
+screen while still showing near-future prompts.
+
+Queued flow also schedules only the active node and the visible future window.
+For example, with `qteQueueVisibleAheadCount = 1`, a five-node skill can show
+node 0 and node 1 together, but nodes 2-4 do not start their timers until the
+queue advances. This is the important difference from a purely staggered
+timeline.
+
+### Staggered Flow
+
+`staggered` keeps the older uncapped presentation. It uses the same start/end
+math as queued flow, but does not limit how many future prompts may be visible.
+
+### Chain Flow
+
+`chain` is used whenever prompts must stay readable. Each node's timer starts
+only after that node becomes active, so later nodes cannot expire while the
+player is resolving an earlier prompt:
+
+```text
+first active timer = -qteLeadInSeconds
+next active timer  = -qteSpacing
+window             = qteNodeDuration
+```
+
+This remains available for skills that should feel strictly sequential, but it
+is not the default attack style because fixed prompt position feels worse than
+the old randomized QTE rhythm.
 
 ---
 
@@ -38,28 +83,52 @@ When requesting exactly `N` nodes, the engine chronologically sub-divides the av
 
 The graphical translation is processed natively via `BattleQTERenderer.cpp`, which evaluates the `QTEStatePayload` populated over the event bus. 
 
-### Interpolating "Approach Circles"
-Rather than a jarring size-snap, each unhandled QTE frame shrinks deterministically and completely linearly against its underlying progress timeline down from `1.5x` scale to `1.0x` scale. Because the visual outer border collapses smoothly precisely mapping to the progression percentage over `100%` of the timeline, players intuitively read the physics without referencing numbers. 
+### Interpolating The Prompt
 
-### Garbage Collection (`mFlashTimers`)
-The attack animation cannot logically yield global control (`mState.isActive = false`) until the player's 3D/sprite animation completely returns backwards to its idle state frames. Thus, QTE graphics used to remain visibly idle and frozen for fractions of a second after a hit because they inherited the global state.
+Each unresolved QTE frame shrinks against its own `progressRatio`. Because the
+outer border maps to the active window, the player can learn timing from motion
+instead of reading numbers.
 
-This is decoupled dynamically via `mFlashTimers[8]`:
-- Each indexed node receives a decoupled timing structure explicitly managed by the designer's `qteFadeOutDuration` scalar.
-- When an input executes, precisely that node generates its independent hit flash (Gold/Yellow/Gray).
-- Once its local explosion interpolates entirely down to `0.0f` scalar, it forcefully triggers a local rendering `continue;` eviction, completely removing that target from the visual hierarchy while correctly leaving pending future nodes on-screen unmodified.
+### Queued Presentation
+
+Queued mode uses two separate rules:
+
+- Randomized positions are generated once when the QTE queue starts.
+- Only `activeIndex` accepts input.
+- The renderer may show a data-driven number of future prompts, controlled by
+  `qteQueueVisibleAheadCount`.
+
+### Chain Presentation
+
+Chain mode uses two separate visual layers:
+
+- One full-size active prompt is drawn at the configured chain anchor.
+- Remaining prompts are shown as small preview markers, not playable prompts.
+- Resolved prompts do not draw full-size flashes in chain mode because the next
+  active prompt must remain readable.
+
+### Staggered Flash Eviction
+
+Staggered mode preserves per-node result flashes for older rhythm patterns:
+
+- Perfect, Good, and Miss results tint only the resolved node.
+- `qteFadeOutDuration` controls how long the result flash remains visible.
+- Finished flashes are skipped without clearing future unresolved nodes.
 
 ---
 
 ## 4. Multiplier Averaging Math
 
-Because combat spans simultaneous overlapping nodes, dealing strictly additive damage scalars (`x1.5` per node) would massively shatter bounds whenever the `qteMaxCount` roles a 5 or an 8. 
+Because combat can span several nodes, dealing strictly additive damage scalars
+would break skill balance whenever a skill rolls a high node count.
 
 During damage resolution (`DamageSteps::StatusBonusStep`), the engine strictly **aggregates the averages**:
 ```cpp
 totalDamageMultiplier = (Node[0].mult + Node[1].mult + Node[2].mult) / 3.0f;
 ```
-This guarantees scaling stability: an attack's absolute maximum output ceiling relies exclusively on the skill's absolute max parameters regardless of physical quantity variables.
+The optional `bonusQteCount` adds a small flat bonus for Perfect and Good nodes
+after the average is computed. This keeps complex skills rewarding without
+turning high node count into exponential damage.
 
 ---
 
@@ -72,14 +141,20 @@ Stored centrally in `data/battle_system_config.json` and piped synchronously int
 - `qteCameraZoom`: The universal scalar for real-time `DYNAMIC_FOLLOW` graphical tracking during attacks.
 - `qteFadeInRatio` / `qteFadeOutDuration`: The UI cross-fade explosion and collapse durations.
 - `qteSlowMoScale`: The intensity of the global battle simulation slowdown scalar when inputs trigger.
+- `qtePromptRadius` / `qteFrameTextureSize`: Size contracts for the QTE frame texture.
+- `qteQueueVisibleAheadCount`: How many future queued prompts can render at full size.
+- `qteChainAnchorXRatio` / `qteChainAnchorYRatio`: Screen-space anchor for chain-mode active prompts.
+- `qteChainPreviewScale` / `qteChainPreviewActiveScale`: Small marker sizes for remaining chain nodes.
+- `qteChainPreviewSpacing` / `qteChainPreviewOffsetY`: Preview row layout around the active prompt.
 
 Modifying these instantly changes the presentation feel of the entire engine generically.
 
 ### Local Mechanical Parameters (`SkillData`)
 Stored individually inside each attack (e.g. `data/skills/verso_attack.json`), these scale exactly how the move functionally resolves math:
-- `qteStartMoment`, `qteMinCount`, `qteMaxCount`, `qteSpacing`: Defining exactly the physical timing traits and limits of the specific weapon swing.
+- `qteStartMoment`, `qteTimingFlow`, `qteLeadInSeconds`, `qteMinCount`, `qteMaxCount`, `qteSpacing`, `qteNodeDuration`: define the physical timing traits and limits of the specific weapon swing.
 - `qtePerfectMultiplier`, `qteGoodMultiplier`, `qteMissMultiplier`: Unique damage scaling scalars.
 - `qtePerfectThreshold`, `qteGoodThreshold`: Strict mechanical difficulty requirements.
 - `bonusQteCount`: Flat bonus addition modifiers depending on successful chain executions.
 
-This strict topological separation guarantees that you can make an individual 'Dagger execution' wildly harder with strict `.95` thresholds without bleeding universal configuration requirements into every other skill.
+This separation lets one skill become a slow chain finisher while another stays
+a quick staggered rhythm attack without changing engine code.

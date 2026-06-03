@@ -32,6 +32,10 @@ struct DamageRequest
     
     // Flat bonus damage added after multiplier but before defense
     int flatBonus = 0; 
+
+    // False for finishers or special cases that should not immediately
+    // rebuild the resource they just spent.
+    bool grantsRage = true;
 };
 
 // Result object encapsulates the exact outcomes

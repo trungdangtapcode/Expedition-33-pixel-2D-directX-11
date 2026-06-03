@@ -23,6 +23,8 @@
   "skillPaths": [
     "data/skills/verso_attack.json",
     "data/skills/verso_sunder_guard.json",
+    "data/skills/verso_crescent_sweep.json",
+    "data/skills/verso_second_wind.json",
     "data/skills/verso_rage_burst.json",
     "data/skills/verso_mark_prey.json"
   ]

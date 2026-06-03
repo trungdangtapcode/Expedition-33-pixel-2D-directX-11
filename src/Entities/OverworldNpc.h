@@ -26,6 +26,14 @@
 #include "../Scene/IGameObject.h"
 #include <d3d11.h>
 #include <string>
+#include <vector>
+
+struct OverworldNpcDialogueRule
+{
+    std::string dialoguePath;
+    std::vector<std::string> requiresFlags;
+    std::vector<std::string> blockedByFlags;
+};
 
 struct OverworldNpcData
 {
@@ -44,6 +52,9 @@ struct OverworldNpcData
     std::string dialoguePath;
     std::string repeatDialoguePath;
     std::string completionFlag;
+    std::vector<OverworldNpcDialogueRule> conditionalDialogues;
+    std::string showIfFlag;
+    std::string hideIfFlag;
 
     std::string routeBlockUntilFlag;
     float blockMinX = 0.0f;
@@ -77,9 +88,11 @@ public:
     const OverworldNpcData& GetData() const { return mData; }
     std::string GetActiveDialoguePath() const;
     std::string GetDisplayName() const;
+    void Hide();
 
 private:
     void Shutdown();
+    bool IsStoryVisible() const;
 
     OverworldNpcData mData;
     Camera2D* mCamera = nullptr;

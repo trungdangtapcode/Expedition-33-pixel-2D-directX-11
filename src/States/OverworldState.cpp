@@ -32,6 +32,7 @@
 //   OverworldEnemy (1..N)    - stationary enemies, SceneGraph-owned.
 //   Camera2D                 - follows ControllableCharacter with smooth lerp.
 //   Story overlay            - data-driven area and objective text.
+//   Objective beacon         - data-driven world marker for active waypoint.
 //   ColorGradeFilter         - subtle world-only biome mood pass.
 //   PincushionDistortionFilter - fullscreen warp effect during transition phase.
 //
@@ -42,6 +43,7 @@
 //   U (near campfire) - open the CampfireState hub
 //   L (near campfire) - open the party lineup
 // ============================================================
+#define NOMINMAX
 #include "OverworldState.h"
 #include "StateManager.h"
 #include "BattleState.h"
@@ -53,7 +55,9 @@
 #include "../Renderer/D3DContext.h"
 #include "../Systems/ZoomPincushionTransitionController.h"
 #include "../Systems/GameProgress.h"
+#include "../Systems/Inventory.h"
 #include "../Systems/LocalizationManager.h"
+#include "../Systems/PartyManager.h"
 #include "../Systems/SaveManager.h"
 #include "../Systems/Wallet.h"
 #include "../Core/TimeSystem.h"
@@ -136,9 +140,21 @@ void OverworldState::OnEnter()
         device, context,
         std::wstring(storyFontPath.begin(), storyFontPath.end()),
         W, H);
+    mObjectiveBeacon.Initialize(device, context, W, H);
+    mObjectiveTracker.Initialize("data/overworld_objective_hud.json");
     LoadStoryData();
+    if (!mStoryDirector.Initialize("data/story_events.json"))
+    {
+        LOG("[OverworldState] WARNING - Story events failed to load.");
+    }
+    if (!mObjectiveDirector.Initialize("data/objectives.json"))
+    {
+        LOG("[OverworldState] WARNING - Objective data failed to load; using region objectives.");
+    }
+    LoadFeedbackData();
     mCurrentArea = mDefaultArea;
-    mCurrentObjective = mDefaultObjective;
+    mCurrentObjectiveBody = mDefaultObjective;
+    mCurrentObjectiveHint.clear();
 
     if (!mThemeManager.Initialize("data/overworld_themes.json"))
     {
@@ -230,6 +246,28 @@ void OverworldState::OnEnter()
         LOG("[OverworldState] WARNING: No overworld static props were loaded.");
     }
 
+    std::vector<OverworldMemoryShardData> memoryShardData;
+    if (LoadMemoryShardData(memoryShardData))
+    {
+        for (const OverworldMemoryShardData& data : memoryShardData)
+        {
+            if (!IsMemoryShardAvailable(data))
+            {
+                LOG("[OverworldState] Memory shard '%s' skipped by progress gates.",
+                    data.id.c_str());
+                continue;
+            }
+
+            OverworldMemoryShard* shard = mScene.Spawn<OverworldMemoryShard>(
+                device, context, data, mCamera.get());
+            if (shard) mMemoryShards.push_back(shard);
+        }
+    }
+    else
+    {
+        LOG("[OverworldState] WARNING: No overworld memory shards were loaded.");
+    }
+
     std::vector<OverworldNpcData> npcData;
     if (LoadNpcData(npcData))
     {
@@ -246,17 +284,23 @@ void OverworldState::OnEnter()
     }
 
     // --- Spawn overworld enemies ---
-    // Positions live in data/overworld_spawns.json so encounter pacing can
-    // follow the map story without recompiling this state.
+    // Positions and persistence live in data/overworld_spawns.json so encounter
+    // pacing and farmability can change without recompiling this state.
     std::vector<OverworldEnemySpawnData> enemySpawns;
     if (LoadEnemySpawnData(enemySpawns))
     {
         for (const OverworldEnemySpawnData& spawn : enemySpawns)
         {
             const std::string defeatedFlag = "enemy_defeated:" + spawn.id;
-            if (GameProgress::Get().HasFlag(defeatedFlag))
+            if (!spawn.respawnAfterDefeat && GameProgress::Get().HasFlag(defeatedFlag))
             {
                 LOG("[OverworldState] Spawn '%s' skipped because it is already defeated.",
+                    spawn.id.c_str());
+                continue;
+            }
+            if (!IsEnemySpawnAvailable(spawn))
+            {
+                LOG("[OverworldState] Spawn '%s' skipped because its story gates are not open.",
                     spawn.id.c_str());
                 continue;
             }
@@ -321,6 +365,7 @@ void OverworldState::OnEnter()
             }
             mStoryTextRenderer.SetScreenSize(nW, nH);
             mCurrencyHud.SetScreenSize(nW, nH);
+            mObjectiveBeacon.SetScreenSize(nW, nH);
             LOG("[OverworldState] window_resized -> %dx%d", nW, nH);
         });
 
@@ -337,6 +382,9 @@ void OverworldState::OnEnter()
     mVictoryListenerID = EventManager::Get().Subscribe("battle_end_victory",
         [this](const EventData&)
         {
+            const std::string storyBattleId = mPendingStoryBattleId;
+            const std::string enemyBattleId = mPendingEnemySpawnId;
+
             if (mPendingEnemySource)
             {
                 if (!mPendingEnemySpawnId.empty())
@@ -370,6 +418,49 @@ void OverworldState::OnEnter()
                 mPendingEnemySource = nullptr;
                 mPendingEnemySpawnId.clear();
             }
+
+            if (!enemyBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleVictory(enemyBattleId);
+            }
+
+            if (!storyBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleVictory(storyBattleId);
+                mPendingStoryBattleId.clear();
+            }
+        });
+
+    mDefeatListenerID = EventManager::Get().Subscribe("battle_end_defeat",
+        [this](const EventData&)
+        {
+            if (!mPendingStoryBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleDefeat(mPendingStoryBattleId);
+                mPendingStoryBattleId.clear();
+            }
+
+            mPendingEnemySource = nullptr;
+            mPendingEnemySpawnId.clear();
+        });
+
+    mFleeListenerID = EventManager::Get().Subscribe("battle_flee",
+        [this](const EventData&)
+        {
+            if (!mPendingStoryBattleId.empty())
+            {
+                mStoryDirector.NotifyBattleDefeat(mPendingStoryBattleId);
+                mPendingStoryBattleId.clear();
+            }
+
+            mPendingEnemySource = nullptr;
+            mPendingEnemySpawnId.clear();
+        });
+
+    mDialogueCompletedListenerID = EventManager::Get().Subscribe("dialogue_completed",
+        [this](const EventData& data)
+        {
+            mStoryDirector.NotifyDialogueCompleted(data.name);
         });
 
     mCheckpointLoadedListenerID = EventManager::Get().Subscribe("checkpoint_loaded",
@@ -398,6 +489,9 @@ void OverworldState::OnExit()
 
     EventManager::Get().Unsubscribe("window_resized", mResizeListenerID);
     EventManager::Get().Unsubscribe("battle_end_victory", mVictoryListenerID);
+    EventManager::Get().Unsubscribe("battle_end_defeat", mDefeatListenerID);
+    EventManager::Get().Unsubscribe("battle_flee", mFleeListenerID);
+    EventManager::Get().Unsubscribe("dialogue_completed", mDialogueCompletedListenerID);
     EventManager::Get().Unsubscribe("checkpoint_loaded", mCheckpointLoadedListenerID);
 
     // Clear the source pointer regardless of whether a battle was in progress.
@@ -405,10 +499,12 @@ void OverworldState::OnExit()
     // (e.g., a forced state change that bypasses the normal victory path).
     mPendingEnemySource = nullptr;
     mPendingEnemySpawnId.clear();
+    mPendingStoryBattleId.clear();
 
     mTileMap.Shutdown();
     mStoryTextRenderer.Shutdown();
     mCurrencyHud.Shutdown();
+    mObjectiveBeacon.Shutdown();
 
     if (mColorGradeFilter)
     {
@@ -432,6 +528,7 @@ void OverworldState::OnExit()
     mOverworldEnemies.clear();
     mEnemySpawnIds.clear();
     mCampfires.clear();
+    mMemoryShards.clear();
     mNpcs.clear();
 
     // Destroy all SceneGraph entities (ControllableCharacter, OverworldEnemy, etc.).
@@ -447,6 +544,8 @@ void OverworldState::OnExit()
     mUWasDown = false;
     mReloadFromCheckpoint = false;
     mInteractionPrompt.clear();
+    mTimedPrompt.clear();
+    mTimedPromptTimer = 0.0f;
 }
 
 bool OverworldState::LoadCampfireData(std::vector<CheckpointCampfireData>& outCampfires) const
@@ -558,6 +657,12 @@ bool OverworldState::LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& ou
             JsonLoader::detail::ValueOf(objectSrc, "id"));
         data.encounterPath = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "encounterPath"));
+        data.requiresFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
+        data.blockedByFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "blockedByFlags");
+        data.respawnAfterDefeat = JsonLoader::detail::ParseBool(
+            JsonLoader::detail::ValueOf(objectSrc, "respawnAfterDefeat"), false);
         data.worldX = JsonLoader::detail::ParseFloat(
             JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
         data.worldY = JsonLoader::detail::ParseFloat(
@@ -665,6 +770,99 @@ bool OverworldState::LoadStaticPropData(std::vector<OverworldStaticPropData>& ou
 }
 
 // ------------------------------------------------------------
+// Function: LoadMemoryShardData
+// Purpose:
+//   Load optional overworld lore collectibles from JSON.
+// Why:
+//   Exploration rewards should be authored with map/story data instead of
+//   hardcoded as one-off coordinates in OverworldState.
+// ------------------------------------------------------------
+bool OverworldState::LoadMemoryShardData(std::vector<OverworldMemoryShardData>& outShards) const
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_memory_shards.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_memory_shards.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Cannot open overworld memory shard config.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    const std::vector<std::string> objects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "shards");
+
+    for (const std::string& objectSrc : objects)
+    {
+        OverworldMemoryShardData data{};
+        data.id = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "id"));
+        data.displayName = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayName"));
+        data.displayNameKey = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "displayNameKey"));
+
+        const std::string texturePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "texturePath"));
+        data.texturePath = std::wstring(texturePath.begin(), texturePath.end());
+
+        data.collectedFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "collectedFlag"));
+        data.dialoguePath = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "dialoguePath"));
+        data.itemId = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "itemId"));
+        data.requiresFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
+        data.blockedByFlags =
+            JsonLoader::detail::ExtractStringArray(objectSrc, "blockedByFlags");
+        data.itemAmount = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "itemAmount"), 0);
+        data.coinReward = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "coinReward"), 0);
+        data.worldX = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
+        data.worldY = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "worldY"), 0.0f);
+        data.contactRadius = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "contactRadius"), 82.0f);
+        data.scale = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "scale"), 0.70f);
+        data.bobAmplitude = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "bobAmplitude"), 6.0f);
+        data.bobSpeed = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "bobSpeed"), 3.0f);
+        data.layer = JsonLoader::detail::ParseInt(
+            JsonLoader::detail::ValueOf(objectSrc, "layer"), 51);
+        data.sortYOffset = JsonLoader::detail::ParseFloat(
+            JsonLoader::detail::ValueOf(objectSrc, "sortYOffset"), -12.0f);
+
+        if (data.id.empty() || texturePath.empty() || data.collectedFlag.empty())
+        {
+            LOG("[OverworldState] WARNING: Skipping invalid memory shard entry.");
+            continue;
+        }
+
+        outShards.push_back(data);
+    }
+
+    LOG("[OverworldState] Loaded %zu overworld memory shard(s).", outShards.size());
+    return !outShards.empty();
+}
+
+// ------------------------------------------------------------
 // Function: LoadNpcData
 // Purpose:
 //   Load story NPC placement, dialogue, and route gate data.
@@ -737,6 +935,37 @@ bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
         data.completionFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "completionFlag"));
 
+        const std::vector<std::string> dialogueRules =
+            JsonLoader::detail::ExtractObjectsFromArray(objectSrc, "conditionalDialogues");
+        for (const std::string& ruleSrc : dialogueRules)
+        {
+            OverworldNpcDialogueRule rule{};
+            rule.dialoguePath = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "dialoguePath"));
+            rule.requiresFlags =
+                JsonLoader::detail::ExtractStringArray(ruleSrc, "requiresFlags");
+            rule.blockedByFlags =
+                JsonLoader::detail::ExtractStringArray(ruleSrc, "blockedByFlags");
+
+            const std::string singleRequired = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "requiresFlag"));
+            if (!singleRequired.empty()) rule.requiresFlags.push_back(singleRequired);
+
+            const std::string singleBlocked = JsonLoader::detail::CleanString(
+                JsonLoader::detail::ValueOf(ruleSrc, "blockedByFlag"));
+            if (!singleBlocked.empty()) rule.blockedByFlags.push_back(singleBlocked);
+
+            if (!rule.dialoguePath.empty())
+            {
+                data.conditionalDialogues.push_back(std::move(rule));
+            }
+        }
+
+        data.showIfFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "showIfFlag"));
+        data.hideIfFlag = JsonLoader::detail::CleanString(
+            JsonLoader::detail::ValueOf(objectSrc, "hideIfFlag"));
+
         data.routeBlockUntilFlag = JsonLoader::detail::CleanString(
             JsonLoader::detail::ValueOf(objectSrc, "routeBlockUntilFlag"));
         data.blockMinX = JsonLoader::detail::ParseFloat(
@@ -756,6 +985,11 @@ bool OverworldState::LoadNpcData(std::vector<OverworldNpcData>& outNpcs) const
             data.dialoguePath.empty())
         {
             LOG("[OverworldState] WARNING: Skipping invalid NPC entry.");
+            continue;
+        }
+
+        if (!data.hideIfFlag.empty() && GameProgress::Get().HasFlag(data.hideIfFlag))
+        {
             continue;
         }
 
@@ -870,6 +1104,108 @@ bool OverworldState::LoadStoryData()
     return !mStoryRegions.empty();
 }
 
+// ------------------------------------------------------------
+// Function: LoadFeedbackData
+// Purpose:
+//   Load screen prompt timing for overworld rewards and story feedback.
+// Why:
+//   Reward prompt duration is presentation tuning, so it belongs in data
+//   instead of being embedded in story command handling.
+// ------------------------------------------------------------
+bool OverworldState::LoadFeedbackData()
+{
+    namespace fs = std::filesystem;
+
+    fs::path path("data/overworld_feedback.json");
+    std::ifstream file(path);
+    if (!file.is_open())
+    {
+        path = fs::path("..") / "data/overworld_feedback.json";
+        file.clear();
+        file.open(path);
+    }
+
+    if (!file.is_open())
+    {
+        LOG("[OverworldState] Overworld feedback config missing; using defaults.");
+        return false;
+    }
+
+    std::ostringstream buffer;
+    buffer << file.rdbuf();
+    const std::string src = buffer.str();
+    JsonLoader::detail::WarnIfUTF16(src, path.string());
+
+    mTimedPromptDuration = JsonLoader::detail::ParseFloat(
+        JsonLoader::detail::ValueOf(src, "rewardPromptDuration"),
+        mTimedPromptDuration);
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: IsEnemySpawnAvailable
+// Purpose:
+//   Gate an overworld enemy spawn by durable story flags.
+// Why:
+//   Encounter pacing should be data-authored. Defeat persistence is handled
+//   separately by respawnAfterDefeat so farmable enemies can still set objective
+//   flags without disappearing forever from later loads.
+// ------------------------------------------------------------
+bool OverworldState::IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const
+{
+    for (const std::string& flag : spawn.requiresFlags)
+    {
+        if (!GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    for (const std::string& flag : spawn.blockedByFlags)
+    {
+        if (GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: IsMemoryShardAvailable
+// Purpose:
+//   Gate a memory shard by durable story and collection flags.
+// Why:
+//   Exploration collectibles are one-time rewards and must not respawn after
+//   save/load or before the related route is open.
+// ------------------------------------------------------------
+bool OverworldState::IsMemoryShardAvailable(const OverworldMemoryShardData& shard) const
+{
+    if (GameProgress::Get().HasFlag(shard.collectedFlag))
+    {
+        return false;
+    }
+
+    for (const std::string& flag : shard.requiresFlags)
+    {
+        if (!GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    for (const std::string& flag : shard.blockedByFlags)
+    {
+        if (GameProgress::Get().HasFlag(flag))
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
 CheckpointCampfire* OverworldState::FindNearbyCampfire(float px, float py) const
 {
     for (CheckpointCampfire* campfire : mCampfires)
@@ -894,6 +1230,109 @@ OverworldNpc* OverworldState::FindNearbyNpc(float px, float py) const
     return nullptr;
 }
 
+OverworldMemoryShard* OverworldState::FindNearbyMemoryShard(float px, float py) const
+{
+    for (OverworldMemoryShard* shard : mMemoryShards)
+    {
+        if (shard && shard->IsAlive() && shard->IsPlayerNearby(px, py))
+        {
+            return shard;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------
+// Function: RemoveMemoryShardObserver
+// Purpose:
+//   Remove a collected shard from the non-owning observer list.
+// Why:
+//   SceneGraph owns memory shards and destroys dead objects in PurgeDead().
+//   Keeping a raw pointer after Collect() would leave mMemoryShards with a
+//   dangling pointer after dialogue closes and the overworld updates again.
+// ------------------------------------------------------------
+void OverworldState::RemoveMemoryShardObserver(OverworldMemoryShard* shard)
+{
+    if (!shard) return;
+
+    mMemoryShards.erase(
+        std::remove(mMemoryShards.begin(), mMemoryShards.end(), shard),
+        mMemoryShards.end());
+}
+
+// ------------------------------------------------------------
+// Function: FindNearbyEnemy
+// Purpose:
+//   Return the first living overworld enemy inside battle contact range.
+// Why:
+//   Prompt rendering and battle input should resolve proximity the same way,
+//   so standing near an enemy always shows the same action the B key uses.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindNearbyEnemy(float px, float py) const
+{
+    for (OverworldEnemy* enemy : mOverworldEnemies)
+    {
+        if (enemy && enemy->IsAlive() && enemy->IsPlayerNearby(px, py))
+        {
+            return enemy;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------
+// Function: FindEnemyBySpawnId
+// Purpose:
+//   Resolve a live overworld enemy by its stable spawn id.
+// Why:
+//   Objective guidance points at authored spawn ids. Resolving through this
+//   map keeps B-press behavior aligned with the visible objective marker.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindEnemyBySpawnId(const std::string& spawnId) const
+{
+    if (spawnId.empty()) return nullptr;
+
+    for (const auto& entry : mEnemySpawnIds)
+    {
+        OverworldEnemy* enemy = entry.first;
+        if (entry.second == spawnId && enemy && enemy->IsAlive())
+        {
+            return enemy;
+        }
+    }
+    return nullptr;
+}
+
+// ------------------------------------------------------------
+// Function: FindObjectiveEnemyTarget
+// Purpose:
+//   Return the active objective's enemy target when the player is inside the
+//   objective arrival radius.
+// Why:
+//   The HUD may say the player has reached a fight objective before the
+//   enemy's tuned contact radius overlaps. This fallback prevents the marker
+//   from becoming a dead interaction point.
+// ------------------------------------------------------------
+OverworldEnemy* OverworldState::FindObjectiveEnemyTarget(float px, float py) const
+{
+    if (!mCurrentObjectiveView.active ||
+        mCurrentObjectiveView.targetKind != "enemy" ||
+        mCurrentObjectiveView.targetId.empty())
+    {
+        return nullptr;
+    }
+
+    OverworldEnemy* enemy = FindEnemyBySpawnId(mCurrentObjectiveView.targetId);
+    if (!enemy) return nullptr;
+
+    const float dx = mCurrentObjectiveView.waypointX - px;
+    const float dy = mCurrentObjectiveView.waypointY - py;
+    const float arrival = mCurrentObjectiveView.arrivalDistanceUnits > 0.0f
+        ? mCurrentObjectiveView.arrivalDistanceUnits
+        : 96.0f;
+    return (dx * dx + dy * dy) <= (arrival * arrival) ? enemy : nullptr;
+}
+
 const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) const
 {
     for (const OverworldStoryRegion& region : mStoryRegions)
@@ -910,24 +1349,39 @@ const OverworldStoryRegion* OverworldState::FindStoryRegion(float px, float py) 
 // ------------------------------------------------------------
 // Function: UpdateStoryRegion
 // Purpose:
-//   Refresh the active area label and objective from the player's position.
+//   Refresh the active area label, biome theme, and objective line.
 // Why:
-//   Region-specific objectives give the large map short-term goals without
-//   adding a full quest system yet.
+//   Region text explains the current place, while ObjectiveDirector resolves
+//   the chapter goal from durable progress flags so guidance survives save/load.
 // ------------------------------------------------------------
 void OverworldState::UpdateStoryRegion(float px, float py)
 {
+    std::string fallbackObjective = mDefaultObjective;
+
     if (const OverworldStoryRegion* region = FindStoryRegion(px, py))
     {
         mCurrentArea = region->name;
-        mCurrentObjective = region->objective;
+        fallbackObjective = region->objective;
         mThemeManager.SetTheme(region->themeId.empty() ? mDefaultThemeId : region->themeId);
+    }
+    else
+    {
+        mCurrentArea = mDefaultArea;
+        mThemeManager.SetTheme(mDefaultThemeId);
+    }
+
+    const ObjectiveView objective = mObjectiveDirector.Resolve(px, py);
+    if (!objective.active)
+    {
+        mCurrentObjectiveBody = fallbackObjective;
+        mCurrentObjectiveHint.clear();
+        mCurrentObjectiveView = ObjectiveView{};
         return;
     }
 
-    mCurrentArea = mDefaultArea;
-    mCurrentObjective = mDefaultObjective;
-    mThemeManager.SetTheme(mDefaultThemeId);
+    mCurrentObjectiveView = objective;
+    mCurrentObjectiveBody = objective.body;
+    mCurrentObjectiveHint = objective.waypointHint;
 }
 
 // ------------------------------------------------------------
@@ -980,6 +1434,391 @@ void OverworldState::ApplyNpcRouteBlocks(float px, float py)
 }
 
 // ------------------------------------------------------------
+// Function: ApplyNpcVisibilityFlags
+// Purpose:
+//   Hide live NPC entities whose data-driven hide flag is now set.
+// Why:
+//   Recruitment can happen while OverworldState stays alive beneath
+//   DialogueState, so visibility changes must apply without reloading the map.
+// ------------------------------------------------------------
+void OverworldState::ApplyNpcVisibilityFlags()
+{
+    for (OverworldNpc* npc : mNpcs)
+    {
+        if (!npc || !npc->IsAlive()) continue;
+
+        const OverworldNpcData& data = npc->GetData();
+        if (!data.hideIfFlag.empty() && GameProgress::Get().HasFlag(data.hideIfFlag))
+        {
+            npc->Hide();
+        }
+    }
+
+    mNpcs.erase(
+        std::remove_if(mNpcs.begin(), mNpcs.end(),
+            [](const OverworldNpc* npc)
+            {
+                return !npc || !npc->IsAlive();
+            }),
+        mNpcs.end());
+}
+
+// ------------------------------------------------------------
+// Function: BeginBattleTransition
+// Purpose:
+//   Start the shared overworld-to-battle transition for world and story fights.
+// Why:
+//   Enemy proximity battles and StoryDirector battles need identical visual
+//   handoff behavior while preserving different completion callbacks.
+// ------------------------------------------------------------
+bool OverworldState::BeginBattleTransition(const EnemyEncounterData& encounter,
+                                           OverworldEnemy* enemySource,
+                                           const std::string& enemySpawnId,
+                                           const std::string& storyBattleId)
+{
+    if (mBattleTransitionPhase != BattleTransitionPhase::IDLE)
+    {
+        return false;
+    }
+
+    mPendingEncounter = encounter;
+    mPendingEnemySource = enemySource;
+    mPendingEnemySpawnId = enemySpawnId;
+    mPendingStoryBattleId = storyBattleId;
+    mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;
+
+    if (mTransitionController)
+    {
+        mTransitionController->StartTransition(mPendingEncounter, mPendingEnemySource);
+    }
+    TimeSystem::Get().SetSlowMotion(0.25f);
+
+    LOG("[OverworldState] Battle transition started for '%s'.",
+        mPendingEncounter.name.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: ProcessStoryCommands
+// Purpose:
+//   Drain StoryDirector commands into the local queue and advance one
+//   story/cutscene command chain.
+// Why:
+//   Cutscene steps can span multiple frames or push overlay states. Keeping a
+//   local queue preserves author order after DialogueState or BattleState pops.
+// ------------------------------------------------------------
+bool OverworldState::ProcessStoryCommands(float dt)
+{
+    std::vector<StoryCommand> commands = mStoryDirector.ConsumeCommands();
+    for (const StoryCommand& command : commands)
+    {
+        mStoryCommandQueue.push_back(command);
+    }
+
+    return ProcessQueuedStoryCommands(dt);
+}
+
+// ------------------------------------------------------------
+// Function: ProcessQueuedStoryCommands
+// Purpose:
+//   Execute queued story commands until one blocks the current frame.
+// Why:
+//   Synchronous commands such as setting a flag should not cost a frame, but
+//   movement, waits, dialogue, and battle transitions must pause normal input.
+// ------------------------------------------------------------
+bool OverworldState::ProcessQueuedStoryCommands(float dt)
+{
+    if (mStoryCommandRunning)
+    {
+        if (!UpdateRuntimeStoryCommand(dt))
+        {
+            return true;
+        }
+        FinishRuntimeStoryCommand();
+    }
+
+    while (!mStoryCommandQueue.empty())
+    {
+        const StoryCommand command = mStoryCommandQueue.front();
+        mStoryCommandQueue.pop_front();
+
+        if (BeginRuntimeStoryCommand(command))
+        {
+            return true;
+        }
+
+        if (ExecuteStoryCommand(command))
+        {
+            return true;
+        }
+    }
+
+    return mStoryPlayerControlLocked;
+}
+
+// ------------------------------------------------------------
+// Function: BeginRuntimeStoryCommand
+// Purpose:
+//   Start a timed cutscene command that OverworldState must update over frames.
+// Why:
+//   StoryDirector should not know about player objects, cameras, or frame dt.
+//   Timed staging belongs in the state that owns those runtime objects.
+// ------------------------------------------------------------
+bool OverworldState::BeginRuntimeStoryCommand(const StoryCommand& command)
+{
+    switch (command.type)
+    {
+    case StoryCommandType::SetPlayerControl:
+        mStoryPlayerControlLocked = !command.enabled;
+        if (command.enabled)
+        {
+            mStoryCameraManual = false;
+        }
+        if (mPlayer)
+        {
+            mPlayer->ResetVelocity();
+        }
+        LOG("[OverworldState] Story player control %s.",
+            command.enabled ? "enabled" : "disabled");
+        return false;
+
+    case StoryCommandType::MovePlayer:
+        if (!mPlayer) return false;
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCommandTimer = 0.0f;
+        mStoryMoveStartX = mPlayer->GetX();
+        mStoryMoveStartY = mPlayer->GetY();
+        mPlayer->ResetVelocity();
+        return true;
+
+    case StoryCommandType::FocusCamera:
+        if (!mCamera) return false;
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCameraManual = true;
+        mStoryCommandTimer = 0.0f;
+        {
+            const DirectX::XMFLOAT2 cameraPos = mCamera->GetPosition();
+            mStoryCameraStartX = cameraPos.x;
+            mStoryCameraStartY = cameraPos.y;
+        }
+        return true;
+
+    case StoryCommandType::Wait:
+        mActiveStoryCommand = command;
+        mStoryCommandRunning = true;
+        mStoryCommandTimer = 0.0f;
+        return true;
+
+    default:
+        return false;
+    }
+}
+
+// ------------------------------------------------------------
+// Function: UpdateRuntimeStoryCommand
+// Purpose:
+//   Advance the active timed story command.
+// Why:
+//   Frame-rate independent movement and camera staging keep cutscenes readable
+//   and prevent one-frame teleports before important dialogue beats.
+// ------------------------------------------------------------
+bool OverworldState::UpdateRuntimeStoryCommand(float dt)
+{
+    const float duration = std::max(0.001f, mActiveStoryCommand.duration);
+    mStoryCommandTimer += std::max(0.0f, dt);
+    const float t = std::clamp(mStoryCommandTimer / duration, 0.0f, 1.0f);
+
+    switch (mActiveStoryCommand.type)
+    {
+    case StoryCommandType::MovePlayer:
+        if (mPlayer)
+        {
+            const float x = mStoryMoveStartX + (mActiveStoryCommand.x - mStoryMoveStartX) * t;
+            const float y = mStoryMoveStartY + (mActiveStoryCommand.y - mStoryMoveStartY) * t;
+            mPlayer->SetPosition(x, y);
+            mPlayer->ResetVelocity();
+        }
+        break;
+
+    case StoryCommandType::FocusCamera:
+        if (mCamera)
+        {
+            const float x = mStoryCameraStartX + (mActiveStoryCommand.x - mStoryCameraStartX) * t;
+            const float y = mStoryCameraStartY + (mActiveStoryCommand.y - mStoryCameraStartY) * t;
+            mCamera->SetPosition(x, y);
+            mCamera->Update();
+        }
+        break;
+
+    case StoryCommandType::Wait:
+        break;
+
+    default:
+        return true;
+    }
+
+    return t >= 1.0f;
+}
+
+// ------------------------------------------------------------
+// Function: FinishRuntimeStoryCommand
+// Purpose:
+//   Clear the active timed command and snap final state where needed.
+// Why:
+//   Floating point interpolation can leave the player or camera a fraction of
+//   a pixel from the authored endpoint if the final frame overshoots.
+// ------------------------------------------------------------
+void OverworldState::FinishRuntimeStoryCommand()
+{
+    if (mActiveStoryCommand.type == StoryCommandType::MovePlayer && mPlayer)
+    {
+        mPlayer->SetPosition(mActiveStoryCommand.x, mActiveStoryCommand.y);
+        mPlayer->ResetVelocity();
+    }
+    else if (mActiveStoryCommand.type == StoryCommandType::FocusCamera && mCamera)
+    {
+        mCamera->SetPosition(mActiveStoryCommand.x, mActiveStoryCommand.y);
+        mCamera->Update();
+    }
+
+    mActiveStoryCommand = StoryCommand{};
+    mStoryCommandRunning = false;
+    mStoryCommandTimer = 0.0f;
+}
+
+// ------------------------------------------------------------
+// Function: ExecuteStoryCommand
+// Purpose:
+//   Apply one story command to the systems owned by OverworldState.
+// Why:
+//   StoryDirector stays state-agnostic while OverworldState remains the only
+//   owner of player position, state pushes, and battle transitions.
+// ------------------------------------------------------------
+bool OverworldState::ExecuteStoryCommand(const StoryCommand& command)
+{
+    switch (command.type)
+    {
+    case StoryCommandType::StartDialogue:
+        if (!command.dialoguePath.empty())
+        {
+            StateManager::Get().PushState(std::make_unique<DialogueState>(command.dialoguePath));
+            LOG("[OverworldState] Story opened dialogue '%s'.",
+                command.dialoguePath.c_str());
+            return true;
+        }
+        return false;
+
+    case StoryCommandType::StartBattle:
+        if (command.encounterPath.empty()) return false;
+        {
+            EnemyEncounterData encounter{};
+            if (!JsonLoader::LoadEnemyEncounterData(command.encounterPath, encounter))
+            {
+                LOG("[OverworldState] WARNING: Story battle encounter '%s' failed to load.",
+                    command.encounterPath.c_str());
+                return false;
+            }
+            if (!EnemyAssetsExist(encounter))
+            {
+                LOG("[OverworldState] WARNING: Story battle '%s' has missing assets.",
+                    command.encounterPath.c_str());
+                return false;
+            }
+
+            const std::string storyBattleId = command.storyBattleId.empty()
+                ? encounter.name
+                : command.storyBattleId;
+            return BeginBattleTransition(encounter, nullptr, "", storyBattleId);
+        }
+
+    case StoryCommandType::RecruitMember:
+        if (PartyManager::Get().RecruitMember(command.memberId))
+        {
+            LOG("[OverworldState] Story recruited party member '%s'.",
+                command.memberId.c_str());
+        }
+        return false;
+
+    case StoryCommandType::SetFlag:
+        GameProgress::Get().SetFlag(command.flagId);
+        ApplyNpcVisibilityFlags();
+        return false;
+
+    case StoryCommandType::SaveCheckpoint:
+        if (mPlayer)
+        {
+            const std::string reason = command.saveReason.empty()
+                ? std::string("story_checkpoint")
+                : command.saveReason;
+            UpdateSavedOverworldSnapshot(reason, mPlayer->GetX(), mPlayer->GetY());
+            SaveManager::Get().SaveCheckpoint(reason);
+        }
+        return false;
+
+    case StoryCommandType::GrantCoins:
+        if (command.amount > 0)
+        {
+            Wallet::Get().AddCoins(command.amount);
+            SetTimedPrompt(LocalizationManager::Get().Format(
+                "overworld.reward.coins",
+                { { "amount", std::to_string(command.amount) } }));
+            LOG("[OverworldState] Story granted %d coins.", command.amount);
+        }
+        return false;
+
+    case StoryCommandType::GrantItem:
+        if (!command.itemId.empty() && command.amount > 0)
+        {
+            Inventory::Get().Add(command.itemId, command.amount);
+            const std::string itemName = LocalizationManager::Get().TextOrFallback(
+                "item." + command.itemId + ".name",
+                command.itemId);
+            SetTimedPrompt(LocalizationManager::Get().Format(
+                "overworld.reward.item",
+                {
+                    { "item", itemName },
+                    { "count", std::to_string(command.amount) }
+                }));
+            LOG("[OverworldState] Story granted item '%s' x%d.",
+                command.itemId.c_str(),
+                command.amount);
+        }
+        return false;
+
+    case StoryCommandType::PushPlayer:
+        if (mPlayer)
+        {
+            mPlayer->SetPosition(command.x, command.y);
+            mPlayer->ResetVelocity();
+            LOG("[OverworldState] Story pushed player to (%.1f, %.1f).",
+                command.x,
+                command.y);
+        }
+        return false;
+    }
+
+    return false;
+}
+
+// ------------------------------------------------------------
+// Function: SetTimedPrompt
+// Purpose:
+//   Queue a short-lived bottom prompt for rewards and story feedback.
+// Why:
+//   Story commands often run between states. A timed prompt gives the player
+//   immediate feedback without coupling StoryDirector to UI rendering.
+// ------------------------------------------------------------
+void OverworldState::SetTimedPrompt(const std::string& text)
+{
+    if (text.empty()) return;
+
+    mTimedPrompt = text;
+    mTimedPromptTimer = mTimedPromptDuration;
+}
+
+// ------------------------------------------------------------
 // Function: HandleNpcInput
 // Purpose:
 //   Show the talk prompt and open DialogueState on a fresh E press.
@@ -1020,6 +1859,67 @@ bool OverworldState::HandleNpcInput(float px, float py)
     LOG("[OverworldState] Opened dialogue '%s' for NPC '%s'.",
         dialoguePath.c_str(),
         npc->GetData().id.c_str());
+    return true;
+}
+
+// ------------------------------------------------------------
+// Function: HandleMemoryShardInput
+// Purpose:
+//   Show the memory shard prompt and collect it on a fresh E press.
+// Why:
+//   Shards are optional exploration rewards. OverworldState owns the progress
+//   flag, reward grant, and dialogue push so the entity stays presentation-only.
+// ------------------------------------------------------------
+bool OverworldState::HandleMemoryShardInput(float px, float py)
+{
+    OverworldMemoryShard* shard = FindNearbyMemoryShard(px, py);
+    if (!shard)
+    {
+        return false;
+    }
+
+    const bool eDown = (GetAsyncKeyState('E') & 0x8000) != 0;
+    const bool ePressed = eDown && !mEWasDown;
+    mEWasDown = eDown;
+
+    const OverworldMemoryShardData& data = shard->GetData();
+    mInteractionPrompt = LocalizationManager::Get().Format(
+        "overworld.prompt.memory_shard",
+        { { "name", shard->GetDisplayName() } });
+
+    if (!ePressed)
+    {
+        return false;
+    }
+
+    GameProgress::Get().SetFlag(data.collectedFlag);
+    RemoveMemoryShardObserver(shard);
+    shard->Collect();
+
+    if (data.coinReward > 0)
+    {
+        Wallet::Get().AddCoins(data.coinReward);
+    }
+
+    if (!data.itemId.empty() && data.itemAmount > 0)
+    {
+        Inventory::Get().Add(data.itemId, data.itemAmount);
+    }
+
+    SetTimedPrompt(LocalizationManager::Get().Format(
+        "overworld.reward.memory_shard",
+        { { "name", shard->GetDisplayName() } }));
+
+    if (!data.dialoguePath.empty())
+    {
+        StateManager::Get().PushState(std::make_unique<DialogueState>(data.dialoguePath));
+        LOG("[OverworldState] Collected memory shard '%s' and opened '%s'.",
+            data.id.c_str(),
+            data.dialoguePath.c_str());
+        return true;
+    }
+
+    LOG("[OverworldState] Collected memory shard '%s'.", data.id.c_str());
     return true;
 }
 
@@ -1146,6 +2046,11 @@ void OverworldState::Update(float dt)
         return;
     }
 
+    if (ProcessStoryCommands(dt))
+    {
+        return;
+    }
+
     // ---------------------------------------------------------------
     // 'I' key - open the inventory.  One-press semantics via mIWasDown
     // so the same press that opens InventoryState does not also
@@ -1174,6 +2079,18 @@ void OverworldState::Update(float dt)
     }
 
     mInteractionPrompt.clear();
+    if (mTimedPromptTimer > 0.0f)
+    {
+        mTimedPromptTimer -= TimeSystem::Get().GetUIClock().GetDeltaTime();
+        if (mTimedPromptTimer > 0.0f)
+        {
+            mInteractionPrompt = mTimedPrompt;
+        }
+        else
+        {
+            mTimedPrompt.clear();
+        }
+    }
 
     // All entity logic (WASD, physics, animation, enemy idle) runs here.
     // dt is gameplay-clock-scaled so entities respect slow-motion automatically.
@@ -1187,9 +2104,15 @@ void OverworldState::Update(float dt)
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
         UpdateStoryRegion(mPlayer->GetX(), mPlayer->GetY());
+        mStoryDirector.Update(mPlayer->GetX(), mPlayer->GetY());
+        if (ProcessStoryCommands(dt))
+        {
+            return;
+        }
     }
 
     mThemeManager.Update(dt);
+    mObjectiveBeacon.Update(dt);
     if (mColorGradeFilter)
     {
         mColorGradeFilter->SetSettings(mThemeManager.GetCurrentGrade());
@@ -1198,6 +2121,11 @@ void OverworldState::Update(float dt)
 
     if (mPlayer && mBattleTransitionPhase == BattleTransitionPhase::IDLE)
     {
+        if (HandleMemoryShardInput(mPlayer->GetX(), mPlayer->GetY()))
+        {
+            return;
+        }
+
         if (HandleNpcInput(mPlayer->GetX(), mPlayer->GetY()))
         {
             return;
@@ -1206,6 +2134,23 @@ void OverworldState::Update(float dt)
         if (HandleCampfireInput(mPlayer->GetX(), mPlayer->GetY()))
         {
             return;
+        }
+
+        OverworldEnemy* promptEnemy = FindNearbyEnemy(mPlayer->GetX(), mPlayer->GetY());
+        if (!promptEnemy)
+        {
+            promptEnemy = FindObjectiveEnemyTarget(mPlayer->GetX(), mPlayer->GetY());
+        }
+
+        if (promptEnemy)
+        {
+            const EnemyEncounterData& encounter = promptEnemy->GetEncounterData();
+            const std::string enemyName = LocalizationManager::Get().TextOrFallback(
+                encounter.nameKey,
+                encounter.name);
+            mInteractionPrompt = LocalizationManager::Get().Format(
+                "overworld.prompt.fight",
+                { { "name", enemyName } });
         }
     }
 
@@ -1224,14 +2169,10 @@ void OverworldState::Update(float dt)
 
         // Find the closest enemy within contact radius.
         // First match wins - ties resolved by vector order (spawn order).
-        OverworldEnemy* target = nullptr;
-        for (OverworldEnemy* enemy : mOverworldEnemies)
+        OverworldEnemy* target = FindNearbyEnemy(px, py);
+        if (!target)
         {
-            if (enemy && enemy->IsAlive() && enemy->IsPlayerNearby(px, py))
-            {
-                target = enemy;
-                break;
-            }
+            target = FindObjectiveEnemyTarget(px, py);
         }
 
         if (target)
@@ -1240,17 +2181,9 @@ void OverworldState::Update(float dt)
             // entity must NOT be accessed from the iris-close callback because
             // it might have been purged by the time the callback fires.
             mPendingEncounter   = target->GetEncounterData();
-            mPendingEnemySource = target;
             const auto idIt = mEnemySpawnIds.find(target);
-            mPendingEnemySpawnId = (idIt != mEnemySpawnIds.end()) ? idIt->second : "";
-
-            // Start the transition phase: slow gameplay and begin distortion ramp.
-            mBattleTransitionPhase = BattleTransitionPhase::PINCUSHION;
-            if (mTransitionController)
-            {
-                mTransitionController->StartTransition(mPendingEncounter, mPendingEnemySource);
-            }
-            TimeSystem::Get().SetSlowMotion(0.25f);
+            const std::string spawnId = (idIt != mEnemySpawnIds.end()) ? idIt->second : "";
+            BeginBattleTransition(mPendingEncounter, target, spawnId, "");
 
             LOG("[OverworldState] Battle triggered vs '%s' - transition started.",
                 mPendingEncounter.name.c_str());
@@ -1307,7 +2240,9 @@ void OverworldState::Update(float dt)
     }
 
     // Camera follow - only valid use of mPlayer* here.
-    if (mPlayer && mCamera && mBattleTransitionPhase == BattleTransitionPhase::IDLE) {
+    if (mPlayer && mCamera &&
+        mBattleTransitionPhase == BattleTransitionPhase::IDLE &&
+        !mStoryCameraManual) {
         mCamera->Follow(mPlayer->GetX(), mPlayer->GetY(), kCameraSmoothing, dt);
         mCamera->Update();
     }
@@ -1316,30 +2251,23 @@ void OverworldState::Update(float dt)
 // ------------------------------------------------------------
 // Function: RenderStoryOverlay
 // Purpose:
-//   Draw the current area title and objective.
+//   Draw the current area title, objective body, and objective action hint.
 // Why:
 //   The expanded overworld needs visible narrative direction so the player
-//   understands why each road and landmark matters.
+//   understands why each road and landmark matters without letting long
+//   localized strings collide with the currency HUD.
 // ------------------------------------------------------------
 void OverworldState::RenderStoryOverlay()
 {
     if (!mStoryTextRenderer.IsReady()) return;
 
     ID3D11DeviceContext* ctx = D3DContext::Get().GetContext();
-    constexpr float x = 24.0f;
-    constexpr float titleY = 22.0f;
-    constexpr float objectiveY = 48.0f;
-
-    mStoryTextRenderer.BeginBatch(ctx);
-    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x + 2.0f, titleY + 2.0f,
-                                     DirectX::Colors::Black);
-    mStoryTextRenderer.DrawStringRaw(mCurrentArea.c_str(), x, titleY,
-                                     DirectX::Colors::White);
-    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x + 2.0f, objectiveY + 2.0f,
-                                     DirectX::Colors::Black);
-    mStoryTextRenderer.DrawStringRaw(mCurrentObjective.c_str(), x, objectiveY,
-                                     DirectX::Colors::PaleGoldenrod);
-    mStoryTextRenderer.EndBatch();
+    mObjectiveTracker.Render(ctx,
+                             mStoryTextRenderer,
+                             D3DContext::Get().GetWidth(),
+                             mCurrentArea,
+                             mCurrentObjectiveBody,
+                             mCurrentObjectiveHint);
 }
 
 // ------------------------------------------------------------
@@ -1395,6 +2323,7 @@ void OverworldState::RenderCurrencyOverlay()
 //   TileMap background -> ground, roads, normal static map objects
 //   SceneGraph         -> ascending layer order (enemies @48, player @50)
 //   TileMap foreground -> canopies, roofs, and above-player map overlays
+//   Objective beacon   -> active route marker tied to world coordinates
 //   ColorGradeFilter   -> biome mood on world content only
 //   [EndCapture + transition render if active - applies battle transition]
 //
@@ -1421,6 +2350,15 @@ void OverworldState::Render()
 
     // --- Above-player map layers ---
     mTileMap.RenderForeground(ctx, *mCamera);
+
+    if (mPlayer)
+    {
+        mObjectiveBeacon.Render(ctx,
+                                mCurrentObjectiveView,
+                                mPlayer->GetX(),
+                                mPlayer->GetY(),
+                                *mCamera);
+    }
 
     if (mColorGradeFilter && mColorGradeFilter->IsActive())
     {

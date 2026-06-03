@@ -7,6 +7,7 @@
 #define NOMINMAX
 #include "BattleState.h"
 #include "../Battle/BattleEvents.h"
+#include "../Battle/ISkill.h"
 #include "../Battle/ItemRegistry.h"
 #include "../Battle/ItemIconCache.h"
 #include "../Battle/ItemData.h"
@@ -30,6 +31,55 @@
 static constexpr float kBgR = 0.05f;
 static constexpr float kBgG = 0.05f;
 static constexpr float kBgB = 0.20f;
+
+namespace
+{
+    bool SkillTargetsPlayers(SkillTargeting targeting)
+    {
+        return targeting == SkillTargeting::Self ||
+               targeting == SkillTargeting::SingleAlly ||
+               targeting == SkillTargeting::SingleAllyAny ||
+               targeting == SkillTargeting::AllAllies;
+    }
+
+    std::vector<IBattler*> ResolveSkillTargetCandidates(const BattleManager& battle,
+                                                        const ISkill& skill)
+    {
+        switch (skill.GetTargeting())
+        {
+        case SkillTargeting::SingleAlly:
+            return battle.GetAlivePlayers();
+        case SkillTargeting::SingleAllyAny:
+        {
+            auto players = battle.GetAllPlayers();
+            if (skill.GetEffect() == "revive")
+            {
+                players.erase(
+                    std::remove_if(players.begin(), players.end(),
+                        [](IBattler* battler) { return !battler || battler->IsAlive(); }),
+                    players.end());
+            }
+            return players;
+        }
+        case SkillTargeting::SingleEnemy:
+            return battle.GetAliveEnemies();
+        case SkillTargeting::Self:
+        case SkillTargeting::AllAllies:
+        case SkillTargeting::AllEnemies:
+        default:
+            return {};
+        }
+    }
+
+    int FindBattlerSlot(const std::vector<IBattler*>& team, IBattler* battler)
+    {
+        for (int i = 0; i < static_cast<int>(team.size()); ++i)
+        {
+            if (team[i] == battler) return i;
+        }
+        return -1;
+    }
+}
 
 BattleState::BattleState(D3DContext& d3d, EnemyEncounterData encounter)
     : mD3D(d3d)
@@ -667,10 +717,16 @@ void BattleState::UpdateLogic(float dt)
     IBattler* targetedEnemyPtr = nullptr;
     if (phaseAfter == BattlePhase::PLAYER_TURN && mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT)
     {
-        const auto aliveEnemies = mBattle.GetAliveEnemies();
-        if (mInputController.GetTargetIndex() >= 0 && mInputController.GetTargetIndex() < static_cast<int>(aliveEnemies.size()))
+        const PlayerCombatant* player = mBattle.GetActivePlayer();
+        const ISkill* skill = player ? player->GetSkill(mInputController.GetSkillIndex()) : nullptr;
+        if (skill && !SkillTargetsPlayers(skill->GetTargeting()))
         {
-            targetedEnemyPtr = aliveEnemies[mInputController.GetTargetIndex()];
+            const auto candidates = ResolveSkillTargetCandidates(mBattle, *skill);
+            if (mInputController.GetTargetIndex() >= 0 &&
+                mInputController.GetTargetIndex() < static_cast<int>(candidates.size()))
+            {
+                targetedEnemyPtr = candidates[mInputController.GetTargetIndex()];
+            }
         }
     }
 
@@ -1601,23 +1657,33 @@ void BattleState::Render()
 
     if (mBattle.GetPhase() == BattlePhase::PLAYER_TURN && mInputController.GetInputPhase() == PlayerInputPhase::TARGET_SELECT)
     {
-        const auto aliveEnemies = mBattle.GetAliveEnemies();
-        int targetIdx = mInputController.GetTargetIndex();
-        if (targetIdx >= 0 && targetIdx < static_cast<int>(aliveEnemies.size()))
+        const PlayerCombatant* player = mBattle.GetActivePlayer();
+        const ISkill* skill = player ? player->GetSkill(mInputController.GetSkillIndex()) : nullptr;
+        if (skill)
         {
-            IBattler* targetedEnemyPtr = aliveEnemies[targetIdx];
-            const auto& allEnemies = mBattle.GetAllEnemies();
-            int slotIndex = 0;
-            for (int i = 0; i < static_cast<int>(allEnemies.size()); ++i)
+            const bool aimAtAllies = SkillTargetsPlayers(skill->GetTargeting());
+            const auto candidates = ResolveSkillTargetCandidates(mBattle, *skill);
+            int targetIdx = mInputController.GetTargetIndex();
+            if (targetIdx < 0 || targetIdx >= static_cast<int>(candidates.size()))
+                targetIdx = 0;
+
+            if (!candidates.empty())
             {
-                if (allEnemies[i] == targetedEnemyPtr) { slotIndex = i; break; }
+                IBattler* picked = candidates[targetIdx];
+                const auto team = aimAtAllies ? mBattle.GetAllPlayers() : mBattle.GetAllEnemies();
+                const int slotIndex = FindBattlerSlot(team, picked);
+                if (slotIndex >= 0)
+                {
+                    float worldX, worldY;
+                    if (aimAtAllies)
+                        mBattleRenderer.GetPlayerSlotPos(slotIndex, worldX, worldY);
+                    else
+                        mBattleRenderer.GetEnemySlotPos(slotIndex, worldX, worldY);
+
+                    auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
+                    mTargetPointer.Draw(mD3D.GetContext(), worldX, worldY, cameraMatrix);
+                }
             }
-
-            float worldX, worldY;
-            mBattleRenderer.GetEnemySlotPos(slotIndex, worldX, worldY);
-
-            auto cameraMatrix = mBattleRenderer.GetCamera().GetViewMatrix();
-            mTargetPointer.Draw(mD3D.GetContext(), worldX, worldY, cameraMatrix);
         }
     }
 
@@ -1793,23 +1859,22 @@ void BattleState::DumpStateToDebugOutput() const
 
     if (inputPhase == PlayerInputPhase::TARGET_SELECT && mBattle.GetPhase() == BattlePhase::PLAYER_TURN)
     {
-        const auto enemies = mBattle.GetAliveEnemies();
-        if (mInputController.GetTargetIndex() < static_cast<int>(enemies.size()))
+        const PlayerCombatant* player = mBattle.GetActivePlayer();
+        const ISkill* skill = player ? player->GetSkill(mInputController.GetSkillIndex()) : nullptr;
+        const auto candidates = skill ? ResolveSkillTargetCandidates(mBattle, *skill) : std::vector<IBattler*>{};
+        if (mInputController.GetTargetIndex() < static_cast<int>(candidates.size()))
         {
             snap.infoLines.push_back({
                 LocalizationManager::Get().TextEnglish("battle.info.target"),
-                enemies[mInputController.GetTargetIndex()]->GetDebugName()
+                candidates[mInputController.GetTargetIndex()]->GetDebugName()
             });
             snap.infoLines.push_back({
                 LocalizationManager::Get().TextEnglish("battle.info.hint"),
                 LocalizationManager::Get().TextEnglish("battle.hint.target_select")
             });
         }
-
-        const PlayerCombatant* player = mBattle.GetActivePlayer();
         if (player)
         {
-            const ISkill* skill = player->GetSkill(mInputController.GetSkillIndex());
             snap.infoLines.push_back({
                 LocalizationManager::Get().TextEnglish("battle.info.skill"),
                 skill ? skill->GetDebugName() : LocalizationManager::Get().TextEnglish("battle.info.none")

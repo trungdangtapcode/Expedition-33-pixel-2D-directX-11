@@ -36,3 +36,5 @@ assets/UI/*
 !assets/animations/zombie_armour.png
 !assets/animations/zombie_armour.json
 !source_assets/zombie_armour_raw.png
+
+generated/

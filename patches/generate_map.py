@@ -15,6 +15,8 @@ WIDTH = 128
 HEIGHT = 96
 GROUND_TILE_COUNT = 40
 OBJECT_FIRST_GID = GROUND_TILE_COUNT + 1
+OBJECT_ATLAS_PATH = "assets/environments/overworld_objects_v3.png"
+ROUTE_PROP_ATLAS_PATH = "assets/environments/overworld_route_props.png"
 
 GRASS = (1, 2, 3, 4)
 WILD = (5, 6, 7, 8)
@@ -98,10 +100,19 @@ def route_cells() -> set[tuple[int, int]]:
     meadow = (66, 49)
     market = (61, 24)
     watch = (28, 37)
+    watch_arch = (39, 25)
     crossing = (98, 35)
     shrine = (77, 81)
     gate = (116, 24)
-    for cx, cy, radius in (meadow + (8,), market + (8,), watch + (7,), crossing + (6,), shrine + (8,), gate + (8,)):
+    for cx, cy, radius in (
+        meadow + (8,),
+        market + (8,),
+        watch + (7,),
+        watch_arch + (5,),
+        crossing + (6,),
+        shrine + (8,),
+        gate + (8,),
+    ):
         add_disc(road, cx, cy, radius)
     add_line(road, meadow, market, 2)
     add_line(road, meadow, watch, 2)
@@ -111,6 +122,8 @@ def route_cells() -> set[tuple[int, int]]:
     add_line(road, shrine, (106, 73), 1)
     add_line(road, (106, 73), gate, 1)
     add_line(road, watch, (20, 63), 1)
+    add_line(road, watch, watch_arch, 1)
+    add_line(road, watch_arch, market, 1)
     add_line(road, market, (44, 20), 1)
     add_line(road, (84, 43), (98, 56), 1)
     return road
@@ -245,16 +258,18 @@ def place_tile(layer: list[int], tx: int, ty: int, gid: int) -> None:
 def low_objects(colliders: list[dict[str, object]]) -> list[int]:
     layer = [0] * (WIDTH * HEIGHT)
     map_bounds(colliders)
-    for tx, ty in [(61, 45), (95, 34), (74, 78), (113, 24)]:
+    for tx, ty in [(61, 45), (31, 35), (42, 25), (95, 34), (74, 78), (113, 24)]:
         place_tile(layer, tx, ty, SIGN)
-    for tx, ty in [(58, 44), (64, 26), (96, 34), (73, 83)]:
+    for tx, ty in [(58, 44), (64, 26), (33, 38), (40, 26), (96, 34), (73, 83)]:
         place_tile(layer, tx, ty, TABLE)
         add_collider(colliders, f"Table{tx}_{ty}", tx, ty, 1, 1)
-    for tx, ty in [(53, 24), (70, 31), (25, 35), (84, 81), (112, 23)]:
+    for tx, ty in [(53, 24), (70, 31), (25, 35), (37, 24), (45, 27), (84, 81), (112, 23)]:
         place_tile(layer, tx, ty, ROCK)
         add_collider(colliders, f"Rock{tx}_{ty}", tx, ty, 1, 1)
     for start_tx, start_ty, length, horizontal, name in [
         (52, 31, 8, True, "MarketSouthWall"),
+        (36, 28, 8, True, "WatchArchSouthWall"),
+        (43, 24, 5, False, "WatchArchEastWall"),
         (72, 20, 7, False, "MarketEastWall"),
         (92, 30, 10, True, "CrossingNorthWall"),
         (91, 39, 10, True, "CrossingSouthWall"),
@@ -280,7 +295,7 @@ def prop(prop_id: str, local_id: int, tx: int, ty: int, w: int, h_: int, scale: 
     wx, wy = world_from_tile(tx, ty, sw * 0.5, sh - 8)
     return {
         "id": prop_id,
-        "texturePath": "assets/environments/overworld_objects_v2.png",
+        "texturePath": OBJECT_ATLAS_PATH,
         "sourceX": sx,
         "sourceY": sy,
         "sourceWidth": sw,
@@ -295,24 +310,68 @@ def prop(prop_id: str, local_id: int, tx: int, ty: int, w: int, h_: int, scale: 
     }
 
 
+def route_prop(prop_id: str, cell_x: int, cell_y: int, tx: int, ty: int, scale: float = 1.0) -> dict[str, object]:
+    sw = 128
+    sh = 128
+    wx, wy = world_from_tile(tx, ty, sw * 0.5, sh - 8)
+    return {
+        "id": prop_id,
+        "texturePath": ROUTE_PROP_ATLAS_PATH,
+        "sourceX": cell_x * sw,
+        "sourceY": cell_y * sh,
+        "sourceWidth": sw,
+        "sourceHeight": sh,
+        "worldX": round(wx, 2),
+        "worldY": round(wy, 2),
+        "pivotX": round(sw * 0.5, 2),
+        "pivotY": sh - 8,
+        "scale": scale,
+        "layer": 50,
+        "sortYOffset": 0.0,
+    }
+
+
 def static_props(colliders: list[dict[str, object]]) -> list[dict[str, object]]:
     specs = [
-        ("paris_ruin_west", 16, 55, 42, 128, 128),
-        ("paris_ruin_east", 16, 78, 42, 128, 128),
-        ("paris_market_tent", 18, 59, 54, 128, 128),
-        ("market_ruin_west", 16, 55, 18, 128, 128),
-        ("market_ruin_east", 16, 66, 19, 128, 128),
-        ("market_ruin_south", 16, 48, 27, 128, 128),
-        ("western_watch_tent", 18, 30, 36, 128, 128),
-        ("glass_shrine_north", 32, 70, 74, 128, 128),
-        ("glass_shrine_east", 32, 81, 75, 128, 128),
-        ("glass_shrine_south", 32, 71, 85, 128, 128),
-        ("mirror_gate_shrine", 32, 115, 21, 128, 128),
+        ("paris_supply_crate", 5, 56, 43, 64, 64),
+        ("paris_barrel_cache", 6, 77, 43, 64, 64),
+        ("market_crystal_cache", 9, 67, 21, 64, 64),
+        ("western_watch_rocks", 12, 39, 24, 64, 64),
+        ("glass_shrine_flowers", 10, 72, 82, 64, 64),
+        ("mirror_gate_rubble", 15, 114, 26, 64, 64),
     ]
     out: list[dict[str, object]] = []
     for prop_id, local_id, tx, ty, sw, sh in specs:
         out.append(prop(prop_id, local_id, tx, ty, sw, sh))
         add_collider(colliders, prop_id, tx, ty, sw // TILE, sh // TILE)
+
+    route_specs = [
+        ("paris_ruined_barricade_west", 0, 0, 55, 42),
+        ("paris_ruined_barricade_east", 0, 0, 78, 42),
+        ("paris_market_canvas", 3, 1, 59, 54),
+        ("market_ruined_barricade_west", 0, 0, 55, 18),
+        ("market_ruined_barricade_east", 0, 0, 66, 19),
+        ("market_ruined_barricade_south", 0, 0, 48, 27),
+        ("western_watch_tent", 3, 1, 30, 36),
+        ("western_watch_ruin", 0, 0, 38, 23),
+        ("western_watch_shrine", 2, 1, 23, 62),
+        ("glass_shrine_north", 2, 1, 70, 74),
+        ("glass_shrine_east", 2, 1, 81, 75),
+        ("glass_shrine_south", 2, 1, 71, 85),
+        ("mirror_gate_shrine", 2, 1, 115, 21),
+        ("meadow_lamp", 1, 0, 62, 45),
+        ("meadow_barricade", 0, 0, 58, 53),
+        ("silent_market_cart", 0, 1, 58, 20),
+        ("western_watch_signal", 1, 1, 30, 33),
+        ("western_watch_statue", 3, 0, 23, 41),
+        ("pilgrim_crossing_milestone", 2, 0, 101, 31),
+        ("glass_shrine_echo_monument", 2, 1, 75, 77),
+        ("mirror_gate_statue", 3, 0, 118, 19),
+        ("mirror_gate_shards", 1, 2, 112, 28),
+    ]
+    for prop_id, cell_x, cell_y, tx, ty in route_specs:
+        out.append(route_prop(prop_id, cell_x, cell_y, tx, ty))
+        add_collider(colliders, prop_id, tx, ty, 2, 2)
     return out
 
 
@@ -362,7 +421,7 @@ def build_map() -> tuple[dict[str, object], list[dict[str, object]]]:
             {
                 "firstgid": OBJECT_FIRST_GID,
                 "name": "objects_v2",
-                "image": "overworld_objects_v2.png",
+                "image": "overworld_objects_v3.png",
                 "imagewidth": 512,
                 "imageheight": 512,
                 "tilewidth": TILE,

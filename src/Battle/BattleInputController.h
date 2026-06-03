@@ -7,11 +7,14 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include "SkillTypes.h"
 
 class BattleState;
 class BattleManager;
 class BattleRenderer;
 class IBattleCommand;
+class IBattler;
+class ISkill;
 
 enum class PlayerInputPhase
 {
@@ -56,6 +59,10 @@ private:
     void ConfirmItemAndTarget();
     void RefreshItemList();
     void LoadSkillMenuInputConfig();
+    bool SkillTargetsImplicit(SkillTargeting targeting) const;
+    bool SkillTargetsPlayers(SkillTargeting targeting) const;
+    int FindBattlerSlot(IBattler* battler, bool playerTeam) const;
+    std::vector<IBattler*> ResolveSkillTargetCandidates(const ISkill& skill) const;
 
     BattleState& mState;
     BattleManager& mBattle;

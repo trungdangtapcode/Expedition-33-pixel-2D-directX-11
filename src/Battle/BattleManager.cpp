@@ -4,6 +4,7 @@
 // ============================================================
 #define NOMINMAX
 #include "BattleManager.h"
+#include "BattleResourceRules.h"
 #include "BattleEvents.h"
 #include "LogAction.h"
 #include "BuildItemActions.h"
@@ -76,7 +77,7 @@ void BattleManager::Reset()
 // Initialize: create combatants from encounter data and build the
 // initial turn order.
 //
-// Enemy team: built by iterating encounter.battleParty (1–3 entries).
+// Enemy team: built by iterating encounter.battleParty entries.
 //   Each EnemySlotData provides hp/atk/def/spd; name is generated as
 //   "<encounter.name>" for single-enemy parties or
 //   "<encounter.name> A/B/C" for multi-enemy parties.
@@ -89,12 +90,24 @@ void BattleManager::Initialize(const EnemyEncounterData& encounter, const JsonLo
     Reset();
     mContext.config = config;
 
-    // -- Spawn player party natively pulling from PartyManager arrays! --
+    // Player combatants receive resource-rule defaults here so save data
+    // can keep character progression separate from battle-session tuning.
+    BattleResourceRules::Get().EnsureLoaded();
+    const RageResourceRules& rageRules = BattleResourceRules::Get().Rage();
     auto& activeParty = PartyManager::Get().GetActiveParty();
     for (size_t i = 0; i < activeParty.size(); ++i) {
+        BattlerStats stats = PartyManager::Get().GetEffectiveStats(i);
+        if (rageRules.max > 0)
+        {
+            stats.maxRage = rageRules.max;
+        }
+        if (BattleResourceRules::Get().ResetRageAtBattleStart())
+        {
+            stats.rage = 0;
+        }
         mPlayers.push_back(std::make_unique<PlayerCombatant>(
             activeParty[i].name, activeParty[i].turnViewPath,
-            PartyManager::Get().GetEffectiveStats(i),
+            stats,
             activeParty[i].skillPaths));
     }
 
@@ -216,7 +229,7 @@ void BattleManager::BuildTurnOrder()
     mQueue.Enqueue(std::make_unique<WaitAction>(0.5f));
     
     // Enter the dedicated intro phase.  INTRO drains only the walk-in queue;
-    // it never checks win/lose or broadcasts HP events — no damage occurs here.
+    // it never checks win/lose or broadcasts HP events - no damage occurs here.
     // When the queue empties, HandleIntro() calls AdvanceTurn() to enter the
     // first real turn (PLAYER_TURN or ENEMY_TURN).
     mPhase = BattlePhase::INTRO;
@@ -259,13 +272,13 @@ void BattleManager::RebuildContext(float dt)
     mContext.alivePlayers = GetAlivePlayers();
     mContext.aliveEnemies = GetAliveEnemies();
     mContext.battleElapsed += dt;
-    // turnCount intentionally untouched here — see AdvanceTurn.
+    // turnCount intentionally untouched here - see AdvanceTurn.
 }
 
 // ------------------------------------------------------------
 // HandleIntro: drain the walk-in action queue, then enter the first real turn.
 //
-// Intentionally simpler than HandleResolving — no HP broadcasts and no
+// Intentionally simpler than HandleResolving - no HP broadcasts and no
 // win/lose checks because no damage is dealt during the walk-in sequence.
 // Separating this from RESOLVING keeps RESOLVING's semantics unambiguous:
 // it only ever executes a combat action queued by a player or enemy turn.
@@ -275,7 +288,7 @@ void BattleManager::HandleIntro(float dt)
     mQueue.Update(dt);
     if (!mQueue.IsEmpty()) return;
 
-    // Walk-in complete — advance to the first combatant's turn.
+    // Walk-in complete - advance to the first combatant's turn.
     AdvanceTurn();
 }
 
@@ -288,7 +301,7 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
 {
     IBattler* current = CurrentCombatant();
     if (!current || !current->IsPlayerControlled()) {
-        // Turn order moved to an enemy slot — switch phase.
+        // Turn order moved to an enemy slot - switch phase.
         mPhase = BattlePhase::ENEMY_TURN;
         return;
     }
@@ -306,7 +319,7 @@ void BattleManager::HandlePlayerTurn(float /*dt*/)
         const std::string itemId = player->GetPendingItemId();
         player->ClearPendingAction();
 
-        // Validate inventory still has the item — could have hit 0 if
+        // Validate inventory still has the item - could have hit 0 if
         // multiple items were used in the same turn (defensive check).
         if (Inventory::Get().GetCount(itemId) <= 0)
         {
@@ -484,7 +497,7 @@ void BattleManager::HandleResolving(float dt)
         mPendingTurnEndCombatant = nullptr;
     }
 
-    // All actions done — check outcome before advancing turn.
+    // All actions done - check outcome before advancing turn.
     if (AllEnemiesDefeated())
     {
         Log(LocalizationManager::Get().Text("battle.log.victory"),
@@ -509,7 +522,7 @@ void BattleManager::AdvanceTurn()
 {
     // Increment the battle-wide turn counter.  Triggers and UI elements
     // that gate on "turn N" read mContext.turnCount, which is refreshed
-    // by RebuildContext on the next frame — for now, keep turnCount on
+    // by RebuildContext on the next frame - for now, keep turnCount on
     // BattleContext directly in sync with this increment.
     ++mContext.turnCount;
 
@@ -521,14 +534,14 @@ void BattleManager::AdvanceTurn()
     //    This covers the revive case: ItemEffectAction::Revive sets hp > 0
     //    but nothing previously re-added the combatant to mTimeline.
     //    The revived combatant waits one full AV cycle (kActionGauge / spd)
-    //    before acting — balanced so revive is useful without granting an
+    //    before acting - balanced so revive is useful without granting an
     //    immediate free turn.
     auto reinsertIfMissing = [this](IBattler* b) {
         if (!b || !b->IsAlive()) return;
         // Check if already present in the timeline.
         for (const auto& node : mTimeline)
             if (node.battler == b) return;
-        // Missing — re-insert with a full AV wait.
+        // Missing - re-insert with a full AV wait.
         float spd = static_cast<float>(b->GetStats().spd);
         if (spd <= 0.0f) spd = 1.0f;
         TurnNode node;
@@ -590,7 +603,7 @@ void BattleManager::AdvanceTurn()
 //   action in a DelayedAction before enqueuing.
 //
 // Why wrap every action with DelayedAction?
-//   Raw actions (DamageAction, LogAction) complete instantaneously — the
+//   Raw actions (DamageAction, LogAction) complete instantaneously - the
 //   entire turn would resolve in a single frame with no visible feedback.
 //   DelayedAction holds the queue for kDefaultDelay (1.0 s) after each
 //   action, giving the player time to read log text and see hit reactions.
@@ -672,6 +685,9 @@ std::vector<IBattler*> BattleManager::ResolveSkillTargets(
         if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
         else targets.push_back(&caster);
         break;
+    case SkillTargeting::SingleAllyAny:
+        if (primaryTarget && primaryTarget->IsPlayerControlled()) targets.push_back(primaryTarget);
+        break;
     case SkillTargeting::AllAllies:
         targets = GetAlivePlayers();
         break;
@@ -692,9 +708,9 @@ std::vector<IBattler*> BattleManager::ResolveSkillTargets(
 //   EnqueueSkillActions does.
 //
 // Validation order:
-//   1. Item id must exist in ItemRegistry  — typo in JSON otherwise
-//   2. Inventory count must be > 0          — anti-double-spend guard
-//   3. BuildItemActions must return non-empty — targeting must resolve
+//   1. Item id must exist in ItemRegistry  - typo in JSON otherwise
+//   2. Inventory count must be > 0          - anti-double-spend guard
+//   3. BuildItemActions must return non-empty - targeting must resolve
 //
 // Any failure produces a battle log entry and refunds the turn (no
 // inventory decrement runs because the action sequence is never queued).
@@ -733,7 +749,7 @@ void BattleManager::EnqueueItemActions(IBattler& user,
     auto actions = BuildItemActions::Build(user, *item, primaryTarget, *this);
     if (actions.empty())
     {
-        // Targeting failed — log and let the player choose again next turn.
+        // Targeting failed - log and let the player choose again next turn.
         Log(LocalizationManager::Get().Format("battle.log.could_not_aim_item", {
             { "actor", user.GetName() },
             { "item", item->name }
@@ -812,7 +828,7 @@ void BattleManager::SetPlayerAction(int skillIndex, IBattler* target)
 
 // ------------------------------------------------------------
 // SetPlayerItem: queue an item-use action for the active player.
-// Bounces if the active turn is not a player slot — input is only
+// Bounces if the active turn is not a player slot - input is only
 // valid during PLAYER_TURN, but defensive checks here keep the API
 // safe to call from arbitrary UI paths.
 // ------------------------------------------------------------

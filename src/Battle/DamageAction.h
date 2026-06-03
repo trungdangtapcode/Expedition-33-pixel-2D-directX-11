@@ -1,19 +1,19 @@
 // ============================================================
 // File: DamageAction.h
-// Responsibility: Atomic action — deal damage from attacker to defender.
+// Responsibility: Atomic action - deal damage from attacker to defender.
 //
 // Completes instantly (returns true on first Execute call).
-// Rage is distributed inside Combatant::TakeDamage, not here.
+// Rage is distributed here after final damage is known.
 //
 // Context wiring:
 //   The action stores a raw const BattleContext* pointing at
 //   BattleManager::mContext (stable for the battle duration).  The
 //   snapshot CONTENTS change each frame via BattleManager::RebuildContext,
 //   so by the time Execute() runs the damage calculator sees the
-//   CURRENT alive lists, turn count, and conditional modifiers — not
+//   CURRENT alive lists, turn count, and conditional modifiers - not
 //   the values captured at queue time.
 //
-//   Never store a BattleContext by value inside this action — it would
+//   Never store a BattleContext by value inside this action - it would
 //   freeze at queue time and miss every state change before execution.
 // ============================================================
 #pragma once
@@ -26,7 +26,7 @@ struct BattleContext;
 class DamageAction : public IAction
 {
 public:
-    // ctx is optional at construction — BattleManager may inject it later
+    // ctx is optional at construction - BattleManager may inject it later
     // when the action is enqueued.  If still null at Execute time, the
     // action falls back to a freshly-constructed empty context so the
     // calculator still runs (buffs with predicates won't activate).

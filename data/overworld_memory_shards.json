@@ -1,0 +1,63 @@
+{
+  "shards": [
+    {
+      "id": "paris_first_echo",
+      "displayNameKey": "memory_shard.paris_first_echo.name",
+      "displayName": "Memory Shard",
+      "texturePath": "assets/UI/memory_shard.png",
+      "collectedFlag": "memory_shard:paris_first_echo",
+      "dialoguePath": "data/dialogues/memory_paris_first_echo.json",
+      "coinReward": 10,
+      "itemId": "potion_small",
+      "itemAmount": 1,
+      "worldX": 420.0,
+      "worldY": 220.0,
+      "contactRadius": 90.0,
+      "scale": 0.72,
+      "bobAmplitude": 5.0,
+      "bobSpeed": 3.0,
+      "layer": 51,
+      "sortYOffset": -14.0
+    },
+    {
+      "id": "western_watch_echo",
+      "displayNameKey": "memory_shard.western_watch_echo.name",
+      "displayName": "Memory Shard",
+      "texturePath": "assets/UI/memory_shard.png",
+      "collectedFlag": "memory_shard:western_watch_echo",
+      "dialoguePath": "data/dialogues/memory_western_watch_echo.json",
+      "requiresFlags": [ "story.maelle_joined" ],
+      "coinReward": 15,
+      "itemId": "ether_small",
+      "itemAmount": 1,
+      "worldX": -2560.0,
+      "worldY": 940.0,
+      "contactRadius": 92.0,
+      "scale": 0.74,
+      "bobAmplitude": 6.0,
+      "bobSpeed": 3.2,
+      "layer": 51,
+      "sortYOffset": -14.0
+    },
+    {
+      "id": "glass_shrine_echo",
+      "displayNameKey": "memory_shard.glass_shrine_echo.name",
+      "displayName": "Memory Shard",
+      "texturePath": "assets/UI/memory_shard.png",
+      "collectedFlag": "memory_shard:glass_shrine_echo",
+      "dialoguePath": "data/dialogues/memory_glass_shrine_echo.json",
+      "requiresFlags": [ "enemy_defeated:pilgrim_crossing_patrol" ],
+      "coinReward": 20,
+      "itemId": "ether_medium",
+      "itemAmount": 1,
+      "worldX": 520.0,
+      "worldY": 1740.0,
+      "contactRadius": 96.0,
+      "scale": 0.76,
+      "bobAmplitude": 6.0,
+      "bobSpeed": 3.4,
+      "layer": 51,
+      "sortYOffset": -14.0
+    }
+  ]
+}

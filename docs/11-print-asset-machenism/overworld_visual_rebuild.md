@@ -11,20 +11,45 @@ The current foundation is:
 - Region themes that blend subtle world-only color grading as the player moves.
 - Screen-space UI rendered after world filters so text and coin HUD stay readable.
 
-## Generated Asset Pipeline
+## Asset Pipeline
 
 The generated v2 art lives in:
 
 ```text
 assets/environments/overworld_tiles_v2.png
-assets/environments/overworld_objects_v2.png
+assets/environments/overworld_objects_v3.png
+assets/environments/overworld_route_props.png
 ```
 
-Regenerate the atlases:
+Regenerate deterministic ground and road tiles:
 
 ```bat
 python patches\compile_assets.py
 ```
+
+`patches\compile_assets.py` intentionally does not write
+`overworld_objects_v3.png`. The object atlas is imagegen-sourced art, then
+locally chroma-keyed and resized into the existing 8x8 64px atlas contract.
+Do not reintroduce Python-drawn rectangle/circle props for that atlas.
+
+The current `overworld_objects_v3.png` source was generated with the imagegen
+skill as a 512px-style top-down pixel-art atlas on a green chroma-key
+background. Local processing only removed the key color and resized the result
+to 512x512; no script drew the prop shapes.
+
+If weak 64x64 cells need repair, use:
+
+```bat
+python patches\repair_overworld_object_cells.py
+```
+
+That script copies stronger painted cells from the previous imagegen atlas into
+the active atlas. It is a compositing repair step only; it must not draw new
+primitive rectangle/circle props.
+
+`overworld_route_props.png` is also imagegen-sourced. It contains larger 128px
+transparent cutout landmarks for route readability: barricades, lamps, signal
+posts, statue fragments, carts, glass monuments, tents, and mirror shards.
 
 Regenerate the map and prop placement data:
 
@@ -43,7 +68,8 @@ The repository ignores PNG files by default, so new generated atlas PNGs must
 be force-added when committing:
 
 ```bat
-git add -f assets\environments\overworld_tiles_v2.png assets\environments\overworld_objects_v2.png
+git add -f assets\environments\overworld_tiles_v2.png assets\environments\overworld_objects_v3.png
+git add -f assets\environments\overworld_route_props.png
 ```
 
 ## Dirt Road Style
@@ -63,21 +89,38 @@ If a future pass makes roads look tiled again, fix the generator first and then
 regenerate the atlas. Do not hand-paint only the committed PNG, because the next
 generator run would reintroduce the artifact.
 
-## Low Object Tiles
+## Object Atlas Rules
 
-Small tile-layer props such as the market table and signpost are generated in
-`draw_prop_tile()` in `patches/compile_assets.py`.
-
-These props should use:
+Small tile-layer props come from `assets/environments/overworld_objects_v3.png`.
+This atlas should use:
 
 - A readable silhouette at 64x64.
 - A dark one-pixel outline only where it separates the prop from terrain.
 - Small cast shadows to anchor the prop to the ground.
 - Plank seams, highlights, and nail marks instead of flat rectangles.
+- Top-down perspective only; no isometric cutouts.
+- Real painted forms from image generation or artist source, not procedural
+  primitive geometry.
+
+The active tile ID contract in `patches/generate_map.py` expects this atlas to
+stay at 512x512 with 8 columns and 8 rows of 64px cells. Only 64x64 cells from
+this atlas should be placed. Do not use larger source rectangles from this
+atlas, because generated composite cells often include baked terrain that
+renders as square ground patches when placed on a different tile background.
+The low-object cells currently used by the map are:
+
+- Row 0: stone wall horizontal, stone wall vertical, cracked block, signpost,
+  market bench/table, crate, barrel, bush.
+- Row 1: cobblestone patch, glass shard cluster, flowers, planks, loose
+  stones, short lantern, iron fence, rubble.
 
 They should not carry interaction logic. If an object becomes interactive or
 needs Y-sorting against the player, move it into `data/overworld_props.json`
-and render it through `OverworldStaticProp`.
+and render it through `OverworldStaticProp` using a transparent cutout source.
+
+Route landmark props come from `assets/environments/overworld_route_props.png`
+and are placed only through `data/overworld_props.json`. Keep them off the main
+walk line unless the matching collision rectangle is meant to block the path.
 
 ## Tiled Layer Rules
 
@@ -111,9 +154,9 @@ Example:
 ```json
 {
   "id": "glass_shrine_north",
-  "texturePath": "assets/environments/overworld_objects_v2.png",
-  "sourceX": 0,
-  "sourceY": 256,
+  "texturePath": "assets/environments/overworld_route_props.png",
+  "sourceX": 256,
+  "sourceY": 128,
   "sourceWidth": 128,
   "sourceHeight": 128,
   "worldX": 448.0,

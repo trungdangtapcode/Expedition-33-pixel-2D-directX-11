@@ -200,6 +200,20 @@ void BattleTextRenderer::DrawStringCenteredRaw(const char* text,
     mFont->DrawString(mSpriteBatch.get(), text, XMFLOAT2(centerX, y), color, 0.0f, origin, scale);
 }
 
+// ============================================================
+// MeasureStringRaw
+// ============================================================
+DirectX::XMFLOAT2 BattleTextRenderer::MeasureStringRaw(const char* text,
+                                                       float       scale) const
+{
+    if (!IsReady() || !text || !*text) return XMFLOAT2(0.0f, 0.0f);
+
+    // SpriteFont measures unscaled glyph bounds. Multiplying here lets UI
+    // layout code make wrapping decisions without knowing SpriteFont internals.
+    const XMVECTOR size = mFont->MeasureString(text);
+    return XMFLOAT2(XMVectorGetX(size) * scale, XMVectorGetY(size) * scale);
+}
+
 void BattleTextRenderer::EndBatch()
 {
     if (!IsReady()) return;

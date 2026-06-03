@@ -1,0 +1,21 @@
+{
+  "panelWidth": 760.0,
+  "panelHeight": 500.0,
+  "titleY": 34.0,
+  "subtitleY": 78.0,
+  "iconX": 72.0,
+  "iconY": 46.0,
+  "iconSize": 64.0,
+  "listX": 84.0,
+  "listY": 132.0,
+  "listWidth": 360.0,
+  "rowHeight": 46.0,
+  "maxVisibleRows": 7,
+  "detailX": 472.0,
+  "detailY": 132.0,
+  "detailWidth": 242.0,
+  "detailHeight": 270.0,
+  "hintY": 456.0,
+  "flashY": 420.0,
+  "flashDuration": 1.6
+}

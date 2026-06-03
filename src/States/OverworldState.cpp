@@ -284,15 +284,15 @@ void OverworldState::OnEnter()
     }
 
     // --- Spawn overworld enemies ---
-    // Positions live in data/overworld_spawns.json so encounter pacing can
-    // follow the map story without recompiling this state.
+    // Positions and persistence live in data/overworld_spawns.json so encounter
+    // pacing and farmability can change without recompiling this state.
     std::vector<OverworldEnemySpawnData> enemySpawns;
     if (LoadEnemySpawnData(enemySpawns))
     {
         for (const OverworldEnemySpawnData& spawn : enemySpawns)
         {
             const std::string defeatedFlag = "enemy_defeated:" + spawn.id;
-            if (GameProgress::Get().HasFlag(defeatedFlag))
+            if (!spawn.respawnAfterDefeat && GameProgress::Get().HasFlag(defeatedFlag))
             {
                 LOG("[OverworldState] Spawn '%s' skipped because it is already defeated.",
                     spawn.id.c_str());
@@ -661,6 +661,8 @@ bool OverworldState::LoadEnemySpawnData(std::vector<OverworldEnemySpawnData>& ou
             JsonLoader::detail::ExtractStringArray(objectSrc, "requiresFlags");
         data.blockedByFlags =
             JsonLoader::detail::ExtractStringArray(objectSrc, "blockedByFlags");
+        data.respawnAfterDefeat = JsonLoader::detail::ParseBool(
+            JsonLoader::detail::ValueOf(objectSrc, "respawnAfterDefeat"), false);
         data.worldX = JsonLoader::detail::ParseFloat(
             JsonLoader::detail::ValueOf(objectSrc, "worldX"), 0.0f);
         data.worldY = JsonLoader::detail::ParseFloat(
@@ -1145,8 +1147,9 @@ bool OverworldState::LoadFeedbackData()
 // Purpose:
 //   Gate an overworld enemy spawn by durable story flags.
 // Why:
-//   Encounter pacing should be data-authored. The opening chapter can start
-//   with Verso alone, then unlock wider patrols after Maelle joins.
+//   Encounter pacing should be data-authored. Defeat persistence is handled
+//   separately by respawnAfterDefeat so farmable enemies can still set objective
+//   flags without disappearing forever from later loads.
 // ------------------------------------------------------------
 bool OverworldState::IsEnemySpawnAvailable(const OverworldEnemySpawnData& spawn) const
 {

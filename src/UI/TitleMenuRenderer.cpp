@@ -245,10 +245,33 @@ bool TitleMenuRenderer::LoadLayout(const std::string& layoutPath)
     mLayout.optionsFutureTagHeight = ReadJsonFloat(src, "optionsFutureTagHeight", mLayout.optionsFutureTagHeight);
     mLayout.slotStartY = ReadJsonFloat(src, "slotStartY", mLayout.slotStartY);
     mLayout.slotRowHeight = ReadJsonFloat(src, "slotRowHeight", mLayout.slotRowHeight);
+    mLayout.creditsPanelWidth = ReadJsonFloat(src, "creditsPanelWidth", mLayout.creditsPanelWidth);
+    mLayout.creditsPanelHeight = ReadJsonFloat(src, "creditsPanelHeight", mLayout.creditsPanelHeight);
+    mLayout.creditsPanelBottom = ReadJsonFloat(src, "creditsPanelBottom", mLayout.creditsPanelBottom);
+    mLayout.creditsTitleY = ReadJsonFloat(src, "creditsTitleY", mLayout.creditsTitleY);
+    mLayout.creditsStartY = ReadJsonFloat(src, "creditsStartY", mLayout.creditsStartY);
+    mLayout.creditsRowHeight = ReadJsonFloat(src, "creditsRowHeight", mLayout.creditsRowHeight);
+    mLayout.creditsRoleInset = ReadJsonFloat(src, "creditsRoleInset", mLayout.creditsRoleInset);
+    mLayout.creditsNameInset = ReadJsonFloat(src, "creditsNameInset", mLayout.creditsNameInset);
+    mLayout.creditsTitleScale = ReadJsonFloat(src, "creditsTitleScale", mLayout.creditsTitleScale);
+    mLayout.creditsTextScale = ReadJsonFloat(src, "creditsTextScale", mLayout.creditsTextScale);
     mLayout.flashDuration = ReadJsonFloat(src, "flashDuration", mLayout.flashDuration);
     mLayout.transitionFadeOutDuration = ReadJsonFloat(src,
                                                        "transitionFadeOutDuration",
                                                        mLayout.transitionFadeOutDuration);
+    mLayout.credits.clear();
+    const std::vector<std::string> creditObjects =
+        JsonLoader::detail::ExtractObjectsFromArray(src, "credits");
+    for (const std::string& creditSrc : creditObjects)
+    {
+        Layout::CreditEntry entry{};
+        entry.roleKey = ReadJsonString(creditSrc, "roleKey", "");
+        entry.name = ReadJsonString(creditSrc, "name", "");
+        if (!entry.roleKey.empty() && !entry.name.empty())
+        {
+            mLayout.credits.push_back(entry);
+        }
+    }
 
     if (mLayout.logoAlphaMax < mLayout.logoAlphaMin)
     {
@@ -572,6 +595,10 @@ void TitleMenuRenderer::Render(ID3D11DeviceContext* context,
     {
         RenderOptions(context, state);
     }
+    else if (state.phase == TitleMenuVisualPhase::Credits)
+    {
+        RenderCredits(context, state);
+    }
     else
     {
         RenderMainOptions(context, state);
@@ -669,11 +696,86 @@ void TitleMenuRenderer::RenderMainOptions(ID3D11DeviceContext* context,
     {
         mTextRenderer.DrawStringCenteredRaw(state.flashMessage.c_str(),
                                             screenW * 0.5f,
-                                            listY + mLayout.optionRowHeight * 4.5f,
+                                            listY + mLayout.optionRowHeight *
+                                                (static_cast<float>(state.options.size()) + 0.55f),
                                             DirectX::XMVectorSet(0.72f, 1.0f, 0.72f,
                                                                   Clamp01(state.flashAlpha)));
     }
 
+    mTextRenderer.EndBatch();
+}
+
+// ------------------------------------------------------------
+// Function: RenderCredits
+// Purpose:
+//   Draw the project credit section from layout and localization data.
+// Why:
+//   Credits are player-facing menu content, but the renderer should not
+//   hardcode names, roles, or row positions in C++.
+// ------------------------------------------------------------
+void TitleMenuRenderer::RenderCredits(ID3D11DeviceContext* context,
+                                      const TitleMenuRenderState& state)
+{
+    const float screenW = static_cast<float>(mScreenW);
+    const float screenH = static_cast<float>(mScreenH);
+    const float panelW = std::min(mLayout.creditsPanelWidth, screenW - kPanelMargin * 2.0f);
+    const float panelH = std::min(mLayout.creditsPanelHeight, screenH - kPanelMargin * 2.0f);
+    const float panelX = (screenW - panelW) * 0.5f;
+    float panelY = screenH - panelH - mLayout.creditsPanelBottom;
+    panelY = std::max(kPanelMargin, panelY);
+
+    DrawFillRect(context,
+                 0.0f,
+                 panelY - 24.0f,
+                 screenW,
+                 panelH + 48.0f,
+                 DirectX::XMVectorSet(0.0f, 0.0f, 0.0f, 0.46f));
+    DrawFillRect(context,
+                 panelX,
+                 panelY,
+                 panelW,
+                 panelH,
+                 DirectX::XMVectorSet(0.025f, 0.023f, 0.022f, 0.58f));
+    DrawFillRect(context,
+                 panelX + 34.0f,
+                 panelY + 66.0f,
+                 panelW - 68.0f,
+                 2.0f,
+                 DirectX::XMVectorSet(0.80f, 0.62f, 0.36f, 0.58f));
+
+    mTextRenderer.BeginBatch(context);
+    mTextRenderer.DrawStringCenteredRaw(LocalizationManager::Get().Text("menu.credits").c_str(),
+                                        panelX + panelW * 0.5f,
+                                        panelY + mLayout.creditsTitleY,
+                                        DirectX::XMVectorSet(1.0f, 0.91f, 0.68f, 1.0f),
+                                        mLayout.creditsTitleScale,
+                                        true);
+
+    for (int i = 0; i < static_cast<int>(mLayout.credits.size()); ++i)
+    {
+        const Layout::CreditEntry& entry = mLayout.credits[static_cast<size_t>(i)];
+        const float rowY = panelY + mLayout.creditsStartY +
+            static_cast<float>(i) * mLayout.creditsRowHeight;
+        const std::string role = LocalizationManager::Get().TextOrFallback(entry.roleKey, entry.roleKey);
+
+        mTextRenderer.DrawStringRawScaled(role.c_str(),
+                                          panelX + mLayout.creditsRoleInset,
+                                          rowY,
+                                          DirectX::XMVectorSet(0.82f, 0.64f, 0.36f, 0.96f),
+                                          mLayout.creditsTextScale);
+        mTextRenderer.DrawStringRawScaled(entry.name.c_str(),
+                                          panelX + mLayout.creditsNameInset,
+                                          rowY,
+                                          DirectX::XMVectorSet(0.92f, 0.90f, 0.84f, 0.94f),
+                                          mLayout.creditsTextScale);
+    }
+
+    mTextRenderer.DrawStringCenteredRaw(LocalizationManager::Get().Text("menu.back").c_str(),
+                                        panelX + panelW * 0.5f,
+                                        panelY + panelH - 42.0f,
+                                        DirectX::XMVectorSet(0.76f, 0.74f, 0.68f, 0.72f),
+                                        0.88f,
+                                        false);
     mTextRenderer.EndBatch();
 }
 

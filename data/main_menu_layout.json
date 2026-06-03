@@ -10,7 +10,7 @@
   "pressPromptY": 560.0,
   "pressPromptScale": 1.28,
   "pressPromptBlinkSpeed": 3.4,
-  "optionStartY": 514.0,
+  "optionStartY": 414.0,
   "optionRowHeight": 38.0,
   "optionTextScale": 1.08,
   "optionsPanelWidth": 760.0,
@@ -36,6 +36,38 @@
   "slotPanelBottom": 52.0,
   "slotStartY": 98.0,
   "slotRowHeight": 76.0,
+  "creditsPanelWidth": 860.0,
+  "creditsPanelHeight": 360.0,
+  "creditsPanelBottom": 50.0,
+  "creditsTitleY": 34.0,
+  "creditsStartY": 92.0,
+  "creditsRowHeight": 48.0,
+  "creditsRoleInset": 90.0,
+  "creditsNameInset": 390.0,
+  "creditsTitleScale": 1.24,
+  "creditsTextScale": 0.94,
+  "credits": [
+    {
+      "roleKey": "credits.role.game_design",
+      "name": "Nguyen Tran Nhat Trung (23521684)"
+    },
+    {
+      "roleKey": "credits.role.programmer",
+      "name": "Nguyen Tran Nhat Trung (23521684)"
+    },
+    {
+      "roleKey": "credits.role.sprite_design",
+      "name": "Nguyen Tran Nhat Trung (23521684)"
+    },
+    {
+      "roleKey": "credits.role.ui",
+      "name": "Nguyen Tran Nhat Trung (23521684)"
+    },
+    {
+      "roleKey": "credits.role.supervisor",
+      "name": "PhD. Vu Tuan Hai"
+    }
+  ],
   "flashDuration": 2.2,
   "transitionFadeOutDuration": 1.55
 }

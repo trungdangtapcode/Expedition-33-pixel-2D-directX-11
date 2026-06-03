@@ -22,7 +22,7 @@
   "qteLeadInSeconds": 0.10,
   "qteSpacing": 0.10,
   "qteNodeDuration": 0.65,
-  "mpRestorePercent": 0.05,
+  "mpRestorePercent": 0.1,
   "mpRestoreTiming": "after_damage",
   "rageGainRule": "basic_attack",
   "uiSortGroup": "basic",

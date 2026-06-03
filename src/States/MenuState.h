@@ -31,6 +31,7 @@ private:
     {
         PressStart,
         MainOptions,
+        Credits,
         Options,
         NewGameSlots,
         LoadSlots
@@ -42,6 +43,7 @@ private:
         Continue,
         LoadSlot,
         Options,
+        Credits,
         Quit,
         Count
     };

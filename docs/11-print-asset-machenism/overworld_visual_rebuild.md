@@ -37,6 +37,16 @@ skill as a 512px-style top-down pixel-art atlas on a green chroma-key
 background. Local processing only removed the key color and resized the result
 to 512x512; no script drew the prop shapes.
 
+If weak 64x64 cells need repair, use:
+
+```bat
+python patches\repair_overworld_object_cells.py
+```
+
+That script copies stronger painted cells from the previous imagegen atlas into
+the active atlas. It is a compositing repair step only; it must not draw new
+primitive rectangle/circle props.
+
 `overworld_route_props.png` is also imagegen-sourced. It contains larger 128px
 transparent cutout landmarks for route readability: barricades, lamps, signal
 posts, statue fragments, carts, glass monuments, tents, and mirror shards.

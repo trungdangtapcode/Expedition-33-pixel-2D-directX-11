@@ -78,6 +78,7 @@ struct OverworldEnemySpawnData
     std::string encounterPath;
     std::vector<std::string> requiresFlags;
     std::vector<std::string> blockedByFlags;
+    bool respawnAfterDefeat = false;
     float worldX = 0.0f;
     float worldY = 0.0f;
 };

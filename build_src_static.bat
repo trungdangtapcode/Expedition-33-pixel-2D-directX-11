@@ -23,6 +23,7 @@ set COMPILE_RSP=%OBJ_DIR%\__compile_sources.obj
 set LINK_RSP=%OBJ_DIR%\__link_objects.obj
 set COMPILE_COUNT_FILE=%OBJ_DIR%\__compile_count.obj
 set BUILD_REASON_FILE=%OBJ_DIR%\__build_reason.obj
+set RESOURCE_RES=%OBJ_DIR%\game_icon.res
 
 REM --- Determine build configuration ---
 set BUILD_TYPE=Debug
@@ -49,6 +50,8 @@ REM Find the Windows SDK version
 for /f "delims=" %%i in ('dir /b /ad "%WINSDK_DIR%\Include" 2^>nul') do set WINSDK_VER=%%i
 
 set PATH=%MSVC_DIR%\bin\Hostx64\x64;%PATH%
+set RC_EXE=%WINSDK_DIR%\bin\%WINSDK_VER%\x64\rc.exe
+if not exist "%RC_EXE%" set RC_EXE=%WINSDK_DIR%\bin\x64\rc.exe
 
 if not exist "%OUT_DIR%" mkdir "%OUT_DIR%"
 if not exist "%OBJ_DIR%" mkdir "%OBJ_DIR%"
@@ -90,7 +93,14 @@ if "!COMPILE_COUNT!"=="0" (
 )
 
 echo Linking cached object set...
-link.exe /nologo @"%LINK_RSP%" /OUT:%OUT_DIR%\game.exe %CL_LINKS%
+if exist "%RC_EXE%" (
+    "%RC_EXE%" /nologo /I "src" /fo "%RESOURCE_RES%" src\game.rc
+    if errorlevel 1 goto BuildFailed
+) else (
+    echo [ERROR] Windows resource compiler not found: "%RC_EXE%"
+    goto BuildFailed
+)
+link.exe /nologo @"%LINK_RSP%" "%RESOURCE_RES%" /OUT:%OUT_DIR%\game.exe %CL_LINKS%
 if errorlevel 1 goto BuildFailed
 
 powershell -NoProfile -ExecutionPolicy Bypass -File tools\prepare_incremental_build.ps1 Commit

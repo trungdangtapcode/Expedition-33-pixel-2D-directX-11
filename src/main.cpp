@@ -12,7 +12,7 @@
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE, LPSTR, int) {
     GameApp app;
 
-    if (!app.Initialize(hInstance, L"My Game - DirectX 11", 1280, 720)) {
+    if (!app.Initialize(hInstance, L"Expedition 33 - DirectX 11", 1280, 720)) {
         MessageBoxW(nullptr, L"Initialization failed. See previous error dialog for details.",
                     L"Fatal Error", MB_OK | MB_ICONERROR);
         return -1;

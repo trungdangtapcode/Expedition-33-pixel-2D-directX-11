@@ -8,6 +8,7 @@
 //                then fade to black before entering overworld.
 //   Continue  -> load the first occupied slot, then fade to black.
 //   Load Slot -> open a visual slot picker backed by SaveManager metadata.
+//   Credits   -> show project attribution from data/main_menu_layout.json.
 //   Quit      -> request process shutdown through the Win32 message queue.
 //
 // Lifetime:
@@ -261,6 +262,7 @@ std::string MenuState::MainOptionLabel(MainOption option)
     case MainOption::Continue: return LocalizationManager::Get().Text("menu.continue");
     case MainOption::LoadSlot: return LocalizationManager::Get().Text("menu.load_slot");
     case MainOption::Options:  return LocalizationManager::Get().Text("menu.options");
+    case MainOption::Credits:  return LocalizationManager::Get().Text("menu.credits");
     case MainOption::Quit:     return LocalizationManager::Get().Text("menu.quit");
     default:                   return "";
     }
@@ -283,6 +285,7 @@ bool MenuState::IsMainOptionEnabled(MainOption option) const
         return hasSave;
     case MainOption::NewGame:
     case MainOption::Options:
+    case MainOption::Credits:
     case MainOption::Quit:
         return true;
     default:
@@ -538,6 +541,10 @@ void MenuState::ActivateMainSelection()
         mCursor = 0;
         AudioManager::Get().PlaySfx("ui_confirm");
         break;
+    case MainOption::Credits:
+        mPhase = Phase::Credits;
+        AudioManager::Get().PlaySfx("ui_confirm");
+        break;
     case MainOption::Quit:
         AudioManager::Get().PlaySfx("ui_back");
         PostQuitMessage(0);
@@ -739,13 +746,21 @@ void MenuState::Update(float dt)
     }
 
     if ((backPressed || escapePressed) &&
-        (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots || mPhase == Phase::Options))
+        (mPhase == Phase::NewGameSlots ||
+         mPhase == Phase::LoadSlots ||
+         mPhase == Phase::Options ||
+         mPhase == Phase::Credits))
     {
         const bool wasOptions = (mPhase == Phase::Options);
+        const bool wasCredits = (mPhase == Phase::Credits);
         mPhase = Phase::MainOptions;
         if (wasOptions)
         {
             mCursor = static_cast<int>(MainOption::Options);
+        }
+        if (wasCredits)
+        {
+            mCursor = static_cast<int>(MainOption::Credits);
         }
         AudioManager::Get().PlaySfx("ui_back");
         return;
@@ -769,7 +784,7 @@ void MenuState::Update(float dt)
         {
             MoveOptionsCursor(-1);
         }
-        else
+        else if (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots)
         {
             MoveSlotCursor(-1);
         }
@@ -786,7 +801,7 @@ void MenuState::Update(float dt)
         {
             MoveOptionsCursor(1);
         }
-        else
+        else if (mPhase == Phase::NewGameSlots || mPhase == Phase::LoadSlots)
         {
             MoveSlotCursor(1);
         }
@@ -829,6 +844,12 @@ void MenuState::Update(float dt)
         else if (mPhase == Phase::Options)
         {
             ActivateOptionsSelection();
+        }
+        else if (mPhase == Phase::Credits)
+        {
+            mPhase = Phase::MainOptions;
+            mCursor = static_cast<int>(MainOption::Credits);
+            AudioManager::Get().PlaySfx("ui_back");
         }
         else
         {
@@ -1027,6 +1048,10 @@ TitleMenuRenderState MenuState::BuildRenderState() const
     else if (mPhase == Phase::Options)
     {
         state.phase = TitleMenuVisualPhase::Options;
+    }
+    else if (mPhase == Phase::Credits)
+    {
+        state.phase = TitleMenuVisualPhase::Credits;
     }
     else if (mPhase == Phase::NewGameSlots)
     {

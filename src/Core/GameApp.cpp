@@ -20,6 +20,7 @@
 // ============================================================
 #include "GameApp.h"
 #include "../Renderer/D3DContext.h"
+#include "../resource.h"
 #include "../States/StateManager.h"
 #include "../States/MenuState.h"
 #include "../Events/EventManager.h"
@@ -152,6 +153,21 @@ bool GameApp::InitWindow(HINSTANCE hInstance) {
     wc.lpfnWndProc   = WindowProc;
     wc.hInstance     = hInstance;
     wc.hCursor       = LoadCursor(nullptr, IDC_ARROW);
+    wc.hIcon         = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_APP_ICON));
+    wc.hIconSm       = static_cast<HICON>(LoadImage(hInstance,
+                                                    MAKEINTRESOURCE(IDI_APP_ICON),
+                                                    IMAGE_ICON,
+                                                    16,
+                                                    16,
+                                                    LR_DEFAULTCOLOR));
+    if (!wc.hIcon)
+    {
+        wc.hIcon = LoadIcon(nullptr, IDI_APPLICATION);
+    }
+    if (!wc.hIconSm)
+    {
+        wc.hIconSm = wc.hIcon;
+    }
     wc.hbrBackground = (HBRUSH)GetStockObject(BLACK_BRUSH);
     wc.lpszClassName = L"GameAppWindowClass";
     RegisterClassEx(&wc);

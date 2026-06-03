@@ -1,0 +1,15 @@
+// ============================================================
+// File: game.rc
+// Responsibility: Bind Windows executable resources.
+//
+// Lifetime:
+//   Compiled by build_src_static.bat into bin/obj/game_icon.res.
+//   Linked into bin/game.exe during the final link step.
+//
+// Important:
+//   - Resource paths are resolved from the workspace root by the build script.
+//   - IDI_APP_ICON is also loaded by GameApp for the window icon.
+// ============================================================
+#include "resource.h"
+
+IDI_APP_ICON ICON "assets\\game.ico"
